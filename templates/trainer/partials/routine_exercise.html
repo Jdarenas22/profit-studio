@@ -1,0 +1,35 @@
+<div id="re-{{ re.pk }}" class="flex items-start gap-4 px-5 py-4 hover:bg-white/2 group transition-colors">
+  <!-- Número de orden -->
+  <div class="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 text-primary font-black text-xs mt-0.5">
+    {{ re.order|add:1 }}
+  </div>
+
+  <div class="flex-1 min-w-0">
+    <p class="text-white font-semibold text-sm">{{ re.exercise.name }}</p>
+    <div class="flex flex-wrap gap-2 mt-2">
+      <span class="bg-black/40 text-white/70 text-xs px-2.5 py-1 rounded-lg">
+        <i class="fa fa-layer-group text-primary text-xs mr-1"></i>{{ re.sets }} series
+      </span>
+      <span class="bg-black/40 text-white/70 text-xs px-2.5 py-1 rounded-lg">
+        <i class="fa fa-repeat text-primary text-xs mr-1"></i>{{ re.reps }} reps
+      </span>
+      <span class="bg-black/40 text-white/70 text-xs px-2.5 py-1 rounded-lg">
+        <i class="fa fa-clock text-primary text-xs mr-1"></i>{{ re.rest_seconds }}s descanso
+      </span>
+    </div>
+    {% if re.observations %}
+    <p class="text-white/30 text-xs mt-2">
+      <i class="fa fa-note-sticky text-primary/60 mr-1"></i>{{ re.observations }}
+    </p>
+    {% endif %}
+  </div>
+
+  <!-- Botón eliminar -->
+  <button hx-post="{% url 'trainer_remove_exercise' routine.pk day.pk re.pk %}"
+          hx-target="#re-{{ re.pk }}"
+          hx-swap="outerHTML"
+          hx-confirm="¿Quitar '{{ re.exercise.name }}' de este día?"
+          class="w-7 h-7 opacity-0 group-hover:opacity-100 bg-white/5 hover:bg-red-600/20 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 transition-all shrink-0 mt-0.5">
+    <i class="fa fa-times text-xs"></i>
+  </button>
+</div>

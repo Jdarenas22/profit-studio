@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Planes y Membresías — ProFit Studio{% endblock %}
+{% block description %}Conoce los planes de entrenamiento personalizado de ProFit Studio. Rutinas con video, seguimiento y valoración inicial incluida.{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="py-20 bg-zinc-950 border-b border-white/5">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Membresías</p>
+    <h1 class="text-5xl sm:text-6xl font-black text-white mb-4">Planes</h1>
+    <p class="text-white/50 text-xl max-w-xl mx-auto">
+      Elige el plan que mejor se adapte a tu ritmo. Todos incluyen rutina personalizada y seguimiento directo.
+    </p>
+  </div>
+</section>
+
+<!-- Lo que incluye TODO plan -->
+<section class="py-14 bg-black border-b border-white/5">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <p class="text-center text-white/40 text-sm uppercase tracking-widest mb-8 font-medium">Todos los planes incluyen</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {% for item in "1234"|make_list %}
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 text-center">
+        {% if forloop.counter == 1 %}
+        <i class="fa fa-clipboard-list text-primary text-2xl mb-3"></i>
+        <p class="text-white font-semibold text-sm">Valoración inicial</p>
+        <p class="text-white/40 text-xs mt-1">IMC + Test Dixon</p>
+        {% elif forloop.counter == 2 %}
+        <i class="fa fa-dumbbell text-primary text-2xl mb-3"></i>
+        <p class="text-white font-semibold text-sm">Rutina personalizada</p>
+        <p class="text-white/40 text-xs mt-1">Diseñada para ti</p>
+        {% elif forloop.counter == 3 %}
+        <i class="fa fa-play-circle text-primary text-2xl mb-3"></i>
+        <p class="text-white font-semibold text-sm">Videos de ejercicios</p>
+        <p class="text-white/40 text-xs mt-1">Técnica correcta</p>
+        {% else %}
+        <i class="fab fa-whatsapp text-primary text-2xl mb-3"></i>
+        <p class="text-white font-semibold text-sm">Soporte directo</p>
+        <p class="text-white/40 text-xs mt-1">Vía WhatsApp</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Planes desde DB -->
+<section class="py-20 bg-black">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    {% if plans %}
+    <div class="grid grid-cols-1 md:grid-cols-{% if plans|length == 1 %}1 max-w-sm mx-auto{% elif plans|length == 2 %}2{% else %}3{% endif %} gap-8">
+      {% for plan in plans %}
+      <div class="relative bg-zinc-900 border {% if forloop.counter == 2 and plans|length >= 2 %}border-primary shadow-lg shadow-primary/10{% else %}border-white/10{% endif %} rounded-3xl p-8 flex flex-col">
+
+        {% if forloop.counter == 2 and plans|length >= 2 %}
+        <div class="absolute -top-3.5 left-1/2 -translate-x-1/2">
+          <span class="bg-primary text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
+            Más popular
+          </span>
+        </div>
+        {% endif %}
+
+        <div class="mb-6">
+          <p class="text-primary text-xs font-semibold uppercase tracking-widest mb-2">{{ plan.name }}</p>
+          <div class="flex items-baseline gap-1 mb-3">
+            <span class="text-4xl font-black text-white">
+              ${{ plan.reference_price|floatformat:0 }}
+            </span>
+            <span class="text-white/40 text-sm">COP / {{ plan.duration_days }} días</span>
+          </div>
+          {% if plan.description %}
+          <p class="text-white/50 text-sm leading-relaxed">{{ plan.description }}</p>
+          {% endif %}
+        </div>
+
+        <ul class="space-y-3 mb-8 flex-1">
+          <li class="flex items-center gap-3 text-sm text-white/70">
+            <i class="fa fa-check text-primary text-xs shrink-0"></i>
+            Valoración física inicial
+          </li>
+          <li class="flex items-center gap-3 text-sm text-white/70">
+            <i class="fa fa-check text-primary text-xs shrink-0"></i>
+            Rutina personalizada completa
+          </li>
+          <li class="flex items-center gap-3 text-sm text-white/70">
+            <i class="fa fa-check text-primary text-xs shrink-0"></i>
+            Videos de ejercicios privados
+          </li>
+          <li class="flex items-center gap-3 text-sm text-white/70">
+            <i class="fa fa-check text-primary text-xs shrink-0"></i>
+            Series, repeticiones y descansos
+          </li>
+          <li class="flex items-center gap-3 text-sm text-white/70">
+            <i class="fa fa-check text-primary text-xs shrink-0"></i>
+            Acceso por {{ plan.duration_days }} días
+          </li>
+        </ul>
+
+        {% if user.is_authenticated %}
+        <a href="{% url 'payment_checkout' plan.pk %}"
+           class="flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl transition-all duration-200 text-sm
+           {% if forloop.counter == 2 and plans|length >= 2 %}
+           bg-primary hover:bg-primary-dark text-white hover:scale-105
+           {% else %}
+           bg-white/10 hover:bg-primary/20 text-white hover:text-primary border border-white/10 hover:border-primary/30
+           {% endif %}">
+          <i class="fa fa-credit-card"></i> Pagar este plan
+        </a>
+        {% else %}
+        <a href="{% url 'register' %}?plan={{ plan.pk }}"
+           class="flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl transition-all duration-200 text-sm
+           {% if forloop.counter == 2 and plans|length >= 2 %}
+           bg-primary hover:bg-primary-dark text-white hover:scale-105
+           {% else %}
+           bg-white/10 hover:bg-primary/20 text-white hover:text-primary border border-white/10 hover:border-primary/30
+           {% endif %}">
+          <i class="fa fa-user-check"></i> Inscribirme con este plan
+        </a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- Sin planes en DB → Mostrar info estática -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+      <!-- Mensual -->
+      <div class="bg-zinc-900 border border-white/10 rounded-3xl p-8 flex flex-col">
+        <p class="text-primary text-xs font-semibold uppercase tracking-widest mb-2">Mensual</p>
+        <div class="flex items-baseline gap-1 mb-3">
+          <span class="text-4xl font-black text-white">30</span>
+          <span class="text-white/40 text-sm">días</span>
+        </div>
+        <p class="text-white/50 text-sm mb-6">Ideal para empezar y conocer la metodología.</p>
+        <ul class="space-y-3 mb-8 flex-1">
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Valoración inicial</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Rutina personalizada</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Videos de ejercicios</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Soporte por WhatsApp</li>
+        </ul>
+        <a href="{% url 'register' %}"
+           class="flex items-center justify-center gap-2 bg-white/10 hover:bg-primary/20 text-white hover:text-primary font-bold py-3 rounded-xl transition-colors text-sm border border-white/10">
+          <i class="fa fa-user-check"></i> Inscribirme
+        </a>
+      </div>
+
+      <!-- Trimestral — Popular -->
+      <div class="relative bg-zinc-900 border border-primary rounded-3xl p-8 flex flex-col shadow-lg shadow-primary/10">
+        <div class="absolute -top-3.5 left-1/2 -translate-x-1/2">
+          <span class="bg-primary text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">Más popular</span>
+        </div>
+        <p class="text-primary text-xs font-semibold uppercase tracking-widest mb-2">Trimestral</p>
+        <div class="flex items-baseline gap-1 mb-3">
+          <span class="text-4xl font-black text-white">90</span>
+          <span class="text-white/40 text-sm">días</span>
+        </div>
+        <p class="text-white/50 text-sm mb-6">El más elegido. Tiempo suficiente para ver resultados reales.</p>
+        <ul class="space-y-3 mb-8 flex-1">
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Todo lo del plan mensual</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Ajuste de rutina al mes 2</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Seguimiento de progreso</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Precio preferencial</li>
+        </ul>
+        <a href="{% url 'register' %}"
+           class="flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold py-3 rounded-xl transition-all hover:scale-105 text-sm">
+          <i class="fa fa-user-check"></i> Inscribirme
+        </a>
+      </div>
+
+      <!-- Semestral -->
+      <div class="bg-zinc-900 border border-white/10 rounded-3xl p-8 flex flex-col">
+        <p class="text-primary text-xs font-semibold uppercase tracking-widest mb-2">Semestral</p>
+        <div class="flex items-baseline gap-1 mb-3">
+          <span class="text-4xl font-black text-white">180</span>
+          <span class="text-white/40 text-sm">días</span>
+        </div>
+        <p class="text-white/50 text-sm mb-6">Para quienes se comprometen a largo plazo con su transformación.</p>
+        <ul class="space-y-3 mb-8 flex-1">
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Todo lo del plan trimestral</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Valoraciones periódicas</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Mejor precio por día</li>
+          <li class="flex items-center gap-3 text-sm text-white/70"><i class="fa fa-check text-primary text-xs"></i>Máximos resultados</li>
+        </ul>
+        <a href="{% url 'register' %}"
+           class="flex items-center justify-center gap-2 bg-white/10 hover:bg-primary/20 text-white hover:text-primary font-bold py-3 rounded-xl transition-colors text-sm border border-white/10">
+          <i class="fa fa-user-check"></i> Inscribirme
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Métodos de pago -->
+    <div class="mt-10 text-center">
+      <p class="text-white/30 text-xs uppercase tracking-wider mb-4">Pagos seguros procesados por Wompi (Bancolombia)</p>
+      <div class="flex flex-wrap items-center justify-center gap-4 text-white/30 text-xs">
+        <span class="flex items-center gap-1.5"><i class="fa fa-credit-card"></i> Tarjeta crédito/débito</span>
+        <span class="flex items-center gap-1.5"><i class="fa fa-university"></i> PSE</span>
+        <span class="flex items-center gap-1.5"><i class="fab fa-whatsapp text-green-400/50"></i> Nequi</span>
+        <span class="flex items-center gap-1.5"><i class="fa fa-building-columns text-yellow-400/50"></i> Botón Bancolombia</span>
+        <span class="flex items-center gap-1.5"><i class="fa fa-mobile-alt text-blue-400/50"></i> Daviplata</span>
+        <span class="flex items-center gap-1.5"><i class="fa fa-coins text-orange-400/50"></i> Efecty</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ rápido -->
+<section class="py-16 bg-zinc-950 border-t border-white/5">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <h2 class="text-3xl font-black text-white text-center mb-10">Preguntas frecuentes</h2>
+    <div x-data="{ open: null }" class="space-y-3">
+      {% for qa in "1234"|make_list %}
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden">
+        <button @click="open === {{ forloop.counter }} ? open = null : open = {{ forloop.counter }}"
+                class="w-full text-left px-6 py-4 flex items-center justify-between gap-4">
+          <span class="text-white font-semibold text-sm">
+            {% if forloop.counter == 1 %}¿Cómo funciona el proceso para ser miembro?
+            {% elif forloop.counter == 2 %}¿Puedo cancelar mi membresía en cualquier momento?
+            {% elif forloop.counter == 3 %}¿Necesito ir a un gimnasio o puedo entrenar en casa?
+            {% else %}¿Qué pasa cuando vence mi membresía?{% endif %}
+          </span>
+          <i class="fa fa-chevron-down text-white/30 text-sm transition-transform duration-200"
+             :class="{ 'rotate-180': open === {{ forloop.counter }} }"></i>
+        </button>
+        <div x-show="open === {{ forloop.counter }}" x-collapse class="px-6 pb-4">
+          <p class="text-white/50 text-sm leading-relaxed">
+            {% if forloop.counter == 1 %}
+            Me escribes por WhatsApp, hacemos una valoración inicial (IMC + Test Dixon), defines tu objetivo y activo tu membresía. Te asigno una rutina personalizada a la que puedes acceder desde la plataforma.
+            {% elif forloop.counter == 2 %}
+            Las membresías son por el período acordado. Si necesitas pausar o tienes alguna situación, hablamos directamente para encontrar la mejor solución.
+            {% elif forloop.counter == 3 %}
+            Las rutinas se diseñan según tu contexto y los equipos que tienes disponibles. Puedes entrenar en gimnasio o en casa — lo importante es la constancia.
+            {% else %}
+            Puedes seguir iniciando sesión, pero no tendrás acceso a tus rutinas ni videos privados hasta que renueves. La plataforma te mostrará opciones para renovar en línea al instante con cualquier método de pago.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}

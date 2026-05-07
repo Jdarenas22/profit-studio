@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Membresía vencida — ProFit Studio{% endblock %}
+{% block content %}
+<section class="min-h-screen flex items-center justify-center py-20 bg-black">
+  <div class="max-w-lg w-full px-4 text-center">
+    <div class="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+      <i class="fa fa-lock text-red-400 text-2xl"></i>
+    </div>
+    <h1 class="text-3xl font-black text-white mb-4">Tu membresía ha finalizado</h1>
+    <p class="text-white/50 text-lg mb-8">
+      Renueva en línea y recupera el acceso a tus rutinas y videos al instante.
+    </p>
+
+    {% if membership.plan %}
+    <a href="{% url 'payment_checkout' membership.plan.pk %}"
+       class="flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-xl transition-colors mb-3">
+      <i class="fa fa-credit-card text-xl"></i>
+      Renovar plan {{ membership.plan.name }}
+    </a>
+    <p class="text-white/30 text-xs mb-5">Tarjeta, PSE, Nequi, Botón Bancolombia, Daviplata y más.</p>
+    {% endif %}
+
+    <a href="{% url 'plans' %}"
+       class="flex items-center justify-center gap-3 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-base px-8 py-3.5 rounded-xl transition-colors mb-4">
+      <i class="fa fa-list-ul"></i>
+      Ver todos los planes
+    </a>
+
+    <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+       class="inline-flex items-center gap-2 text-white/30 hover:text-white text-sm transition-colors">
+      <i class="fab fa-whatsapp"></i>
+      O escríbeme por WhatsApp
+    </a>
+
+    <div class="mt-6">
+      <a href="{% url 'logout' %}" class="text-white/20 hover:text-white/50 text-xs transition-colors">Cerrar sesión</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

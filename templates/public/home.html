@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block title %}ProFit Studio — Entrenamiento Personalizado{% endblock %}
+
+{% block content %}
+
+<!-- ── HERO ──────────────────────────────────────────────────────────────── -->
+<section class="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+  <!-- Fondo con gradiente -->
+  <div class="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black"></div>
+  <!-- Decoración naranja -->
+  <div class="absolute top-1/4 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute bottom-1/4 left-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-20">
+    <!-- Badge -->
+    <div class="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-8">
+      <span class="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+      <span class="text-primary text-sm font-medium">Entrenamiento personalizado</span>
+    </div>
+
+    <h1 class="text-5xl sm:text-6xl lg:text-8xl font-black tracking-tight leading-none mb-6">
+      <span class="text-white">TRANSFORMA</span><br />
+      <span class="text-primary">TU CUERPO</span><br />
+      <span class="text-white">CAMBIA TU</span>
+      <span class="text-white/30"> VIDA</span>
+    </h1>
+
+    <p class="text-white/60 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+      Rutinas diseñadas específicamente para ti. Seguimiento personalizado, ejercicios en video y membresía que se adapta a tu ritmo.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+         class="inline-flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg shadow-primary/30">
+        <i class="fab fa-whatsapp text-xl"></i>
+        Empezar ahora — es gratis
+      </a>
+      <a href="{% url 'exercises' %}"
+         class="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-lg px-8 py-4 rounded-xl transition-all duration-200 border border-white/10">
+        <i class="fa fa-play text-sm"></i>
+        Ver ejercicios
+      </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="mt-20 grid grid-cols-3 gap-6 max-w-lg mx-auto">
+      <div class="text-center">
+        <p class="text-3xl font-black text-primary">100%</p>
+        <p class="text-white/40 text-xs mt-1">Personalizado</p>
+      </div>
+      <div class="text-center border-x border-white/10">
+        <p class="text-3xl font-black text-white">+50</p>
+        <p class="text-white/40 text-xs mt-1">Ejercicios</p>
+      </div>
+      <div class="text-center">
+        <p class="text-3xl font-black text-primary">24/7</p>
+        <p class="text-white/40 text-xs mt-1">Acceso</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flecha scroll -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+    <i class="fa fa-chevron-down text-white/30 text-xl"></i>
+  </div>
+</section>
+
+<!-- ── CÓMO FUNCIONA ──────────────────────────────────────────────────── -->
+<section class="py-24 bg-zinc-950">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Proceso simple</p>
+      <h2 class="text-4xl sm:text-5xl font-black text-white">¿Cómo funciona?</h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {% for step in steps %}
+      {% empty %}
+      <!-- Step 1 -->
+      <div class="relative group">
+        <div class="bg-zinc-900 border border-white/10 rounded-2xl p-7 hover:border-primary/30 transition-all duration-300 h-full">
+          <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
+            <i class="fab fa-whatsapp text-primary text-xl"></i>
+          </div>
+          <span class="text-primary/40 text-xs font-bold uppercase tracking-widest">Paso 01</span>
+          <h3 class="text-white font-bold text-lg mt-2 mb-3">Contáctame</h3>
+          <p class="text-white/50 text-sm leading-relaxed">Escríbeme por WhatsApp y cuéntame tu objetivo de entrenamiento.</p>
+        </div>
+        <div class="hidden md:block absolute top-1/2 -right-3 z-10 w-6 h-6 bg-zinc-800 border border-white/10 rounded-full flex items-center justify-center">
+          <i class="fa fa-chevron-right text-white/30 text-xs"></i>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="relative group">
+        <div class="bg-zinc-900 border border-white/10 rounded-2xl p-7 hover:border-primary/30 transition-all duration-300 h-full">
+          <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
+            <i class="fa fa-clipboard-list text-primary text-xl"></i>
+          </div>
+          <span class="text-primary/40 text-xs font-bold uppercase tracking-widest">Paso 02</span>
+          <h3 class="text-white font-bold text-lg mt-2 mb-3">Valoración inicial</h3>
+          <p class="text-white/50 text-sm leading-relaxed">Hago una valoración completa de tu condición física para diseñar tu plan ideal.</p>
+        </div>
+        <div class="hidden md:block absolute top-1/2 -right-3 z-10 w-6 h-6 bg-zinc-800 border border-white/10 rounded-full flex items-center justify-center">
+          <i class="fa fa-chevron-right text-white/30 text-xs"></i>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="relative group">
+        <div class="bg-zinc-900 border border-white/10 rounded-2xl p-7 hover:border-primary/30 transition-all duration-300 h-full">
+          <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
+            <i class="fa fa-dumbbell text-primary text-xl"></i>
+          </div>
+          <span class="text-primary/40 text-xs font-bold uppercase tracking-widest">Paso 03</span>
+          <h3 class="text-white font-bold text-lg mt-2 mb-3">Rutina personalizada</h3>
+          <p class="text-white/50 text-sm leading-relaxed">Recibe tu rutina con ejercicios en video, series, repeticiones y descansos definidos.</p>
+        </div>
+        <div class="hidden md:block absolute top-1/2 -right-3 z-10 w-6 h-6 bg-zinc-800 border border-white/10 rounded-full flex items-center justify-center">
+          <i class="fa fa-chevron-right text-white/30 text-xs"></i>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="group">
+        <div class="bg-zinc-900 border border-white/10 rounded-2xl p-7 hover:border-primary/30 transition-all duration-300 h-full">
+          <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
+            <i class="fa fa-trophy text-primary text-xl"></i>
+          </div>
+          <span class="text-primary/40 text-xs font-bold uppercase tracking-widest">Paso 04</span>
+          <h3 class="text-white font-bold text-lg mt-2 mb-3">Transforma tu cuerpo</h3>
+          <p class="text-white/50 text-sm leading-relaxed">Entrena con disciplina, mide tus avances y alcanza los resultados que siempre quisiste.</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ── BENEFICIOS ─────────────────────────────────────────────────────── -->
+<section class="py-24 bg-black">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+
+      <div>
+        <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Por qué elegirnos</p>
+        <h2 class="text-4xl sm:text-5xl font-black text-white mb-6">
+          Entrenamiento que<br /><span class="text-primary">sí da resultados</span>
+        </h2>
+        <p class="text-white/50 text-lg leading-relaxed mb-10">
+          No más rutinas genéricas de internet. Cada plan está diseñado exclusivamente para tu cuerpo, tus metas y tu ritmo de vida.
+        </p>
+
+        <ul class="space-y-5">
+          <li class="flex items-start gap-4">
+            <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+              <i class="fa fa-check text-primary text-sm"></i>
+            </div>
+            <div>
+              <p class="text-white font-semibold">Videos de cada ejercicio</p>
+              <p class="text-white/40 text-sm mt-0.5">Aprende la técnica correcta y evita lesiones con videos demostrativos.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-4">
+            <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+              <i class="fa fa-check text-primary text-sm"></i>
+            </div>
+            <div>
+              <p class="text-white font-semibold">Rutinas organizadas por día</p>
+              <p class="text-white/40 text-sm mt-0.5">Series, repeticiones y descansos definidos. Solo enfócate en entrenar.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-4">
+            <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+              <i class="fa fa-check text-primary text-sm"></i>
+            </div>
+            <div>
+              <p class="text-white font-semibold">Acceso desde cualquier dispositivo</p>
+              <p class="text-white/40 text-sm mt-0.5">Consulta tu rutina desde el celular, tablet o computador, en cualquier momento.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-4">
+            <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+              <i class="fa fa-check text-primary text-sm"></i>
+            </div>
+            <div>
+              <p class="text-white font-semibold">Valoración física completa</p>
+              <p class="text-white/40 text-sm mt-0.5">Conoce tu IMC y condición cardiovascular desde el primer día.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Card decorativa -->
+      <div class="relative">
+        <div class="bg-zinc-900 border border-white/10 rounded-3xl p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+              <i class="fa fa-dumbbell text-white"></i>
+            </div>
+            <div>
+              <p class="text-white font-bold">Tu rutina de hoy</p>
+              <p class="text-white/40 text-xs">Día 1 — Tren superior</p>
+            </div>
+          </div>
+          <div class="space-y-3">
+            {% for ex in "123"|make_list %}
+            <div class="flex items-center gap-4 bg-black/40 rounded-xl px-4 py-3">
+              <div class="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center shrink-0">
+                <i class="fa fa-play text-primary text-xs"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                {% if forloop.counter == 1 %}
+                <p class="text-white text-sm font-medium truncate">Press de banca</p>
+                <p class="text-white/40 text-xs">4 series × 10 reps — 60s descanso</p>
+                {% elif forloop.counter == 2 %}
+                <p class="text-white text-sm font-medium truncate">Remo con barra</p>
+                <p class="text-white/40 text-xs">3 series × 12 reps — 45s descanso</p>
+                {% else %}
+                <p class="text-white text-sm font-medium truncate">Fondos en paralelas</p>
+                <p class="text-white/40 text-xs">3 series × 15 reps — 30s descanso</p>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="mt-5 pt-5 border-t border-white/10 flex items-center justify-between">
+            <span class="text-white/40 text-xs">Membresía activa</span>
+            <span class="text-green-400 text-xs font-semibold flex items-center gap-1">
+              <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+              28 días restantes
+            </span>
+          </div>
+        </div>
+        <!-- Decoración -->
+        <div class="absolute -top-4 -right-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA FINAL ──────────────────────────────────────────────────────── -->
+<section class="py-24 bg-primary relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-br from-primary to-orange-700"></div>
+  <div class="relative z-10 max-w-4xl mx-auto px-4 text-center">
+    <h2 class="text-4xl sm:text-6xl font-black text-white mb-6">
+      ¿Listo para<br />transformarte?
+    </h2>
+    <p class="text-white/80 text-xl mb-10 max-w-xl mx-auto">
+      Escríbeme hoy y empieza tu proceso de transformación con un plan diseñado exclusivamente para ti.
+    </p>
+    <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+       class="inline-flex items-center gap-3 bg-black hover:bg-zinc-900 text-white font-bold text-xl px-10 py-5 rounded-2xl transition-all duration-200 hover:scale-105 shadow-2xl">
+      <i class="fab fa-whatsapp text-green-400 text-2xl"></i>
+      Escribir ahora
+    </a>
+    <p class="text-white/50 text-sm mt-6">Sin compromiso. Respuesta rápida.</p>
+  </div>
+</section>
+
+{% endblock %}

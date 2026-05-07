@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ exercise.name }} — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+  <!-- Breadcrumb -->
+  <nav class="flex items-center gap-2 text-white/30 text-sm mb-8">
+    <a href="{% url 'exercises' %}" class="hover:text-primary transition-colors">Ejercicios</a>
+    <i class="fa fa-chevron-right text-xs"></i>
+    <span class="text-white/60">{{ exercise.name }}</span>
+  </nav>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-10">
+
+    <!-- Video / Imagen (col 3) -->
+    <div class="lg:col-span-3">
+      {% if exercise.video_file %}
+      <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
+        <video controls class="w-full h-full object-cover"
+               controlsList="nodownload"
+               preload="metadata">
+          <source src="{{ exercise.video_file.url }}" type="video/mp4" />
+          Tu navegador no soporta la reproducción de video.
+        </video>
+      </div>
+      {% elif exercise.image %}
+      <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
+        <img src="{{ exercise.image.url }}" alt="{{ exercise.name }}"
+             class="w-full h-full object-cover" />
+      </div>
+      {% else %}
+      <div class="aspect-video bg-zinc-900 rounded-2xl border border-white/10 flex items-center justify-center">
+        <div class="text-center text-white/20">
+          <i class="fa fa-dumbbell text-5xl mb-3"></i>
+          <p class="text-sm">Sin video disponible aún</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Músculos -->
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mt-5">
+        <h3 class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Músculos trabajados</h3>
+        <p class="text-white text-sm leading-relaxed">{{ exercise.muscles }}</p>
+      </div>
+
+      {% if exercise.recommendations %}
+      <div class="bg-primary/5 border border-primary/20 rounded-2xl p-6 mt-4">
+        <h3 class="text-primary text-xs font-semibold uppercase tracking-wider mb-3">
+          <i class="fa fa-lightbulb mr-1"></i> Recomendaciones
+        </h3>
+        <p class="text-white/70 text-sm leading-relaxed">{{ exercise.recommendations }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Info lateral (col 2) -->
+    <div class="lg:col-span-2 space-y-5">
+
+      <!-- Badges -->
+      <div class="flex flex-wrap gap-2">
+        {% if exercise.category %}
+        <span class="bg-primary/10 text-primary text-xs font-semibold px-3 py-1.5 rounded-full border border-primary/20">
+          {{ exercise.category.name }}
+        </span>
+        {% endif %}
+        <span class="text-xs font-semibold px-3 py-1.5 rounded-full border
+          {% if exercise.level == 'beginner' %}bg-green-500/10 text-green-400 border-green-500/20
+          {% elif exercise.level == 'intermediate' %}bg-yellow-500/10 text-yellow-400 border-yellow-500/20
+          {% else %}bg-red-500/10 text-red-400 border-red-500/20{% endif %}">
+          {{ exercise.get_level_display }}
+        </span>
+      </div>
+
+      <h1 class="text-3xl font-black text-white">{{ exercise.name }}</h1>
+
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+        <h3 class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Descripción</h3>
+        <p class="text-white/70 text-sm leading-relaxed">{{ exercise.description }}</p>
+      </div>
+
+      <!-- Back -->
+      <a href="{% url 'exercises' %}"
+         class="flex items-center gap-2 text-white/40 hover:text-primary text-sm transition-colors mt-4">
+        <i class="fa fa-arrow-left text-xs"></i> Volver a ejercicios
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

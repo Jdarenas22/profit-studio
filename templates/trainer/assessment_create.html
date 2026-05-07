@@ -1,0 +1,263 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Nueva valoración — {{ client.get_full_name|default:client.username }}{% endblock %}
+
+{% block trainer_content %}
+
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">Nueva valoración</span>
+</nav>
+
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-black text-white mb-1">Valoración inicial</h1>
+  <p class="text-white/40 text-sm mb-8">Cliente: <span class="text-white font-medium">{{ client.get_full_name|default:client.username }}</span></p>
+
+  <form method="POST"
+        x-data="{
+          weight: '',
+          height: '',
+          p0: '', p1: '', p2: '',
+
+          get imc() {
+            const w = parseFloat(this.weight);
+            const h = parseFloat(this.height);
+            if (w > 0 && h > 0) return (w / (h * h)).toFixed(2);
+            return null;
+          },
+          get imcLabel() {
+            const v = parseFloat(this.imc);
+            if (isNaN(v)) return '';
+            if (v < 18.5) return 'Bajo peso';
+            if (v < 25)   return 'Peso normal';
+            if (v < 30)   return 'Sobrepeso';
+            return 'Obesidad';
+          },
+          get imcColor() {
+            const v = parseFloat(this.imc);
+            if (isNaN(v)) return 'text-white/40';
+            if (v < 18.5) return 'text-blue-400';
+            if (v < 25)   return 'text-green-400';
+            if (v < 30)   return 'text-yellow-400';
+            return 'text-red-400';
+          },
+
+          get hasDixonInput() {
+            return this.p0 !== '' || this.p1 !== '' || this.p2 !== '';
+          },
+          get dixonComplete() {
+            return this.p0 !== '' && this.p1 !== '' && this.p2 !== '';
+          },
+          get dixonMissing() {
+            return this.hasDixonInput && !this.dixonComplete;
+          },
+          get dixonNegative() {
+            return (this.p0 !== '' && parseInt(this.p0) < 0)
+                || (this.p1 !== '' && parseInt(this.p1) < 0)
+                || (this.p2 !== '' && parseInt(this.p2) < 0);
+          },
+          get ird() {
+            if (!this.dixonComplete) return null;
+            const v0 = parseInt(this.p0), v1 = parseInt(this.p1), v2 = parseInt(this.p2);
+            if (isNaN(v0) || isNaN(v1) || isNaN(v2)) return null;
+            if (v0 < 0 || v1 < 0 || v2 < 0) return null;
+            return (((v0 + v1 + v2) - 200) / 10).toFixed(2);
+          },
+          get irdLabel() {
+            const v = parseFloat(this.ird);
+            if (isNaN(v)) return '';
+            if (v <= 0)  return 'Excelente';
+            if (v <= 5)  return 'Muy buena';
+            if (v <= 10) return 'Buena';
+            if (v <= 15) return 'Regular';
+            return 'Mala';
+          },
+          get irdColor() {
+            const v = parseFloat(this.ird);
+            if (isNaN(v)) return 'text-white/40';
+            if (v <= 0)  return 'text-green-400';
+            if (v <= 5)  return 'text-green-400';
+            if (v <= 10) return 'text-yellow-400';
+            if (v <= 15) return 'text-orange-400';
+            return 'text-red-400';
+          }
+        }"
+        @submit="dixonMissing || dixonNegative ? $event.preventDefault() : null"
+        class="space-y-5">
+    {% csrf_token %}
+
+    <!-- Datos básicos -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-5">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Datos personales</h2>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Edad *</label>
+          <input type="number" name="age" min="5" max="100" required
+                 placeholder="Ej: 28"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Sexo *</label>
+          <select name="sex" required
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            {% for value, label in sex_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Peso / Talla con IMC en tiempo real -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Peso (kg) *</label>
+          <input type="number" name="weight" step="0.1" min="20" max="300" required
+                 x-model="weight"
+                 placeholder="Ej: 72.5"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Estatura (m) *</label>
+          <input type="number" name="height" step="0.01" min="1" max="2.5" required
+                 x-model="height"
+                 placeholder="Ej: 1.68"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        </div>
+      </div>
+
+      <!-- IMC en tiempo real -->
+      <div x-show="imc" class="bg-black/30 rounded-xl px-5 py-3 flex items-center justify-between">
+        <div>
+          <p class="text-white/40 text-xs mb-0.5">IMC calculado automáticamente</p>
+          <span class="font-black text-2xl" :class="imcColor" x-text="imc"></span>
+        </div>
+        <span class="text-sm font-semibold px-3 py-1 rounded-full bg-white/5"
+              :class="imcColor" x-text="imcLabel"></span>
+      </div>
+    </div>
+
+    <!-- Objetivo y restricciones -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Objetivo y condición</h2>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Objetivo principal *</label>
+        <textarea name="goal" rows="2" required
+                  placeholder="Pérdida de peso, ganar músculo, mejorar resistencia..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Restricciones físicas (opcional)</label>
+        <textarea name="physical_restrictions" rows="2"
+                  placeholder="Lesiones, dolores crónicos, limitaciones de movimiento..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Observaciones generales (opcional)</label>
+        <textarea name="observations" rows="2"
+                  placeholder="Notas adicionales relevantes..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+      </div>
+    </div>
+
+    <!-- ─── Test Dickson ──────────────────────────────────────────────────── -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <div class="flex items-start justify-between gap-4 mb-1">
+        <div>
+          <h2 class="text-white font-bold text-sm uppercase tracking-wider">Test Dickson</h2>
+          <p class="text-white/30 text-xs mt-1">IRD = ((P0 + P1 + P2) − 200) / 10 &nbsp;·&nbsp; Opcional — completa los tres o deja en blanco.</p>
+        </div>
+        <span class="shrink-0 text-white/20 text-xs bg-white/5 px-2 py-1 rounded-lg mt-0.5">Opcional</span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">P0 — Reposo *</label>
+          <input type="number" name="p0" min="0" max="250"
+                 x-model="p0"
+                 placeholder="Ej: 72"
+                 :class="(p0 !== '' && parseInt(p0) < 0) ? 'border-red-500' : 'border-white/10'"
+                 class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <p class="text-white/25 text-xs mt-1">Pulso inicial en reposo</p>
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">P1 — Post-actividad *</label>
+          <input type="number" name="p1" min="0" max="250"
+                 x-model="p1"
+                 placeholder="Ej: 150"
+                 :class="(p1 !== '' && parseInt(p1) < 0) ? 'border-red-500' : 'border-white/10'"
+                 class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <p class="text-white/25 text-xs mt-1">Tras actividad física</p>
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">P2 — 1 min después *</label>
+          <input type="number" name="p2" min="0" max="250"
+                 x-model="p2"
+                 placeholder="Ej: 100"
+                 :class="(p2 !== '' && parseInt(p2) < 0) ? 'border-red-500' : 'border-white/10'"
+                 class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <p class="text-white/25 text-xs mt-1">Un minuto después</p>
+        </div>
+      </div>
+
+      <!-- Aviso: campos incompletos -->
+      <div x-show="dixonMissing" x-cloak
+           class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3">
+        <i class="fa fa-triangle-exclamation text-yellow-400 shrink-0"></i>
+        <p class="text-yellow-300 text-xs">Debes completar los <strong>tres valores</strong> (P0, P1 y P2) para incluir el Test Dickson.</p>
+      </div>
+
+      <!-- Aviso: número negativo -->
+      <div x-show="dixonNegative" x-cloak
+           class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+        <i class="fa fa-circle-xmark text-red-400 shrink-0"></i>
+        <p class="text-red-300 text-xs">Los valores de pulso no pueden ser negativos.</p>
+      </div>
+
+      <!-- Resultado IRD en tiempo real -->
+      <div x-show="ird !== null && !dixonMissing && !dixonNegative" x-cloak
+           class="bg-black/30 border border-white/5 rounded-xl px-5 py-4 flex items-center justify-between">
+        <div>
+          <p class="text-white/40 text-xs mb-1">IRD calculado</p>
+          <span class="font-black text-3xl" :class="irdColor" x-text="ird"></span>
+        </div>
+        <div class="text-right">
+          <p class="text-white/30 text-xs mb-1">Clasificación</p>
+          <span class="font-bold text-sm" :class="irdColor" x-text="irdLabel"></span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Observaciones del test (opcional)</label>
+        <textarea name="dixon_observations" rows="2"
+                  placeholder="Notas sobre la prueba cardiovascular..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+      </div>
+    </div>
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+
+    <!-- Aviso bloqueo submit -->
+    <p x-show="dixonMissing || dixonNegative" x-cloak
+       class="text-center text-yellow-400/60 text-xs">
+      <i class="fa fa-lock mr-1"></i>Corrige los campos del Test Dickson para poder guardar.
+    </p>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit"
+              :disabled="dixonMissing || dixonNegative"
+              :class="(dixonMissing || dixonNegative) ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary-dark'"
+              class="flex-1 bg-primary text-white font-semibold py-3.5 rounded-xl transition-colors text-sm">
+        <i class="fa fa-check mr-2"></i> Guardar valoración
+      </button>
+      <a href="{% url 'trainer_client_detail' client.pk %}"
+         class="px-5 py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

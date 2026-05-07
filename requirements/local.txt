@@ -1,0 +1,10 @@
+# Entorno local con SQLite — sin psycopg2 (PostgreSQL solo en producción)
+Django==5.0.6
+django-environ==0.11.2
+Pillow==10.3.0
+django-storages[s3]==1.14.3
+django-htmx==1.17.3
+whitenoise==6.6.0
+django-axes==6.5.0
+django-debug-toolbar==4.3.0
+# boto3 y redis son opcionales en local (se usan solo en producción con R2 y Celery)

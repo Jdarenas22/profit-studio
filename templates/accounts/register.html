@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}Inscribirme — ProFit Studio{% endblock %}
+{% block description %}Crea tu cuenta en ProFit Studio y comienza tu transformación con entrenamiento personalizado.{% endblock %}
+
+{% block content %}
+<section class="min-h-screen bg-black py-20">
+  <div class="max-w-2xl mx-auto px-4">
+
+    <!-- Logo + title -->
+    <div class="text-center mb-10">
+      <div class="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <i class="fa fa-dumbbell text-white text-2xl"></i>
+      </div>
+      <h1 class="text-3xl font-black text-white">Crea tu cuenta</h1>
+      <p class="text-white/40 text-sm mt-2">Es gratis. La entrenadora activa tu membresía después de confirmar el pago.</p>
+    </div>
+
+    <form method="POST"
+          x-data="{
+            firstName: '{{ form.first_name|default:'' }}',
+            lastName: '{{ form.last_name|default:'' }}',
+            get suggestion() {
+              if (this.firstName && this.lastName) {
+                return (this.firstName.toLowerCase().replace(/[^a-z0-9]/g,'') +
+                        this.lastName.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,6));
+              }
+              return '';
+            }
+          }"
+          class="space-y-6">
+      {% csrf_token %}
+
+      <!-- Nombre y apellido -->
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+        <h2 class="text-white font-bold text-sm uppercase tracking-wider">Tus datos</h2>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-white/60 text-xs font-medium mb-2">Nombre *</label>
+            <input type="text" name="first_name" required
+                   x-model="firstName"
+                   value="{{ form.first_name|default:'' }}"
+                   placeholder="Adriana"
+                   class="w-full bg-black/40 border {% if errors.first_name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            {% if errors.first_name %}<p class="text-red-400 text-xs mt-1">{{ errors.first_name }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="block text-white/60 text-xs font-medium mb-2">Apellido *</label>
+            <input type="text" name="last_name" required
+                   x-model="lastName"
+                   value="{{ form.last_name|default:'' }}"
+                   placeholder="García"
+                   class="w-full bg-black/40 border {% if errors.last_name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            {% if errors.last_name %}<p class="text-red-400 text-xs mt-1">{{ errors.last_name }}</p>{% endif %}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-white/60 text-xs font-medium mb-2">Correo electrónico *</label>
+            <input type="email" name="email" required
+                   value="{{ form.email|default:'' }}"
+                   placeholder="tu@email.com"
+                   class="w-full bg-black/40 border {% if errors.email %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            {% if errors.email %}<p class="text-red-400 text-xs mt-1">{{ errors.email }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="block text-white/60 text-xs font-medium mb-2">Teléfono (opcional)</label>
+            <input type="tel" name="phone"
+                   value="{{ form.phone|default:'' }}"
+                   placeholder="+57 300 000 0000"
+                   class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          </div>
+        </div>
+
+        <!-- Género -->
+        <div x-data="{ gender: '{{ form.gender|default:'' }}' }">
+          <label class="block text-white/60 text-xs font-medium mb-2">Género</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="cursor-pointer">
+              <input type="radio" name="gender" value="F" x-model="gender" class="sr-only">
+              <div :class="gender === 'F' ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 text-white/50 hover:border-white/20'"
+                   class="flex items-center justify-center gap-1.5 border rounded-xl py-2.5 text-xs font-semibold transition-all">
+                <i class="fa fa-venus text-sm"></i> Mujer
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="gender" value="M" x-model="gender" class="sr-only">
+              <div :class="gender === 'M' ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 text-white/50 hover:border-white/20'"
+                   class="flex items-center justify-center gap-1.5 border rounded-xl py-2.5 text-xs font-semibold transition-all">
+                <i class="fa fa-mars text-sm"></i> Hombre
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="gender" value="O" x-model="gender" class="sr-only">
+              <div :class="gender === 'O' ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 text-white/50 hover:border-white/20'"
+                   class="flex items-center justify-center gap-1.5 border rounded-xl py-2.5 text-xs font-semibold transition-all">
+                <i class="fa fa-genderless text-sm"></i> Otro
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">
+            Nombre de usuario *
+            <span class="text-white/30 font-normal">(con este iniciarás sesión)</span>
+          </label>
+          <input type="text" name="username" required
+                 :placeholder="suggestion || 'Ej: adri.garcia'"
+                 value="{{ form.username|default:'' }}"
+                 class="w-full bg-black/40 border {% if errors.username %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors"
+                 pattern="[a-zA-Z0-9._]+" title="Solo letras, números, puntos y guiones bajos">
+          {% if errors.username %}
+          <p class="text-red-400 text-xs mt-1">{{ errors.username }}</p>
+          {% else %}
+          <p class="text-white/20 text-xs mt-1">Solo letras, números, puntos y guiones bajos. Mínimo 4 caracteres.</p>
+          {% endif %}
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-white/60 text-xs font-medium mb-2">Contraseña *</label>
+            <input type="password" name="password1" required
+                   placeholder="Mínimo 8 caracteres"
+                   class="w-full bg-black/40 border {% if errors.password1 %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            {% if errors.password1 %}<p class="text-red-400 text-xs mt-1">{{ errors.password1 }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="block text-white/60 text-xs font-medium mb-2">Repetir contraseña *</label>
+            <input type="password" name="password2" required
+                   placeholder="••••••••"
+                   class="w-full bg-black/40 border {% if errors.password2 %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            {% if errors.password2 %}<p class="text-red-400 text-xs mt-1">{{ errors.password2 }}</p>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Selección de plan -->
+      {% if plans %}
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+        <h2 class="text-white font-bold mb-1 text-sm uppercase tracking-wider">Plan de interés</h2>
+        <p class="text-white/30 text-xs mb-5">Elige el que más te guste. La entrenadora confirmará el pago y activará tu acceso.</p>
+
+        <div class="space-y-3" x-data="{ selected: '{{ selected_plan_id|default:'' }}' }">
+          {% for plan in plans %}
+          <label class="flex items-start gap-4 rounded-2xl border p-4 cursor-pointer transition-all duration-200"
+                 :class="selected === '{{ plan.pk }}' ? 'border-primary bg-primary/5' : 'border-white/10 hover:border-white/20'">
+            <input type="radio" name="interested_plan" value="{{ plan.pk }}"
+                   x-model="selected"
+                   {% if selected_plan_id == plan.pk|stringformat:'s' %}checked{% endif %}
+                   class="mt-1 accent-orange-500 shrink-0">
+            <div class="flex-1">
+              <div class="flex items-center justify-between mb-1">
+                <p class="text-white font-bold">{{ plan.name }}</p>
+                <div class="text-right">
+                  <p class="text-primary font-black">${{ plan.reference_price|floatformat:0 }} COP</p>
+                  <p class="text-white/30 text-xs">{{ plan.duration_days }} días</p>
+                </div>
+              </div>
+              {% if plan.description %}
+              <p class="text-white/50 text-xs leading-relaxed">{{ plan.description }}</p>
+              {% endif %}
+            </div>
+          </label>
+          {% endfor %}
+
+          <label class="flex items-start gap-4 rounded-2xl border border-white/10 hover:border-white/20 p-4 cursor-pointer transition-all duration-200"
+                 :class="selected === '' ? 'border-white/20' : ''">
+            <input type="radio" name="interested_plan" value=""
+                   x-model="selected"
+                   class="mt-1 accent-orange-500 shrink-0">
+            <div>
+              <p class="text-white/60 font-medium text-sm">Decidir después</p>
+              <p class="text-white/30 text-xs">Puedo hablar con la entrenadora para escoger el mejor plan para mí.</p>
+            </div>
+          </label>
+        </div>
+      </div>
+      {% endif %}
+
+      <button type="submit"
+              class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-4 rounded-2xl transition-colors text-base">
+        <i class="fa fa-user-check mr-2"></i> Crear mi cuenta
+      </button>
+
+      <p class="text-center text-white/30 text-sm">
+        ¿Ya tienes cuenta?
+        <a href="{% url 'login' %}" class="text-primary hover:text-primary-dark transition-colors font-medium">Inicia sesión</a>
+      </p>
+    </form>
+  </div>
+</section>
+{% endblock %}

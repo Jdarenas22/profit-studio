@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}ProFit Studio{% endblock %}</title>
+  <meta name="description" content="{% block description %}Entrenamiento personalizado y profesional con ProFit Studio. Transforma tu cuerpo, cambia tu vida.{% endblock %}" />
+
+  <!-- Tailwind Play CDN (cambiar a build en producción para mejor performance) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#FF6B00', dark: '#E05A00', light: '#FF8C33' },
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
+
+  <!-- Alpine.js -->
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .text-primary { color: #FF6B00; }
+    .bg-primary { background-color: #FF6B00; }
+    .border-primary { border-color: #FF6B00; }
+    .hover\:bg-primary-dark:hover { background-color: #E05A00; }
+    .ring-primary { --tw-ring-color: #FF6B00; }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body class="bg-black text-white antialiased">
+
+  {% include 'partials/navbar.html' %}
+
+  <!-- Mensajes flash -->
+  {% if messages %}
+  <div class="fixed top-20 right-4 z-50 space-y-2 max-w-sm w-full" id="messages-container">
+    {% for message in messages %}
+    <div x-data="{ show: true }" x-show="show" x-transition
+         class="flex items-center gap-3 px-5 py-3 rounded-lg shadow-lg text-sm font-medium
+         {% if message.tags == 'error' %}bg-red-600
+         {% elif message.tags == 'success' %}bg-green-600
+         {% elif message.tags == 'warning' %}bg-yellow-600
+         {% else %}bg-blue-600{% endif %}">
+      <span class="flex-1">{{ message }}</span>
+      <button @click="show = false" class="text-white/70 hover:text-white ml-2">
+        <i class="fa fa-times"></i>
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include 'partials/footer.html' %}
+  {% include 'partials/whatsapp_btn.html' %}
+
+  {% block extra_scripts %}{% endblock %}
+
+  <script>
+    document.addEventListener('htmx:configRequest', function(evt) {
+      evt.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+    });
+  </script>
+</body>
+</html>

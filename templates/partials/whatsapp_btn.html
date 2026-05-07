@@ -1,0 +1,14 @@
+<!-- Botón flotante WhatsApp -->
+<a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+   class="fixed bottom-6 right-6 z-50 group"
+   title="Contactar por WhatsApp">
+  <div class="relative w-14 h-14 bg-green-500 hover:bg-green-600 rounded-full shadow-lg shadow-green-500/30 flex items-center justify-center transition-all duration-300 hover:scale-110">
+    <i class="fab fa-whatsapp text-white text-2xl"></i>
+    <!-- Pulso animado -->
+    <span class="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-30"></span>
+  </div>
+  <!-- Tooltip -->
+  <span class="absolute right-16 top-1/2 -translate-y-1/2 bg-black/90 text-white text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+    ¿Hablamos?
+  </span>
+</a>

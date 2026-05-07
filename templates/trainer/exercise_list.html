@@ -1,0 +1,92 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Ejercicios — Panel Entrenadora{% endblock %}
+
+{% block trainer_content %}
+<div class="flex items-center justify-between mb-8">
+  <div>
+    <h1 class="text-2xl font-black text-white">Ejercicios</h1>
+    <p class="text-white/40 text-sm mt-1">{{ exercises|length }} ejercicio{{ exercises|length|pluralize:"s" }}</p>
+  </div>
+  <a href="{% url 'trainer_exercise_create' %}"
+     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+    <i class="fa fa-plus"></i> Nuevo ejercicio
+  </a>
+</div>
+
+<!-- Filtro por categoría -->
+<form method="GET" class="flex flex-wrap gap-2 mb-6">
+  <a href="{% url 'trainer_exercise_list' %}"
+     class="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors
+            {% if not selected_category %}bg-primary text-white{% else %}bg-white/5 text-white/50 hover:bg-white/10{% endif %}">
+    Todos
+  </a>
+  {% for cat in categories %}
+  <a href="?category={{ cat.pk }}"
+     class="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors
+            {% if selected_category == cat.pk|stringformat:'s' %}bg-primary text-white{% else %}bg-white/5 text-white/50 hover:bg-white/10{% endif %}">
+    {{ cat.name }}
+  </a>
+  {% endfor %}
+</form>
+
+{% if exercises %}
+<div class="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden">
+  <div class="divide-y divide-white/5">
+    {% for exercise in exercises %}
+    <div class="flex items-center gap-4 px-5 py-4 hover:bg-white/2 group transition-colors">
+      <!-- Indicador activo/inactivo -->
+      <div class="w-2 h-2 rounded-full shrink-0 {% if exercise.is_active %}bg-green-400{% else %}bg-white/20{% endif %}"></div>
+
+      <!-- Info -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <p class="text-white font-medium text-sm">{{ exercise.name }}</p>
+          {% if exercise.is_public %}
+          <span class="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full">Público</span>
+          {% endif %}
+          {% if exercise.video_file %}
+          <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full"><i class="fa fa-play text-xs mr-1"></i>Video</span>
+          {% endif %}
+        </div>
+        <p class="text-white/30 text-xs mt-0.5">
+          {% if exercise.category %}{{ exercise.category.name }} · {% endif %}{{ exercise.get_level_display }}
+        </p>
+      </div>
+
+      <!-- Acciones -->
+      <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <a href="{% url 'exercise_detail' exercise.pk %}" target="_blank"
+           title="Ver como cliente"
+           class="w-8 h-8 bg-white/5 hover:bg-white/10 rounded-lg flex items-center justify-center text-white/40 hover:text-white transition-colors">
+          <i class="fa fa-eye text-xs"></i>
+        </a>
+        <a href="{% url 'trainer_exercise_edit' exercise.pk %}"
+           class="w-8 h-8 bg-white/5 hover:bg-primary/20 rounded-lg flex items-center justify-center text-white/40 hover:text-primary transition-colors">
+          <i class="fa fa-pen text-xs"></i>
+        </a>
+        <a href="{% url 'trainer_exercise_delete' exercise.pk %}"
+           class="w-8 h-8 bg-white/5 hover:bg-red-600/20 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 transition-colors">
+          <i class="fa fa-trash text-xs"></i>
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="text-center py-24 bg-zinc-900 border border-white/10 rounded-2xl">
+  <div class="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-5">
+    <i class="fa fa-dumbbell text-white/20 text-2xl"></i>
+  </div>
+  <h3 class="text-white font-bold text-xl mb-2">No hay ejercicios{% if selected_category %} en esta categoría{% endif %}</h3>
+  {% if not selected_category %}
+  <p class="text-white/40 text-sm mb-7">Crea el primer ejercicio para empezar a construir tu banco.</p>
+  <a href="{% url 'trainer_exercise_create' %}"
+     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+    <i class="fa fa-plus"></i> Crear ejercicio
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

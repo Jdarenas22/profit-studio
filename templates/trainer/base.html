@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Trainer nav tabs -->
+  <nav class="flex items-center gap-1 bg-zinc-900 border border-white/10 rounded-2xl p-1.5 mb-8 overflow-x-auto">
+    {% url 'trainer_dashboard' as url_dashboard %}
+    {% url 'trainer_clients' as url_clients %}
+    {% url 'trainer_exercise_list' as url_exercises %}
+    {% url 'trainer_routine_list' as url_routines %}
+
+    <a href="{{ url_dashboard }}"
+       class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
+              {% if request.path == url_dashboard %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+      <i class="fa fa-chart-bar"></i> Panel
+    </a>
+    <a href="{{ url_clients }}"
+       class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
+              {% if 'clients' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+      <i class="fa fa-users"></i> Clientes
+    </a>
+    <a href="{{ url_exercises }}"
+       class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
+              {% if '/exercises/trainer' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+      <i class="fa fa-dumbbell"></i> Ejercicios
+    </a>
+    <a href="{{ url_routines }}"
+       class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
+              {% if '/routines/trainer' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+      <i class="fa fa-clipboard-list"></i> Rutinas
+    </a>
+
+    <div class="flex-1"></div>
+    <a href="{% url 'logout' %}" class="px-4 py-2 text-white/30 hover:text-white text-sm transition-colors whitespace-nowrap">
+      <i class="fa fa-sign-out-alt mr-1"></i>Salir
+    </a>
+  </nav>
+
+  {% block trainer_content %}{% endblock %}
+</div>
+{% endblock %}

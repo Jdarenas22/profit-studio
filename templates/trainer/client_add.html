@@ -1,0 +1,152 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Agregar cliente — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">Agregar cliente</span>
+</nav>
+
+<div class="max-w-xl">
+  <h1 class="text-2xl font-black text-white mb-2">Agregar cliente</h1>
+  <p class="text-white/40 text-sm mb-8">Crea la cuenta del cliente y opcionalmente activa su membresía al instante.</p>
+
+  <form method="POST" class="space-y-5">
+    {% csrf_token %}
+
+    <!-- Datos personales -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Datos personales</h2>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Nombre *</label>
+          <input type="text" name="first_name" required
+                 value="{{ form.first_name|default:'' }}"
+                 placeholder="Adriana"
+                 class="w-full bg-black/40 border {% if errors.first_name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.first_name %}<p class="text-red-400 text-xs mt-1">{{ errors.first_name }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Apellido *</label>
+          <input type="text" name="last_name" required
+                 value="{{ form.last_name|default:'' }}"
+                 placeholder="García"
+                 class="w-full bg-black/40 border {% if errors.last_name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.last_name %}<p class="text-red-400 text-xs mt-1">{{ errors.last_name }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Correo electrónico *</label>
+          <input type="email" name="email" required
+                 value="{{ form.email|default:'' }}"
+                 placeholder="cliente@email.com"
+                 class="w-full bg-black/40 border {% if errors.email %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.email %}<p class="text-red-400 text-xs mt-1">{{ errors.email }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Teléfono</label>
+          <input type="tel" name="phone"
+                 value="{{ form.phone|default:'' }}"
+                 placeholder="+57 300 000 0000"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        </div>
+      </div>
+
+      <!-- Género -->
+      <div x-data="{ gender: '{{ form.gender|default:'' }}' }">
+        <label class="block text-white/60 text-xs font-medium mb-2">Género</label>
+        <div class="grid grid-cols-3 gap-2">
+          <label class="cursor-pointer">
+            <input type="radio" name="gender" value="F" x-model="gender" class="sr-only">
+            <div :class="gender === 'F' ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 text-white/50 hover:border-white/20'"
+                 class="flex items-center justify-center gap-1.5 border rounded-xl py-2.5 text-xs font-semibold transition-all">
+              <i class="fa fa-venus text-sm"></i> Mujer
+            </div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="gender" value="M" x-model="gender" class="sr-only">
+            <div :class="gender === 'M' ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 text-white/50 hover:border-white/20'"
+                 class="flex items-center justify-center gap-1.5 border rounded-xl py-2.5 text-xs font-semibold transition-all">
+              <i class="fa fa-mars text-sm"></i> Hombre
+            </div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="gender" value="O" x-model="gender" class="sr-only">
+            <div :class="gender === 'O' ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 text-white/50 hover:border-white/20'"
+                 class="flex items-center justify-center gap-1.5 border rounded-xl py-2.5 text-xs font-semibold transition-all">
+              <i class="fa fa-genderless text-sm"></i> Otro
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Nombre de usuario *</label>
+          <input type="text" name="username" required
+                 value="{{ form.username|default:'' }}"
+                 placeholder="adri.garcia"
+                 class="w-full bg-black/40 border {% if errors.username %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.username %}<p class="text-red-400 text-xs mt-1">{{ errors.username }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Contraseña inicial *</label>
+          <input type="text" name="password" required
+                 value="{{ form.password|default:'' }}"
+                 placeholder="Mínimo 8 caracteres"
+                 class="w-full bg-black/40 border {% if errors.password %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.password %}<p class="text-red-400 text-xs mt-1">{{ errors.password }}</p>{% endif %}
+          <p class="text-white/20 text-xs mt-1">El cliente puede cambiarla después.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activar membresía (opcional) -->
+    {% if plans %}
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6"
+         x-data="{ activatePlan: false, selectedPlan: '' }">
+      <label class="flex items-center gap-3 cursor-pointer mb-4">
+        <input type="checkbox" x-model="activatePlan" class="w-4 h-4 accent-orange-500">
+        <div>
+          <span class="text-white font-semibold text-sm">Activar membresía ahora</span>
+          <p class="text-white/30 text-xs">Si ya confirmaste el pago, puedes activarla en este momento.</p>
+        </div>
+      </label>
+
+      <div x-show="activatePlan" x-cloak class="space-y-3">
+        {% for plan in plans %}
+        <label class="flex items-center gap-4 rounded-xl border p-4 cursor-pointer transition-all"
+               :class="selectedPlan === '{{ plan.pk }}' ? 'border-primary bg-primary/5' : 'border-white/10 hover:border-white/20'">
+          <input type="radio" name="activate_plan" value="{{ plan.pk }}"
+                 x-model="selectedPlan"
+                 class="accent-orange-500 shrink-0">
+          <div class="flex-1 flex items-center justify-between">
+            <div>
+              <p class="text-white font-semibold text-sm">{{ plan.name }}</p>
+              <p class="text-white/40 text-xs">{{ plan.duration_days }} días de acceso</p>
+            </div>
+            <p class="text-primary font-bold text-sm">${{ plan.reference_price|floatformat:0 }}</p>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-colors text-sm">
+        <i class="fa fa-user-plus mr-2"></i> Crear cliente
+      </button>
+      <a href="{% url 'trainer_clients' %}"
+         class="px-5 py-3.5 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

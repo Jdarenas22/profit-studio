@@ -1,0 +1,200 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Panel Entrenadora — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-10">
+    <div>
+      <h1 class="text-3xl font-black text-white">
+        Panel <span class="text-primary">ProFit Studio</span>
+      </h1>
+      <p class="text-white/40 text-sm mt-1">Hola, {{ user.first_name|default:user.username }} — aquí tienes el resumen de hoy.</p>
+    </div>
+    <a href="/admin/" target="_blank"
+       class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+      <i class="fa fa-cog"></i> Admin completo
+    </a>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+    <a href="{% url 'trainer_clients' %}" class="bg-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl p-6 transition-colors group">
+      <p class="text-white/40 text-xs uppercase tracking-wider mb-2">Clientes</p>
+      <p class="text-4xl font-black text-white group-hover:text-primary transition-colors">{{ total_clients }}</p>
+    </a>
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <p class="text-white/40 text-xs uppercase tracking-wider mb-2">Membresías activas</p>
+      <p class="text-4xl font-black text-green-400">{{ active_memberships }}</p>
+    </div>
+    <a href="{% url 'trainer_exercise_list' %}" class="bg-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl p-6 transition-colors group">
+      <p class="text-white/40 text-xs uppercase tracking-wider mb-2">Ejercicios</p>
+      <p class="text-4xl font-black text-white group-hover:text-primary transition-colors">{{ total_exercises }}</p>
+    </a>
+    <a href="{% url 'trainer_routine_list' %}" class="bg-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl p-6 transition-colors group">
+      <p class="text-white/40 text-xs uppercase tracking-wider mb-2">Rutinas activas</p>
+      <p class="text-4xl font-black text-white group-hover:text-primary transition-colors">{{ total_routines }}</p>
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Membresías próximas a vencer -->
+    <div class="lg:col-span-1">
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 h-full">
+        <h2 class="text-white font-bold mb-1">Vencen pronto</h2>
+        <p class="text-white/30 text-xs mb-5">Membresías en los próximos 7 días</p>
+
+        {% if expiring_soon %}
+        <div class="space-y-3">
+          {% for m in expiring_soon %}
+          <a href="{% url 'trainer_client_detail' m.user.pk %}"
+             class="flex items-center gap-3 bg-yellow-500/5 border border-yellow-500/10 hover:border-yellow-500/30 rounded-xl px-4 py-3 transition-colors">
+            <div class="w-8 h-8 bg-yellow-500/10 rounded-lg flex items-center justify-center shrink-0">
+              <i class="fa fa-triangle-exclamation text-yellow-400 text-xs"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-white text-sm font-medium truncate">{{ m.user.get_full_name|default:m.user.username }}</p>
+              <p class="text-white/40 text-xs">Vence: {{ m.end_date|date:"d/m/Y" }} — {{ m.days_remaining }}d</p>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-white/20">
+          <i class="fa fa-check-circle text-green-400/40 text-3xl mb-2"></i>
+          <p class="text-sm">Ninguna membresía vence pronto</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Acciones rápidas -->
+    <div class="lg:col-span-1">
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 h-full">
+        <h2 class="text-white font-bold mb-5">Acciones rápidas</h2>
+        <div class="space-y-2">
+          <a href="{% url 'trainer_clients' %}"
+             class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-4 py-3 transition-colors group">
+            <div class="w-8 h-8 bg-primary/10 group-hover:bg-primary/20 rounded-lg flex items-center justify-center">
+              <i class="fa fa-users text-primary text-xs"></i>
+            </div>
+            <span class="text-white/70 group-hover:text-white text-sm font-medium transition-colors">Ver clientes</span>
+          </a>
+          <a href="{% url 'trainer_exercise_create' %}"
+             class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-4 py-3 transition-colors group">
+            <div class="w-8 h-8 bg-primary/10 group-hover:bg-primary/20 rounded-lg flex items-center justify-center">
+              <i class="fa fa-dumbbell text-primary text-xs"></i>
+            </div>
+            <span class="text-white/70 group-hover:text-white text-sm font-medium transition-colors">Agregar ejercicio</span>
+          </a>
+          <a href="{% url 'trainer_routine_create' %}"
+             class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-4 py-3 transition-colors group">
+            <div class="w-8 h-8 bg-primary/10 group-hover:bg-primary/20 rounded-lg flex items-center justify-center">
+              <i class="fa fa-clipboard-list text-primary text-xs"></i>
+            </div>
+            <span class="text-white/70 group-hover:text-white text-sm font-medium transition-colors">Crear rutina</span>
+          </a>
+          <a href="{% url 'trainer_add_client' %}"
+             class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-4 py-3 transition-colors group">
+            <div class="w-8 h-8 bg-primary/10 group-hover:bg-primary/20 rounded-lg flex items-center justify-center">
+              <i class="fa fa-user-plus text-primary text-xs"></i>
+            </div>
+            <span class="text-white/70 group-hover:text-white text-sm font-medium transition-colors">Agregar cliente</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clientes recientes -->
+    <div class="lg:col-span-1">
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 h-full">
+        <h2 class="text-white font-bold mb-1">Clientes recientes</h2>
+        <p class="text-white/30 text-xs mb-5">Últimos en registrarse</p>
+
+        {% if recent_clients %}
+        <div class="space-y-3">
+          {% for client in recent_clients %}
+          <a href="{% url 'trainer_client_detail' client.pk %}"
+             class="flex items-center gap-3 hover:bg-white/5 rounded-xl px-2 py-1.5 -mx-2 transition-colors group">
+            <div class="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+              <span class="text-primary font-bold text-sm">{{ client.first_name|first|upper|default:client.username|first|upper }}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-white text-sm font-medium truncate">
+                {{ client.get_full_name|default:client.username }}
+              </p>
+              <p class="text-white/30 text-xs">
+                {% if client.has_active_membership %}
+                <span class="text-green-400">● Activo</span>
+                {% else %}
+                <span class="text-white/20">● Sin membresía</span>
+                {% endif %}
+              </p>
+            </div>
+            <i class="fa fa-chevron-right text-white/20 group-hover:text-primary transition-colors text-xs"></i>
+          </a>
+          {% endfor %}
+        </div>
+        <a href="{% url 'trainer_clients' %}"
+           class="flex items-center gap-1 text-primary/60 hover:text-primary text-xs mt-5 transition-colors">
+          Ver todos los clientes <i class="fa fa-arrow-right text-xs"></i>
+        </a>
+        {% else %}
+        <div class="text-center py-8 text-white/20">
+          <i class="fa fa-users text-3xl mb-2"></i>
+          <p class="text-sm">Aún no hay clientes</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Valoraciones recientes -->
+  {% if recent_assessments %}
+  <div class="mt-6">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <h2 class="text-white font-bold mb-5">Valoraciones recientes</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-white/30 text-xs uppercase tracking-wider">
+              <th class="text-left pb-3 pr-6">Cliente</th>
+              <th class="text-left pb-3 pr-6">Fecha</th>
+              <th class="text-left pb-3 pr-6">IMC</th>
+              <th class="text-left pb-3 pr-6">Clasificación</th>
+              <th class="text-left pb-3">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            {% for assessment in recent_assessments %}
+            <tr>
+              <td class="py-3 pr-6 text-white font-medium">{{ assessment.user.get_full_name|default:assessment.user.username }}</td>
+              <td class="py-3 pr-6 text-white/50">{{ assessment.date|date:"d/m/Y" }}</td>
+              <td class="py-3 pr-6 text-white">{{ assessment.imc }}</td>
+              <td class="py-3 pr-6">
+                <span class="text-xs px-2.5 py-1 rounded-full
+                  {% if assessment.imc_classification == 'Peso normal' %}bg-green-500/10 text-green-400
+                  {% elif assessment.imc_classification == 'Sobrepeso' %}bg-yellow-500/10 text-yellow-400
+                  {% elif assessment.imc_classification == 'Obesidad' %}bg-red-500/10 text-red-400
+                  {% else %}bg-blue-500/10 text-blue-400{% endif %}">
+                  {{ assessment.imc_classification }}
+                </span>
+              </td>
+              <td class="py-3">
+                <a href="{% url 'trainer_assessment_detail' assessment.pk %}"
+                   class="text-white/30 hover:text-primary text-xs transition-colors">
+                  Ver detalle <i class="fa fa-arrow-right"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+{% endblock %}

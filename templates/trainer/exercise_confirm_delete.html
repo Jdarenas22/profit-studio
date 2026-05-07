@@ -1,0 +1,26 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Eliminar {{ exercise.name }} — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="max-w-md mx-auto text-center py-16">
+  <div class="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+    <i class="fa fa-trash text-red-400 text-2xl"></i>
+  </div>
+  <h1 class="text-2xl font-black text-white mb-3">¿Eliminar ejercicio?</h1>
+  <p class="text-white/50 text-sm mb-2">
+    Vas a desactivar <span class="text-white font-semibold">{{ exercise.name }}</span>.
+  </p>
+  <p class="text-white/30 text-xs mb-8">El ejercicio se ocultará del banco pero no se borrará de las rutinas existentes.</p>
+
+  <form method="POST" class="flex flex-col gap-3">
+    {% csrf_token %}
+    <button type="submit"
+            class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-colors">
+      <i class="fa fa-trash mr-2"></i> Sí, eliminar
+    </button>
+    <a href="{% url 'trainer_exercise_list' %}"
+       class="py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

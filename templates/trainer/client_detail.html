@@ -1,0 +1,188 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}{{ client.get_full_name|default:client.username }} — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+
+<!-- Breadcrumb -->
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">{{ client.get_full_name|default:client.username }}</span>
+</nav>
+
+<!-- Header cliente -->
+<div class="flex items-start justify-between mb-8">
+  <div class="flex items-center gap-4">
+    <div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+      <span class="text-primary font-black text-2xl">{{ client.first_name|first|upper|default:client.username|first|upper }}</span>
+    </div>
+    <div>
+      <h1 class="text-2xl font-black text-white">{{ client.get_full_name|default:client.username }}</h1>
+      <p class="text-white/40 text-sm">{{ client.email|default:"Sin email" }}{% if client.phone %} · {{ client.phone }}{% endif %}</p>
+      <p class="text-white/30 text-xs mt-1">Miembro desde {{ client.date_joined|date:"d/m/Y" }}</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'trainer_client_edit' client.pk %}"
+       class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
+      <i class="fa fa-pen"></i> Editar
+    </a>
+    <a href="{% url 'trainer_client_delete' client.pk %}"
+       class="inline-flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium px-3 py-2 rounded-xl transition-colors">
+      <i class="fa fa-trash"></i> Eliminar
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Membresía -->
+  <div class="lg:col-span-1 space-y-4">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <h2 class="text-white font-bold mb-4">Membresía</h2>
+
+      {% if client.interested_plan and not membership %}
+      <div class="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 mb-4">
+        <p class="text-xs text-primary font-semibold mb-0.5">Plan de interés</p>
+        <p class="text-white text-sm font-bold">{{ client.interested_plan.name }}</p>
+        <p class="text-white/40 text-xs">${{ client.interested_plan.reference_price|floatformat:0 }} · {{ client.interested_plan.duration_days }} días</p>
+      </div>
+      {% endif %}
+
+      {% if membership %}
+        <div class="space-y-3 mb-5">
+          <div class="flex justify-between items-center">
+            <span class="text-white/40 text-xs">Estado</span>
+            {% if membership.is_valid %}
+            <span class="text-xs font-semibold text-green-400 bg-green-500/10 px-2.5 py-1 rounded-full">● Activa</span>
+            {% else %}
+            <span class="text-xs font-semibold text-red-400 bg-red-500/10 px-2.5 py-1 rounded-full">● {{ membership.status_display }}</span>
+            {% endif %}
+          </div>
+          {% if membership.plan %}
+          <div class="flex justify-between items-center">
+            <span class="text-white/40 text-xs">Plan</span>
+            <span class="text-white text-sm font-medium">{{ membership.plan.name }}</span>
+          </div>
+          {% endif %}
+          <div class="flex justify-between items-center">
+            <span class="text-white/40 text-xs">Inicio</span>
+            <span class="text-white text-sm">{{ membership.start_date|date:"d/m/Y" }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-white/40 text-xs">Vence</span>
+            <span class="text-white text-sm">{{ membership.end_date|date:"d/m/Y" }}</span>
+          </div>
+          {% if membership.is_valid %}
+          <div class="flex justify-between items-center">
+            <span class="text-white/40 text-xs">Días restantes</span>
+            <span class="text-primary font-bold">{{ membership.days_remaining }}d</span>
+          </div>
+          {% endif %}
+        </div>
+        <a href="{% url 'trainer_membership_manage' client.pk %}"
+           class="block w-full text-center bg-primary hover:bg-primary-dark text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
+          Gestionar membresía
+        </a>
+      {% else %}
+        <div class="text-center py-6 text-white/20 mb-4">
+          <i class="fa fa-shield-halved text-3xl mb-2"></i>
+          <p class="text-sm">Sin membresía</p>
+        </div>
+        <a href="{% url 'trainer_membership_manage' client.pk %}"
+           class="block w-full text-center bg-primary hover:bg-primary-dark text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
+          <i class="fa fa-plus mr-1"></i> Activar membresía
+        </a>
+      {% endif %}
+    </div>
+
+    <!-- Acciones rápidas -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <h2 class="text-white font-bold mb-4">Acciones</h2>
+      <div class="space-y-2">
+        <a href="{% url 'trainer_assessment_create' client.pk %}"
+           class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 transition-colors group">
+          <i class="fa fa-stethoscope text-primary text-sm w-5 text-center"></i>
+          <span class="text-white/70 group-hover:text-white text-sm transition-colors">Nueva valoración</span>
+        </a>
+        <a href="{% url 'trainer_routine_create' %}?client={{ client.pk }}"
+           class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 transition-colors group">
+          <i class="fa fa-clipboard-list text-primary text-sm w-5 text-center"></i>
+          <span class="text-white/70 group-hover:text-white text-sm transition-colors">Crear rutina</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Valoraciones y rutinas -->
+  <div class="lg:col-span-2 space-y-6">
+
+    <!-- Valoraciones -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-white font-bold">Valoraciones</h2>
+        <a href="{% url 'trainer_assessment_create' client.pk %}"
+           class="text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
+          <i class="fa fa-plus mr-1"></i> Nueva
+        </a>
+      </div>
+
+      {% if assessments %}
+      <div class="space-y-3">
+        {% for assessment in assessments %}
+        <a href="{% url 'trainer_assessment_detail' assessment.pk %}"
+           class="flex items-center justify-between bg-black/30 hover:bg-black/50 rounded-xl px-4 py-3 transition-colors group">
+          <div>
+            <p class="text-white text-sm font-medium">{{ assessment.date|date:"d/m/Y" }}</p>
+            <p class="text-white/40 text-xs">
+              IMC {{ assessment.imc }} — {{ assessment.imc_classification }}
+              {% if assessment.dixon_test %}· Test Dixon: {{ assessment.dixon_test.classification }}{% endif %}
+            </p>
+          </div>
+          <i class="fa fa-chevron-right text-white/20 group-hover:text-primary transition-colors text-xs"></i>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-8 text-white/20">
+        <i class="fa fa-stethoscope text-2xl mb-2"></i>
+        <p class="text-sm">Sin valoraciones aún</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Rutinas -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-white font-bold">Rutinas activas</h2>
+        <a href="{% url 'trainer_routine_list' %}"
+           class="text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
+          Ver todas
+        </a>
+      </div>
+
+      {% if routines %}
+      <div class="space-y-3">
+        {% for routine in routines %}
+        <a href="{% url 'trainer_routine_builder' routine.pk %}"
+           class="flex items-center justify-between bg-black/30 hover:bg-black/50 rounded-xl px-4 py-3 transition-colors group">
+          <div>
+            <p class="text-white text-sm font-medium">{{ routine.name }}</p>
+            <p class="text-white/40 text-xs">{{ routine.days.count }} día{{ routine.days.count|pluralize:"s" }}</p>
+          </div>
+          <i class="fa fa-chevron-right text-white/20 group-hover:text-primary transition-colors text-xs"></i>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-8 text-white/20">
+        <i class="fa fa-clipboard-list text-2xl mb-2"></i>
+        <p class="text-sm">Sin rutinas asignadas</p>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

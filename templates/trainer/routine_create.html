@@ -1,0 +1,60 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Nueva rutina — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_routine_list' %}" class="hover:text-primary transition-colors">Rutinas</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">Nueva rutina</span>
+</nav>
+
+<div class="max-w-lg">
+  <h1 class="text-2xl font-black text-white mb-8">Crear rutina</h1>
+
+  <form method="POST" class="space-y-5">
+    {% csrf_token %}
+
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Nombre de la rutina *</label>
+        <input type="text" name="name" required
+               placeholder="Ej: Rutina de fuerza - Nivel inicial"
+               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Asignar a cliente *</label>
+        <select name="client" required
+                class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <option value="">— Selecciona un cliente —</option>
+          {% for client in clients %}
+          <option value="{{ client.pk }}" {% if request.GET.client == client.pk|stringformat:'s' %}selected{% endif %}>
+            {{ client.get_full_name|default:client.username }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Notas generales (opcional)</label>
+        <textarea name="notes" rows="2"
+                  placeholder="Frecuencia semanal, objetivo de la rutina..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+      </div>
+    </div>
+
+    <p class="text-white/30 text-xs">Después podrás agregar días y ejercicios en el constructor.</p>
+
+    <div class="flex items-center gap-3">
+      <button type="submit"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+        <i class="fa fa-arrow-right mr-2"></i> Crear y continuar al constructor
+      </button>
+      <a href="{% url 'trainer_routine_list' %}"
+         class="px-5 py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

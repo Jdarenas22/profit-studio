@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Estado del pago — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="min-h-screen flex items-center justify-center py-20 bg-black px-4">
+  <div class="max-w-md w-full text-center">
+
+    {% if payment %}
+
+      {% if payment.status == 'approved' %}
+      <!-- APROBADO -->
+      <div class="w-20 h-20 bg-green-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa fa-check-circle text-green-400 text-4xl"></i>
+      </div>
+      <h1 class="text-3xl font-black text-white mb-3">¡Pago exitoso!</h1>
+      <p class="text-white/50 text-lg mb-2">
+        Tu membresía <span class="text-primary font-bold">{{ payment.plan.name }}</span> está activa.
+      </p>
+      <p class="text-white/30 text-sm mb-8">
+        Método: {{ payment.method_display }} · Ref: {{ payment.reference }}
+      </p>
+
+      <div class="bg-zinc-900 border border-green-500/20 rounded-2xl p-6 mb-8 text-left space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-white/40 text-sm">Plan</span>
+          <span class="text-white font-semibold">{{ payment.plan.name }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-white/40 text-sm">Monto pagado</span>
+          <span class="text-green-400 font-bold">${{ payment.amount_cop|floatformat:0 }} COP</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-white/40 text-sm">Método</span>
+          <span class="text-white text-sm">{{ payment.method_display }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-white/40 text-sm">Referencia</span>
+          <span class="text-white/60 text-xs font-mono">{{ payment.reference }}</span>
+        </div>
+      </div>
+
+      <a href="{% url 'dashboard' %}"
+         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-xl transition-colors text-lg mb-4">
+        <i class="fa fa-dumbbell"></i> Ir a mis rutinas
+      </a>
+
+      {% elif payment.status == 'declined' %}
+      <!-- RECHAZADO -->
+      <div class="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa fa-times-circle text-red-400 text-4xl"></i>
+      </div>
+      <h1 class="text-3xl font-black text-white mb-3">Pago rechazado</h1>
+      <p class="text-white/50 text-lg mb-8">
+        Tu pago no pudo procesarse. Puedes intentarlo nuevamente con otro método o tarjeta.
+      </p>
+      {% if payment.plan %}
+      <a href="{% url 'payment_checkout' payment.plan.pk %}"
+         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-xl transition-colors mb-4 block">
+        <i class="fa fa-redo"></i> Intentar de nuevo
+      </a>
+      {% endif %}
+
+      {% else %}
+      <!-- PENDIENTE / PROCESANDO -->
+      <div class="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa fa-clock text-primary text-4xl"></i>
+      </div>
+      <h1 class="text-3xl font-black text-white mb-3">Procesando pago…</h1>
+      <p class="text-white/50 text-lg mb-8">
+        Tu pago está siendo confirmado. Esto puede tomar unos segundos.
+        Esta página se actualizará automáticamente.
+      </p>
+      <div class="flex justify-center mb-8">
+        <div class="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+      </div>
+      <!-- Auto-refresh every 4 seconds while pending -->
+      <meta http-equiv="refresh" content="4">
+      {% endif %}
+
+    {% else %}
+    <!-- Sin referencia / pago no encontrado -->
+    <div class="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-6">
+      <i class="fa fa-question text-white/20 text-4xl"></i>
+    </div>
+    <h1 class="text-3xl font-black text-white mb-3">Estado desconocido</h1>
+    <p class="text-white/50 text-lg mb-8">
+      No pudimos encontrar información sobre tu pago.
+      Si realizaste el pago, la membresía se activará automáticamente en breve.
+    </p>
+    {% endif %}
+
+    <a href="{% url 'dashboard' %}" class="text-white/30 hover:text-white text-sm transition-colors">
+      <i class="fa fa-arrow-left mr-1"></i> Volver al panel
+    </a>
+  </div>
+</section>
+{% endblock %}

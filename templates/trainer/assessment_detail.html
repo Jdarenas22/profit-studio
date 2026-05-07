@@ -1,0 +1,274 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Valoración — {{ assessment.user.get_full_name|default:assessment.user.username }}{% endblock %}
+
+{% block trainer_content %}
+
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <a href="{% url 'trainer_client_detail' assessment.user.pk %}" class="hover:text-primary transition-colors">{{ assessment.user.get_full_name|default:assessment.user.username }}</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">Valoración {{ assessment.date|date:"d/m/Y" }}</span>
+</nav>
+
+<div class="max-w-3xl">
+  <h1 class="text-2xl font-black text-white mb-8">Valoración inicial</h1>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+    <!-- Datos físicos -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <h2 class="text-white font-bold mb-5 text-sm uppercase tracking-wider">Datos físicos</h2>
+      <div class="space-y-3">
+        <div class="flex justify-between">
+          <span class="text-white/40 text-sm">Fecha</span>
+          <span class="text-white text-sm">{{ assessment.date|date:"d/m/Y" }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-white/40 text-sm">Edad</span>
+          <span class="text-white text-sm">{{ assessment.age }} años</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-white/40 text-sm">Sexo</span>
+          <span class="text-white text-sm">{{ assessment.get_sex_display }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-white/40 text-sm">Peso</span>
+          <span class="text-white text-sm">{{ assessment.weight }} kg</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-white/40 text-sm">Estatura</span>
+          <span class="text-white text-sm">{{ assessment.height }} m</span>
+        </div>
+        <div class="flex justify-between items-center border-t border-white/5 pt-3">
+          <span class="text-white/40 text-sm font-semibold">IMC</span>
+          <div class="text-right">
+            <span class="text-white font-black text-xl">{{ assessment.imc }}</span>
+            <span class="ml-2 text-xs px-2 py-0.5 rounded-full
+              {% if assessment.imc_classification == 'Peso normal' %}bg-green-500/10 text-green-400
+              {% elif assessment.imc_classification == 'Sobrepeso' %}bg-yellow-500/10 text-yellow-400
+              {% elif assessment.imc_classification == 'Obesidad' %}bg-red-500/10 text-red-400
+              {% else %}bg-blue-500/10 text-blue-400{% endif %}">
+              {{ assessment.imc_classification }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Objetivo y restricciones -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <h2 class="text-white font-bold mb-5 text-sm uppercase tracking-wider">Objetivo y condición</h2>
+      <div class="space-y-4">
+        <div>
+          <p class="text-white/40 text-xs mb-1">Objetivo</p>
+          <p class="text-white text-sm leading-relaxed">{{ assessment.goal }}</p>
+        </div>
+        {% if assessment.physical_restrictions %}
+        <div>
+          <p class="text-white/40 text-xs mb-1">Restricciones físicas</p>
+          <p class="text-white text-sm leading-relaxed">{{ assessment.physical_restrictions }}</p>
+        </div>
+        {% endif %}
+        {% if assessment.observations %}
+        <div>
+          <p class="text-white/40 text-xs mb-1">Observaciones</p>
+          <p class="text-white text-sm leading-relaxed">{{ assessment.observations }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Test Dickson ──────────────────────────────────────────────────── -->
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+    <h2 class="text-white font-bold mb-1">Test Dickson</h2>
+    <p class="text-white/30 text-xs mb-6">IRD = ((P0 + P1 + P2) − 200) / 10</p>
+
+    {% if dixon %}
+    <!-- Resultados guardados -->
+    <div class="grid grid-cols-3 gap-4 mb-5">
+      <div class="bg-black/30 rounded-xl p-4 text-center">
+        <p class="text-white/40 text-xs mb-1">P0 — Reposo</p>
+        <p class="text-white font-black text-2xl">{{ dixon.p0 }}</p>
+        <p class="text-white/30 text-xs">ppm</p>
+      </div>
+      <div class="bg-black/30 rounded-xl p-4 text-center">
+        <p class="text-white/40 text-xs mb-1">P1 — Post-actividad</p>
+        <p class="text-white font-black text-2xl">{{ dixon.p1 }}</p>
+        <p class="text-white/30 text-xs">ppm</p>
+      </div>
+      <div class="bg-black/30 rounded-xl p-4 text-center">
+        <p class="text-white/40 text-xs mb-1">P2 — 1 min después</p>
+        <p class="text-white font-black text-2xl">{{ dixon.p2 }}</p>
+        <p class="text-white/30 text-xs">ppm</p>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between rounded-xl px-5 py-4 mb-5
+      {% if dixon.classification == 'Excelente' or dixon.classification == 'Muy buena' %}bg-green-500/10 border border-green-500/20
+      {% elif dixon.classification == 'Buena' %}bg-yellow-500/10 border border-yellow-500/20
+      {% elif dixon.classification == 'Regular' %}bg-orange-500/10 border border-orange-500/20
+      {% else %}bg-red-500/10 border border-red-500/20{% endif %}">
+      <div>
+        <p class="text-white/40 text-xs mb-0.5">IRD</p>
+        <p class="font-black text-3xl
+          {% if dixon.classification == 'Excelente' or dixon.classification == 'Muy buena' %}text-green-400
+          {% elif dixon.classification == 'Buena' %}text-yellow-400
+          {% elif dixon.classification == 'Regular' %}text-orange-400
+          {% else %}text-red-400{% endif %}">
+          {{ dixon.index_value }}
+        </p>
+      </div>
+      <div class="text-right">
+        <p class="text-white/40 text-xs mb-0.5">Clasificación</p>
+        <p class="font-bold text-sm
+          {% if dixon.classification == 'Excelente' or dixon.classification == 'Muy buena' %}text-green-400
+          {% elif dixon.classification == 'Buena' %}text-yellow-400
+          {% elif dixon.classification == 'Regular' %}text-orange-400
+          {% else %}text-red-400{% endif %}">
+          {{ dixon.classification }}
+        </p>
+      </div>
+    </div>
+
+    {% if dixon.observations %}
+    <p class="text-white/40 text-xs mb-5">
+      <i class="fa fa-note-sticky mr-1 text-primary"></i>{{ dixon.observations }}
+    </p>
+    {% endif %}
+
+    <p class="text-white/20 text-xs mb-4 border-t border-white/5 pt-4">Actualizar Test Dickson:</p>
+    {% endif %}
+
+    <!-- Formulario Test Dickson -->
+    <form method="POST"
+          x-data="{
+            p0: '{% if dixon %}{{ dixon.p0 }}{% endif %}',
+            p1: '{% if dixon %}{{ dixon.p1 }}{% endif %}',
+            p2: '{% if dixon %}{{ dixon.p2 }}{% endif %}',
+            get dixonNegative() {
+              return (this.p0 !== '' && parseInt(this.p0) < 0)
+                  || (this.p1 !== '' && parseInt(this.p1) < 0)
+                  || (this.p2 !== '' && parseInt(this.p2) < 0);
+            },
+            get ird() {
+              const v0 = parseInt(this.p0), v1 = parseInt(this.p1), v2 = parseInt(this.p2);
+              if (isNaN(v0) || isNaN(v1) || isNaN(v2)) return null;
+              if (v0 < 0 || v1 < 0 || v2 < 0) return null;
+              return (((v0 + v1 + v2) - 200) / 10).toFixed(2);
+            },
+            get irdLabel() {
+              const v = parseFloat(this.ird);
+              if (isNaN(v)) return '';
+              if (v <= 0)  return 'Excelente';
+              if (v <= 5)  return 'Muy buena';
+              if (v <= 10) return 'Buena';
+              if (v <= 15) return 'Regular';
+              return 'Mala';
+            },
+            get irdColor() {
+              const v = parseFloat(this.ird);
+              if (isNaN(v)) return 'text-white/40';
+              if (v <= 0)  return 'text-green-400';
+              if (v <= 5)  return 'text-green-400';
+              if (v <= 10) return 'text-yellow-400';
+              if (v <= 15) return 'text-orange-400';
+              return 'text-red-400';
+            }
+          }"
+          class="space-y-4">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">P0 — Reposo *</label>
+          <input type="number" name="p0" min="0" max="250" required x-model="p0"
+                 placeholder="Ej: 72"
+                 :class="(p0 !== '' && parseInt(p0) < 0) ? 'border-red-500' : 'border-white/10'"
+                 class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <p class="text-white/25 text-xs mt-1">Pulso inicial en reposo</p>
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">P1 — Post-actividad *</label>
+          <input type="number" name="p1" min="0" max="250" required x-model="p1"
+                 placeholder="Ej: 150"
+                 :class="(p1 !== '' && parseInt(p1) < 0) ? 'border-red-500' : 'border-white/10'"
+                 class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <p class="text-white/25 text-xs mt-1">Tras actividad física</p>
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">P2 — 1 min después *</label>
+          <input type="number" name="p2" min="0" max="250" required x-model="p2"
+                 placeholder="Ej: 100"
+                 :class="(p2 !== '' && parseInt(p2) < 0) ? 'border-red-500' : 'border-white/10'"
+                 class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <p class="text-white/25 text-xs mt-1">Un minuto después</p>
+        </div>
+      </div>
+
+      <!-- Aviso número negativo -->
+      <div x-show="dixonNegative" x-cloak
+           class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+        <i class="fa fa-circle-xmark text-red-400 shrink-0"></i>
+        <p class="text-red-300 text-xs">Los valores de pulso no pueden ser negativos.</p>
+      </div>
+
+      <!-- IRD en tiempo real -->
+      <div x-show="ird !== null && !dixonNegative" x-cloak
+           class="bg-black/30 border border-white/5 rounded-xl px-5 py-4 flex items-center justify-between">
+        <div>
+          <p class="text-white/40 text-xs mb-1">IRD calculado</p>
+          <span class="font-black text-3xl" :class="irdColor" x-text="ird"></span>
+        </div>
+        <div class="text-right">
+          <p class="text-white/30 text-xs mb-1">Clasificación</p>
+          <span class="font-bold text-sm" :class="irdColor" x-text="irdLabel"></span>
+        </div>
+      </div>
+
+      <!-- Tabla de referencia -->
+      <div class="bg-black/20 rounded-xl p-4">
+        <p class="text-white/30 text-xs font-semibold uppercase tracking-wider mb-3">Tabla de referencia IRD</p>
+        <div class="grid grid-cols-5 gap-1 text-center text-xs">
+          <div class="bg-green-500/10 rounded-lg py-2 px-1">
+            <p class="text-green-400 font-bold">≤ 0</p>
+            <p class="text-white/40 mt-0.5">Excelente</p>
+          </div>
+          <div class="bg-green-500/5 rounded-lg py-2 px-1">
+            <p class="text-green-400/70 font-bold">0.1–5</p>
+            <p class="text-white/40 mt-0.5">Muy buena</p>
+          </div>
+          <div class="bg-yellow-500/10 rounded-lg py-2 px-1">
+            <p class="text-yellow-400 font-bold">5.1–10</p>
+            <p class="text-white/40 mt-0.5">Buena</p>
+          </div>
+          <div class="bg-orange-500/10 rounded-lg py-2 px-1">
+            <p class="text-orange-400 font-bold">10.1–15</p>
+            <p class="text-white/40 mt-0.5">Regular</p>
+          </div>
+          <div class="bg-red-500/10 rounded-lg py-2 px-1">
+            <p class="text-red-400 font-bold">&gt; 15</p>
+            <p class="text-white/40 mt-0.5">Mala</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Observaciones (opcional)</label>
+        <textarea name="dixon_observations" rows="2"
+                  placeholder="Notas sobre la prueba cardiovascular..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if dixon %}{{ dixon.observations }}{% endif %}</textarea>
+      </div>
+
+      <button type="submit"
+              :disabled="dixonNegative"
+              :class="dixonNegative ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary-dark'"
+              class="bg-primary text-white font-semibold py-2.5 px-6 rounded-xl transition-colors text-sm">
+        <i class="fa fa-check mr-2"></i>{% if dixon %}Actualizar{% else %}Guardar{% endif %} Test Dickson
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

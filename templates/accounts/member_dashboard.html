@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi panel — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-5xl mx-auto">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-10">
+    <div>
+      <h1 class="text-3xl font-black text-white">
+        Hola, <span class="text-primary">{{ user.first_name|default:user.username }}</span> 👋
+      </h1>
+      <p class="text-white/40 text-sm mt-1">Aquí están tus rutinas y tu estado de membresía.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="{% url 'member_profile_edit' %}"
+         class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
+        <i class="fa fa-pen"></i> Editar perfil
+      </a>
+      <a href="{% url 'logout' %}" class="text-white/30 hover:text-white text-sm transition-colors">
+        <i class="fa fa-sign-out-alt mr-1"></i>Salir
+      </a>
+    </div>
+  </div>
+
+  <!-- Membresía -->
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <div class="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
+        <i class="fa fa-shield-alt text-green-400"></i>
+      </div>
+      <div>
+        <p class="text-white font-semibold">Membresía {{ membership.plan.name|default:"activa" }}</p>
+        <p class="text-white/40 text-xs mt-0.5">Vence el {{ membership.end_date|date:"d/m/Y" }}</p>
+      </div>
+    </div>
+    <div class="text-right">
+      <span class="text-green-400 font-black text-2xl">{{ membership.days_remaining }}</span>
+      <span class="text-white/40 text-sm ml-1">días restantes</span>
+    </div>
+  </div>
+
+  <!-- Rutinas -->
+  {% if routines %}
+    {% for routine in routines %}
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-1">{{ routine.name }}</h2>
+      {% if routine.notes %}
+      <p class="text-white/40 text-sm mb-5">{{ routine.notes }}</p>
+      {% endif %}
+
+      <div class="space-y-4 mt-5">
+        {% for day in routine.days.all %}
+        <div>
+          <h3 class="text-primary font-semibold text-sm uppercase tracking-wider mb-3">{{ day.name }}</h3>
+          <div class="space-y-2">
+            {% for re in day.exercises.all %}
+            <div class="flex items-center gap-4 bg-black/40 rounded-xl px-4 py-3">
+              {% if re.exercise.video_file %}
+              <a href="{% url 'exercise_detail' re.exercise.pk %}"
+                 class="w-9 h-9 bg-primary/20 hover:bg-primary rounded-lg flex items-center justify-center shrink-0 transition-colors">
+                <i class="fa fa-play text-primary hover:text-white text-xs"></i>
+              </a>
+              {% else %}
+              <div class="w-9 h-9 bg-white/5 rounded-lg flex items-center justify-center shrink-0">
+                <i class="fa fa-dumbbell text-white/20 text-xs"></i>
+              </div>
+              {% endif %}
+              <div class="flex-1 min-w-0">
+                <p class="text-white text-sm font-medium truncate">{{ re.exercise.name }}</p>
+                <p class="text-white/40 text-xs">
+                  {{ re.sets }} series × {{ re.reps }} reps — {{ re.rest_seconds }}s descanso
+                </p>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="text-center py-20 text-white/30">
+      <i class="fa fa-clipboard-list text-5xl mb-4"></i>
+      <p class="text-lg font-medium">Aún no tienes rutinas asignadas</p>
+      <p class="text-sm mt-2">La entrenadora te asignará tu rutina pronto.</p>
+      <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors mt-6">
+        <i class="fab fa-whatsapp"></i>
+        Consultar a la entrenadora
+      </a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

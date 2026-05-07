@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}Nosotros — ProFit Studio{% endblock %}
+{% block description %}Conoce a ProFit Studio, la plataforma de entrenamiento personalizado diseñada para transformar tu cuerpo con metodología profesional.{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="py-24 bg-zinc-950 relative overflow-hidden">
+  <div class="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <div>
+        <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-4">Nuestra historia</p>
+        <h1 class="text-5xl sm:text-6xl font-black text-white leading-none mb-6">
+          Somos<br /><span class="text-primary">ProFit</span><br />Studio
+        </h1>
+        <p class="text-white/60 text-lg leading-relaxed mb-6">
+          Nació de una convicción simple: cada persona merece un plan de entrenamiento diseñado exclusivamente para ella, con seguimiento real y herramientas que faciliten el camino.
+        </p>
+        <p class="text-white/40 leading-relaxed">
+          Combinamos metodología deportiva con tecnología para que puedas entrenar con propósito, medir tu progreso y alcanzar resultados reales — sin importar tu punto de partida.
+        </p>
+      </div>
+
+      <!-- Stats visuales -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-zinc-900 border border-white/10 rounded-2xl p-7">
+          <p class="text-5xl font-black text-primary mb-2">100%</p>
+          <p class="text-white font-semibold">Personalizado</p>
+          <p class="text-white/40 text-sm mt-1">Cada rutina, diseñada para tu cuerpo y tu objetivo</p>
+        </div>
+        <div class="bg-zinc-900 border border-white/10 rounded-2xl p-7">
+          <p class="text-5xl font-black text-white mb-2">+50</p>
+          <p class="text-white font-semibold">Ejercicios</p>
+          <p class="text-white/40 text-sm mt-1">Banco en constante crecimiento con video-guía</p>
+        </div>
+        <div class="bg-zinc-900 border border-white/10 rounded-2xl p-7">
+          <p class="text-5xl font-black text-primary mb-2">24/7</p>
+          <p class="text-white font-semibold">Disponible</p>
+          <p class="text-white/40 text-sm mt-1">Accede a tu rutina cuando quieras, desde donde estés</p>
+        </div>
+        <div class="bg-zinc-900 border border-white/10 rounded-2xl p-7">
+          <p class="text-5xl font-black text-white mb-2">2</p>
+          <p class="text-white font-semibold">Test de valoración</p>
+          <p class="text-white/40 text-sm mt-1">IMC + Test Dixon para conocer tu punto de partida real</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Entrenadora -->
+<section class="py-20 bg-black border-t border-white/5">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
+
+      <!-- Foto placeholder -->
+      <div class="relative">
+        <div class="aspect-[4/5] bg-zinc-900 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden">
+          <div class="text-center text-white/20">
+            <i class="fa fa-user text-6xl mb-3"></i>
+            <p class="text-sm">Foto de la entrenadora</p>
+            <p class="text-xs mt-1">@profitstudio75</p>
+          </div>
+        </div>
+        <!-- Badge Instagram -->
+        <div class="absolute -bottom-5 -right-5 bg-zinc-800 border border-white/10 rounded-2xl px-5 py-3 flex items-center gap-3 shadow-xl">
+          <i class="fab fa-instagram text-primary text-xl"></i>
+          <div>
+            <p class="text-white font-bold text-sm">@profitstudio75</p>
+            <p class="text-white/40 text-xs">Síguenos en Instagram</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Texto -->
+      <div>
+        <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-4">Tu entrenadora</p>
+        <h2 class="text-4xl font-black text-white mb-5">
+          Metodología que<br /><span class="text-primary">transforma</span>
+        </h2>
+        <p class="text-white/60 leading-relaxed mb-5">
+          Con formación en entrenamiento deportivo y una profunda vocación de servicio, cada plan que diseño está pensado para que el cliente entienda <strong class="text-white/90">por qué hace cada ejercicio</strong>, no solo cómo.
+        </p>
+        <p class="text-white/40 leading-relaxed mb-8">
+          La valoración inicial no es un trámite — es el punto de partida para conocer realmente el cuerpo de cada persona y diseñar una estrategia efectiva. El Test de Dixon nos da una radiografía de la condición cardiovascular desde el día 1.
+        </p>
+        <div class="flex gap-4">
+          <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+             class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm">
+            <i class="fab fa-whatsapp"></i> Escribir ahora
+          </a>
+          <a href="{{ INSTAGRAM_URL }}" target="_blank" rel="noopener"
+             class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm">
+            <i class="fab fa-instagram"></i> Instagram
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Metodología -->
+<section class="py-20 bg-zinc-950 border-t border-white/5">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-14">
+      <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Cómo trabajamos</p>
+      <h2 class="text-4xl font-black text-white">Nuestra metodología</h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-8">
+        <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5">
+          <i class="fa fa-microscope text-primary text-xl"></i>
+        </div>
+        <h3 class="text-white font-bold text-lg mb-3">Diagnóstico real</h3>
+        <p class="text-white/50 text-sm leading-relaxed">
+          Valoración inicial completa: IMC, composición corporal, Test Dixon para condición cardiovascular, objetivos, restricciones físicas y estilo de vida.
+        </p>
+      </div>
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-8">
+        <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5">
+          <i class="fa fa-pen-ruler text-primary text-xl"></i>
+        </div>
+        <h3 class="text-white font-bold text-lg mb-3">Plan a medida</h3>
+        <p class="text-white/50 text-sm leading-relaxed">
+          La rutina se diseña con base en el diagnóstico, los equipos disponibles y el tiempo de entrenamiento. Cada ejercicio tiene un por qué.
+        </p>
+      </div>
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-8">
+        <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5">
+          <i class="fa fa-chart-line text-primary text-xl"></i>
+        </div>
+        <h3 class="text-white font-bold text-lg mb-3">Seguimiento continuo</h3>
+        <p class="text-white/50 text-sm leading-relaxed">
+          La rutina evoluciona contigo. A medida que progresas, el plan se ajusta para que siempre estés avanzando hacia tu objetivo.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="py-16 bg-black border-t border-white/5">
+  <div class="max-w-2xl mx-auto px-4 text-center">
+    <h2 class="text-3xl font-black text-white mb-4">¿Listo para comenzar?</h2>
+    <p class="text-white/50 mb-8">Un mensaje es todo lo que separa tu versión actual de tu mejor versión.</p>
+    <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+       class="inline-flex items-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20">
+      <i class="fab fa-whatsapp text-xl"></i> Empezar ahora
+    </a>
+  </div>
+</section>
+
+{% endblock %}

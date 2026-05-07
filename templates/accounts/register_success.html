@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}¡Cuenta creada! — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="min-h-screen flex items-center justify-center py-20 bg-black">
+  <div class="max-w-lg w-full px-4 text-center">
+
+    <!-- Icono de éxito -->
+    <div class="w-20 h-20 bg-green-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+      <i class="fa fa-check-circle text-green-400 text-4xl"></i>
+    </div>
+
+    <h1 class="text-3xl font-black text-white mb-3">
+      {% if user.gender == 'M' %}¡Bienvenido{% elif user.gender == 'F' %}¡Bienvenida{% else %}¡Bienvenido/a{% endif %}, {{ user.first_name }}!
+    </h1>
+    <p class="text-white/50 text-lg mb-8 leading-relaxed">
+      Tu cuenta fue creada correctamente.
+      {% if plan %}
+      Elegiste el plan <span class="text-primary font-bold">{{ plan.name }}</span>.
+      {% endif %}
+    </p>
+
+    <!-- Pasos -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8 text-left">
+      <p class="text-white/50 text-xs font-semibold uppercase tracking-wider mb-5">¿Qué sigue?</p>
+      <div class="space-y-4">
+        <div class="flex items-start gap-4">
+          <div class="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shrink-0 text-white font-black text-sm">1</div>
+          <div>
+            <p class="text-white font-semibold text-sm">Escríbele a la entrenadora</p>
+            <p class="text-white/40 text-xs mt-0.5">Confirma el pago y cuéntale{% if plan %} que te interesa el plan <strong class="text-white">{{ plan.name }}</strong>{% endif %}.</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="w-8 h-8 bg-primary/30 rounded-xl flex items-center justify-center shrink-0 text-white/60 font-black text-sm">2</div>
+          <div>
+            <p class="text-white/60 font-semibold text-sm">Valoración inicial</p>
+            <p class="text-white/40 text-xs mt-0.5">La entrenadora registrará tu IMC y Test Dixon.</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="w-8 h-8 bg-primary/30 rounded-xl flex items-center justify-center shrink-0 text-white/60 font-black text-sm">3</div>
+          <div>
+            <p class="text-white/60 font-semibold text-sm">Tu rutina disponible</p>
+            <p class="text-white/40 text-xs mt-0.5">Recibirás acceso a tu rutina personalizada con videos.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if plan %}
+    <!-- CTA Pago online (plan seleccionado) -->
+    <a href="{% url 'payment_checkout' plan.pk %}"
+       class="flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-2xl transition-colors mb-3">
+      <i class="fa fa-credit-card text-xl"></i>
+      Pagar membresía ahora
+    </a>
+    <p class="text-white/30 text-xs mb-5">Tarjeta, PSE, Nequi, Botón Bancolombia, Daviplata y más.</p>
+    {% endif %}
+
+    <!-- CTA WhatsApp -->
+    <a href="{{ wa_link }}" target="_blank" rel="noopener"
+       class="flex items-center justify-center gap-3 {% if plan %}bg-zinc-800 hover:bg-zinc-700{% else %}bg-green-500 hover:bg-green-600{% endif %} text-white font-bold text-lg px-8 py-4 rounded-2xl transition-colors mb-4">
+      <i class="fab fa-whatsapp text-2xl"></i>
+      {% if plan %}Pagar por WhatsApp{% else %}Escribirle a la entrenadora ahora{% endif %}
+    </a>
+
+    <a href="{% url 'dashboard' %}"
+       class="text-white/30 hover:text-white text-sm transition-colors">
+      Ir a mi perfil <i class="fa fa-arrow-right ml-1 text-xs"></i>
+    </a>
+  </div>
+</section>
+{% endblock %}

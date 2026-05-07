@@ -1,0 +1,131 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}{% if exercise %}Editar{% else %}Nuevo{% endif %} ejercicio — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+
+<!-- Breadcrumb -->
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_exercise_list' %}" class="hover:text-primary transition-colors">Ejercicios</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">{% if exercise %}Editar "{{ exercise.name }}"{% else %}Nuevo ejercicio{% endif %}</span>
+</nav>
+
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-black text-white mb-8">
+    {% if exercise %}Editar ejercicio{% else %}Nuevo ejercicio{% endif %}
+  </h1>
+
+  <form method="POST" enctype="multipart/form-data"
+        x-data="{ submitting: false }"
+        @submit="submitting = true"
+        class="space-y-5">
+    {% csrf_token %}
+
+    <!-- Info básica -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Información básica</h2>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Nombre del ejercicio *</label>
+        <input type="text" name="name" required
+               value="{% if exercise %}{{ exercise.name }}{% endif %}"
+               placeholder="Ej: Press de banca"
+               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Categoría</label>
+          <select name="category"
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            <option value="">— Sin categoría —</option>
+            {% for cat in categories %}
+            <option value="{{ cat.pk }}" {% if exercise and exercise.category_id == cat.pk %}selected{% endif %}>
+              {{ cat.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Nivel *</label>
+          <select name="level" required
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            {% for value, label in level_choices %}
+            <option value="{{ value }}" {% if exercise and exercise.level == value %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Descripción *</label>
+        <textarea name="description" rows="3" required
+                  placeholder="Cómo se ejecuta el ejercicio..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if exercise %}{{ exercise.description }}{% endif %}</textarea>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Músculos trabajados *</label>
+        <input type="text" name="muscles" required
+               value="{% if exercise %}{{ exercise.muscles }}{% endif %}"
+               placeholder="Ej: Pectoral mayor, deltoides anterior, tríceps"
+               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Recomendaciones (opcional)</label>
+        <textarea name="recommendations" rows="2"
+                  placeholder="Consejos técnicos, errores comunes a evitar..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if exercise %}{{ exercise.recommendations }}{% endif %}</textarea>
+      </div>
+
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" name="is_public"
+               {% if exercise and exercise.is_public %}checked{% endif %}
+               class="w-4 h-4 accent-orange-500">
+        <div>
+          <span class="text-white text-sm font-medium">Visible en la galería pública</span>
+          <p class="text-white/30 text-xs">Los visitantes podrán verlo sin iniciar sesión.</p>
+        </div>
+      </label>
+    </div>
+
+    <!-- Archivos -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Multimedia</h2>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Video (MP4, MOV)</label>
+        {% if exercise and exercise.video_file %}
+        <p class="text-white/30 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Video actual: {{ exercise.video_file.name|slice:"20:" }}</p>
+        {% endif %}
+        <input type="file" name="video_file" accept="video/*"
+               class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+        <p class="text-white/20 text-xs mt-1">Los clientes no podrán descargar el video.</p>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Imagen de portada (JPG, PNG)</label>
+        {% if exercise and exercise.image %}
+        <p class="text-white/30 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Imagen actual guardada</p>
+        {% endif %}
+        <input type="file" name="image" accept="image/*"
+               class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" :disabled="submitting"
+              class="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+        <span x-show="!submitting"><i class="fa fa-check mr-2"></i>{% if exercise %}Guardar cambios{% else %}Crear ejercicio{% endif %}</span>
+        <span x-show="submitting"><i class="fa fa-spinner fa-spin mr-2"></i>Guardando...</span>
+      </button>
+      <a href="{% url 'trainer_exercise_list' %}"
+         class="px-5 py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

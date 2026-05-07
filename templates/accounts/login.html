@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Iniciar sesión — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="min-h-screen flex items-center justify-center py-20 bg-black">
+  <div class="w-full max-w-md px-4">
+    <div class="bg-zinc-900 border border-white/10 rounded-3xl p-8 sm:p-10">
+      <!-- Logo -->
+      <div class="text-center mb-8">
+        <div class="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <i class="fa fa-dumbbell text-white text-2xl"></i>
+        </div>
+        <h1 class="text-2xl font-black text-white">Bienvenido de vuelta</h1>
+        <p class="text-white/40 text-sm mt-1">Ingresa a tu cuenta de ProFit Studio</p>
+      </div>
+
+      <!-- Form -->
+      <form method="post" class="space-y-5">
+        {% csrf_token %}
+        <div>
+          <label class="block text-white/70 text-sm font-medium mb-2">Usuario</label>
+          <input type="text" name="username" required autocomplete="username"
+                 class="w-full bg-black/60 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors placeholder:text-white/20"
+                 placeholder="Tu usuario" />
+        </div>
+        <div>
+          <label class="block text-white/70 text-sm font-medium mb-2">Contraseña</label>
+          <input type="password" name="password" required autocomplete="current-password"
+                 class="w-full bg-black/60 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors placeholder:text-white/20"
+                 placeholder="••••••••" />
+        </div>
+        <button type="submit"
+                class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-colors text-sm">
+          Ingresar
+        </button>
+      </form>
+
+      <div class="mt-8 pt-6 border-t border-white/10 text-center">
+        <p class="text-white/40 text-sm">¿Aún no tienes cuenta?</p>
+        <a href="{% url 'register' %}"
+           class="inline-flex items-center gap-2 text-primary hover:text-primary-dark text-sm font-semibold mt-2 transition-colors">
+          <i class="fa fa-user-plus"></i>
+          Crear cuenta gratis
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

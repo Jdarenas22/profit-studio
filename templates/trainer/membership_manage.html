@@ -1,0 +1,122 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Membresía de {{ client.get_full_name|default:client.username }} — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+
+<!-- Breadcrumb -->
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">Membresía</span>
+</nav>
+
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-black text-white mb-2">Gestionar membresía</h1>
+  <p class="text-white/40 text-sm mb-8">Cliente: <span class="text-white font-medium">{{ client.get_full_name|default:client.username }}</span></p>
+
+  <!-- Estado actual -->
+  {% if membership %}
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-6">
+    <h2 class="text-white font-bold mb-4">Estado actual</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <p class="text-white/40 text-xs mb-1">Estado</p>
+        {% if membership.is_valid %}
+        <p class="text-green-400 font-semibold text-sm">● Activa</p>
+        {% else %}
+        <p class="text-red-400 font-semibold text-sm">● {{ membership.status_display }}</p>
+        {% endif %}
+      </div>
+      {% if membership.plan %}
+      <div>
+        <p class="text-white/40 text-xs mb-1">Plan actual</p>
+        <p class="text-white font-medium text-sm">{{ membership.plan.name }}</p>
+      </div>
+      {% endif %}
+      <div>
+        <p class="text-white/40 text-xs mb-1">Vencimiento</p>
+        <p class="text-white text-sm">{{ membership.end_date|date:"d/m/Y" }}</p>
+      </div>
+      {% if membership.is_valid %}
+      <div>
+        <p class="text-white/40 text-xs mb-1">Días restantes</p>
+        <p class="text-primary font-bold">{{ membership.days_remaining }}d</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Formulario de acción -->
+  <form method="POST" x-data="{ selectedPlan: null, customDays: false }" class="space-y-5">
+    {% csrf_token %}
+
+    <!-- Selección de plan -->
+    <div>
+      <label class="block text-white/60 text-sm font-medium mb-3">Plan de membresía</label>
+      <div class="space-y-3">
+        {% for plan in plans %}
+        <label class="flex items-start gap-3 bg-zinc-900 border border-white/10 hover:border-primary/40 rounded-xl p-4 cursor-pointer transition-colors"
+               :class="selectedPlan == '{{ plan.pk }}' ? 'border-primary/60 bg-primary/5' : ''">
+          <input type="radio" name="plan_id" value="{{ plan.pk }}" class="mt-0.5 accent-orange-500"
+                 x-model="selectedPlan" required>
+          <div class="flex-1">
+            <div class="flex items-center justify-between">
+              <p class="text-white font-semibold">{{ plan.name }}</p>
+              <p class="text-primary font-bold text-sm">${{ plan.reference_price|floatformat:0 }}</p>
+            </div>
+            <p class="text-white/40 text-xs mt-0.5">{{ plan.duration_days }} días — {{ plan.description }}</p>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Duración personalizada -->
+    <div>
+      <label class="flex items-center gap-2 cursor-pointer mb-3">
+        <input type="checkbox" x-model="customDays" class="accent-orange-500">
+        <span class="text-white/60 text-sm">Personalizar duración (días)</span>
+      </label>
+      <div x-show="customDays" x-cloak>
+        <input type="number" name="duration_days" min="1" max="730"
+               placeholder="Ej: 45"
+               class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        <p class="text-white/30 text-xs mt-1">Deja vacío para usar la duración predeterminada del plan seleccionado.</p>
+      </div>
+    </div>
+
+    <!-- Notas -->
+    <div>
+      <label class="block text-white/60 text-sm font-medium mb-2">Notas (opcional)</label>
+      <textarea name="notes" rows="2"
+                placeholder="Observaciones sobre el pago o la membresía..."
+                class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if membership %}{{ membership.notes }}{% endif %}</textarea>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="flex flex-col sm:flex-row gap-3 pt-2">
+      {% if not membership or not membership.is_valid %}
+      <button type="submit" name="action" value="activate"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+        <i class="fa fa-shield-check mr-2"></i>
+        {% if not membership %}Activar membresía{% else %}Reactivar membresía{% endif %}
+      </button>
+      {% else %}
+      <button type="submit" name="action" value="renew"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+        <i class="fa fa-rotate mr-2"></i> Renovar membresía
+      </button>
+      <button type="submit" name="action" value="deactivate"
+              onclick="return confirm('¿Desactivar la membresía de {{ client.get_full_name|default:client.username }}?')"
+              class="bg-red-600/20 hover:bg-red-600/40 border border-red-600/30 text-red-400 font-semibold py-3 px-5 rounded-xl transition-colors text-sm">
+        <i class="fa fa-ban mr-1"></i> Desactivar
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

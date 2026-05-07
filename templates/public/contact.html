@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Contacto — ProFit Studio{% endblock %}
+{% block description %}Escríbenos por WhatsApp o síguenos en Instagram. ProFit Studio está lista para ayudarte a transformar tu cuerpo.{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="py-20 bg-zinc-950 border-b border-white/5">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Estamos para ti</p>
+    <h1 class="text-5xl sm:text-6xl font-black text-white mb-4">Contacto</h1>
+    <p class="text-white/50 text-xl max-w-xl mx-auto">
+      El primer paso hacia tu transformación es un mensaje. Respuesta rápida garantizada.
+    </p>
+  </div>
+</section>
+
+<!-- Cards de contacto -->
+<section class="py-20 bg-black">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+
+      <!-- WhatsApp -->
+      <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+         class="group bg-zinc-900 border border-white/10 hover:border-green-500/30 rounded-3xl p-8 flex flex-col items-center text-center transition-all duration-300 hover:bg-zinc-900/80">
+        <div class="w-16 h-16 bg-green-500/10 group-hover:bg-green-500/20 rounded-2xl flex items-center justify-center mb-5 transition-colors">
+          <i class="fab fa-whatsapp text-green-400 text-3xl"></i>
+        </div>
+        <h3 class="text-white font-bold text-xl mb-2">WhatsApp</h3>
+        <p class="text-white/40 text-sm mb-4">La forma más rápida de contactarnos. Respuesta en minutos.</p>
+        <span class="text-green-400 font-semibold text-sm">{{ WHATSAPP_NUMBER }}</span>
+        <span class="mt-4 inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-colors">
+          <i class="fab fa-whatsapp"></i> Escribir ahora
+        </span>
+      </a>
+
+      <!-- Instagram -->
+      <a href="{{ INSTAGRAM_URL }}" target="_blank" rel="noopener"
+         class="group bg-zinc-900 border border-white/10 hover:border-primary/30 rounded-3xl p-8 flex flex-col items-center text-center transition-all duration-300">
+        <div class="w-16 h-16 bg-primary/10 group-hover:bg-primary/20 rounded-2xl flex items-center justify-center mb-5 transition-colors">
+          <i class="fab fa-instagram text-primary text-3xl"></i>
+        </div>
+        <h3 class="text-white font-bold text-xl mb-2">Instagram</h3>
+        <p class="text-white/40 text-sm mb-4">Síguenos para ver contenido de entrenamiento y motivación diaria.</p>
+        <span class="text-primary font-semibold text-sm">@profitstudio75</span>
+        <span class="mt-4 inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-colors">
+          <i class="fab fa-instagram"></i> Ver perfil
+        </span>
+      </a>
+    </div>
+
+    <!-- Proceso de contacto -->
+    <div class="bg-zinc-950 border border-white/5 rounded-3xl p-8 sm:p-10">
+      <h2 class="text-2xl font-black text-white text-center mb-8">¿Qué pasa después de escribirme?</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div class="text-center">
+          <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4 text-white font-black">1</div>
+          <h4 class="text-white font-semibold mb-2">Te respondo</h4>
+          <p class="text-white/40 text-sm">Respondo rápidamente para conocer tu objetivo y situación actual.</p>
+        </div>
+        <div class="text-center">
+          <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4 text-white font-black">2</div>
+          <h4 class="text-white font-semibold mb-2">Valoración inicial</h4>
+          <p class="text-white/40 text-sm">Tomamos tu IMC y condición cardiovascular con el Test Dixon.</p>
+        </div>
+        <div class="text-center">
+          <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4 text-white font-black">3</div>
+          <h4 class="text-white font-semibold mb-2">Tu rutina lista</h4>
+          <p class="text-white/40 text-sm">Activo tu acceso y encuentras tu rutina personalizada con videos.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

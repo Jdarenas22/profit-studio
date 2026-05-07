@@ -1,0 +1,106 @@
+<div id="day-{{ day.pk }}" class="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden"
+     x-data="{ showAddExercise: false, filterText: '' }">
+
+  <!-- Cabecera del día -->
+  <div class="flex items-center justify-between px-5 py-4 border-b border-white/5">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+        <i class="fa fa-calendar-day text-primary text-xs"></i>
+      </div>
+      <h3 class="text-white font-bold">{{ day.name }}</h3>
+    </div>
+    <div class="flex items-center gap-2">
+      <button @click="showAddExercise = !showAddExercise"
+              :class="showAddExercise ? 'bg-primary text-white' : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'"
+              class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+        <i class="fa fa-plus text-xs"></i>
+        <span x-text="showAddExercise ? 'Cerrar' : 'Agregar ejercicio'"></span>
+      </button>
+      <button hx-post="{% url 'trainer_delete_day' routine.pk day.pk %}"
+              hx-target="#day-{{ day.pk }}"
+              hx-swap="outerHTML"
+              hx-confirm="¿Eliminar el día '{{ day.name }}' con todos sus ejercicios?"
+              class="w-7 h-7 bg-white/5 hover:bg-red-600/20 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 transition-colors">
+        <i class="fa fa-trash text-xs"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Ejercicios del día -->
+  <div id="exercises-{{ day.pk }}" class="divide-y divide-white/5">
+    {% for re in day.exercises.all %}
+      {% include 'trainer/partials/routine_exercise.html' with re=re routine=routine day=day %}
+    {% endfor %}
+  </div>
+
+  {% if not day.exercises.exists %}
+  <div class="px-5 py-6 text-center text-white/20 text-sm" id="empty-exercises-{{ day.pk }}">
+    <i class="fa fa-dumbbell mr-2"></i>Sin ejercicios aún
+  </div>
+  {% endif %}
+
+  <!-- Formulario agregar ejercicio (toggle Alpine) -->
+  <div x-show="showAddExercise" x-cloak
+       class="border-t border-white/5 bg-black/30 p-5">
+    <p class="text-white/50 text-xs font-semibold uppercase tracking-wider mb-4">Agregar ejercicio</p>
+
+    <!-- Filtro de búsqueda -->
+    <input type="text" x-model="filterText"
+           placeholder="Buscar ejercicio..."
+           class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-4 py-2.5 text-white text-sm outline-none mb-4 transition-colors">
+
+    <form hx-post="{% url 'trainer_add_exercise_to_day' routine.pk day.pk %}"
+          hx-target="#exercises-{{ day.pk }}"
+          hx-swap="beforeend"
+          hx-on::after-request="this.reset(); filterText=''; showAddExercise=false; document.getElementById('empty-exercises-{{ day.pk }}')?.remove();"
+          class="space-y-4">
+      {% csrf_token %}
+
+      <!-- Selector de ejercicio filtrado por Alpine -->
+      <div>
+        <label class="block text-white/50 text-xs mb-2">Ejercicio *</label>
+        <select name="exercise" required
+                class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-4 py-2.5 text-white text-sm outline-none transition-colors">
+          <option value="">— Selecciona —</option>
+          {% for ex in exercises %}
+          <option value="{{ ex.pk }}"
+                  x-show="filterText === '' || '{{ ex.name|lower }}'.includes(filterText.toLowerCase()) || '{% if ex.category %}{{ ex.category.name|lower }}{% endif %}'.includes(filterText.toLowerCase())">
+            {{ ex.name }}{% if ex.category %} ({{ ex.category.name }}){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block text-white/50 text-xs mb-1.5">Series</label>
+          <input type="number" name="sets" value="3" min="1" max="20" required
+                 class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-white/50 text-xs mb-1.5">Reps</label>
+          <input type="text" name="reps" value="10" required
+                 placeholder="Ej: 10-12"
+                 class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-white/50 text-xs mb-1.5">Descanso (seg)</label>
+          <input type="number" name="rest_seconds" value="60" min="0" max="600" required
+                 class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none transition-colors">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-white/50 text-xs mb-1.5">Observaciones (opcional)</label>
+        <input type="text" name="observations"
+               placeholder="Ej: Controlar la bajada lentamente"
+               class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none transition-colors">
+      </div>
+
+      <button type="submit"
+              class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
+        <i class="fa fa-plus mr-1.5"></i> Agregar ejercicio
+      </button>
+    </form>
+  </div>
+</div>

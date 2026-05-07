@@ -1,0 +1,76 @@
+<nav x-data="{ open: false }" class="fixed top-0 left-0 right-0 z-40 bg-black/95 backdrop-blur-sm border-b border-white/10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+
+      <!-- Logo -->
+      <a href="{% url 'home' %}" class="flex items-center gap-2 group">
+        <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+          <i class="fa fa-dumbbell text-white text-sm"></i>
+        </div>
+        <span class="text-xl font-black tracking-tight">
+          <span class="text-white">Pro</span><span class="text-primary">Fit</span>
+          <span class="text-white/60 font-light text-sm ml-1">Studio</span>
+        </span>
+      </a>
+
+      <!-- Nav desktop -->
+      <div class="hidden md:flex items-center gap-8">
+        <a href="{% url 'home' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Inicio</a>
+        <a href="{% url 'exercises' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Ejercicios</a>
+        <a href="{% url 'plans' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Planes</a>
+        <a href="{% url 'about' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Nosotros</a>
+        <a href="{% url 'contact' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Contacto</a>
+      </div>
+
+      <!-- CTA desktop -->
+      <div class="hidden md:flex items-center gap-3">
+        {% if user.is_authenticated %}
+          <a href="{% url 'dashboard' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
+            <i class="fa fa-user-circle mr-1"></i>{{ user.first_name|default:user.username }}
+          </a>
+          <a href="{% url 'logout' %}" class="text-sm text-white/50 hover:text-white transition-colors">
+            Salir
+          </a>
+        {% else %}
+          <a href="{% url 'login' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
+            Iniciar sesión
+          </a>
+          <a href="{% url 'register' %}"
+             class="bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+            Inscribirme
+          </a>
+        {% endif %}
+      </div>
+
+      <!-- Hamburger mobile -->
+      <button @click="open = !open" class="md:hidden text-white/70 hover:text-white p-2">
+        <i class="fa" :class="open ? 'fa-times' : 'fa-bars'"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div x-show="open" x-transition class="md:hidden bg-black/98 border-t border-white/10 px-4 py-4 space-y-3">
+    <a href="{% url 'home' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Inicio</a>
+    <a href="{% url 'exercises' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Ejercicios</a>
+    <a href="{% url 'plans' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Planes</a>
+    <a href="{% url 'about' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Nosotros</a>
+    <a href="{% url 'contact' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Contacto</a>
+    <div class="pt-3 border-t border-white/10 flex flex-col gap-2">
+      {% if user.is_authenticated %}
+        <a href="{% url 'dashboard' %}" class="block text-white/70 py-2 font-medium">
+          <i class="fa fa-user-circle mr-2"></i>Mi perfil
+        </a>
+        <a href="{% url 'logout' %}" class="block text-white/50 py-2">Cerrar sesión</a>
+      {% else %}
+        <a href="{% url 'login' %}" class="block text-white/70 py-2 font-medium">Iniciar sesión</a>
+        <a href="{% url 'register' %}"
+           class="block bg-primary text-white text-center font-semibold py-3 rounded-lg">
+          Inscribirme
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+<!-- Espaciado para compensar el navbar fijo -->
+<div class="h-16"></div>
