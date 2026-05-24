@@ -2,12 +2,20 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+
+
+def health_check(request):
+    """Endpoint de salud para Railway — responde 200 OK sin tocar la base de datos."""
+    return JsonResponse({'status': 'ok'})
+
 
 admin.site.site_header = 'ProFit Studio — Panel Admin'
 admin.site.site_title = 'ProFit Studio'
 admin.site.index_title = 'Administración'
 
 urlpatterns = [
+    path('health/', health_check),      # ← Railway HealthCheck
     path('admin/', admin.site.urls),
     path('', include('apps.public.urls')),
     path('accounts/', include('apps.accounts.urls')),

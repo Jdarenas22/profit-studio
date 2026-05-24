@@ -8,9 +8,12 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
 # Necesario para que HTTPS funcione correctamente detrás del proxy de Railway
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# ─── Base de datos PostgreSQL ───────────────────────────────────────────────────
+# ─── Base de datos ──────────────────────────────────────────────────────────────
+# En Railway, DATABASE_URL se inyecta automáticamente cuando agregas el servicio
+# PostgreSQL. Sin ella usa SQLite temporal (el healthcheck pasa, pero agrega
+# PostgreSQL para que la app funcione completamente).
 DATABASES = {
-    'default': env.db('DATABASE_URL')
+    'default': env.db('DATABASE_URL', default='sqlite:///db.sqlite3')
 }
 
 # ─── Seguridad ──────────────────────────────────────────────────────────────────
