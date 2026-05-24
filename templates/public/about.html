@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Nosotros — ProFit Studio{% endblock %}
 {% block description %}Conoce a ProFit Studio, la plataforma de entrenamiento personalizado diseñada para transformar tu cuerpo con metodología profesional.{% endblock %}
@@ -55,20 +56,29 @@
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
 
-      <!-- Foto placeholder -->
+      <!-- Foto entrenadora -->
       <div class="relative">
-        <div class="aspect-[4/5] bg-zinc-900 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden">
-          <div class="text-center text-white/20">
-            <i class="fa fa-user text-6xl mb-3"></i>
-            <p class="text-sm">Foto de la entrenadora</p>
-            <p class="text-xs mt-1">@profitstudio75</p>
+        <!-- Resplandor naranja -->
+        <div class="absolute -inset-4 bg-primary/15 rounded-3xl blur-2xl pointer-events-none"></div>
+        <!-- Imagen real -->
+        <div class="relative aspect-[4/5] rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-primary/20">
+          <img src="{% static 'images/entrenadora.jpg' %}"
+               alt="Entrenadora ProFit Studio"
+               class="w-full h-full object-cover object-top transition-transform duration-700 hover:scale-105"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <!-- Fallback si la imagen no está guardada aún -->
+          <div class="w-full h-full bg-zinc-900 items-center justify-content-center flex-col text-center p-8"
+               style="display:none; flex-direction:column; align-items:center; justify-content:center;">
+            <i class="fa fa-user text-6xl text-white/20 mb-4"></i>
+            <p class="text-white/30 text-sm">Guarda tu foto en:</p>
+            <code class="text-primary/60 text-xs mt-2">static/images/entrenadora.jpg</code>
           </div>
         </div>
-        <!-- Badge Instagram -->
+        <!-- Badge Instagram flotante -->
         <div class="absolute -bottom-5 -right-5 bg-zinc-800 border border-white/10 rounded-2xl px-5 py-3 flex items-center gap-3 shadow-xl">
-          <i class="fab fa-instagram text-primary text-xl"></i>
+          <i class="fab fa-instagram text-xl" style="color:#e1306c;"></i>
           <div>
-            <p class="text-white font-bold text-sm">@profitstudio75</p>
+            <p class="text-white font-bold text-sm">@profitstudio075</p>
             <p class="text-white/40 text-xs">Síguenos en Instagram</p>
           </div>
         </div>
