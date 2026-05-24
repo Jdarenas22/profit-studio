@@ -142,10 +142,6 @@
         <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-1">¿Cuál es tu meta?</h2>
         <p class="text-white/30 text-xs mb-5">Esto ayuda a asignarte el entrenador ideal para tu objetivo.</p>
         <div class="grid grid-cols-2 gap-3">
-          {% with goals="weight_loss:🔥 Pérdida de peso,muscle_gain:💪 Ganancia muscular,cardio:🏃 Resistencia cardiovascular,rehab:🩺 Rehabilitación / Salud,sports:🏅 Rendimiento deportivo,toning:✨ Tonificación" %}
-          {% for goal_pair in goals|split:"," %}
-          {% endfor %}
-          {% endwith %}
           {% for val, label in goal_choices %}
           <label class="cursor-pointer">
             <input type="radio" name="training_goal" value="{{ val }}" x-model="goal" class="sr-only">
