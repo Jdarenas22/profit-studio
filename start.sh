@@ -1,17 +1,25 @@
 #!/bin/bash
-# Script de arranque para Railway
-# Garantiza que siempre se usen los settings de producción
+# Script de arranque Railway — ProFit Studio
 
+# 1. Settings: usa production siempre (aunque DJANGO_SETTINGS_MODULE esté vacío)
 export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.production}"
+echo ">>> DJANGO_SETTINGS_MODULE = $DJANGO_SETTINGS_MODULE"
+echo ">>> DATABASE_URL definida: ${DATABASE_URL:+SI}${DATABASE_URL:-NO (usando SQLite)}"
+echo ">>> PORT = $PORT"
 
-echo "==> Settings: $DJANGO_SETTINGS_MODULE"
-echo "==> DATABASE_URL definido: ${DATABASE_URL:+SI}${DATABASE_URL:-NO}"
+# 2. Migraciones (continúa aunque falle)
+echo ">>> Ejecutando migrate..."
+python manage.py migrate --noinput 2>&1 && echo ">>> migrate OK" || echo ">>> migrate FALLÓ (continuando)"
 
-echo "==> Ejecutando migraciones..."
-python manage.py migrate --noinput || echo "ADVERTENCIA: migrate falló (continuando...)"
+# 3. Archivos estáticos (continúa aunque falle)
+echo ">>> Ejecutando collectstatic..."
+python manage.py collectstatic --noinput 2>&1 && echo ">>> collectstatic OK" || echo ">>> collectstatic FALLÓ (continuando)"
 
-echo "==> Recopilando archivos estáticos..."
-python manage.py collectstatic --noinput --clear || echo "ADVERTENCIA: collectstatic falló (continuando...)"
-
-echo "==> Iniciando Gunicorn en puerto $PORT..."
-exec gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --log-file -
+# 4. Gunicorn — siempre arranca
+echo ">>> Iniciando Gunicorn en 0.0.0.0:$PORT..."
+exec gunicorn config.wsgi:application \
+    --bind 0.0.0.0:$PORT \
+    --workers 2 \
+    --timeout 120 \
+    --log-level info \
+    --log-file -

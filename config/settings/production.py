@@ -9,20 +9,17 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ─── Base de datos ──────────────────────────────────────────────────────────────
-# En Railway, DATABASE_URL se inyecta automáticamente cuando agregas el servicio
-# PostgreSQL. Sin ella usa SQLite temporal (el healthcheck pasa, pero agrega
-# PostgreSQL para que la app funcione completamente).
+# DATABASE_URL se inyecta cuando conectas PostgreSQL en Railway.
+# Sin ella usa SQLite como fallback temporal.
 DATABASES = {
     'default': env.db('DATABASE_URL', default='sqlite:///db.sqlite3')
 }
 
 # ─── Seguridad ──────────────────────────────────────────────────────────────────
-# Railway revisa /health/ con HTTP directo al contenedor (sin pasar por su proxy
-# HTTPS). Si SECURE_SSL_REDIRECT=True, Django lo redirige a HTTPS → 301 → el
-# health check nunca obtiene 200 → timeout → "Fallo de HealthCheck".
-# Por eso excluimos /health/ del redireccionamiento SSL.
-SECURE_SSL_REDIRECT = True
-SECURE_REDIRECT_EXEMPT = [r'^health/$']   # ← Railway healthcheck usa HTTP interno
+# SECURE_SSL_REDIRECT = False porque Railway maneja el redireccionamiento HTTP→HTTPS
+# en su propio proxy/load balancer. Si Django también lo hace, el healthcheck de
+# Railway (que va por HTTP directo al contenedor) recibe un 301 y falla.
+SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
@@ -31,9 +28,12 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
+# ─── Archivos estáticos — sin manifest para evitar errores al iniciar ──────────
+# CompressedStaticFilesStorage comprime los archivos pero NO crea staticfiles.json
+# Evita el error "Missing staticfiles.json manifest" si collectstatic falla.
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
 # ─── Cloudflare R2 — almacenamiento de archivos (OPCIONAL) ─────────────────────
-# Si no se configuran estas variables, los archivos se guardan en disco local.
-# Configura R2 cuando quieras almacenar videos y fotos en la nube.
 _r2_key      = env('R2_ACCESS_KEY_ID', default='')
 _r2_secret   = env('R2_SECRET_ACCESS_KEY', default='')
 _r2_bucket   = env('R2_BUCKET_NAME', default='')
@@ -51,13 +51,10 @@ if _r2_key and _r2_secret and _r2_bucket and _r2_endpoint:
     DEFAULT_FILE_STORAGE    = 'storages.backends.s3boto3.S3Boto3Storage'
     MEDIA_URL = f'{_r2_endpoint}/{_r2_bucket}/'
 else:
-    # Fallback: almacenamiento local en el servidor
     MEDIA_ROOT = BASE_DIR / 'media'
     MEDIA_URL  = '/media/'
 
 # ─── Cache y sesiones (OPCIONAL con Redis) ──────────────────────────────────────
-# Sin Redis usa cache en memoria local — suficiente para empezar.
-# Agrega Redis cuando necesites escalar o usar Celery.
 _redis_url = env('REDIS_URL', default='')
 
 if _redis_url:
@@ -73,7 +70,6 @@ if _redis_url:
     CELERY_BROKER_URL      = _redis_url
     CELERY_RESULT_BACKEND  = _redis_url
 else:
-    # Fallback: cache en memoria local, sesiones en base de datos
     CACHES = {
         'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'},
     }

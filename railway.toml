@@ -7,6 +7,6 @@ DJANGO_SETTINGS_MODULE = "config.settings.production"
 [deploy]
 startCommand = "bash start.sh"
 healthcheckPath = "/health/"
-healthcheckTimeout = 100
+healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
