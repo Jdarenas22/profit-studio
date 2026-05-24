@@ -1,0 +1,59 @@
+{% extends 'trainer/base.html' %}
+{% block title %}Entrenadores — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="flex items-center justify-between mb-8">
+  <div>
+    <h1 class="text-2xl font-black text-white">Entrenadores</h1>
+    <p class="text-white/40 text-sm mt-1">{{ trainers|length }} entrenador{{ trainers|length|pluralize:"es" }} en el equipo</p>
+  </div>
+  <a href="{% url 'trainer_create_trainer' %}"
+     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+    <i class="fa fa-user-plus"></i> Agregar entrenador/a
+  </a>
+</div>
+
+{% if trainers %}
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  {% for trainer in trainers %}
+  <div class="bg-zinc-900 border {% if trainer.is_superuser %}border-primary/30{% else %}border-white/10{% endif %} rounded-2xl p-5">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="w-12 h-12 {% if trainer.is_superuser %}bg-primary/20{% else %}bg-white/5{% endif %} rounded-2xl flex items-center justify-center shrink-0">
+        <span class="{% if trainer.is_superuser %}text-primary{% else %}text-white/60{% endif %} font-black text-lg">
+          {{ trainer.first_name|first|upper|default:trainer.username|first|upper }}
+        </span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2">
+          <p class="text-white font-bold truncate">{{ trainer.get_full_name|default:trainer.username }}</p>
+          {% if trainer.is_superuser %}
+          <span class="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full shrink-0">Principal</span>
+          {% endif %}
+        </div>
+        <p class="text-white/40 text-xs truncate">{{ trainer.email|default:"Sin email" }}</p>
+      </div>
+    </div>
+    {% if trainer.bio %}
+    <p class="text-white/40 text-xs leading-relaxed mb-4 line-clamp-2">{{ trainer.bio }}</p>
+    {% endif %}
+    <div class="flex items-center justify-between text-xs text-white/30">
+      <span><i class="fa fa-users mr-1"></i> {{ trainer.assigned_clients.count }} cliente{{ trainer.assigned_clients.count|pluralize:"s" }}</span>
+      <span>@{{ trainer.username }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-24 bg-zinc-900 border border-white/10 rounded-2xl">
+  <div class="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-5">
+    <i class="fa fa-user-tie text-white/20 text-2xl"></i>
+  </div>
+  <h3 class="text-white font-bold text-xl mb-2">Aún no hay otros entrenadores</h3>
+  <p class="text-white/40 text-sm mb-7">Agrega entrenadores al equipo para que puedan gestionar sus propios clientes.</p>
+  <a href="{% url 'trainer_create_trainer' %}"
+     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+    <i class="fa fa-user-plus"></i> Agregar primer entrenador/a
+  </a>
+</div>
+{% endif %}
+{% endblock %}

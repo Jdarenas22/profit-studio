@@ -15,14 +15,15 @@ python manage.py migrate --noinput 2>&1 && echo ">>> migrate OK" || echo ">>> mi
 echo ">>> Ejecutando collectstatic..."
 python manage.py collectstatic --noinput 2>&1 && echo ">>> collectstatic OK" || echo ">>> collectstatic FALLÓ (continuando)"
 
-# 4. Crear cuenta de entrenadora Yiseth (solo si no existe)
-echo ">>> Creando cuenta de entrenadora..."
+# 4. Crear cuenta de entrenadora Yiseth como superusuaria (solo si no existe)
+echo ">>> Creando cuenta de entrenadora principal..."
 python manage.py create_trainer \
     --username yiseth \
     --first-name Yiseth \
     --last-name "Misas García" \
     --email profitstudio075@gmail.com \
     --password "ProFit2024!" \
+    --superuser \
     2>&1 && echo ">>> create_trainer OK" || echo ">>> create_trainer FALLÓ (continuando)"
 
 # 5. Cargar datos iniciales de ejercicios (continúa aunque falle)

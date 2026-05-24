@@ -36,7 +36,14 @@
         </button>
       </form>
 
-      <div class="mt-8 pt-6 border-t border-white/10 text-center">
+      <div class="mt-4 text-center">
+        <a href="{% url 'password_reset' %}"
+           class="text-white/30 hover:text-primary text-xs transition-colors">
+          <i class="fa fa-lock-open mr-1"></i> ¿Olvidaste tu contraseña?
+        </a>
+      </div>
+
+      <div class="mt-6 pt-6 border-t border-white/10 text-center">
         <p class="text-white/40 text-sm">¿Aún no tienes cuenta?</p>
         <a href="{% url 'register' %}"
            class="inline-flex items-center gap-2 text-primary hover:text-primary-dark text-sm font-semibold mt-2 transition-colors">

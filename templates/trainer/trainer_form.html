@@ -1,0 +1,101 @@
+{% extends 'trainer/base.html' %}
+{% block title %}Crear entrenador/a — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="max-w-2xl mx-auto">
+  <div class="flex items-center gap-4 mb-8">
+    <a href="{% url 'trainer_staff_list' %}" class="text-white/30 hover:text-white transition-colors">
+      <i class="fa fa-arrow-left"></i>
+    </a>
+    <div>
+      <h1 class="text-2xl font-black text-white">Crear nuevo entrenador/a</h1>
+      <p class="text-white/40 text-sm mt-1">Solo tú puedes crear cuentas de entrenadores.</p>
+    </div>
+  </div>
+
+  <form method="POST" class="space-y-6">
+    {% csrf_token %}
+
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-2">Datos personales</h2>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Nombre *</label>
+          <input type="text" name="first_name" required value="{{ form.first_name|default:'' }}"
+                 class="w-full bg-black/40 border {% if errors.first_name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.first_name %}<p class="text-red-400 text-xs mt-1">{{ errors.first_name }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Apellido *</label>
+          <input type="text" name="last_name" required value="{{ form.last_name|default:'' }}"
+                 class="w-full bg-black/40 border {% if errors.last_name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.last_name %}<p class="text-red-400 text-xs mt-1">{{ errors.last_name }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Correo *</label>
+          <input type="email" name="email" required value="{{ form.email|default:'' }}"
+                 class="w-full bg-black/40 border {% if errors.email %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.email %}<p class="text-red-400 text-xs mt-1">{{ errors.email }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Teléfono</label>
+          <input type="tel" name="phone" value="{{ form.phone|default:'' }}"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Usuario * <span class="text-white/30 font-normal">(con este iniciará sesión)</span></label>
+        <input type="text" name="username" required value="{{ form.username|default:'' }}"
+               class="w-full bg-black/40 border {% if errors.username %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors"
+               placeholder="Ej: carlos.trainer">
+        {% if errors.username %}<p class="text-red-400 text-xs mt-1">{{ errors.username }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Bio / Descripción <span class="text-white/30 font-normal">(aparece en Nosotros)</span></label>
+        <textarea name="bio" rows="3"
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
+                  placeholder="Especialidad, certificaciones, estilo de entrenamiento...">{{ form.bio|default:'' }}</textarea>
+      </div>
+    </div>
+
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-2">Contraseña temporal</h2>
+      <p class="text-white/40 text-xs -mt-1">El entrenador podrá cambiarla desde su perfil al ingresar por primera vez.</p>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Contraseña *</label>
+          <input type="password" name="password" required
+                 class="w-full bg-black/40 border {% if errors.password %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors"
+                 placeholder="Mínimo 8 caracteres">
+          {% if errors.password %}<p class="text-red-400 text-xs mt-1">{{ errors.password }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Confirmar contraseña *</label>
+          <input type="password" name="password2" required
+                 class="w-full bg-black/40 border {% if errors.password2 %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors"
+                 placeholder="••••••••">
+          {% if errors.password2 %}<p class="text-red-400 text-xs mt-1">{{ errors.password2 }}</p>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-colors text-sm">
+        <i class="fa fa-user-plus mr-2"></i> Crear entrenador/a
+      </button>
+      <a href="{% url 'trainer_staff_list' %}"
+         class="px-6 bg-white/10 hover:bg-white/20 text-white font-semibold py-3.5 rounded-xl transition-colors text-sm text-center">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

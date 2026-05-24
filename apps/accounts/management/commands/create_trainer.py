@@ -12,6 +12,8 @@ class Command(BaseCommand):
         parser.add_argument('--first-name', dest='first_name', default='Adriana')
         parser.add_argument('--last-name', dest='last_name', default='')
         parser.add_argument('--password', default='')
+        parser.add_argument('--superuser', action='store_true', default=False,
+                            help='Otorgar permisos de superusuario (solo para la entrenadora principal)')
 
     def handle(self, *args, **options):
         username = options['username']
@@ -19,6 +21,7 @@ class Command(BaseCommand):
         first_name = options['first_name']
         last_name = options['last_name']
         password = options['password']
+        make_superuser = options['superuser']
 
         if User.objects.filter(username=username).exists():
             self.stdout.write(self.style.WARNING(
@@ -43,10 +46,12 @@ class Command(BaseCommand):
             last_name=last_name,
             role=User.ROLE_TRAINER,
             is_staff=True,
+            is_superuser=make_superuser,
         )
 
+        role_label = 'Entrenador/a principal (superusuario)' if make_superuser else 'Entrenador/a'
         self.stdout.write(self.style.SUCCESS(
-            f'Entrenadora creada: {trainer.get_full_name() or trainer.username} '
-            f'(username: {trainer.username}, staff: {trainer.is_staff})'
+            f'{role_label} creado/a: {trainer.get_full_name() or trainer.username} '
+            f'(username: {trainer.username}, staff: {trainer.is_staff}, superuser: {trainer.is_superuser})'
         ))
         self.stdout.write('Ahora puedes iniciar sesión en /accounts/login/')

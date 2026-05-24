@@ -7,7 +7,9 @@ def home(request):
 
 
 def about(request):
-    return render(request, 'public/about.html')
+    from apps.accounts.models import User
+    trainers = User.objects.filter(role='trainer').order_by('date_joined')
+    return render(request, 'public/about.html', {'trainers': trainers})
 
 
 def contact(request):

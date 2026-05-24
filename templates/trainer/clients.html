@@ -14,6 +14,16 @@
   </a>
 </div>
 
+{% if is_superuser and unassigned_count %}
+<div class="mb-6 flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-5 py-3">
+  <i class="fa fa-triangle-exclamation text-yellow-400"></i>
+  <p class="text-yellow-300 text-sm">
+    <strong>{{ unassigned_count }}</strong> cliente{{ unassigned_count|pluralize:"s" }} sin entrenador asignado.
+    Asígnalos para que aparezcan en el panel correcto.
+  </p>
+</div>
+{% endif %}
+
 {% if clients %}
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
   {% for client in clients %}

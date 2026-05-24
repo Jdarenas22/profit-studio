@@ -137,6 +137,27 @@
         </div>
       </div>
 
+      <!-- Meta de entrenamiento -->
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ goal: '{{ form.training_goal|default:'' }}' }">
+        <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-1">¿Cuál es tu meta?</h2>
+        <p class="text-white/30 text-xs mb-5">Esto ayuda a asignarte el entrenador ideal para tu objetivo.</p>
+        <div class="grid grid-cols-2 gap-3">
+          {% with goals="weight_loss:🔥 Pérdida de peso,muscle_gain:💪 Ganancia muscular,cardio:🏃 Resistencia cardiovascular,rehab:🩺 Rehabilitación / Salud,sports:🏅 Rendimiento deportivo,toning:✨ Tonificación" %}
+          {% for goal_pair in goals|split:"," %}
+          {% endfor %}
+          {% endwith %}
+          {% for val, label in goal_choices %}
+          <label class="cursor-pointer">
+            <input type="radio" name="training_goal" value="{{ val }}" x-model="goal" class="sr-only">
+            <div :class="goal === '{{ val }}' ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 text-white/50 hover:border-white/20'"
+                 class="flex items-center gap-2 border rounded-xl px-3 py-2.5 text-xs font-semibold transition-all">
+              {{ label }}
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
       <!-- Selección de plan -->
       {% if plans %}
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">

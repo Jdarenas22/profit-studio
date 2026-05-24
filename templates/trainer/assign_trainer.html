@@ -1,0 +1,64 @@
+{% extends 'trainer/base.html' %}
+{% block title %}Asignar entrenador/a — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="max-w-lg mx-auto">
+  <div class="flex items-center gap-4 mb-8">
+    <a href="{% url 'trainer_client_detail' client.pk %}" class="text-white/30 hover:text-white transition-colors">
+      <i class="fa fa-arrow-left"></i>
+    </a>
+    <div>
+      <h1 class="text-2xl font-black text-white">Asignar entrenador/a</h1>
+      <p class="text-white/40 text-sm mt-1">Cliente: {{ client.get_full_name|default:client.username }}</p>
+    </div>
+  </div>
+
+  <form method="POST" class="space-y-4">
+    {% csrf_token %}
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Selecciona el entrenador/a</h2>
+
+      <div class="space-y-3" x-data="{ selected: '{{ client.assigned_trainer_id|default:'' }}' }">
+        {% for trainer in trainers %}
+        <label class="flex items-center gap-4 rounded-xl border p-4 cursor-pointer transition-all"
+               :class="selected === '{{ trainer.pk }}' ? 'border-primary bg-primary/5' : 'border-white/10 hover:border-white/20'">
+          <input type="radio" name="trainer_id" value="{{ trainer.pk }}"
+                 x-model="selected"
+                 {% if client.assigned_trainer_id == trainer.pk %}checked{% endif %}
+                 class="accent-orange-500">
+          <div class="flex-1">
+            <p class="text-white font-bold text-sm">{{ trainer.get_full_name|default:trainer.username }}
+              {% if trainer.is_superuser %}<span class="text-xs text-primary ml-1">(Principal)</span>{% endif %}
+            </p>
+            <p class="text-white/40 text-xs">{{ trainer.assigned_clients.count }} cliente{{ trainer.assigned_clients.count|pluralize:"s" }} asignado{{ trainer.assigned_clients.count|pluralize:"s" }}</p>
+          </div>
+        </label>
+        {% endfor %}
+
+        <label class="flex items-center gap-4 rounded-xl border border-white/10 hover:border-white/20 p-4 cursor-pointer transition-all"
+               :class="selected === '' ? 'border-white/30' : ''">
+          <input type="radio" name="trainer_id" value=""
+                 x-model="selected"
+                 {% if not client.assigned_trainer_id %}checked{% endif %}
+                 class="accent-orange-500">
+          <div>
+            <p class="text-white/60 font-medium text-sm">Sin asignar</p>
+            <p class="text-white/30 text-xs">El cliente quedará en lista de espera.</p>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-colors text-sm">
+        <i class="fa fa-check mr-2"></i> Guardar asignación
+      </button>
+      <a href="{% url 'trainer_client_detail' client.pk %}"
+         class="px-6 bg-white/10 hover:bg-white/20 text-white font-semibold py-3.5 rounded-xl transition-colors text-sm text-center">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -51,65 +51,121 @@
   </div>
 </section>
 
-<!-- Entrenadora -->
+<!-- Equipo de entrenadores (dinámico — aparece solo si hay entrenadores en la BD) -->
+{% if trainers %}
 <section class="py-20 bg-black border-t border-white/5">
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-14">
+      <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Nuestro equipo</p>
+      <h2 class="text-4xl font-black text-white">
+        {% if trainers|length == 1 %}Tu entrenadora{% else %}Los profesionales detrás de tu transformación{% endif %}
+      </h2>
+    </div>
 
-      <!-- Foto entrenadora -->
-      <div class="relative">
-        <!-- Resplandor naranja -->
-        <div class="absolute -inset-4 bg-primary/15 rounded-3xl blur-2xl pointer-events-none"></div>
-        <!-- Imagen real -->
-        <div class="relative aspect-[4/5] rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-primary/20">
+    <div class="{% if trainers|length == 1 %}max-w-5xl mx-auto{% else %}grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8{% endif %}">
+      {% for trainer in trainers %}
+
+      {% if trainers|length == 1 %}
+      <!-- Layout especial para entrenadora principal (1 sola) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
+        <div class="relative">
+          <div class="absolute -inset-4 bg-primary/15 rounded-3xl blur-2xl pointer-events-none"></div>
+          <div class="relative aspect-[4/5] rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-primary/20">
+            {% if trainer.profile_photo %}
+            <img src="{{ trainer.profile_photo.url }}"
+                 alt="{{ trainer.get_full_name }}"
+                 class="w-full h-full object-cover object-top transition-transform duration-700 hover:scale-105">
+            {% else %}
+            <img src="{% static 'images/entrenadora.png' %}"
+                 alt="{{ trainer.get_full_name }}"
+                 class="w-full h-full object-cover object-top transition-transform duration-700 hover:scale-105"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <div class="w-full h-full bg-zinc-900 flex flex-col items-center justify-center"
+                 style="display:none;">
+              <i class="fa fa-user text-6xl text-white/20 mb-4"></i>
+              <p class="text-white/30 text-sm">{{ trainer.get_full_name }}</p>
+            </div>
+            {% endif %}
+          </div>
+          <div class="absolute -bottom-5 -right-5 bg-zinc-800 border border-white/10 rounded-2xl px-5 py-3 flex items-center gap-3 shadow-xl">
+            <i class="fab fa-instagram text-xl" style="color:#e1306c;"></i>
+            <div>
+              <p class="text-white font-bold text-sm">@profitstudio075</p>
+              <p class="text-white/40 text-xs">Síguenos en Instagram</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-4">Tu entrenadora</p>
+          <h2 class="text-5xl font-black text-white leading-none mb-1">{{ trainer.first_name }}</h2>
+          <h2 class="text-5xl font-black leading-none mb-6" style="color:#FF6B00;">{{ trainer.last_name }}</h2>
+          <p class="text-white/40 text-sm font-semibold uppercase tracking-widest mb-6">Entrenadora Personal Certificada</p>
+          {% if trainer.bio %}
+          <p class="text-white/60 leading-relaxed mb-8">{{ trainer.bio }}</p>
+          {% else %}
+          <p class="text-white/60 leading-relaxed mb-5">
+            Con formación en entrenamiento deportivo y una profunda vocación de servicio, cada plan está pensado para que el cliente entienda <strong class="text-white/90">por qué hace cada ejercicio</strong>, no solo cómo.
+          </p>
+          <p class="text-white/40 leading-relaxed mb-8">
+            La valoración inicial es el punto de partida para conocer realmente el cuerpo de cada persona. El Test de Dixon nos da una radiografía de la condición cardiovascular desde el día 1.
+          </p>
+          {% endif %}
+          <div class="flex gap-4">
+            <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm">
+              <i class="fab fa-whatsapp"></i> Escribir ahora
+            </a>
+            <a href="{{ INSTAGRAM_URL }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm">
+              <i class="fab fa-instagram"></i> Instagram
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {% else %}
+      <!-- Tarjeta compacta cuando hay múltiples entrenadores -->
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden hover:border-primary/30 transition-colors">
+        <div class="aspect-[3/4] relative">
+          {% if trainer.profile_photo %}
+          <img src="{{ trainer.profile_photo.url }}"
+               alt="{{ trainer.get_full_name }}"
+               class="w-full h-full object-cover object-top">
+          {% else %}
           <img src="{% static 'images/entrenadora.png' %}"
-               alt="Yiseth Misas García — Entrenadora ProFit Studio"
-               class="w-full h-full object-cover object-top transition-transform duration-700 hover:scale-105"
+               alt="{{ trainer.get_full_name }}"
+               class="w-full h-full object-cover object-top"
                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <!-- Fallback si la imagen no está guardada aún -->
-          <div class="w-full h-full bg-zinc-900 items-center justify-content-center flex-col text-center p-8"
-               style="display:none; flex-direction:column; align-items:center; justify-content:center;">
-            <i class="fa fa-user text-6xl text-white/20 mb-4"></i>
-            <p class="text-white/30 text-sm">Guarda tu foto en:</p>
-            <code class="text-primary/60 text-xs mt-2">static/images/entrenadora.jpg</code>
+          <div class="w-full h-full bg-zinc-800 flex flex-col items-center justify-center" style="display:none;">
+            <i class="fa fa-user text-5xl text-white/20 mb-3"></i>
+            <p class="text-white/30 text-sm">{{ trainer.get_full_name }}</p>
           </div>
+          {% endif %}
+          {% if trainer.is_superuser %}
+          <div class="absolute top-3 left-3 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">
+            Entrenadora Principal
+          </div>
+          {% endif %}
         </div>
-        <!-- Badge Instagram flotante -->
-        <div class="absolute -bottom-5 -right-5 bg-zinc-800 border border-white/10 rounded-2xl px-5 py-3 flex items-center gap-3 shadow-xl">
-          <i class="fab fa-instagram text-xl" style="color:#e1306c;"></i>
-          <div>
-            <p class="text-white font-bold text-sm">@profitstudio075</p>
-            <p class="text-white/40 text-xs">Síguenos en Instagram</p>
-          </div>
+        <div class="p-6">
+          <h3 class="text-white font-black text-xl">{{ trainer.first_name }}</h3>
+          <p class="font-black text-lg mb-3" style="color:#FF6B00;">{{ trainer.last_name }}</p>
+          {% if trainer.bio %}
+          <p class="text-white/50 text-sm leading-relaxed line-clamp-3">{{ trainer.bio }}</p>
+          {% endif %}
+          <a href="{{ WHATSAPP_LINK }}" target="_blank"
+             class="mt-4 inline-flex items-center gap-2 text-primary hover:text-primary-dark text-sm font-semibold transition-colors">
+            <i class="fab fa-whatsapp"></i> Entrenar con {{ trainer.first_name }}
+          </a>
         </div>
       </div>
+      {% endif %}
 
-      <!-- Texto -->
-      <div>
-        <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-4">Tu entrenadora</p>
-        <h2 class="text-5xl font-black text-white leading-none mb-1">Yiseth</h2>
-        <h2 class="text-5xl font-black leading-none mb-6" style="color:#FF6B00;">Misas García</h2>
-        <p class="text-white/40 text-sm font-semibold uppercase tracking-widest mb-6">Entrenadora Personal Certificada</p>
-        <p class="text-white/60 leading-relaxed mb-5">
-          Con formación en entrenamiento deportivo y una profunda vocación de servicio, cada plan que diseño está pensado para que el cliente entienda <strong class="text-white/90">por qué hace cada ejercicio</strong>, no solo cómo.
-        </p>
-        <p class="text-white/40 leading-relaxed mb-8">
-          La valoración inicial no es un trámite — es el punto de partida para conocer realmente el cuerpo de cada persona y diseñar una estrategia efectiva. El Test de Dixon nos da una radiografía de la condición cardiovascular desde el día 1.
-        </p>
-        <div class="flex gap-4">
-          <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
-             class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm">
-            <i class="fab fa-whatsapp"></i> Escribir ahora
-          </a>
-          <a href="{{ INSTAGRAM_URL }}" target="_blank" rel="noopener"
-             class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm">
-            <i class="fab fa-instagram"></i> Instagram
-          </a>
-        </div>
-      </div>
+      {% endfor %}
     </div>
   </div>
 </section>
+{% endif %}
 
 <!-- Metodología -->
 <section class="py-20 bg-zinc-950 border-t border-white/5">

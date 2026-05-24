@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://checkout.wompi.co https://wa.me https://*.firebaseapp.com https://*.googleapis.com https://www.gstatic.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline';">
+    <title>MegaElectro El Diamante – Medellín</title>
+    <!-- Firebase SDK v10 (compat mode) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --red: #E8341A;
+            --black: #111111;
+            --dark: #1a1a1a;
+            --gray: #f5f5f5;
+            --text: #333;
+        }
+
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); overflow-x: hidden; }
+
+        /* ── NAVBAR ── */
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 1000;
+            background: rgba(17,17,17,0.96); backdrop-filter: blur(12px);
+            padding: 1rem 2.5rem;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: padding 0.3s;
+        }
+        .nav-logo { display: flex; align-items: center; text-decoration: none; }
+        .nav-logo img {
+            height: 46px; width: auto; object-fit: contain;
+            filter: brightness(1.1) contrast(1.1) saturate(1.2) drop-shadow(0 0 6px rgba(232,52,26,0.35));
+            transition: filter 0.3s; image-rendering: -webkit-optimize-contrast;
+        }
+        .nav-logo img:hover { filter: brightness(1.2) contrast(1.15) saturate(1.3) drop-shadow(0 0 10px rgba(232,52,26,0.5)); }
+        .nav-logo-text { color: var(--red); font-size: 1.4rem; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase; }
+        .nav-logo-text span { color: white; }
+        .nav-links { display: flex; gap: 2rem; list-style: none; }
+        .nav-links a { color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.3s; }
+        .nav-links a:hover { color: var(--red); }
+        .nav-cta { background: var(--red) !important; color: white !important; padding: 0.45rem 1.2rem; border-radius: 50px; }
+        .nav-cta:hover { background: #c42d16 !important; }
+
+        /* ── HERO ── */
+        .hero {
+            min-height: 100vh; background: var(--black);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+        }
+        .hero-bg-photos {
+            position: absolute; inset: 0;
+            display: grid; grid-template-columns: 1fr 1fr;
+            opacity: 0.13;
+        }
+        .hero-bg-photos img { width: 100%; height: 100%; object-fit: cover; }
+        .hero-glow {
+            position: absolute; inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 50%, rgba(232,52,26,0.18) 0%, transparent 55%),
+                radial-gradient(ellipse at 85% 20%, rgba(232,52,26,0.10) 0%, transparent 50%),
+                linear-gradient(to bottom, rgba(17,17,17,0.3) 0%, rgba(17,17,17,0.7) 100%);
+        }
+        .hero-content { position: relative; z-index: 2; text-align: center; padding: 2rem; max-width: 920px; }
+        .hero-logo-wrap { margin: 1rem auto 0.5rem; }
+        .hero-logo {
+            max-width: min(520px, 85vw); width: 100%; height: auto;
+            border-radius: 14px;
+            filter: brightness(1.1) contrast(1.12) saturate(1.2) drop-shadow(0 8px 32px rgba(232,52,26,0.4));
+            image-rendering: -webkit-optimize-contrast;
+        }
+        .hero-logo-text {
+            font-size: clamp(3.5rem, 9vw, 8rem); font-weight: 900; line-height: 0.92;
+            text-transform: uppercase; letter-spacing: -3px; color: white;
+        }
+        .hero-logo-text .red { color: var(--red); display: block; }
+        .hero-badge {
+            display: inline-block;
+            background: rgba(232,52,26,0.15); border: 1px solid rgba(232,52,26,0.4);
+            color: #ff7a60; padding: 0.4rem 1.2rem; border-radius: 50px;
+            font-size: 0.82rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+            margin-bottom: 1.8rem;
+        }
+        .hero h1 {
+            font-size: clamp(3.5rem, 9vw, 8rem);
+            font-weight: 900; color: white; line-height: 0.92;
+            text-transform: uppercase; letter-spacing: -3px;
+        }
+        .hero h1 .red { color: var(--red); display: block; }
+        .hero-sub {
+            color: rgba(255,255,255,0.45); font-size: clamp(0.9rem, 2vw, 1.05rem);
+            margin: 1.8rem 0 2.5rem; font-weight: 400; letter-spacing: 0.3px;
+        }
+        .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .btn-primary {
+            background: var(--red); color: white; padding: 1rem 2.5rem;
+            border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;
+            transition: all 0.3s; display: inline-flex; align-items: center; gap: 0.5rem;
+        }
+        .btn-primary:hover { background: #c42d16; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(232,52,26,0.4); }
+        .btn-secondary {
+            background: transparent; color: white; padding: 1rem 2.5rem;
+            border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 1rem;
+            border: 2px solid rgba(255,255,255,0.25); transition: all 0.3s;
+        }
+        .btn-secondary:hover { border-color: rgba(255,255,255,0.7); }
+        .hero-stats {
+            display: flex; gap: 3rem; justify-content: center;
+            margin-top: 4rem; padding-top: 3rem;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .hero-stat { text-align: center; }
+        .stat-num { font-size: 2.2rem; font-weight: 900; color: white; line-height: 1; }
+        .stat-num span { color: var(--red); }
+        .stat-label { font-size: 0.75rem; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 0.3rem; }
+        .scroll-cue {
+            position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+            animation: cue-bounce 2s infinite;
+        }
+        .scroll-cue span { font-size: 0.7rem; color: rgba(255,255,255,0.25); letter-spacing: 2px; text-transform: uppercase; }
+        .scroll-cue .arrow { width: 20px; height: 20px; border-right: 2px solid rgba(255,255,255,0.25); border-bottom: 2px solid rgba(255,255,255,0.25); transform: rotate(45deg); }
+        @keyframes cue-bounce { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(8px); } }
+
+        /* ── SECCIONES ── */
+        section { padding: 6rem 2rem; }
+        .section-tag {
+            display: inline-block; background: rgba(232,52,26,0.1); color: var(--red);
+            padding: 0.3rem 1rem; border-radius: 50px; font-size: 0.78rem;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 1rem;
+        }
+        .section-title { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 900; line-height: 1.1; letter-spacing: -1px; color: var(--black); }
+        .section-title .red { color: var(--red); }
+
+        /* ── CATEGORÍAS ── */
+        .categorias { background: var(--gray); }
+        .categorias-header { text-align: center; margin-bottom: 4rem; }
+        .categorias-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; max-width: 1200px; margin: 0 auto; }
+        .cat-card {
+            background: white; border-radius: 20px; overflow: hidden;
+            transition: all 0.4s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.06); cursor: pointer;
+        }
+        .cat-card:hover { transform: translateY(-8px); box-shadow: 0 20px 50px rgba(0,0,0,0.12); }
+        .cat-img { height: 200px; overflow: hidden; background: var(--black); }
+        .cat-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; }
+        .cat-card:hover .cat-img img { transform: scale(1.06); }
+        .cat-fallback {
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 3.5rem;
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+        }
+        .cat-body { padding: 1.5rem; }
+        .cat-body h3 { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--black); }
+        .cat-body p { font-size: 0.88rem; color: #777; line-height: 1.6; margin-bottom: 1rem; }
+        .cat-price { font-weight: 800; color: var(--red); font-size: 1rem; }
+
+        /* ── GALERÍA ── */
+        .galeria { background: var(--black); }
+        .galeria-header { text-align: center; margin-bottom: 3rem; }
+        .galeria-header .section-title { color: white; }
+        .galeria-header .section-tag { background: rgba(232,52,26,0.18); }
+        .galeria-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: 280px 280px;
+            gap: 12px; max-width: 1200px; margin: 0 auto;
+        }
+        .gal-item { border-radius: 14px; overflow: hidden; position: relative; background: #222; }
+        .gal-item:nth-child(1) { grid-column: span 7; }
+        .gal-item:nth-child(2) { grid-column: span 5; }
+        .gal-item:nth-child(3) { grid-column: span 5; }
+        .gal-item:nth-child(4) { grid-column: span 7; }
+        .gal-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; display: block; }
+        .gal-item:hover img { transform: scale(1.05); }
+        .gal-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(to top, rgba(232,52,26,0.3) 0%, transparent 60%);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .gal-item:hover .gal-overlay { opacity: 1; }
+
+        /* ── MARCAS ── */
+        .marcas { background: white; padding: 5rem 0; }
+        .marcas-title { text-align: center; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2.5px; color: #aaa; margin-bottom: 3rem; }
+        .marcas-wrapper { overflow: hidden; position: relative; }
+        .marcas-wrapper::before, .marcas-wrapper::after {
+            content: ''; position: absolute; top: 0; bottom: 0; width: 80px; z-index: 2;
+        }
+        .marcas-wrapper::before { left: 0; background: linear-gradient(to right, white, transparent); }
+        .marcas-wrapper::after { right: 0; background: linear-gradient(to left, white, transparent); }
+        .marcas-track { display: flex; animation: marquee 25s linear infinite; width: max-content; }
+        .marcas-track:hover { animation-play-state: paused; }
+        .marca { padding: 0.6rem 2.5rem; font-weight: 800; font-size: 1.05rem; color: #ccc; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; border-right: 2px solid #efefef; transition: color 0.3s; cursor: default; }
+        .marca:hover { color: var(--red); }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        /* ── CONTACTO ── */
+        .contacto { background: var(--gray); }
+        .contacto-wrapper { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: start; }
+        .contacto-info .section-title { margin-bottom: 1.2rem; }
+        .contacto-info > p { color: #777; font-size: 0.98rem; line-height: 1.7; margin-bottom: 2.5rem; }
+        .contact-items { display: flex; flex-direction: column; gap: 1.1rem; }
+        .contact-item { display: flex; align-items: flex-start; gap: 1rem; }
+        .c-icon {
+            width: 44px; height: 44px; background: white; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; flex-shrink: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        }
+        .c-text strong { display: block; font-size: 0.78rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem; }
+        .c-text span { font-size: 0.97rem; color: var(--black); font-weight: 500; line-height: 1.5; }
+        .contacto-card { background: var(--black); border-radius: 24px; padding: 3rem; }
+        .contacto-card h3 { color: white; font-size: 1.6rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .contacto-card > p { color: rgba(255,255,255,0.45); margin-bottom: 2rem; font-size: 0.95rem; }
+        .wa-btn {
+            display: flex; align-items: center; gap: 0.8rem; background: #25D366;
+            color: white; padding: 1.1rem 1.8rem; border-radius: 14px; text-decoration: none;
+            font-weight: 700; font-size: 1rem; transition: all 0.3s; margin-bottom: 0.8rem;
+        }
+        .wa-btn:hover { background: #1dbd5a; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(37,211,102,0.3); }
+        .mail-btn {
+            display: flex; align-items: center; gap: 0.8rem; background: rgba(255,255,255,0.07);
+            color: rgba(255,255,255,0.8); padding: 1rem 1.8rem; border-radius: 14px; text-decoration: none;
+            font-weight: 500; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s;
+        }
+        .mail-btn:hover { background: rgba(255,255,255,0.12); }
+        .horarios {
+            margin-top: 1.5rem; background: rgba(255,255,255,0.05);
+            border-radius: 14px; padding: 1.3rem 1.5rem; border: 1px solid rgba(255,255,255,0.07);
+        }
+        .horarios h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.35); margin-bottom: 0.8rem; }
+        .h-row { display: flex; justify-content: space-between; padding: 0.45rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .h-row:last-child { border-bottom: none; }
+        .h-row span:first-child { color: rgba(255,255,255,0.5); font-size: 0.88rem; }
+        .h-row span:last-child { color: white; font-weight: 600; font-size: 0.88rem; }
+        .h-closed { color: #666 !important; font-weight: 400 !important; }
+
+        /* ── FOOTER ── */
+        footer { background: var(--black); color: rgba(255,255,255,0.35); text-align: center; padding: 2.5rem; font-size: 0.88rem; }
+        footer strong { color: var(--red); }
+
+        /* ── WHATSAPP FLOTANTE ── */
+        .wa-float {
+            position: fixed; bottom: 2rem; right: 2rem;
+            width: 58px; height: 58px; background: #25D366; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.7rem; z-index: 999; text-decoration: none;
+            box-shadow: 0 4px 20px rgba(37,211,102,0.45);
+            transition: transform 0.3s, box-shadow 0.3s;
+            animation: wa-pulse 2.5s infinite;
+        }
+        .wa-float:hover { transform: scale(1.12); box-shadow: 0 8px 35px rgba(37,211,102,0.55); }
+        @keyframes wa-pulse { 0%,100% { box-shadow: 0 4px 20px rgba(37,211,102,0.45); } 50% { box-shadow: 0 4px 40px rgba(37,211,102,0.7); } }
+
+        /* ── ANIMACIONES DE SCROLL ── */
+        .reveal { opacity: 0; transform: translateY(45px); transition: opacity 0.75s cubic-bezier(0.25,0.46,0.45,0.94), transform 0.75s cubic-bezier(0.25,0.46,0.45,0.94); }
+        .reveal.left { transform: translateX(-55px); }
+        .reveal.right { transform: translateX(55px); }
+        .reveal.visible { opacity: 1 !important; transform: translate(0,0) !important; }
+        .d1 { transition-delay: 0.1s; }
+        .d2 { transition-delay: 0.2s; }
+        .d3 { transition-delay: 0.3s; }
+        .d4 { transition-delay: 0.4s; }
+
+        /* ── AUTH & PERFIL ── */
+        .nav-login-btn { display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.22); color: white; padding: 0.42rem 1rem 0.42rem 0.75rem; border-radius: 50px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.25s; white-space: nowrap; flex-shrink: 0; }
+        .nav-login-btn:hover { background: var(--red); border-color: var(--red); }
+        .nav-login-btn.logged { background: var(--red); border-color: var(--red); font-weight: 700; }
+        .nav-login-btn .nlb-icon { font-size: 0.95rem; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+        .nav-login-btn .nlb-label { max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Auth overlay */
+        .auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 1400; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; padding: 1rem; }
+        .auth-overlay.open { opacity: 1; pointer-events: all; }
+        .auth-box { background: white; border-radius: 24px; width: 100%; max-width: 450px; overflow: hidden; transform: scale(0.92); transition: transform 0.3s; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+        .auth-overlay.open .auth-box { transform: scale(1); }
+        .auth-tabs { display: flex; border-bottom: 2px solid #f0f0f0; }
+        .auth-tab { flex: 1; padding: 1.1rem; border: none; background: none; cursor: pointer; font-size: 0.9rem; font-weight: 700; color: #bbb; transition: all 0.25s; }
+        .auth-tab.active { color: var(--red); border-bottom: 2px solid var(--red); margin-bottom: -2px; }
+        .auth-body { padding: 1.8rem 2rem 2rem; }
+        .auth-icon { text-align: center; margin-bottom: 1.3rem; }
+        .auth-icon .ai { font-size: 2.5rem; }
+        .auth-icon h3 { font-weight: 800; font-size: 1.1rem; margin-top: 0.4rem; }
+        .auth-icon p { color: #aaa; font-size: 0.82rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+        .auth-btn { width: 100%; padding: 0.9rem; border: none; border-radius: 12px; background: var(--red); color: white; font-weight: 700; font-size: 0.98rem; cursor: pointer; transition: background 0.25s; margin-top: 0.3rem; }
+        .auth-btn:hover { background: #c42d16; }
+        .auth-switch { text-align: center; margin-top: 1rem; font-size: 0.83rem; color: #aaa; }
+        .auth-switch a { color: var(--red); cursor: pointer; font-weight: 700; }
+        .auth-err { background: #fff0f0; color: #c00; border-radius: 8px; padding: 0.55rem 0.9rem; font-size: 0.82rem; margin-bottom: 0.9rem; display: none; border-left: 3px solid #e00; }
+        .auth-err.show { display: block; }
+        .auth-close-top { display: flex; justify-content: flex-end; padding: 0.8rem 1rem 0; }
+        .auth-close-top button { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #bbb; }
+
+        /* Profile panel */
+        .profile-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1400; display: flex; align-items: flex-start; justify-content: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .profile-overlay.open { opacity: 1; pointer-events: all; }
+        .profile-panel { height: 100vh; width: 100%; max-width: 680px; background: white; overflow-y: auto; transform: translateX(105%); transition: transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94); display: flex; flex-direction: column; }
+        .profile-overlay.open .profile-panel { transform: translateX(0); }
+        .profile-hdr { padding: 1.4rem 2rem; background: var(--black); color: white; display: flex; align-items: center; gap: 1rem; position: sticky; top: 0; z-index: 2; flex-shrink: 0; }
+        .p-avatar { width: 50px; height: 50px; background: var(--red); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 900; flex-shrink: 0; }
+        .p-hdr-info { flex: 1; min-width: 0; }
+        .p-hdr-info h3 { font-size: 1.05rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .p-hdr-info p { color: rgba(255,255,255,0.45); font-size: 0.8rem; }
+        .p-close { background: rgba(255,255,255,0.1); border: none; color: white; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+        .p-close:hover { background: var(--red); }
+        .p-tabs { display: flex; border-bottom: 2px solid #f0f0f0; background: white; position: sticky; top: 78px; z-index: 1; flex-shrink: 0; }
+        .p-tab { flex: 1; padding: 0.95rem 0.4rem; border: none; background: none; cursor: pointer; font-size: 0.82rem; font-weight: 700; color: #bbb; transition: color 0.25s; text-align: center; }
+        .p-tab.active { color: var(--red); border-bottom: 2px solid var(--red); margin-bottom: -2px; }
+        .p-body { padding: 1.5rem 2rem 2rem; flex: 1; }
+        .p-sec { display: none; }
+        .p-sec.active { display: block; }
+        .p-field { margin-bottom: 0.9rem; }
+        .p-field label { display: block; font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #aaa; margin-bottom: 0.3rem; }
+        .p-field input { width: 100%; padding: 0.72rem 1rem; border: 2px solid #e8e8e8; border-radius: 10px; font-size: 0.92rem; font-family: inherit; outline: none; transition: border-color 0.2s; }
+        .p-field input:focus { border-color: var(--red); }
+        .save-btn { width: 100%; padding: 0.88rem; border: none; border-radius: 12px; background: var(--red); color: white; font-weight: 700; cursor: pointer; transition: background 0.25s; }
+        .save-btn:hover { background: #c42d16; }
+        .logout-link { width: 100%; padding: 0.8rem; border: 2px solid #eee; border-radius: 12px; background: white; color: #aaa; font-weight: 600; cursor: pointer; margin-top: 0.7rem; transition: all 0.25s; }
+        .logout-link:hover { border-color: var(--red); color: var(--red); }
+
+        /* Pedidos / facturas */
+        .order-card { background: #f9f9f9; border-radius: 14px; padding: 1.2rem 1.3rem; margin-bottom: 0.9rem; }
+        .oc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem; }
+        .oc-id { font-size: 0.77rem; font-weight: 700; color: #aaa; }
+        .oc-date { font-size: 0.77rem; color: #aaa; }
+        .oc-status { display: inline-block; padding: 0.18rem 0.7rem; border-radius: 50px; font-size: 0.72rem; font-weight: 700; background: rgba(37,211,102,0.12); color: #1a8a48; }
+        .oc-items { font-size: 0.86rem; color: #555; line-height: 1.6; }
+        .oc-total { font-weight: 800; color: var(--red); margin-top: 0.4rem; font-size: 0.95rem; }
+        .inv-btn { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.7rem; padding: 0.45rem 1rem; border: none; border-radius: 8px; background: var(--black); color: white; font-size: 0.79rem; font-weight: 700; cursor: pointer; transition: background 0.25s; }
+        .inv-btn:hover { background: var(--red); }
+        .empty-st { text-align: center; padding: 3rem 1rem; color: #ccc; }
+        .empty-st .ei { font-size: 3rem; margin-bottom: 0.7rem; }
+
+        /* ── TIENDA ── */
+        .tienda { background: #f9f9f9; }
+        .tienda-header { text-align: center; margin-bottom: 3rem; }
+        .tienda-header p { color: #777; margin-top: 1rem; font-size: 0.95rem; }
+
+        .filter-tabs { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2.5rem; }
+        .filter-tab { padding: 0.5rem 1.3rem; border-radius: 50px; border: 2px solid #e0e0e0; background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #777; transition: all 0.25s; }
+        .filter-tab:hover, .filter-tab.active { background: var(--red); border-color: var(--red); color: white; }
+
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1.5rem; max-width: 1200px; margin: 0 auto; }
+
+        .product-card { background: white; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.07); overflow: hidden; transition: all 0.35s; display: flex; flex-direction: column; }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+        .product-img { height: 160px; background: linear-gradient(135deg, #1a1a1a, #2d2d2d); display: flex; align-items: center; justify-content: center; }
+        .product-img .p-emoji { font-size: 3.8rem; }
+        .product-body { padding: 1.2rem; flex: 1; display: flex; flex-direction: column; }
+        .product-cat { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--red); margin-bottom: 0.3rem; }
+        .product-name { font-size: 0.93rem; font-weight: 700; color: var(--black); margin-bottom: 0.7rem; line-height: 1.4; flex: 1; }
+        .product-price { font-size: 1.1rem; font-weight: 900; color: var(--black); margin-bottom: 0.9rem; }
+        .product-price span { font-size: 0.72rem; font-weight: 500; color: #aaa; }
+        .add-btn { width: 100%; padding: 0.72rem; border: none; border-radius: 10px; background: var(--red); color: white; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.25s; }
+        .add-btn:hover { background: #c42d16; }
+        .add-btn.added { background: #25D366; }
+
+        /* ── CART FAB ── */
+        .cart-fab { position: fixed; bottom: 5.5rem; right: 2rem; width: 58px; height: 58px; background: var(--black); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; z-index: 998; cursor: pointer; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.3); transition: all 0.3s; }
+        .cart-fab:hover { transform: scale(1.1); background: #222; }
+        .cart-badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 0.7rem; font-weight: 700; display: none; align-items: center; justify-content: center; border: 2px solid white; }
+        .cart-badge.visible { display: flex; }
+
+        /* ── CART DRAWER ── */
+        .cart-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .cart-overlay.open { opacity: 1; pointer-events: all; }
+        .cart-drawer { position: fixed; top: 0; right: -420px; height: 100vh; width: 400px; max-width: 95vw; background: white; z-index: 1200; display: flex; flex-direction: column; transition: right 0.4s cubic-bezier(0.25,0.46,0.45,0.94); box-shadow: -10px 0 40px rgba(0,0,0,0.15); }
+        .cart-drawer.open { right: 0; }
+        .cart-hdr { padding: 1.4rem 1.5rem; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+        .cart-hdr h3 { font-size: 1.15rem; font-weight: 800; }
+        .close-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #888; line-height: 1; }
+        .cart-body { flex: 1; overflow-y: auto; padding: 1rem; }
+        .cart-empty { text-align: center; padding: 3rem 1rem; color: #bbb; }
+        .cart-empty .ei { font-size: 3.5rem; margin-bottom: 0.8rem; }
+        .cart-item { display: flex; gap: 0.9rem; align-items: flex-start; padding: 0.9rem; border-radius: 12px; background: #f9f9f9; margin-bottom: 0.7rem; }
+        .ci-emoji { font-size: 1.9rem; flex-shrink: 0; margin-top: 0.1rem; }
+        .ci-info { flex: 1; min-width: 0; }
+        .ci-name { font-size: 0.85rem; font-weight: 700; color: var(--black); line-height: 1.3; }
+        .ci-price { font-size: 0.88rem; font-weight: 800; color: var(--red); margin-top: 0.25rem; }
+        .qty-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+        .qty-btn { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ddd; background: white; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .qty-btn:hover { border-color: var(--red); color: var(--red); }
+        .qty-n { font-weight: 700; font-size: 0.95rem; min-width: 18px; text-align: center; }
+        .ci-del { background: none; border: none; color: #ccc; cursor: pointer; font-size: 1.1rem; flex-shrink: 0; transition: color 0.2s; }
+        .ci-del:hover { color: var(--red); }
+        .cart-ftr { padding: 1.3rem 1.5rem; border-top: 1px solid #f0f0f0; }
+        .cart-total-row { display: flex; justify-content: space-between; font-weight: 700; font-size: 1rem; margin-bottom: 1rem; }
+        .cart-total-row span:last-child { color: var(--red); font-size: 1.2rem; font-weight: 900; }
+        .go-checkout { width: 100%; padding: 0.95rem; border: none; border-radius: 14px; background: var(--red); color: white; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s; }
+        .go-checkout:hover { background: #c42d16; }
+
+        /* ── CHECKOUT MODAL ── */
+        .co-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1300; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; padding: 1rem; }
+        .co-overlay.open { opacity: 1; pointer-events: all; }
+        .co-box { background: white; border-radius: 24px; width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; transform: scale(0.92); transition: transform 0.3s; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+        .co-overlay.open .co-box { transform: scale(1); }
+        .co-hdr { padding: 1.6rem 2rem 1.2rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f0; position: sticky; top: 0; background: white; z-index: 2; }
+        .co-hdr h3 { font-size: 1.25rem; font-weight: 800; }
+        .co-body { padding: 1.5rem 2rem 2rem; }
+
+        .co-summary { background: #f9f9f9; border-radius: 14px; padding: 1.2rem; margin-bottom: 1.5rem; }
+        .co-sum-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 0.8rem; }
+        .co-item-row { display: flex; justify-content: space-between; font-size: 0.88rem; padding: 0.3rem 0; color: #555; }
+        .co-item-row span:last-child { font-weight: 700; color: var(--black); }
+        .co-total-row { display: flex; justify-content: space-between; font-size: 1.05rem; font-weight: 900; padding-top: 0.8rem; margin-top: 0.5rem; border-top: 2px solid #e0e0e0; }
+        .co-total-row span:last-child { color: var(--red); }
+
+        .sec-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin: 1.4rem 0 0.7rem; }
+        .form-g { margin-bottom: 0.9rem; }
+        .form-g label { display: block; font-size: 0.78rem; font-weight: 700; color: #666; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.4px; }
+        .form-g input { width: 100%; padding: 0.78rem 1rem; border: 2px solid #e8e8e8; border-radius: 10px; font-size: 0.93rem; outline: none; transition: border-color 0.2s; font-family: inherit; }
+        .form-g input:focus { border-color: var(--red); }
+
+        .pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-bottom: 1.2rem; }
+        .pay-opt { border: 2px solid #e8e8e8; border-radius: 12px; padding: 1rem 0.8rem; cursor: pointer; transition: all 0.22s; text-align: center; background: white; }
+        .pay-opt:hover { border-color: var(--red); background: rgba(232,52,26,0.03); }
+        .pay-opt.selected { border-color: var(--red); background: rgba(232,52,26,0.06); }
+        .pay-opt .po-icon { font-size: 1.7rem; margin-bottom: 0.35rem; }
+        .pay-opt .po-name { font-size: 0.8rem; font-weight: 700; color: var(--black); }
+        .pay-opt .po-desc { font-size: 0.68rem; color: #aaa; margin-top: 0.15rem; }
+
+        .pay-info { background: #f9f9f9; border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1.3rem; font-size: 0.88rem; line-height: 1.65; display: none; }
+        .pay-info.visible { display: block; }
+        .pay-info h4 { font-weight: 800; margin-bottom: 0.5rem; color: var(--black); }
+        .pay-info p { color: #666; }
+        .bank-row { display: flex; justify-content: space-between; padding: 0.35rem 0; border-bottom: 1px solid #eee; font-size: 0.87rem; }
+        .bank-row:last-of-type { border-bottom: none; }
+        .bank-row span:last-child { font-weight: 700; color: var(--black); }
+        .wompi-note { background: #fff8e1; border-radius: 8px; padding: 0.75rem; font-size: 0.78rem; color: #8a6500; margin-top: 0.8rem; border-left: 3px solid #ffc107; }
+
+        .confirm-btn { width: 100%; padding: 1rem; border: none; border-radius: 14px; background: var(--red); color: white; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.3s; }
+        .confirm-btn:hover { background: #c42d16; }
+        .confirm-btn.wa { background: #25D366; }
+        .confirm-btn.wa:hover { background: #1dbd5a; }
+        .confirm-btn:disabled { background: #ddd; color: #aaa; cursor: not-allowed; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 900px) {
+            .nav-links { display: none; }
+            .galeria-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 200px 200px; }
+            .gal-item { grid-column: span 1 !important; }
+            .contacto-wrapper { grid-template-columns: 1fr; gap: 3rem; }
+        }
+        @media (max-width: 600px) {
+            .hero-stats { gap: 1.8rem; flex-wrap: wrap; }
+            section { padding: 4rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+    <a href="#inicio" class="nav-logo">
+        <img src="assets/logo.jpg" alt="MegaElectro El Diamante"
+             onerror="this.style.display='none'; document.getElementById('navLogoText').style.display='block'">
+        <div class="nav-logo-text" id="navLogoText" style="display:none">Mega<span>Electro</span></div>
+    </a>
+    <ul class="nav-links">
+        <li><a href="#categorias">Productos</a></li>
+        <li><a href="#tienda">🛒 Tienda</a></li>
+        <li><a href="#galeria">Local</a></li>
+        <li><a href="#marcas">Marcas</a></li>
+        <li><a href="#contacto" class="nav-cta">Contacto</a></li>
+    </ul>
+    <button class="nav-login-btn" id="navUserBtn" title="Iniciar sesión o registrarse">
+        <span class="nlb-icon" id="navUserIcon">👤</span>
+        <span class="nlb-label" id="navUserLabel">Ingresar</span>
+    </button>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="inicio">
+    <div class="hero-bg-photos">
+        <img src="assets/foto3.jpg" alt="" onerror="this.style.display='none'">
+        <img src="assets/foto1.jpg" alt="" onerror="this.style.display='none'">
+    </div>
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+        <div class="hero-badge">📍 Centro Comercial El Diamante · Local 1682 · Medellín</div>
+        <div class="hero-logo-wrap">
+            <img src="assets/logo.jpg" alt="MegaElectro El Diamante" class="hero-logo"
+                 onerror="this.style.display='none'; document.getElementById('heroLogoText').style.display='block'">
+            <div class="hero-logo-text" id="heroLogoText" style="display:none">
+                Mega<span class="red">Electro</span>
+            </div>
+        </div>
+        <p class="hero-sub">Electrodomésticos de cocina &nbsp;·&nbsp; Cabinas de sonido profesionales &nbsp;·&nbsp; Ventiladores &nbsp;·&nbsp; Periféricos &nbsp;·&nbsp; Radios AM/FM</p>
+        <div class="hero-buttons">
+            <a href="https://wa.me/573332256588" class="btn-primary" target="_blank">💬 WhatsApp</a>
+            <a href="#categorias" class="btn-secondary">Ver productos</a>
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="stat-num">+<span>20</span></div>
+                <div class="stat-label">Marcas</div>
+            </div>
+            <div class="hero-stat">
+                <div class="stat-num"><span>4</span></div>
+                <div class="stat-label">Categorías</div>
+            </div>
+            <div class="hero-stat">
+                <div class="stat-num"><span>6</span></div>
+                <div class="stat-label">Días / semana</div>
+            </div>
+        </div>
+    </div>
+    <div class="scroll-cue">
+        <div class="arrow"></div>
+        <span>Scroll</span>
+    </div>
+</section>
+
+<!-- CATEGORÍAS -->
+<section class="categorias" id="categorias">
+    <div class="categorias-header reveal">
+        <div class="section-tag">Nuestros productos</div>
+        <h2 class="section-title">Todo lo que tu hogar<br>y negocio <span class="red">necesita</span></h2>
+    </div>
+    <div class="categorias-grid">
+
+        <div class="cat-card reveal d1">
+            <div class="cat-img">
+                <img src="assets/foto2.jpg" alt="Electrodomésticos de cocina" onerror="this.parentElement.innerHTML='<div class=\'cat-fallback\'>🍳</div>'">
+            </div>
+            <div class="cat-body">
+                <h3>Electrodomésticos de Cocina</h3>
+                <p>Licuadoras, ollas a presión, freidoras, teteras y más. Marcas Oster, Imusa, Black & Decker, Ninja y Kalley.</p>
+                <div class="cat-price">Desde $80.000 COP</div>
+            </div>
+        </div>
+
+        <div class="cat-card reveal d2">
+            <div class="cat-img">
+                <img src="assets/foto4.jpg" alt="Cabinas de sonido profesionales" onerror="this.parentElement.innerHTML='<div class=\'cat-fallback\'>🔊</div>'">
+            </div>
+            <div class="cat-body">
+                <h3>Cabinas de Sonido Profesionales</h3>
+                <p>Potencia hasta 7000W. J&R, JBL, BeckPlay para eventos, negocios y uso personal.</p>
+                <div class="cat-price">Desde $800.000 COP</div>
+            </div>
+        </div>
+
+        <div class="cat-card reveal d3">
+            <div class="cat-img">
+                <img src="assets/foto2.jpg" alt="Ventiladores" onerror="this.parentElement.innerHTML='<div class=\'cat-fallback\'>💨</div>'">
+            </div>
+            <div class="cat-body">
+                <h3>Ventiladores</h3>
+                <p>Torre, pedestal y orbital. Samurai, Sankey y más, con control remoto disponible.</p>
+                <div class="cat-price">Desde $70.000 COP</div>
+            </div>
+        </div>
+
+        <div class="cat-card reveal d4">
+            <div class="cat-img">
+                <img src="assets/foto1.jpg" alt="Periféricos de computador" onerror="this.parentElement.innerHTML='<div class=\'cat-fallback\'>🖱️</div>'">
+            </div>
+            <div class="cat-body">
+                <h3>Periféricos de Computador</h3>
+                <p>Mouse, teclados, audífonos, cargadores y accesorios. NIA, HAVIT, Jaltech y más.</p>
+                <div class="cat-price">Desde $50.000 COP</div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- TIENDA ONLINE -->
+<section class="tienda" id="tienda">
+    <div class="tienda-header reveal">
+        <div class="section-tag">Tienda online</div>
+        <h2 class="section-title">Compra desde<br><span class="red">donde estés</span></h2>
+        <p>Elige tus productos, selecciona cómo pagar y te lo llevamos a tu puerta.</p>
+    </div>
+    <div class="filter-tabs" id="filterTabs">
+        <button class="filter-tab active" data-cat="todos">Todos</button>
+        <button class="filter-tab" data-cat="Electrodomésticos">Electrodomésticos</button>
+        <button class="filter-tab" data-cat="Cabinas de Sonido">Cabinas de Sonido</button>
+        <button class="filter-tab" data-cat="Ventiladores">Ventiladores</button>
+        <button class="filter-tab" data-cat="Periféricos">Periféricos</button>
+    </div>
+    <div class="products-grid" id="productsGrid"></div>
+</section>
+
+<!-- GALERÍA -->
+<section class="galeria" id="galeria">
+    <div class="galeria-header reveal">
+        <div class="section-tag">Nuestra tienda</div>
+        <h2 class="section-title">Visítanos en el <span style="color:var(--red)">Diamante</span></h2>
+    </div>
+    <div class="galeria-grid">
+        <div class="gal-item reveal d1">
+            <img src="assets/foto3.jpg" alt="Fachada MegaElectro El Diamante" onerror="this.style.display='none'">
+            <div class="gal-overlay"></div>
+        </div>
+        <div class="gal-item reveal d2">
+            <img src="assets/foto4.jpg" alt="Cabinas de sonido J&R" onerror="this.style.display='none'">
+            <div class="gal-overlay"></div>
+        </div>
+        <div class="gal-item reveal d3">
+            <img src="assets/foto1.jpg" alt="Interior tienda" onerror="this.style.display='none'">
+            <div class="gal-overlay"></div>
+        </div>
+        <div class="gal-item reveal d4">
+            <img src="assets/foto2.jpg" alt="Ventiladores y electrodomésticos" onerror="this.style.display='none'">
+            <div class="gal-overlay"></div>
+        </div>
+    </div>
+</section>
+
+<!-- MARCAS -->
+<section class="marcas" id="marcas">
+    <p class="marcas-title">Marcas que manejamos</p>
+    <div class="marcas-wrapper">
+        <div class="marcas-track">
+            <span class="marca">Samurai</span><span class="marca">J&amp;R</span><span class="marca">JBL</span>
+            <span class="marca">Universal</span><span class="marca">Oster</span><span class="marca">NIA</span>
+            <span class="marca">Jaltech</span><span class="marca">HAVIT</span><span class="marca">Black &amp; Decker</span>
+            <span class="marca">Sankey</span><span class="marca">Imusa</span><span class="marca">Mikuso</span>
+            <span class="marca">Casio</span><span class="marca">BeckPlay</span><span class="marca">Sony</span>
+            <span class="marca">Panasonic</span><span class="marca">Kalley</span><span class="marca">Babyliss Pro</span>
+            <span class="marca">Alizz</span><span class="marca">VGR</span><span class="marca">NINJA</span>
+            <!-- duplicado para bucle continuo -->
+            <span class="marca">Samurai</span><span class="marca">J&amp;R</span><span class="marca">JBL</span>
+            <span class="marca">Universal</span><span class="marca">Oster</span><span class="marca">NIA</span>
+            <span class="marca">Jaltech</span><span class="marca">HAVIT</span><span class="marca">Black &amp; Decker</span>
+            <span class="marca">Sankey</span><span class="marca">Imusa</span><span class="marca">Mikuso</span>
+            <span class="marca">Casio</span><span class="marca">BeckPlay</span><span class="marca">Sony</span>
+            <span class="marca">Panasonic</span><span class="marca">Kalley</span><span class="marca">Babyliss Pro</span>
+            <span class="marca">Alizz</span><span class="marca">VGR</span><span class="marca">NINJA</span>
+        </div>
+    </div>
+</section>
+
+<!-- CONTACTO -->
+<section class="contacto" id="contacto">
+    <div class="contacto-wrapper">
+        <div class="contacto-info reveal left">
+            <div class="section-tag">Contáctanos</div>
+            <h2 class="section-title">Estamos en<br><span class="red">Medellín</span></h2>
+            <p>Visítanos en el Centro Comercial El Diamante. Hacemos domicilios con costo adicional.</p>
+            <div class="contact-items">
+                <div class="contact-item">
+                    <div class="c-icon">📍</div>
+                    <div class="c-text">
+                        <strong>Dirección</strong>
+                        <span>Calle 51 #73-134 Local 1682<br>C.C. El Diamante, Medellín</span>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <div class="c-icon">📱</div>
+                    <div class="c-text">
+                        <strong>WhatsApp</strong>
+                        <span>333 225 6588</span>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <div class="c-icon">✉️</div>
+                    <div class="c-text">
+                        <strong>Correo electrónico</strong>
+                        <span>megaelectrodiamante@gmail.com</span>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <div class="c-icon">🚚</div>
+                    <div class="c-text">
+                        <strong>Domicilios</strong>
+                        <span>Disponibles con costo adicional</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="contacto-card reveal right">
+            <h3>¿Listo para comprar?</h3>
+            <p>Escríbenos ahora o visítanos en el local.</p>
+            <a href="https://wa.me/573332256588" class="wa-btn" target="_blank">
+                💬 Escribir por WhatsApp
+            </a>
+            <a href="mailto:megaelectrodiamante@gmail.com" class="mail-btn">
+                ✉️ megaelectrodiamante@gmail.com
+            </a>
+            <div class="horarios">
+                <h4>🕙 Horario de atención</h4>
+                <div class="h-row"><span>Lunes – Sábado</span><span>10:00 AM – 6:30 PM</span></div>
+                <div class="h-row"><span>Domingo</span><span class="h-closed">Cerrado</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- BOTÓN CARRITO FLOTANTE -->
+<button class="cart-fab" id="cartFab" title="Ver carrito">
+    🛒
+    <span class="cart-badge" id="cartBadge">0</span>
+</button>
+
+<!-- OVERLAY + DRAWER DEL CARRITO -->
+<div class="cart-overlay" id="cartOverlay"></div>
+<div class="cart-drawer" id="cartDrawer">
+    <div class="cart-hdr">
+        <h3>🛒 Mi carrito</h3>
+        <button class="close-btn" id="cartClose">✕</button>
+    </div>
+    <div class="cart-body" id="cartBody">
+        <div class="cart-empty"><div class="ei">🛒</div><p>Tu carrito está vacío</p></div>
+    </div>
+    <div class="cart-ftr" id="cartFtr" style="display:none">
+        <div class="cart-total-row"><span>Total</span><span id="cartTotal">$0</span></div>
+        <button class="go-checkout" id="goCheckout">Continuar · Elegir pago →</button>
+    </div>
+</div>
+
+<!-- MODAL CHECKOUT -->
+<div class="co-overlay" id="coOverlay">
+    <div class="co-box">
+        <div class="co-hdr">
+            <h3>Finalizar pedido</h3>
+            <button class="close-btn" id="coClose">✕</button>
+        </div>
+        <div class="co-body">
+            <div class="co-summary">
+                <div class="co-sum-title">Resumen del pedido</div>
+                <div id="coItems"></div>
+                <div class="co-total-row"><span>Total</span><span id="coTotal">$0</span></div>
+            </div>
+
+            <div class="sec-label">Tus datos de entrega</div>
+            <div class="form-g"><label>Nombre completo</label><input type="text" id="cName" placeholder="Juan García"></div>
+            <div class="form-g"><label>Teléfono / WhatsApp</label><input type="tel" id="cPhone" placeholder="300 123 4567"></div>
+            <div class="form-g"><label>Dirección de entrega</label><input type="text" id="cAddress" placeholder="Calle 51 #73-10, Medellín"></div>
+
+            <div class="sec-label">Método de pago</div>
+            <div class="pay-grid">
+                <div class="pay-opt" data-method="pse">
+                    <div class="po-icon">🏦</div>
+                    <div class="po-name">PSE</div>
+                    <div class="po-desc">Débito bancario</div>
+                </div>
+                <div class="pay-opt" data-method="credito">
+                    <div class="po-icon">💳</div>
+                    <div class="po-name">Tarjeta crédito</div>
+                    <div class="po-desc">Visa / Mastercard</div>
+                </div>
+                <div class="pay-opt" data-method="debito">
+                    <div class="po-icon">💳</div>
+                    <div class="po-name">Tarjeta débito</div>
+                    <div class="po-desc">Débito directo</div>
+                </div>
+                <div class="pay-opt" data-method="bancolombia">
+                    <div class="po-icon">🔴</div>
+                    <div class="po-name">Botón Bancolombia</div>
+                    <div class="po-desc">App / sucursal</div>
+                </div>
+                <div class="pay-opt" data-method="transferencia">
+                    <div class="po-icon">🏧</div>
+                    <div class="po-name">Transferencia</div>
+                    <div class="po-desc">A nuestra cuenta</div>
+                </div>
+                <div class="pay-opt" data-method="contraentrega">
+                    <div class="po-icon">🚚</div>
+                    <div class="po-name">Contra entrega</div>
+                    <div class="po-desc">Pagas al recibir</div>
+                </div>
+            </div>
+
+            <!-- Info por método -->
+            <div class="pay-info" id="infoOnline">
+                <h4>💳 Pago en línea seguro — Wompi</h4>
+                <p>Serás redirigido a Wompi (plataforma de Bancolombia) donde puedes pagar con PSE, tarjeta de crédito, débito o Botón Bancolombia de forma 100% segura y encriptada.</p>
+                <div class="wompi-note">⚠️ <strong>Activación pendiente:</strong> Para habilitar pagos en línea debes registrarte gratis en <strong>wompi.co</strong>, obtener tu llave pública y reemplazar <code>TU_LLAVE_WOMPI</code> en el código. Te explico al terminar.</div>
+            </div>
+            <div class="pay-info" id="infoTransfer">
+                <h4>🏧 Datos para transferencia bancaria</h4>
+                <div class="bank-row"><span>Banco</span><span>⚠️ Agrega tu banco</span></div>
+                <div class="bank-row"><span>Tipo de cuenta</span><span>⚠️ Ahorros / Corriente</span></div>
+                <div class="bank-row"><span>Número de cuenta</span><span>⚠️ Agrega tu número</span></div>
+                <div class="bank-row"><span>Titular</span><span>MegaElectro El Diamante</span></div>
+                <div class="bank-row"><span>NIT / Cédula</span><span>⚠️ Agrega tu NIT</span></div>
+                <p style="color:#aaa;font-size:0.8rem;margin-top:0.8rem;">Envía el comprobante por WhatsApp al <strong>333 225 6588</strong> para confirmar.</p>
+            </div>
+            <div class="pay-info" id="infoEntrega">
+                <h4>🚚 Contra entrega</h4>
+                <p>Pagas en efectivo cuando recibes tu pedido. Disponible en Medellín con costo de domicilio adicional. Al confirmar, un asesor te contactará por WhatsApp.</p>
+            </div>
+
+            <button class="confirm-btn" id="confirmBtn" disabled>Selecciona un método de pago</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL AUTH (LOGIN / REGISTRO) -->
+<div class="auth-overlay" id="authOverlay">
+    <div class="auth-box">
+        <div class="auth-close-top"><button onclick="closeAuth()">✕</button></div>
+        <div class="auth-tabs">
+            <button class="auth-tab active" data-atab="login" onclick="switchAuthTab('login')">Iniciar sesión</button>
+            <button class="auth-tab" data-atab="register" onclick="switchAuthTab('register')">Crear cuenta</button>
+        </div>
+
+        <!-- LOGIN -->
+        <div class="auth-body" id="loginForm">
+            <div class="auth-icon"><div class="ai">🔐</div><h3>Bienvenido de vuelta</h3><p>Accede a tus pedidos y facturas</p></div>
+            <div class="auth-err" id="loginErr">Correo o contraseña incorrectos</div>
+            <div class="form-g"><label>Correo electrónico</label><input type="email" id="loginEmail" placeholder="tu@correo.com"></div>
+            <div class="form-g"><label>Contraseña</label><input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+            <button class="auth-btn" onclick="doLogin()">Iniciar sesión →</button>
+            <div class="auth-switch">¿No tienes cuenta? <a onclick="switchAuthTab('register')">Regístrate gratis</a></div>
+        </div>
+
+        <!-- REGISTRO -->
+        <div class="auth-body" id="registerForm" style="display:none">
+            <div class="auth-icon"><div class="ai">✨</div><h3>Crea tu cuenta</h3><p>Guarda tus pedidos y descarga tus facturas</p></div>
+            <div class="auth-err" id="registerErr"></div>
+            <div class="form-row">
+                <div class="form-g"><label>Nombre completo</label><input type="text" id="regName" placeholder="Juan García"></div>
+                <div class="form-g"><label>Número de cédula</label><input type="text" id="regCedula" placeholder="1234567890"></div>
+            </div>
+            <div class="form-g"><label>Correo electrónico</label><input type="email" id="regEmail" placeholder="tu@correo.com"></div>
+            <div class="form-row">
+                <div class="form-g"><label>Teléfono / WhatsApp</label><input type="tel" id="regPhone" placeholder="300 123 4567"></div>
+                <div class="form-g"><label>Contraseña (mín. 6 caracteres)</label><input type="password" id="regPass" placeholder="••••••••"></div>
+            </div>
+            <div class="form-g"><label>Dirección de residencia</label><input type="text" id="regAddress" placeholder="Calle 51 #73-10, Medellín"></div>
+            <button class="auth-btn" onclick="doRegister()">Crear cuenta gratis →</button>
+            <div class="auth-switch">¿Ya tienes cuenta? <a onclick="switchAuthTab('login')">Inicia sesión</a></div>
+        </div>
+    </div>
+</div>
+
+<!-- PANEL DE PERFIL -->
+<div class="profile-overlay" id="profileOverlay" onclick="if(event.target===this)closeProfile()">
+    <div class="profile-panel">
+        <div class="profile-hdr">
+            <div class="p-avatar" id="pAvatar">👤</div>
+            <div class="p-hdr-info">
+                <h3 id="pHdrName">—</h3>
+                <p id="pHdrEmail">—</p>
+            </div>
+            <button class="p-close" onclick="closeProfile()">✕</button>
+        </div>
+        <div class="p-tabs">
+            <button class="p-tab active" data-ptab="datos">👤 Mis datos</button>
+            <button class="p-tab" data-ptab="pedidos">📦 Mis pedidos</button>
+            <button class="p-tab" data-ptab="facturas">🧾 Mis facturas</button>
+        </div>
+        <div class="p-body">
+
+            <!-- TAB: MIS DATOS -->
+            <div class="p-sec active" id="p-datos">
+                <div style="background:#e8f5e9;border-left:3px solid #43a047;border-radius:0 10px 10px 0;padding:0.8rem 1rem;margin-bottom:1.2rem;font-size:0.8rem;color:#1b5e20;line-height:1.6;">
+                    🔒 <strong>Cuenta segura con Firebase:</strong> Tus datos se guardan encriptados en la nube de Google. Los pagos son procesados por Wompi (Bancolombia) de forma segura — esta tienda nunca almacena datos de tarjetas.
+                </div>
+                <div class="form-row">
+                    <div class="p-field"><label>Nombre completo</label><input type="text" id="pName"></div>
+                    <div class="p-field"><label>Número de cédula</label><input type="text" id="pCedula"></div>
+                </div>
+                <div class="p-field"><label>Correo electrónico</label><input type="email" id="pEmail"></div>
+                <div class="form-row">
+                    <div class="p-field"><label>Teléfono / WhatsApp</label><input type="tel" id="pPhone"></div>
+                    <div class="p-field"><label>Contraseña nueva (opcional)</label><input type="password" id="pPass" placeholder="Dejar vacío para no cambiar"></div>
+                </div>
+                <div class="p-field"><label>Dirección de residencia</label><input type="text" id="pAddress"></div>
+                <button class="save-btn" onclick="saveProfile()">Guardar cambios</button>
+                <button class="logout-link" onclick="doLogout()">Cerrar sesión</button>
+            </div>
+
+            <!-- TAB: MIS PEDIDOS -->
+            <div class="p-sec" id="p-pedidos">
+                <div id="ordersList"></div>
+            </div>
+
+            <!-- TAB: MIS FACTURAS -->
+            <div class="p-sec" id="p-facturas">
+                <div id="invoicesList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+    <p>© 2025 <strong>MegaElectro El Diamante</strong> &nbsp;·&nbsp; Local 1682, C.C. El Diamante, Medellín &nbsp;·&nbsp; Todos los derechos reservados</p>
+</footer>
+
+<!-- BOTÓN FLOTANTE WHATSAPP -->
+<a href="https://wa.me/573332256588" class="wa-float" target="_blank" title="Escribir por WhatsApp">💬</a>
+
+<script>
+    // ─────────────────────────────────────────────
+    // SCROLL REVEAL
+    // ─────────────────────────────────────────────
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Navbar compacta al scroll
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+        navbar.style.padding = window.scrollY > 80 ? '0.6rem 2.5rem' : '1rem 2.5rem';
+    });
+
+    // Parallax hero
+    const bgPhotos = document.querySelector('.hero-bg-photos');
+    window.addEventListener('scroll', () => {
+        if (bgPhotos) bgPhotos.style.transform = `translateY(${window.scrollY * 0.28}px)`;
+    }, { passive: true });
+
+    // Scroll suave
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', e => {
+            e.preventDefault();
+            const t = document.querySelector(a.getAttribute('href'));
+            if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    // ─────────────────────────────────────────────
+    // PRODUCTOS  — actualiza nombres y precios según tu inventario
+    // ─────────────────────────────────────────────
+    const PRODUCTS = [
+        { id:1,  name:'Licuadora Oster 600W',                  price:89900,   cat:'Electrodomésticos', emoji:'🫙' },
+        { id:2,  name:'Freidora de aire Black & Decker 3.5L',  price:285000,  cat:'Electrodomésticos', emoji:'🍟' },
+        { id:3,  name:'Arrocera Kalley 1.8L',                  price:95000,   cat:'Electrodomésticos', emoji:'🍚' },
+        { id:4,  name:'Olla a presión Imusa 4.5L',             price:122000,  cat:'Electrodomésticos', emoji:'🥘' },
+        { id:5,  name:'Cabina J&R 2500W Bluetooth',            price:850000,  cat:'Cabinas de Sonido', emoji:'🔊' },
+        { id:6,  name:'Cabina J&R 4200W con micrófono',        price:1100000, cat:'Cabinas de Sonido', emoji:'🔊' },
+        { id:7,  name:'Cabina J&R 6000W profesional',          price:1500000, cat:'Cabinas de Sonido', emoji:'🎤' },
+        { id:8,  name:'Teatro en casa J&R 2.1',                price:480000,  cat:'Cabinas de Sonido', emoji:'🎵' },
+        { id:9,  name:'Ventilador Samurai Orbital 16"',        price:72000,   cat:'Ventiladores',      emoji:'💨' },
+        { id:10, name:'Torre Sankey 43" con control remoto',   price:185000,  cat:'Ventiladores',      emoji:'🌀' },
+        { id:11, name:'Torre Sankey 42" con control remoto',   price:165000,  cat:'Ventiladores',      emoji:'🌀' },
+        { id:12, name:'Ventilador Samurai Silence Force',      price:145000,  cat:'Ventiladores',      emoji:'💨' },
+        { id:13, name:'Mouse inalámbrico NIA',                 price:52000,   cat:'Periféricos',       emoji:'🖱️' },
+        { id:14, name:'Kit Teclado + Mouse HAVIT',             price:78000,   cat:'Periféricos',       emoji:'⌨️' },
+        { id:15, name:'Audífonos Bluetooth Jaltech',           price:65000,   cat:'Periféricos',       emoji:'🎧' },
+        { id:16, name:'Headset gaming NIA RGB',                price:88000,   cat:'Periféricos',       emoji:'🎮' },
+    ];
+
+    const fmt = n => '$' + n.toLocaleString('es-CO');
+
+    // ─────────────────────────────────────────────
+    // RENDER PRODUCTOS
+    // ─────────────────────────────────────────────
+    function renderProducts(filter) {
+        const grid = document.getElementById('productsGrid');
+        grid.innerHTML = '';
+        PRODUCTS.forEach(p => {
+            if (filter && filter !== 'todos' && p.cat !== filter) return;
+            const card = document.createElement('div');
+            card.className = 'product-card reveal';
+            card.innerHTML = `
+                <div class="product-img"><div class="p-emoji">${p.emoji}</div></div>
+                <div class="product-body">
+                    <div class="product-cat">${p.cat}</div>
+                    <div class="product-name">${p.name}</div>
+                    <div class="product-price">${fmt(p.price)} <span>COP</span></div>
+                    <button class="add-btn" id="ab-${p.id}" onclick="addToCart(${p.id})">+ Agregar al carrito</button>
+                </div>`;
+            grid.appendChild(card);
+        });
+        grid.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    }
+
+    // ─────────────────────────────────────────────
+    // CARRITO
+    // ─────────────────────────────────────────────
+    let cart = {};
+    let selPayment = null;
+
+    function addToCart(id) {
+        cart[id] = (cart[id] || 0) + 1;
+        syncCart();
+        const btn = document.getElementById('ab-' + id);
+        if (btn) { btn.textContent = '✓ Agregado'; btn.classList.add('added'); setTimeout(() => { btn.textContent = '+ Agregar al carrito'; btn.classList.remove('added'); }, 1300); }
+    }
+
+    function changeQty(id, d) {
+        cart[id] = (cart[id] || 0) + d;
+        if (cart[id] <= 0) delete cart[id];
+        syncCart();
+    }
+
+    function removeFromCart(id) { delete cart[id]; syncCart(); }
+
+    function cartCount() { return Object.values(cart).reduce((a,b)=>a+b, 0); }
+
+    function cartSum() {
+        return Object.keys(cart).reduce((acc, id) => {
+            const p = PRODUCTS.find(x => x.id === +id);
+            return acc + (p ? p.price * cart[id] : 0);
+        }, 0);
+    }
+
+    function syncCart() {
+        const count = cartCount();
+        const badge = document.getElementById('cartBadge');
+        badge.textContent = count;
+        badge.classList.toggle('visible', count > 0);
+        renderCartItems();
+        document.getElementById('cartFtr').style.display = count > 0 ? 'block' : 'none';
+    }
+
+    function renderCartItems() {
+        const body = document.getElementById('cartBody');
+        const keys = Object.keys(cart).filter(id => cart[id] > 0);
+        if (!keys.length) {
+            body.innerHTML = '<div class="cart-empty"><div class="ei">🛒</div><p>Tu carrito está vacío</p></div>';
+            document.getElementById('cartTotal').textContent = '$0';
+            return;
+        }
+        body.innerHTML = keys.map(id => {
+            const p = PRODUCTS.find(x => x.id === +id);
+            return `<div class="cart-item">
+                <div class="ci-emoji">${p.emoji}</div>
+                <div class="ci-info">
+                    <div class="ci-name">${p.name}</div>
+                    <div class="ci-price">${fmt(p.price * cart[id])}</div>
+                    <div class="qty-row">
+                        <button class="qty-btn" onclick="changeQty(${id},-1)">−</button>
+                        <span class="qty-n">${cart[id]}</span>
+                        <button class="qty-btn" onclick="changeQty(${id},1)">+</button>
+                    </div>
+                </div>
+                <button class="ci-del" onclick="removeFromCart(${id})">🗑️</button>
+            </div>`;
+        }).join('');
+        document.getElementById('cartTotal').textContent = fmt(cartSum());
+    }
+
+    // ─────────────────────────────────────────────
+    // ABRIR / CERRAR CARRITO
+    // ─────────────────────────────────────────────
+    function openCart() {
+        document.getElementById('cartOverlay').classList.add('open');
+        document.getElementById('cartDrawer').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeCart() {
+        document.getElementById('cartOverlay').classList.remove('open');
+        document.getElementById('cartDrawer').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    // ─────────────────────────────────────────────
+    // CHECKOUT
+    // ─────────────────────────────────────────────
+    function openCheckout() {
+        closeCart();
+        const keys = Object.keys(cart).filter(id => cart[id] > 0);
+        let total = 0;
+        document.getElementById('coItems').innerHTML = keys.map(id => {
+            const p = PRODUCTS.find(x => x.id === +id);
+            const sub = p.price * cart[id];
+            total += sub;
+            return `<div class="co-item-row"><span>${p.emoji} ${p.name} ×${cart[id]}</span><span>${fmt(sub)}</span></div>`;
+        }).join('');
+        document.getElementById('coTotal').textContent = fmt(total);
+        selPayment = null;
+        document.querySelectorAll('.pay-opt').forEach(e => e.classList.remove('selected'));
+        document.querySelectorAll('.pay-info').forEach(e => e.classList.remove('visible'));
+        const btn = document.getElementById('confirmBtn');
+        btn.textContent = 'Selecciona un método de pago';
+        btn.disabled = true;
+        btn.className = 'confirm-btn';
+        document.getElementById('coOverlay').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeCheckout() {
+        document.getElementById('coOverlay').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    // ─────────────────────────────────────────────
+    // SELECCIÓN DE PAGO
+    // ─────────────────────────────────────────────
+    function selectPayment(method) {
+        selPayment = method;
+        document.querySelectorAll('.pay-opt').forEach(e => e.classList.remove('selected'));
+        document.querySelector(`[data-method="${method}"]`).classList.add('selected');
+        document.querySelectorAll('.pay-info').forEach(e => e.classList.remove('visible'));
+        const btn = document.getElementById('confirmBtn');
+        btn.disabled = false;
+        if (['pse','credito','debito','bancolombia'].includes(method)) {
+            document.getElementById('infoOnline').classList.add('visible');
+            btn.textContent = '💳 Ir a pagar en línea (Wompi)';
+            btn.className = 'confirm-btn';
+        } else if (method === 'transferencia') {
+            document.getElementById('infoTransfer').classList.add('visible');
+            btn.textContent = '✅ Confirmar pedido por WhatsApp';
+            btn.className = 'confirm-btn wa';
+        } else if (method === 'contraentrega') {
+            document.getElementById('infoEntrega').classList.add('visible');
+            btn.textContent = '🚚 Confirmar pedido por WhatsApp';
+            btn.className = 'confirm-btn wa';
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // ENVIAR PEDIDO
+    // ─────────────────────────────────────────────
+    function submitOrder() {
+        const name    = document.getElementById('cName').value.trim();
+        const phone   = document.getElementById('cPhone').value.trim();
+        const address = document.getElementById('cAddress').value.trim();
+        if (!name || !phone || !address) { alert('Por favor completa nombre, teléfono y dirección antes de continuar.'); return; }
+        if (!selPayment) { alert('Selecciona un método de pago.'); return; }
+
+        const keys  = Object.keys(cart).filter(id => cart[id] > 0);
+        const total = cartSum();
+
+        if (['pse','credito','debito','bancolombia'].includes(selPayment)) {
+            // ── Wompi Checkout ──────────────────────────────────────────────
+            // Reemplaza TU_LLAVE_WOMPI con tu llave pública de wompi.co
+            const wompiKey = 'TU_LLAVE_WOMPI';
+            const ref = 'ME-' + Date.now();
+            const cents = total * 100;
+            window.open(
+                `https://checkout.wompi.co/p/?public-key=${wompiKey}&currency=COP&amount-in-cents=${cents}&reference=${ref}`,
+                '_blank'
+            );
+        } else {
+            // ── WhatsApp (transferencia o contra entrega) ───────────────────
+            const items = keys.map(id => {
+                const p = PRODUCTS.find(x => x.id === +id);
+                return `  ${p.emoji} ${p.name} ×${cart[id]} = ${fmt(p.price * cart[id])}`;
+            }).join('\n');
+            const methodLabel = selPayment === 'contraentrega' ? '🚚 Contra entrega' : '🏧 Transferencia bancaria';
+            const msg = encodeURIComponent(
+                `¡Hola MegaElectro! Quiero hacer un pedido:\n\n${items}\n\n` +
+                `💰 Total: ${fmt(total)}\n💳 Pago: ${methodLabel}\n\n` +
+                `👤 Nombre: ${name}\n📞 Teléfono: ${phone}\n📍 Dirección: ${address}`
+            );
+            window.open(`https://wa.me/573332256588?text=${msg}`, '_blank');
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // FIREBASE — configuración
+    // Pega aquí los valores de tu proyecto en console.firebase.google.com
+    // ─────────────────────────────────────────────
+    const FIREBASE_CONFIG = {
+        apiKey:            "PEGA_TU_apiKey_AQUI",
+        authDomain:        "PEGA_TU_authDomain_AQUI",
+        projectId:         "PEGA_TU_projectId_AQUI",
+        storageBucket:     "PEGA_TU_storageBucket_AQUI",
+        messagingSenderId: "PEGA_TU_messagingSenderId_AQUI",
+        appId:             "PEGA_TU_appId_AQUI"
+    };
+
+    const FB_READY = !Object.values(FIREBASE_CONFIG).some(v => String(v).includes('PEGA_'));
+    let auth = null, db = null;
+
+    if (FB_READY) {
+        try {
+            firebase.initializeApp(FIREBASE_CONFIG);
+            auth = firebase.auth();
+            db   = firebase.firestore();
+            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        } catch(e) { console.error('Firebase init:', e); }
+    }
+
+    // ─────────────────────────────────────────────
+    // SEGURIDAD — funciones base
+    // ─────────────────────────────────────────────
+
+    // Escapa HTML para prevenir XSS en cualquier dato de usuario que se inserte en el DOM
+    function esc(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;')
+            .replace(/\//g, '&#x2F;');
+    }
+
+    // Limita longitud y elimina caracteres de control de cualquier string de entrada
+    function clean(str, maxLen = 120) {
+        if (!str) return '';
+        return String(str).replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, maxLen);
+    }
+
+    // Validaciones de formato
+    function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e); }
+    function validPhone(p) { return /^[\d\s\+\-\(\)]{7,15}$/.test(p); }
+    function validCedula(c) { return /^\d{5,12}$/.test(c.replace(/\s/g, '')); }
+
+    // Estado del usuario actual (actualizado por onAuthStateChanged)
+    let _currentUser = null;
+    function getCurrentUser() { return _currentUser; }
+
+    // Protección básica contra fuerza bruta — bloqueo local 5 min tras 5 intentos
+    const BRUTE = {
+        key: 'me_attempts',
+        get() { return JSON.parse(localStorage.getItem(this.key) || '{"count":0,"until":0}'); },
+        fail() {
+            const d = this.get();
+            d.count++;
+            if (d.count >= 5) { d.until = Date.now() + 5 * 60 * 1000; d.count = 0; }
+            localStorage.setItem(this.key, JSON.stringify(d));
+        },
+        ok() { localStorage.setItem(this.key, JSON.stringify({count:0,until:0})); },
+        blocked() { const d = this.get(); return d.until > Date.now(); },
+        remaining() { return Math.ceil((this.get().until - Date.now()) / 60000); }
+    };
+
+    // ── Auth modal ──
+    function openAuth()  { document.getElementById('authOverlay').classList.add('open'); document.body.style.overflow = 'hidden'; }
+    function closeAuth() { document.getElementById('authOverlay').classList.remove('open'); document.body.style.overflow = ''; }
+
+    function switchAuthTab(tab) {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.atab === tab));
+        document.getElementById('loginForm').style.display    = tab === 'login'    ? 'block' : 'none';
+        document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+    }
+
+    async function doLogin() {
+        const err = document.getElementById('loginErr');
+        err.classList.remove('show');
+        if (BRUTE.blocked()) {
+            err.textContent = `Demasiados intentos fallidos. Espera ${BRUTE.remaining()} minuto(s).`;
+            err.classList.add('show'); return;
+        }
+        const email = clean(document.getElementById('loginEmail').value, 100).toLowerCase();
+        const pass  = document.getElementById('loginPass').value;
+        if (!validEmail(email) || !pass) { err.textContent = 'Ingresa un correo válido y tu contraseña.'; err.classList.add('show'); return; }
+        if (!FB_READY) { err.textContent = 'Firebase no está configurado aún. Contacta al administrador.'; err.classList.add('show'); return; }
+        try {
+            await auth.signInWithEmailAndPassword(email, pass);
+            BRUTE.ok();
+            document.getElementById('loginPass').value = '';
+            closeAuth();
+        } catch(e) {
+            BRUTE.fail();
+            const d = BRUTE.get();
+            err.textContent = d.until > Date.now()
+                ? 'Cuenta bloqueada 5 minutos por múltiples intentos fallidos.'
+                : 'Correo o contraseña incorrectos.';
+            err.classList.add('show');
+        }
+    }
+
+    async function doRegister() {
+        const err     = document.getElementById('registerErr');
+        err.classList.remove('show');
+        const name    = clean(document.getElementById('regName').value, 80);
+        const cedula  = clean(document.getElementById('regCedula').value, 12);
+        const email   = clean(document.getElementById('regEmail').value, 100).toLowerCase();
+        const phone   = clean(document.getElementById('regPhone').value, 15);
+        const pass    = document.getElementById('regPass').value;
+        const address = clean(document.getElementById('regAddress').value, 150);
+
+        if (!name || name.length < 2) { err.textContent = 'Ingresa tu nombre completo.'; err.classList.add('show'); return; }
+        if (!validEmail(email))        { err.textContent = 'Correo electrónico no válido.'; err.classList.add('show'); return; }
+        if (!pass || pass.length < 8)  { err.textContent = 'La contraseña debe tener mínimo 8 caracteres.'; err.classList.add('show'); return; }
+        if (!/[A-Z]/.test(pass))       { err.textContent = 'La contraseña debe incluir al menos una letra mayúscula.'; err.classList.add('show'); return; }
+        if (!/[0-9]/.test(pass))       { err.textContent = 'La contraseña debe incluir al menos un número.'; err.classList.add('show'); return; }
+        if (phone && !validPhone(phone)){ err.textContent = 'Número de teléfono no válido.'; err.classList.add('show'); return; }
+        if (cedula && !validCedula(cedula)){ err.textContent = 'Número de cédula no válido (solo dígitos, 5-12 cifras).'; err.classList.add('show'); return; }
+        if (!FB_READY) { err.textContent = 'Firebase no está configurado aún. Contacta al administrador.'; err.classList.add('show'); return; }
+
+        try {
+            const cred = await auth.createUserWithEmailAndPassword(email, pass);
+            const uid  = cred.user.uid;
+            await cred.user.updateProfile({ displayName: name });
+            await db.collection('users').doc(uid).set({
+                name, cedula, email, phone, address,
+                since: new Date().toISOString()
+            });
+            document.getElementById('regPass').value = '';
+            closeAuth();
+        } catch(e) {
+            err.textContent = e.code === 'auth/email-already-in-use'
+                ? 'Este correo ya está registrado. Inicia sesión.'
+                : 'Error al crear la cuenta. Intenta de nuevo.';
+            err.classList.add('show');
+        }
+    }
+
+    function autoFillCheckout(user) {
+        if (!user) return;
+        const n = document.getElementById('cName');
+        const p = document.getElementById('cPhone');
+        const a = document.getElementById('cAddress');
+        if (n && !n.value) n.value = user.name || '';
+        if (p && !p.value) p.value = user.phone || '';
+        if (a && !a.value) a.value = user.address || '';
+    }
+
+    function syncUserNav() {
+        const user  = getCurrentUser();
+        const btn   = document.getElementById('navUserBtn');
+        const icon  = document.getElementById('navUserIcon');
+        const label = document.getElementById('navUserLabel');
+        if (user) {
+            icon.textContent  = esc(user.name.charAt(0).toUpperCase());
+            label.textContent = esc(user.name.split(' ')[0]);
+            btn.classList.add('logged');
+            btn.title = `Mi cuenta — ${esc(user.name)}`;
+        } else {
+            icon.textContent  = '👤';
+            label.textContent = 'Ingresar';
+            btn.classList.remove('logged');
+            btn.title = 'Iniciar sesión o registrarse';
+        }
+    }
+
+    // ── Panel perfil ──
+    function openProfile() {
+        const user = getCurrentUser();
+        if (!user) { openAuth(); return; }
+        document.getElementById('pAvatar').textContent   = esc(user.name.charAt(0).toUpperCase());
+        document.getElementById('pHdrName').textContent  = esc(user.name);
+        document.getElementById('pHdrEmail').textContent = esc(user.email);
+        document.getElementById('pName').value    = user.name    || '';
+        document.getElementById('pCedula').value  = user.cedula  || '';
+        document.getElementById('pEmail').value   = user.email   || '';
+        document.getElementById('pPhone').value   = user.phone   || '';
+        document.getElementById('pAddress').value = user.address || '';
+        document.getElementById('pPass').value    = '';
+        switchPTab('datos');
+        renderOrders();
+        renderInvoices();
+        document.getElementById('profileOverlay').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeProfile() { document.getElementById('profileOverlay').classList.remove('open'); document.body.style.overflow = ''; }
+
+    function switchPTab(tab) {
+        document.querySelectorAll('.p-tab').forEach(t => t.classList.toggle('active', t.dataset.ptab === tab));
+        document.querySelectorAll('.p-sec').forEach(s => s.classList.toggle('active', s.id === 'p-' + tab));
+    }
+
+    async function saveProfile() {
+        const user = getCurrentUser();
+        if (!user || !FB_READY) return;
+        const name    = clean(document.getElementById('pName').value, 80);
+        const cedula  = clean(document.getElementById('pCedula').value, 12);
+        const phone   = clean(document.getElementById('pPhone').value, 15);
+        const address = clean(document.getElementById('pAddress').value, 150);
+        const np      = document.getElementById('pPass').value;
+        if (phone && !validPhone(phone)) { alert('Número de teléfono no válido.'); return; }
+        if (cedula && !validCedula(cedula)) { alert('Cédula no válida (solo dígitos, 5-12 cifras).'); return; }
+        if (np && np.length < 8) { alert('La contraseña nueva debe tener mínimo 8 caracteres.'); return; }
+        if (np && !/[A-Z]/.test(np)) { alert('La contraseña nueva debe tener al menos una mayúscula.'); return; }
+        if (np && !/[0-9]/.test(np)) { alert('La contraseña nueva debe tener al menos un número.'); return; }
+        try {
+            const updates = { cedula, phone, address };
+            if (name) { updates.name = name; await auth.currentUser.updateProfile({ displayName: name }); }
+            await db.collection('users').doc(user.uid).update(updates);
+            if (np && np.length >= 8) await auth.currentUser.updatePassword(np);
+            document.getElementById('pPass').value = '';
+            Object.assign(_currentUser, updates);
+            if (name) _currentUser.name = name;
+            document.getElementById('pAvatar').textContent   = _currentUser.name.charAt(0).toUpperCase();
+            document.getElementById('pHdrName').textContent  = esc(_currentUser.name);
+            document.getElementById('pHdrEmail').textContent = esc(_currentUser.email);
+            syncUserNav();
+            alert('✅ Datos guardados correctamente.');
+        } catch(e) {
+            alert('Error al guardar: ' + (e.message || 'Intenta de nuevo.'));
+        }
+    }
+
+    async function doLogout() {
+        if (!confirm('¿Deseas cerrar sesión?')) return;
+        if (FB_READY) await auth.signOut();
+        closeProfile();
+    }
+
+    // ── Guardar pedido (Firestore) ──
+    async function saveOrderToProfile(orderData) {
+        const user = getCurrentUser();
+        if (!user || !FB_READY) return null;
+        const invNum = parseInt(Date.now().toString().slice(-7));
+        const invData = {
+            num:      invNum,
+            orderId:  orderData.id,
+            date:     orderData.date,
+            items:    orderData.items,
+            subtotal: orderData.total,
+            total:    orderData.total,
+            method:   orderData.method,
+            customer: { name: user.name, cedula: user.cedula || '', email: user.email, phone: user.phone || '', address: user.address || '' }
+        };
+        try {
+            await db.collection('orders').add({
+                userId:      user.uid,
+                id:          orderData.id,
+                date:        orderData.date,
+                items:       orderData.items,
+                total:       orderData.total,
+                method:      orderData.method,
+                invoiceData: invData,
+                createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+            });
+            return invData;
+        } catch(e) { console.error('saveOrder:', e); return null; }
+    }
+
+    // ── Render pedidos (Firestore) ──
+    async function renderOrders() {
+        const user = getCurrentUser();
+        const el = document.getElementById('ordersList');
+        if (!user) { el.innerHTML = ''; return; }
+        if (!FB_READY) { el.innerHTML = '<div class="empty-st"><div class="ei">⚙️</div><p>Firebase no configurado aún</p></div>'; return; }
+        try {
+            el.innerHTML = '<div class="empty-st"><div class="ei">⏳</div><p>Cargando pedidos…</p></div>';
+            const snap = await db.collection('orders').where('userId','==',user.uid).get();
+            if (snap.empty) { el.innerHTML = '<div class="empty-st"><div class="ei">📦</div><p>Aún no tienes pedidos registrados</p></div>'; return; }
+            const docs = snap.docs.sort((a,b) => new Date(b.data().date||0) - new Date(a.data().date||0));
+            el.innerHTML = docs.map(doc => {
+                const o = doc.data();
+                return `<div class="order-card">
+                    <div class="oc-top">
+                        <div><div class="oc-id">Pedido #${esc(o.id || doc.id.slice(-6))}</div><div class="oc-date">${esc(o.date ? new Date(o.date).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'}) : '—')}</div></div>
+                        <span class="oc-status">✓ Confirmado</span>
+                    </div>
+                    <div class="oc-items">${(o.items||[]).map(i=>`${esc(i.emoji)} ${esc(i.name)} ×${esc(String(i.qty))}`).join(' &nbsp;·&nbsp; ')}</div>
+                    <div class="oc-total">${esc(fmt(o.total||0))}</div>
+                    ${o.invoiceData ? `<button class="inv-btn" onclick='printInvoice(${esc(JSON.stringify(o.invoiceData))})'>🧾 Ver factura</button>` : ''}
+                </div>`;
+            }).join('');
+        } catch(e) { el.innerHTML = '<div class="empty-st"><div class="ei">❌</div><p>Error al cargar pedidos</p></div>'; }
+    }
+
+    // ── Render facturas (Firestore) ──
+    async function renderInvoices() {
+        const user = getCurrentUser();
+        const el = document.getElementById('invoicesList');
+        if (!user) { el.innerHTML = ''; return; }
+        if (!FB_READY) { el.innerHTML = '<div class="empty-st"><div class="ei">⚙️</div><p>Firebase no configurado aún</p></div>'; return; }
+        try {
+            el.innerHTML = '<div class="empty-st"><div class="ei">⏳</div><p>Cargando facturas…</p></div>';
+            const snap = await db.collection('orders').where('userId','==',user.uid).get();
+            const docs = snap.docs.filter(d => d.data().invoiceData).sort((a,b) => new Date(b.data().date||0) - new Date(a.data().date||0));
+            if (!docs.length) { el.innerHTML = '<div class="empty-st"><div class="ei">🧾</div><p>Aún no tienes facturas generadas</p></div>'; return; }
+            el.innerHTML = docs.map(doc => {
+                const inv = doc.data().invoiceData;
+                return `<div class="order-card">
+                    <div class="oc-top">
+                        <div><div class="oc-id">Factura #${esc(String(inv.num||'—'))}</div><div class="oc-date">${esc(inv.date ? new Date(inv.date).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'}) : '—')}</div></div>
+                        <span class="oc-status">✓ Emitida</span>
+                    </div>
+                    <div class="oc-items">${(inv.items||[]).map(i=>`${esc(i.emoji)} ${esc(i.name)} ×${esc(String(i.qty))}`).join(' &nbsp;·&nbsp; ')}</div>
+                    <div class="oc-total">${esc(fmt(inv.total||0))}</div>
+                    <button class="inv-btn" onclick='printInvoice(${esc(JSON.stringify(inv))})'>🧾 Descargar / Imprimir</button>
+                </div>`;
+            }).join('');
+        } catch(e) { el.innerHTML = '<div class="empty-st"><div class="ei">❌</div><p>Error al cargar facturas</p></div>'; }
+    }
+
+    // ── Generar factura (abre nueva ventana → imprimir como PDF) ──
+    function printInvoice(inv) {
+        const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+        <title>Factura #${inv.num} — MegaElectro El Diamante</title>
+        <style>
+            *{margin:0;padding:0;box-sizing:border-box}
+            body{font-family:Arial,sans-serif;color:#333;padding:2rem;max-width:750px;margin:0 auto}
+            .top{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:1.5rem;margin-bottom:1.5rem;border-bottom:3px solid #E8341A}
+            .brand h1{font-size:1.9rem;color:#E8341A;font-weight:900;letter-spacing:-1px}
+            .brand p{color:#888;font-size:0.83rem;margin-top:0.2rem;line-height:1.5}
+            .inv-info{text-align:right}
+            .inv-info h2{font-size:1.1rem;font-weight:800;color:#333}
+            .inv-info p{font-size:0.82rem;color:#888;margin-top:0.2rem}
+            .parties{display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:1.5rem}
+            .party h3{font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:0.5rem}
+            .party p{font-size:0.88rem;line-height:1.6}
+            table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}
+            thead th{background:#111;color:white;padding:0.75rem 1rem;text-align:left;font-size:0.83rem}
+            tbody td{padding:0.75rem 1rem;border-bottom:1px solid #f0f0f0;font-size:0.88rem}
+            tbody tr:nth-child(even){background:#f9f9f9}
+            .totals{margin-left:auto;width:260px}
+            .t-row{display:flex;justify-content:space-between;padding:0.35rem 0;font-size:0.88rem}
+            .t-grand{font-weight:900;font-size:1.05rem;color:#E8341A;border-top:2px solid #E8341A;padding-top:0.7rem;margin-top:0.4rem}
+            .note{background:#fffbea;border-left:3px solid #f59e0b;padding:0.75rem 1rem;font-size:0.8rem;color:#8a5e00;margin-top:1.5rem;border-radius:0 8px 8px 0}
+            .footer{text-align:center;color:#aaa;font-size:0.76rem;margin-top:2.5rem;padding-top:1.2rem;border-top:1px solid #eee}
+            @media print{body{padding:0.5rem}.note{display:none}}
+        </style></head><body>
+        <div class="top">
+            <div class="brand"><h1>MegaElectro</h1><p>El Diamante<br>Calle 51 #73-134 Local 1682<br>C.C. El Diamante, Medellín<br>📱 333 225 6588 · megaelectrodiamante@gmail.com</p></div>
+            <div class="inv-info"><h2>FACTURA #${inv.num}</h2><p>Fecha: ${new Date(inv.date).toLocaleDateString('es-CO',{day:'numeric',month:'long',year:'numeric'})}</p><p>Pedido: #${inv.orderId}</p><p>Pago: ${inv.method}</p></div>
+        </div>
+        <div class="parties">
+            <div class="party"><h3>Vendedor</h3><p><strong>MegaElectro El Diamante</strong><br>NIT: ⚠️ Agrega tu NIT<br>Medellín, Antioquia · Colombia</p></div>
+            <div class="party"><h3>Cliente</h3><p><strong>${inv.customer.name}</strong><br>CC: ${inv.customer.cedula||'—'}<br>${inv.customer.address||'—'}<br>${inv.customer.phone||'—'}<br>${inv.customer.email||'—'}</p></div>
+        </div>
+        <table>
+            <thead><tr><th>Descripción</th><th>Cant.</th><th>Precio unit.</th><th>Total</th></tr></thead>
+            <tbody>${inv.items.map(i=>`<tr><td>${i.emoji} ${i.name}</td><td>${i.qty}</td><td>$${i.price.toLocaleString('es-CO')}</td><td>$${(i.price*i.qty).toLocaleString('es-CO')}</td></tr>`).join('')}</tbody>
+        </table>
+        <div class="totals">
+            <div class="t-row"><span>Subtotal</span><span>$${inv.subtotal.toLocaleString('es-CO')}</span></div>
+            <div class="t-row"><span>IVA (19%)</span><span>$${Math.round(inv.subtotal*0.19).toLocaleString('es-CO')}</span></div>
+            <div class="t-row t-grand"><span>TOTAL</span><span>$${inv.total.toLocaleString('es-CO')}</span></div>
+        </div>
+        <div class="note">⚠️ Factura provisional. Para factura electrónica válida ante la DIAN activa tu cuenta en <strong>alegra.com</strong> o <strong>factus.com.co</strong>.</div>
+        <div class="footer">Gracias por comprar en MegaElectro El Diamante · L–S 10:00 AM–6:30 PM</div>
+        <script>window.onload=()=>window.print();<\/script></body></html>`;
+        const w = window.open('', '_blank');
+        w.document.write(html);
+        w.document.close();
+    }
+
+    // ─────────────────────────────────────────────
+    // EVENTOS
+    // ─────────────────────────────────────────────
+    document.getElementById('cartFab').addEventListener('click', openCart);
+    document.getElementById('cartClose').addEventListener('click', closeCart);
+    document.getElementById('cartOverlay').addEventListener('click', closeCart);
+    document.getElementById('goCheckout').addEventListener('click', openCheckout);
+    document.getElementById('coClose').addEventListener('click', closeCheckout);
+    document.getElementById('confirmBtn').addEventListener('click', submitOrder);
+    document.getElementById('navUserBtn').addEventListener('click', () => getCurrentUser() ? openProfile() : openAuth());
+
+    document.querySelectorAll('.pay-opt').forEach(el => {
+        el.addEventListener('click', () => selectPayment(el.dataset.method));
+    });
+    document.getElementById('filterTabs').addEventListener('click', e => {
+        const btn = e.target.closest('.filter-tab');
+        if (!btn) return;
+        document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderProducts(btn.dataset.cat);
+    });
+    document.querySelectorAll('.p-tab').forEach(t => {
+        t.addEventListener('click', () => switchPTab(t.dataset.ptab));
+    });
+
+    // ── Rellenar checkout con datos del usuario logueado ──
+    const _origOpenCheckout = openCheckout;
+    openCheckout = function() { _origOpenCheckout(); autoFillCheckout(getCurrentUser()); };
+
+    // ── Guardar pedido al confirmar ──
+    const _origSubmit = submitOrder;
+    submitOrder = async function() {
+        const name    = document.getElementById('cName').value.trim();
+        const phone   = document.getElementById('cPhone').value.trim();
+        const address = document.getElementById('cAddress').value.trim();
+        if (!name || !phone || !address) { alert('Por favor completa tus datos de contacto.'); return; }
+        if (!selPayment) { alert('Selecciona un método de pago.'); return; }
+        const keys  = Object.keys(cart).filter(id => cart[id] > 0);
+        const total = cartSum();
+        const orderData = {
+            id:     Date.now().toString().slice(-6),
+            date:   new Date().toISOString(),
+            items:  keys.map(id => { const p = PRODUCTS.find(x => x.id === +id); return { name: p.name, emoji: p.emoji, qty: cart[id], price: p.price }; }),
+            total,
+            method: selPayment
+        };
+        await saveOrderToProfile(orderData);
+        _origSubmit();
+    };
+
+    // ── Firebase: observer de sesión activa ──
+    if (FB_READY) {
+        auth.onAuthStateChanged(async fbUser => {
+            if (fbUser) {
+                try {
+                    const snap = await db.collection('users').doc(fbUser.uid).get();
+                    const data = snap.exists ? snap.data() : {};
+                    _currentUser = {
+                        uid:     fbUser.uid,
+                        email:   fbUser.email,
+                        name:    data.name || fbUser.displayName || fbUser.email,
+                        cedula:  data.cedula  || '',
+                        phone:   data.phone   || '',
+                        address: data.address || ''
+                    };
+                } catch(e) {
+                    _currentUser = { uid: fbUser.uid, email: fbUser.email, name: fbUser.displayName || fbUser.email, cedula: '', phone: '', address: '' };
+                }
+            } else {
+                _currentUser = null;
+            }
+            syncUserNav();
+            if (_currentUser) autoFillCheckout(_currentUser);
+        });
+    }
+
+    // Init
+    renderProducts('todos');
+    syncUserNav();
+</script>
+</body>
+</html>

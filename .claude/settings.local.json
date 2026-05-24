@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sL \"https://cafecomercialmadrid.com\" -A \"Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\)\" -o /tmp/cafecomercial.html)",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/**)"
+    ]
+  }
+}
