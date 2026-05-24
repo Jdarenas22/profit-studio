@@ -16,7 +16,7 @@
       </div>
 
       <!-- Form -->
-      <form method="post" class="space-y-5">
+      <form method="post" class="space-y-5" id="login-form">
         {% csrf_token %}
         <div>
           <label class="block text-white/70 text-sm font-medium mb-2">Usuario</label>
@@ -54,4 +54,15 @@
     </div>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Al enviar el formulario de login, marcamos la sesión del navegador en sessionStorage.
+  // Esto permite que base.html detecte si es una sesión nueva (navegador cerrado y reabierto)
+  // y fuerce el logout automáticamente cuando corresponda.
+  document.getElementById('login-form').addEventListener('submit', function () {
+    sessionStorage.setItem('pfs_browser_session', '1');
+  });
+</script>
 {% endblock %}

@@ -16,7 +16,21 @@
 
     <!-- Video / Imagen (col 3) -->
     <div class="lg:col-span-3">
-      {% if exercise.video_file %}
+
+      {% if exercise.video_url %}
+      <!-- ✅ YouTube embed (preferido — no requiere almacenamiento) -->
+      <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
+        <iframe src="{{ exercise.youtube_embed_url }}"
+                class="w-full h-full"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+                loading="lazy">
+        </iframe>
+      </div>
+
+      {% elif exercise.video_file %}
+      <!-- Archivo de video subido directamente -->
       <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
         <video controls class="w-full h-full object-cover"
                controlsList="nodownload"
@@ -25,11 +39,13 @@
           Tu navegador no soporta la reproducción de video.
         </video>
       </div>
+
       {% elif exercise.image %}
       <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
         <img src="{{ exercise.image.url }}" alt="{{ exercise.name }}"
              class="w-full h-full object-cover" />
       </div>
+
       {% else %}
       <div class="aspect-video bg-zinc-900 rounded-2xl border border-white/10 flex items-center justify-center">
         <div class="text-center text-white/20">
@@ -50,7 +66,10 @@
         <h3 class="text-primary text-xs font-semibold uppercase tracking-wider mb-3">
           <i class="fa fa-lightbulb mr-1"></i> Recomendaciones
         </h3>
-        <p class="text-white/70 text-sm leading-relaxed">{{ exercise.recommendations }}</p>
+        <!-- linebreaksbr preserva los saltos de línea del texto guardado -->
+        <div class="text-white/70 text-sm leading-relaxed space-y-1">
+          {{ exercise.recommendations|linebreaksbr }}
+        </div>
       </div>
       {% endif %}
     </div>
@@ -77,7 +96,10 @@
 
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
         <h3 class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Descripción</h3>
-        <p class="text-white/70 text-sm leading-relaxed">{{ exercise.description }}</p>
+        <!-- linebreaksbr convierte \n en <br> para respetar el formato original -->
+        <div class="text-white/70 text-sm leading-relaxed space-y-1">
+          {{ exercise.description|linebreaksbr }}
+        </div>
       </div>
 
       <!-- Back -->

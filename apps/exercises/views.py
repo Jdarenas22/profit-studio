@@ -70,6 +70,7 @@ def trainer_exercise_create(request):
             description=request.POST['description'],
             muscles=request.POST['muscles'],
             recommendations=request.POST.get('recommendations', ''),
+            video_url=request.POST.get('video_url', '').strip(),
             is_public=request.POST.get('is_public') == 'on',
             is_active=True,
         )
@@ -97,6 +98,7 @@ def trainer_exercise_edit(request, pk):
         exercise.description = request.POST['description']
         exercise.muscles = request.POST['muscles']
         exercise.recommendations = request.POST.get('recommendations', '')
+        exercise.video_url = request.POST.get('video_url', '').strip()
         exercise.is_public = request.POST.get('is_public') == 'on'
         if 'video_file' in request.FILES:
             exercise.video_file = request.FILES['video_file']

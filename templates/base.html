@@ -86,5 +86,24 @@
       evt.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
     });
   </script>
+
+  {% if request.user.is_authenticated %}
+  <script>
+    // ── Seguridad de sesión: logout automático al cerrar el navegador ─────────────
+    // sessionStorage se borra cuando el navegador se cierra por completo.
+    // Si el usuario regresa y el navegador restauró la cookie de Django (Chrome
+    // "Continuar donde lo dejaste"), detectamos que pfs_browser_session no existe
+    // en sessionStorage y forzamos el logout para proteger dispositivos compartidos.
+    (function () {
+      var SESSION_KEY = 'pfs_browser_session';
+      if (!sessionStorage.getItem(SESSION_KEY)) {
+        // Nueva sesión de navegador sin pasar por el login → cerrar sesión
+        window.location.replace('{% url "logout" %}');
+      }
+      // Refrescar la marca para que persista en la pestaña actual
+      sessionStorage.setItem(SESSION_KEY, '1');
+    })();
+  </script>
+  {% endif %}
 </body>
 </html>

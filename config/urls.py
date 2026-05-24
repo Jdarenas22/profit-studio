@@ -1,7 +1,8 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.static import serve
 from django.http import JsonResponse
 
 
@@ -33,3 +34,12 @@ if settings.DEBUG:
         urlpatterns = [path('__debug__/', include(debug_toolbar.urls))] + urlpatterns
     except ImportError:
         pass
+else:
+    # En producción (Railway) Django sirve media files directamente.
+    # No hay nginx ni R2 configurado — esto permite ver imágenes/videos subidos.
+    # Nota: los archivos se pierden al redesplegar (Railway no tiene volumen persistente).
+    # Para videos permanentes usa el campo "URL de YouTube" en el formulario de ejercicios.
+    import re as _re
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    ]

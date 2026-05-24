@@ -93,20 +93,45 @@
       </label>
     </div>
 
-    <!-- Archivos -->
-    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
-      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Multimedia</h2>
+    <!-- Multimedia -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-5">
+      <div>
+        <h2 class="text-white font-bold text-sm uppercase tracking-wider">Multimedia</h2>
+        <p class="text-white/30 text-xs mt-1">Usa el enlace de YouTube para que el video se vea siempre, sin importar los redespliegues del servidor.</p>
+      </div>
 
+      <!-- ✅ URL de YouTube (recomendado en producción) -->
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">
+          <i class="fab fa-youtube text-red-400 mr-1"></i> Enlace de YouTube
+          <span class="text-primary font-semibold ml-1">(Recomendado)</span>
+        </label>
+        <input type="url" name="video_url"
+               value="{% if exercise %}{{ exercise.video_url }}{% endif %}"
+               placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."
+               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        <p class="text-white/20 text-xs mt-1">Copia el enlace desde YouTube y pégalo aquí. Funciona con enlaces cortos (youtu.be) y largos.</p>
+      </div>
+
+      <!-- Separador -->
+      <div class="flex items-center gap-3">
+        <div class="flex-1 border-t border-white/10"></div>
+        <span class="text-white/20 text-xs">o sube un archivo</span>
+        <div class="flex-1 border-t border-white/10"></div>
+      </div>
+
+      <!-- Archivo de video (solo funciona bien en local) -->
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Video (MP4, MOV)</label>
         {% if exercise and exercise.video_file %}
-        <p class="text-white/30 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Video actual: {{ exercise.video_file.name|slice:"20:" }}</p>
+        <p class="text-white/30 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Video cargado. <span class="text-yellow-400/60">⚠ Se perderá en el próximo redespliegue. Usa YouTube en su lugar.</span></p>
         {% endif %}
         <input type="file" name="video_file" accept="video/*"
                class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
         <p class="text-white/20 text-xs mt-1">Los clientes no podrán descargar el video.</p>
       </div>
 
+      <!-- Imagen de portada -->
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Imagen de portada (JPG, PNG)</label>
         {% if exercise and exercise.image %}
