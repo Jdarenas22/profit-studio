@@ -30,6 +30,15 @@
                  class="w-full bg-black/60 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors placeholder:text-white/20"
                  placeholder="••••••••" />
         </div>
+        <!-- Recordarme -->
+        <label class="flex items-center gap-3 cursor-pointer select-none group">
+          <input type="checkbox" name="remember_me" id="remember-me"
+                 class="w-4 h-4 accent-orange-500 cursor-pointer">
+          <span class="text-white/50 group-hover:text-white/70 text-sm transition-colors">
+            Recordarme por 10 días
+          </span>
+        </label>
+
         <button type="submit"
                 class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-colors text-sm">
           Ingresar
@@ -58,11 +67,15 @@
 
 {% block extra_scripts %}
 <script>
-  // Al enviar el formulario de login, marcamos la sesión del navegador en sessionStorage.
-  // Esto permite que base.html detecte si es una sesión nueva (navegador cerrado y reabierto)
-  // y fuerce el logout automáticamente cuando corresponda.
   document.getElementById('login-form').addEventListener('submit', function () {
+    // Marcar la sesión activa en esta pestaña para que BroadcastChannel funcione
     sessionStorage.setItem('pfs_browser_session', '1');
+    // Guardar o eliminar "Recordarme" según la casilla
+    if (document.getElementById('remember-me').checked) {
+      localStorage.setItem('pfs_remember', '1');
+    } else {
+      localStorage.removeItem('pfs_remember');
+    }
   });
 </script>
 {% endblock %}

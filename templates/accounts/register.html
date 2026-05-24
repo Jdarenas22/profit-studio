@@ -28,6 +28,7 @@
               return '';
             }
           }"
+          @submit="sessionStorage.setItem('pfs_browser_session', '1')"
           class="space-y-6">
       {% csrf_token %}
 

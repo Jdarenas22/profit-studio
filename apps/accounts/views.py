@@ -19,6 +19,10 @@ def login_view(request):
 
         if user:
             login(request, user)
+            if request.POST.get('remember_me'):
+                request.session.set_expiry(864000)  # 10 días en segundos
+            else:
+                request.session.set_expiry(0)  # Expira al cerrar el navegador
             return redirect(request.GET.get('next', 'dashboard'))
         else:
             messages.error(request, 'Usuario o contraseña incorrectos.')

@@ -28,7 +28,9 @@
           <a href="{% url 'dashboard' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
             <i class="fa fa-user-circle mr-1"></i>{{ user.first_name|default:user.username }}
           </a>
-          <a href="{% url 'logout' %}" class="text-sm text-white/50 hover:text-white transition-colors">
+          <a href="{% url 'logout' %}"
+             onclick="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');"
+             class="text-sm text-white/50 hover:text-white transition-colors">
             Salir
           </a>
         {% else %}
@@ -61,7 +63,9 @@
         <a href="{% url 'dashboard' %}" class="block text-white/70 py-2 font-medium">
           <i class="fa fa-user-circle mr-2"></i>Mi perfil
         </a>
-        <a href="{% url 'logout' %}" class="block text-white/50 py-2">Cerrar sesión</a>
+        <a href="{% url 'logout' %}"
+           onclick="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');"
+           class="block text-white/50 py-2">Cerrar sesión</a>
       {% else %}
         <a href="{% url 'login' %}" class="block text-white/70 py-2 font-medium">Iniciar sesión</a>
         <a href="{% url 'register' %}"

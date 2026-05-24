@@ -90,18 +90,63 @@
   {% if request.user.is_authenticated %}
   <script>
     // ── Seguridad de sesión: logout automático al cerrar el navegador ─────────────
-    // sessionStorage se borra cuando el navegador se cierra por completo.
-    // Si el usuario regresa y el navegador restauró la cookie de Django (Chrome
-    // "Continuar donde lo dejaste"), detectamos que pfs_browser_session no existe
-    // en sessionStorage y forzamos el logout para proteger dispositivos compartidos.
+    // Usa BroadcastChannel para sincronizar entre pestañas del mismo navegador:
+    //   • Abrir una pestaña nueva  → NO dispara logout (las pestañas se sincronizan)
+    //   • Cerrar el navegador y reabrir → SÍ dispara logout (sessionStorage se borra)
+    //   • "Recordarme 10 días" activo → nunca dispara logout automático
     (function () {
       var SESSION_KEY = 'pfs_browser_session';
-      if (!sessionStorage.getItem(SESSION_KEY)) {
-        // Nueva sesión de navegador sin pasar por el login → cerrar sesión
-        window.location.replace('{% url "logout" %}');
+      var REMEMBER_KEY = 'pfs_remember';
+      var CHANNEL     = 'pfs_session_sync';
+
+      // Si el usuario eligió "Recordarme", omitir toda la verificación
+      if (localStorage.getItem(REMEMBER_KEY) === '1') return;
+
+      // Fallback para navegadores muy antiguos sin BroadcastChannel
+      if (typeof BroadcastChannel === 'undefined') {
+        if (!sessionStorage.getItem(SESSION_KEY)) {
+          window.location.replace('{% url "logout" %}');
+        }
+        sessionStorage.setItem(SESSION_KEY, '1');
+        return;
       }
-      // Refrescar la marca para que persista en la pestaña actual
-      sessionStorage.setItem(SESSION_KEY, '1');
+
+      var bc = new BroadcastChannel(CHANNEL);
+
+      // ── Esta pestaña YA tiene la clave → se convierte en "respondedora" ──────
+      if (sessionStorage.getItem(SESSION_KEY)) {
+        bc.onmessage = function (e) {
+          if (e.data === 'ping') bc.postMessage('pong');
+        };
+        return; // Sesión válida, nada más que hacer
+      }
+
+      // ── Esta pestaña NO tiene la clave → preguntar a pestañas abiertas ───────
+      var confirmed = false;
+      bc.onmessage = function (e) {
+        if (e.data === 'pong' && !confirmed) {
+          confirmed = true;
+          sessionStorage.setItem(SESSION_KEY, '1');
+          bc.close();
+          // Ahora esta pestaña también responde a futuras pestañas nuevas
+          var bc2 = new BroadcastChannel(CHANNEL);
+          bc2.onmessage = function (e2) {
+            if (e2.data === 'ping') bc2.postMessage('pong');
+          };
+        }
+      };
+
+      bc.postMessage('ping'); // Preguntar a pestañas existentes
+
+      // Esperar 150 ms a que alguna responda (BroadcastChannel es casi instantáneo)
+      setTimeout(function () {
+        bc.close();
+        if (!confirmed) {
+          // Nadie respondió → el navegador fue cerrado y reabierto → logout
+          localStorage.removeItem(REMEMBER_KEY);
+          window.location.replace('{% url "logout" %}');
+        }
+      }, 150);
     })();
   </script>
   {% endif %}
