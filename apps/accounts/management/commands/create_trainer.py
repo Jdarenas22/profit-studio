@@ -24,10 +24,20 @@ class Command(BaseCommand):
         make_superuser = options['superuser']
 
         if User.objects.filter(username=username).exists():
-            self.stdout.write(self.style.WARNING(
-                f'Ya existe un usuario con username "{username}". '
-                'Usa --username para especificar otro.'
-            ))
+            if make_superuser:
+                # Si ya existe pero le faltan permisos de superusuario, los aplicamos
+                updated = User.objects.filter(username=username).update(
+                    is_staff=True, is_superuser=True, role=User.ROLE_TRAINER
+                )
+                self.stdout.write(self.style.SUCCESS(
+                    f'Cuenta "{username}" ya existía — '
+                    f'actualizada con permisos de superusuaria (is_superuser=True).'
+                ))
+            else:
+                self.stdout.write(self.style.WARNING(
+                    f'Ya existe un usuario con username "{username}". '
+                    'Usa --username para especificar otro.'
+                ))
             return
 
         if not password:

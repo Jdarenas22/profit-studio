@@ -31,6 +31,14 @@
       <i class="fa fa-clipboard-list"></i> Rutinas
     </a>
 
+    {% if request.user.is_superuser %}
+    <a href="{% url 'trainer_staff_list' %}"
+       class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
+              {% if 'staff' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+      <i class="fa fa-user-tie"></i> Entrenadores
+    </a>
+    {% endif %}
+
     <div class="flex-1"></div>
     <a href="{% url 'logout' %}" class="px-4 py-2 text-white/30 hover:text-white text-sm transition-colors whitespace-nowrap">
       <i class="fa fa-sign-out-alt mr-1"></i>Salir
