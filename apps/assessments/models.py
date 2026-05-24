@@ -110,8 +110,8 @@ class DixonTest(models.Model):
     observations = models.TextField(blank=True, verbose_name='Observaciones')
 
     class Meta:
-        verbose_name = 'Test de Dickson'
-        verbose_name_plural = 'Tests de Dickson'
+        verbose_name = 'Test de Ruffier-Dickson'
+        verbose_name_plural = 'Tests de Ruffier-Dickson'
 
     def save(self, *args, **kwargs):
         if self.p0 is not None and self.p1 is not None and self.p2 is not None:
@@ -121,4 +121,4 @@ class DixonTest(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Test Dixon — {self.assessment.user} — Índice: {self.index_value}"
+        return f"Test de Ruffier-Dickson — {self.assessment.user} — Índice: {self.index_value}"

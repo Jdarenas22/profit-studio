@@ -81,9 +81,9 @@
     </div>
   </div>
 
-  <!-- ─── Test Dickson ──────────────────────────────────────────────────── -->
+  <!-- ─── Test de Ruffier-Dickson ───────────────────────────────────────── -->
   <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
-    <h2 class="text-white font-bold mb-1">Test Dickson</h2>
+    <h2 class="text-white font-bold mb-1">Test de Ruffier-Dickson</h2>
     <p class="text-white/30 text-xs mb-6">IRD = ((P0 + P1 + P2) − 200) / 10</p>
 
     {% if dixon %}
@@ -139,10 +139,10 @@
     </p>
     {% endif %}
 
-    <p class="text-white/20 text-xs mb-4 border-t border-white/5 pt-4">Actualizar Test Dickson:</p>
+    <p class="text-white/20 text-xs mb-4 border-t border-white/5 pt-4">Actualizar Test de Ruffier-Dickson:</p>
     {% endif %}
 
-    <!-- Formulario Test Dickson -->
+    <!-- Formulario Test de Ruffier-Dickson -->
     <form method="POST"
           x-data="{
             p0: '{% if dixon %}{{ dixon.p0 }}{% endif %}',
@@ -266,7 +266,7 @@
               :disabled="dixonNegative"
               :class="dixonNegative ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary-dark'"
               class="bg-primary text-white font-semibold py-2.5 px-6 rounded-xl transition-colors text-sm">
-        <i class="fa fa-check mr-2"></i>{% if dixon %}Actualizar{% else %}Guardar{% endif %} Test Dickson
+        <i class="fa fa-check mr-2"></i>{% if dixon %}Actualizar{% else %}Guardar{% endif %} Test de Ruffier-Dickson
       </button>
     </form>
   </div>

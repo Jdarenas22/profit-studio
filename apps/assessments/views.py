@@ -31,7 +31,7 @@ def trainer_assessment_create(request, client_pk):
             observations=request.POST.get('observations', ''),
         )
 
-        # Crear Test Dickson si se proporcionaron los tres pulsos
+        # Crear Test de Ruffier-Dickson si se proporcionaron los tres pulsos
         p0_raw = request.POST.get('p0', '').strip()
         p1_raw = request.POST.get('p1', '').strip()
         p2_raw = request.POST.get('p2', '').strip()
@@ -78,7 +78,7 @@ def trainer_assessment_detail(request, pk):
             dixon = DixonTest.objects.create(
                 assessment=assessment, p0=p0, p1=p1, p2=p2, observations=obs
             )
-        messages.success(request, f'Test Dickson guardado. IRD: {dixon.index_value} — {dixon.classification}.')
+        messages.success(request, f'Test de Ruffier-Dickson guardado. IRD: {dixon.index_value} — {dixon.classification}.')
         return redirect('trainer_assessment_detail', pk=pk)
 
     return render(request, 'trainer/assessment_detail.html', {

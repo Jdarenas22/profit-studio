@@ -137,7 +137,7 @@
             <p class="text-white text-sm font-medium">{{ assessment.date|date:"d/m/Y" }}</p>
             <p class="text-white/40 text-xs">
               IMC {{ assessment.imc }} — {{ assessment.imc_classification }}
-              {% if assessment.dixon_test %}· Test Dixon: {{ assessment.dixon_test.classification }}{% endif %}
+              {% if assessment.dixon_test %}· Test Ruffier-Dickson: {{ assessment.dixon_test.classification }}{% endif %}
             </p>
           </div>
           <i class="fa fa-chevron-right text-white/20 group-hover:text-primary transition-colors text-xs"></i>

@@ -26,7 +26,7 @@
         {% if forloop.counter == 1 %}
         <i class="fa fa-clipboard-list text-primary text-2xl mb-3"></i>
         <p class="text-white font-semibold text-sm">Valoración inicial</p>
-        <p class="text-white/40 text-xs mt-1">IMC + Test Dixon</p>
+        <p class="text-white/40 text-xs mt-1">IMC + Test de Ruffier-Dickson</p>
         {% elif forloop.counter == 2 %}
         <i class="fa fa-dumbbell text-primary text-2xl mb-3"></i>
         <p class="text-white font-semibold text-sm">Rutina personalizada</p>
@@ -229,7 +229,7 @@
         <div x-show="open === {{ forloop.counter }}" x-collapse class="px-6 pb-4">
           <p class="text-white/50 text-sm leading-relaxed">
             {% if forloop.counter == 1 %}
-            Me escribes por WhatsApp, hacemos una valoración inicial (IMC + Test Dixon), defines tu objetivo y activo tu membresía. Te asigno una rutina personalizada a la que puedes acceder desde la plataforma.
+            Me escribes por WhatsApp, hacemos una valoración inicial (IMC + Test de Ruffier-Dickson), defines tu objetivo y activo tu membresía. Te asigno una rutina personalizada a la que puedes acceder desde la plataforma.
             {% elif forloop.counter == 2 %}
             Las membresías son por el período acordado. Si necesitas pausar o tienes alguna situación, hablamos directamente para encontrar la mejor solución.
             {% elif forloop.counter == 3 %}
