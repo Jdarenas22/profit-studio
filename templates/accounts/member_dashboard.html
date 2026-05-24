@@ -6,19 +6,35 @@
 <section class="py-10 px-4 max-w-5xl mx-auto">
   <!-- Header -->
   <div class="flex items-center justify-between mb-10">
-    <div>
-      <h1 class="text-3xl font-black text-white">
-        Hola, <span class="text-primary">{{ user.first_name|default:user.username }}</span> 👋
-      </h1>
-      <p class="text-white/40 text-sm mt-1">Aquí están tus rutinas y tu estado de membresía.</p>
+    <div class="flex items-center gap-4">
+      <!-- Foto de perfil -->
+      {% if user.profile_photo %}
+      <img src="{{ user.profile_photo.url }}" alt="Foto"
+           class="w-14 h-14 rounded-2xl object-cover border-2 border-primary/30 shrink-0">
+      {% else %}
+      <div class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+        <span class="text-primary font-black text-2xl">{{ user.first_name|first|upper|default:user.username|first|upper }}</span>
+      </div>
+      {% endif %}
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-black text-white">
+          Hola, <span class="text-primary">{{ user.first_name|default:user.username }}</span> 👋
+        </h1>
+        <p class="text-white/40 text-sm mt-0.5">Aquí están tus rutinas y tu estado de membresía.</p>
+      </div>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 shrink-0">
       <a href="{% url 'member_profile_edit' %}"
          class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
-        <i class="fa fa-pen"></i> Editar perfil
+        <i class="fa fa-pen"></i> <span class="hidden sm:inline">Editar perfil</span>
       </a>
-      <a href="{% url 'logout' %}" class="text-white/30 hover:text-white text-sm transition-colors">
-        <i class="fa fa-sign-out-alt mr-1"></i>Salir
+      <a href="{% url 'member_payment_history' %}"
+         class="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
+        <i class="fa fa-receipt"></i> <span class="hidden sm:inline">Mis pagos</span>
+      </a>
+      <a href="{% url 'logout' %}" onclick="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');"
+         class="text-white/30 hover:text-white text-sm transition-colors px-2 py-2">
+        <i class="fa fa-sign-out-alt"></i>
       </a>
     </div>
   </div>
@@ -49,17 +65,27 @@
       <p class="text-white/40 text-sm mb-5">{{ routine.notes }}</p>
       {% endif %}
 
-      <div class="space-y-4 mt-5">
+      <div class="space-y-5 mt-5">
         {% for day in routine.days.all %}
-        <div>
-          <h3 class="text-primary font-semibold text-sm uppercase tracking-wider mb-3">{{ day.name }}</h3>
+        <div class="border border-white/5 rounded-xl p-4">
+          <!-- Cabecera del día con botón completar -->
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-primary font-semibold text-sm uppercase tracking-wider">{{ day.name }}</h3>
+            <form method="POST" action="{% url 'mark_day_complete' day.pk %}">
+              {% csrf_token %}
+              <button type="submit"
+                      class="inline-flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                <i class="fa fa-check"></i> Completar hoy
+              </button>
+            </form>
+          </div>
           <div class="space-y-2">
             {% for re in day.exercises.all %}
             <div class="flex items-center gap-4 bg-black/40 rounded-xl px-4 py-3">
-              {% if re.exercise.video_file %}
+              {% if re.exercise.video_url or re.exercise.video_file %}
               <a href="{% url 'exercise_detail' re.exercise.pk %}"
-                 class="w-9 h-9 bg-primary/20 hover:bg-primary rounded-lg flex items-center justify-center shrink-0 transition-colors">
-                <i class="fa fa-play text-primary hover:text-white text-xs"></i>
+                 class="w-9 h-9 bg-primary/20 hover:bg-primary rounded-lg flex items-center justify-center shrink-0 transition-colors group">
+                <i class="fa fa-play text-primary group-hover:text-white text-xs"></i>
               </a>
               {% else %}
               <div class="w-9 h-9 bg-white/5 rounded-lg flex items-center justify-center shrink-0">
@@ -72,9 +98,26 @@
                   {{ re.sets }} series × {{ re.reps }} reps — {{ re.rest_seconds }}s descanso
                 </p>
               </div>
+              <a href="{% url 'exercise_detail' re.exercise.pk %}"
+                 class="text-white/20 hover:text-primary text-xs transition-colors shrink-0">
+                <i class="fa fa-arrow-right"></i>
+              </a>
             </div>
             {% endfor %}
           </div>
+          <!-- Historial de completados -->
+          {% with logs=day.logs.all|slice:":3" %}
+          {% if logs %}
+          <div class="mt-3 flex items-center gap-2 flex-wrap">
+            <span class="text-white/20 text-xs">Completado:</span>
+            {% for log in logs %}
+            <span class="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">
+              {{ log.completed_at|date:"d/m" }}
+            </span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% endwith %}
         </div>
         {% endfor %}
       </div>
@@ -92,5 +135,40 @@
       </a>
     </div>
   {% endif %}
+
+  <!-- Progreso corporal -->
+  {% with measurements=user.measurements.all|slice:":6" %}
+  {% if measurements %}
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mt-6">
+    <h2 class="text-white font-bold mb-5">Mi progreso corporal</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-white/30 text-xs border-b border-white/5">
+            <th class="text-left pb-2">Fecha</th>
+            <th class="text-right pb-2">Peso</th>
+            <th class="text-right pb-2">IMC</th>
+            <th class="text-right pb-2">Cintura</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for m in measurements %}
+          <tr class="text-white/70">
+            <td class="py-2">{{ m.date|date:"d/m/Y" }}</td>
+            <td class="py-2 text-right font-semibold text-white">{{ m.weight }} kg</td>
+            <td class="py-2 text-right">
+              {% if m.imc %}<span class="text-primary font-bold">{{ m.imc }}</span>
+              <span class="text-white/30 text-xs"> {{ m.imc_classification }}</span>{% else %}—{% endif %}
+            </td>
+            <td class="py-2 text-right">{% if m.waist_cm %}{{ m.waist_cm }} cm{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endwith %}
+
 </section>
 {% endblock %}

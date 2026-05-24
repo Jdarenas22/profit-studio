@@ -122,3 +122,53 @@ class DixonTest(models.Model):
 
     def __str__(self):
         return f"Test de Ruffier-Dickson — {self.assessment.user} — Índice: {self.index_value}"
+
+
+class BodyMeasurement(models.Model):
+    """Registro periódico de medidas corporales del cliente."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='measurements',
+        verbose_name='Cliente',
+    )
+    trainer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='recorded_measurements',
+        verbose_name='Registrado por',
+    )
+    date = models.DateField(auto_now_add=True)
+    weight = models.DecimalField(
+        max_digits=5, decimal_places=1, verbose_name='Peso (kg)'
+    )
+    height = models.DecimalField(
+        max_digits=4, decimal_places=2,
+        null=True, blank=True, verbose_name='Estatura (m)',
+    )
+    waist_cm = models.DecimalField(
+        max_digits=5, decimal_places=1,
+        null=True, blank=True, verbose_name='Cintura (cm)',
+    )
+    imc = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        null=True, blank=True, verbose_name='IMC',
+    )
+    imc_classification = models.CharField(max_length=50, blank=True)
+    notes = models.TextField(blank=True, verbose_name='Observaciones')
+
+    class Meta:
+        verbose_name = 'Medición corporal'
+        verbose_name_plural = 'Mediciones corporales'
+        ordering = ['-date', '-pk']
+
+    def save(self, *args, **kwargs):
+        if self.weight and self.height:
+            val = float(self.weight) / (float(self.height) ** 2)
+            self.imc = round(val, 2)
+            self.imc_classification = classify_by_ranges(val, IMC_RANGES)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Medición {self.user} — {self.date}"

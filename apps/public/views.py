@@ -3,7 +3,9 @@ from django.http import JsonResponse
 
 
 def home(request):
-    return render(request, 'public/home.html')
+    from .models import Testimonial
+    testimonials = Testimonial.objects.filter(is_active=True).order_by('order', '-created_at')
+    return render(request, 'public/home.html', {'testimonials': testimonials})
 
 
 def about(request):

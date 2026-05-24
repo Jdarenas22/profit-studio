@@ -78,3 +78,65 @@ class Payment(models.Model):
     @property
     def method_display(self):
         return self.METHOD_LABELS.get(self.payment_method_type, self.payment_method_type or '—')
+
+
+class ManualPayment(models.Model):
+    """Pago registrado manualmente por la entrenadora (efectivo, transferencia, etc.)."""
+    METHOD_CASH      = 'cash'
+    METHOD_TRANSFER  = 'transfer'
+    METHOD_NEQUI     = 'nequi'
+    METHOD_DAVIPLATA = 'daviplata'
+    METHOD_OTHER     = 'other'
+    METHOD_CHOICES = [
+        (METHOD_CASH,      'Efectivo'),
+        (METHOD_TRANSFER,  'Transferencia'),
+        (METHOD_NEQUI,     'Nequi'),
+        (METHOD_DAVIPLATA, 'Daviplata'),
+        (METHOD_OTHER,     'Otro'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='manual_payments',
+        verbose_name='Cliente',
+    )
+    trainer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='registered_payments',
+        verbose_name='Registrado por',
+    )
+    plan = models.ForeignKey(
+        'memberships.MembershipPlan',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='manual_payments',
+        verbose_name='Plan',
+    )
+    amount = models.PositiveIntegerField(verbose_name='Monto (COP)')
+    method = models.CharField(
+        max_length=20, choices=METHOD_CHOICES,
+        default=METHOD_CASH, verbose_name='Método de pago',
+    )
+    payment_date = models.DateField(verbose_name='Fecha de pago')
+    receipt = models.ImageField(
+        upload_to='receipts/', blank=True, null=True,
+        verbose_name='Comprobante (foto)',
+    )
+    notes = models.TextField(blank=True, verbose_name='Notas')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Pago manual'
+        verbose_name_plural = 'Pagos manuales'
+        ordering = ['-payment_date', '-created_at']
+
+    def __str__(self):
+        name = self.user.get_full_name() or self.user.username
+        return f"{name} — ${self.amount:,} — {self.payment_date}"
+
+    @property
+    def method_label(self):
+        return dict(self.METHOD_CHOICES).get(self.method, self.method)

@@ -1,0 +1,89 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Registrar pago — {{ client.get_full_name|default:client.username }}{% endblock %}
+
+{% block trainer_content %}
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">Registrar pago</span>
+</nav>
+
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-black text-white mb-8">Registrar pago</h1>
+
+  <form method="POST" enctype="multipart/form-data" class="space-y-5">
+    {% csrf_token %}
+
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Detalles del pago</h2>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Monto (COP) *</label>
+          <input type="text" name="amount" required value="{{ form.amount|default:'' }}"
+                 placeholder="Ej: 150000"
+                 class="w-full bg-black/40 border {% if errors.amount %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.amount %}<p class="text-red-400 text-xs mt-1">{{ errors.amount }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Fecha de pago *</label>
+          <input type="date" name="payment_date" required value="{{ form.payment_date|default:'' }}"
+                 class="w-full bg-black/40 border {% if errors.payment_date %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.payment_date %}<p class="text-red-400 text-xs mt-1">{{ errors.payment_date }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Método de pago</label>
+          <select name="method"
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            <option value="cash"      {% if form.method == 'cash' %}selected{% endif %}>💵 Efectivo</option>
+            <option value="transfer"  {% if form.method == 'transfer' %}selected{% endif %}>🏦 Transferencia</option>
+            <option value="nequi"     {% if form.method == 'nequi' %}selected{% endif %}>📱 Nequi</option>
+            <option value="daviplata" {% if form.method == 'daviplata' %}selected{% endif %}>📱 Daviplata</option>
+            <option value="other"     {% if form.method == 'other' %}selected{% endif %}>Otro</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Plan (opcional)</label>
+          <select name="plan"
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+            <option value="">— Sin plan —</option>
+            {% for plan in plans %}
+            <option value="{{ plan.pk }}" {% if form.plan == plan.pk|stringformat:"s" %}selected{% endif %}>
+              {{ plan.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Comprobante (foto opcional)</label>
+        <input type="file" name="receipt" accept="image/*"
+               class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Notas (opcional)</label>
+        <textarea name="notes" rows="2"
+                  placeholder="Observaciones sobre este pago..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+        <i class="fa fa-check mr-2"></i>Registrar pago
+      </button>
+      <a href="{% url 'trainer_client_detail' client.pk %}"
+         class="px-5 py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

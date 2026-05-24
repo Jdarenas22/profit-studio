@@ -14,9 +14,14 @@
 <!-- Header cliente -->
 <div class="flex items-start justify-between mb-8">
   <div class="flex items-center gap-4">
+    {% if client.profile_photo %}
+    <img src="{{ client.profile_photo.url }}" alt="Foto"
+         class="w-16 h-16 rounded-2xl object-cover border-2 border-primary/30 shrink-0">
+    {% else %}
     <div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
       <span class="text-primary font-black text-2xl">{{ client.first_name|first|upper|default:client.username|first|upper }}</span>
     </div>
+    {% endif %}
     <div>
       <h1 class="text-2xl font-black text-white">{{ client.get_full_name|default:client.username }}</h1>
       <p class="text-white/40 text-sm">{{ client.email|default:"Sin email" }}{% if client.phone %} · {{ client.phone }}{% endif %}</p>
@@ -111,8 +116,56 @@
           <i class="fa fa-clipboard-list text-primary text-sm w-5 text-center"></i>
           <span class="text-white/70 group-hover:text-white text-sm transition-colors">Crear rutina</span>
         </a>
+        <a href="{% url 'trainer_measurement_add' client.pk %}"
+           class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 transition-colors group">
+          <i class="fa fa-weight text-primary text-sm w-5 text-center"></i>
+          <span class="text-white/70 group-hover:text-white text-sm transition-colors">Agregar medición</span>
+        </a>
+        <a href="{% url 'trainer_manual_payment_add' client.pk %}"
+           class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 transition-colors group">
+          <i class="fa fa-money-bill-wave text-primary text-sm w-5 text-center"></i>
+          <span class="text-white/70 group-hover:text-white text-sm transition-colors">Registrar pago</span>
+        </a>
       </div>
     </div>
+
+    <!-- Mediciones corporales -->
+    {% with measurements=client.measurements.all|slice:":5" %}
+    {% if measurements %}
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-white font-bold">Mediciones</h2>
+        <a href="{% url 'trainer_measurement_add' client.pk %}"
+           class="text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
+          <i class="fa fa-plus mr-1"></i> Nueva
+        </a>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-white/30 border-b border-white/5">
+              <th class="text-left pb-2">Fecha</th>
+              <th class="text-right pb-2">Peso</th>
+              <th class="text-right pb-2">IMC</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            {% for m in measurements %}
+            <tr class="text-white/60">
+              <td class="py-1.5">{{ m.date|date:"d/m/Y" }}</td>
+              <td class="py-1.5 text-right font-semibold text-white">{{ m.weight }} kg</td>
+              <td class="py-1.5 text-right">
+                {% if m.imc %}<span class="text-primary font-bold">{{ m.imc }}</span>{% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+
   </div>
 
   <!-- Valoraciones y rutinas -->
@@ -169,7 +222,13 @@
            class="flex items-center justify-between bg-black/30 hover:bg-black/50 rounded-xl px-4 py-3 transition-colors group">
           <div>
             <p class="text-white text-sm font-medium">{{ routine.name }}</p>
-            <p class="text-white/40 text-xs">{{ routine.days.count }} día{{ routine.days.count|pluralize:"s" }}</p>
+            <p class="text-white/40 text-xs">{{ routine.days.count }} día{{ routine.days.count|pluralize:"s" }}
+              {% for day in routine.days.all %}
+                {% with total_logs=day.logs.all|length %}
+                  {% if total_logs %}· {{ day.name }}: {{ total_logs }} entreno{{ total_logs|pluralize:"s" }}{% endif %}
+                {% endwith %}
+              {% endfor %}
+            </p>
           </div>
           <i class="fa fa-chevron-right text-white/20 group-hover:text-primary transition-colors text-xs"></i>
         </a>
@@ -181,6 +240,44 @@
         <p class="text-sm">Sin rutinas asignadas</p>
       </div>
       {% endif %}
+    </div>
+
+    <!-- Pagos manuales -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-white font-bold">Pagos registrados</h2>
+        <a href="{% url 'trainer_manual_payment_add' client.pk %}"
+           class="text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
+          <i class="fa fa-plus mr-1"></i> Registrar
+        </a>
+      </div>
+
+      {% with payments=client.manual_payments.all|slice:":5" %}
+      {% if payments %}
+      <div class="space-y-2">
+        {% for p in payments %}
+        <div class="flex items-center justify-between bg-black/30 rounded-xl px-4 py-3">
+          <div>
+            <p class="text-white text-sm font-medium">${{ p.amount|floatformat:0 }}</p>
+            <p class="text-white/40 text-xs">{{ p.payment_date|date:"d/m/Y" }} · {{ p.method_label }}</p>
+          </div>
+          {% if p.plan %}
+          <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{{ p.plan.name }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <a href="{% url 'trainer_manual_payment_list' %}?client={{ client.pk }}"
+         class="block text-center text-white/30 hover:text-primary text-xs mt-3 transition-colors">
+        Ver historial completo →
+      </a>
+      {% else %}
+      <div class="text-center py-8 text-white/20">
+        <i class="fa fa-money-bill-wave text-2xl mb-2"></i>
+        <p class="text-sm">Sin pagos registrados</p>
+      </div>
+      {% endif %}
+      {% endwith %}
     </div>
 
   </div>

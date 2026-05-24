@@ -1,0 +1,96 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Medición corporal — {{ client.get_full_name|default:client.username }}{% endblock %}
+
+{% block trainer_content %}
+<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
+  <i class="fa fa-chevron-right text-xs"></i>
+  <span class="text-white/60">Nueva medición</span>
+</nav>
+
+<div class="max-w-2xl">
+  <h1 class="text-2xl font-black text-white mb-8">Registrar medición corporal</h1>
+
+  <form method="POST" class="space-y-5">
+    {% csrf_token %}
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Medidas</h2>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Peso (kg) *</label>
+          <input type="text" name="weight" required value="{{ form.weight|default:'' }}"
+                 placeholder="Ej: 72.5"
+                 class="w-full bg-black/40 border {% if errors.weight %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.weight %}<p class="text-red-400 text-xs mt-1">{{ errors.weight }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Estatura (m) — para IMC</label>
+          <input type="text" name="height" value="{{ form.height|default:'' }}"
+                 placeholder="Ej: 1.65"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <p class="text-white/25 text-xs mt-1">Dejar vacío si no cambia</p>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Cintura (cm) — opcional</label>
+        <input type="text" name="waist_cm" value="{{ form.waist_cm|default:'' }}"
+               placeholder="Ej: 85"
+               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Observaciones (opcional)</label>
+        <textarea name="notes" rows="2"
+                  placeholder="Notas sobre esta medición..."
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+        <i class="fa fa-check mr-2"></i>Guardar medición
+      </button>
+      <a href="{% url 'trainer_client_detail' client.pk %}"
+         class="px-5 py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+    </div>
+  </form>
+
+  <!-- Historial previo -->
+  {% if measurements %}
+  <div class="mt-8 bg-zinc-900 border border-white/10 rounded-2xl p-6">
+    <h2 class="text-white font-bold mb-4">Historial de mediciones</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-white/30 text-xs border-b border-white/5">
+            <th class="text-left pb-2">Fecha</th>
+            <th class="text-right pb-2">Peso</th>
+            <th class="text-right pb-2">IMC</th>
+            <th class="text-right pb-2">Cintura</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for m in measurements %}
+          <tr class="text-white/70">
+            <td class="py-2">{{ m.date|date:"d/m/Y" }}</td>
+            <td class="py-2 text-right font-medium text-white">{{ m.weight }} kg</td>
+            <td class="py-2 text-right">
+              {% if m.imc %}<span class="text-primary font-semibold">{{ m.imc }}</span>
+              <span class="text-white/30 text-xs ml-1">{{ m.imc_classification }}</span>{% else %}—{% endif %}
+            </td>
+            <td class="py-2 text-right">{% if m.waist_cm %}{{ m.waist_cm }} cm{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

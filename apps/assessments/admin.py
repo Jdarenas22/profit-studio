@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import InitialAssessment, DixonTest
+from .models import InitialAssessment, DixonTest, BodyMeasurement
 
 
 class DixonTestInline(admin.StackedInline):
@@ -27,3 +27,12 @@ class DixonTestAdmin(admin.ModelAdmin):
     list_display = ['assessment', 'p0', 'p1', 'p2', 'index_value', 'classification']
     readonly_fields = ['index_value', 'classification']
     search_fields = ['assessment__user__username', 'assessment__user__first_name']
+
+
+@admin.register(BodyMeasurement)
+class BodyMeasurementAdmin(admin.ModelAdmin):
+    list_display = ['user', 'date', 'weight', 'imc', 'imc_classification', 'waist_cm']
+    list_filter = ['date']
+    search_fields = ['user__username', 'user__first_name', 'user__last_name']
+    readonly_fields = ['imc', 'imc_classification', 'date']
+    raw_id_fields = ['user', 'trainer']

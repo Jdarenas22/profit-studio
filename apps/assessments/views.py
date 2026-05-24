@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from apps.accounts.decorators import trainer_required
 from apps.accounts.models import User
-from .models import InitialAssessment, DixonTest
+from .models import InitialAssessment, DixonTest, BodyMeasurement
 
 
 @login_required
@@ -84,4 +84,59 @@ def trainer_assessment_detail(request, pk):
     return render(request, 'trainer/assessment_detail.html', {
         'assessment': assessment,
         'dixon': dixon,
+    })
+
+
+# ─── Mediciones corporales ─────────────────────────────────────────────────────
+
+@trainer_required
+def trainer_measurement_add(request, client_pk):
+    client = get_object_or_404(User, pk=client_pk, role='member')
+
+    if request.method == 'POST':
+        weight_raw = request.POST.get('weight', '').strip()
+        height_raw = request.POST.get('height', '').strip()
+        waist_raw  = request.POST.get('waist_cm', '').strip()
+
+        errors = {}
+        if not weight_raw:
+            errors['weight'] = 'El peso es obligatorio.'
+        try:
+            weight = float(weight_raw.replace(',', '.')) if weight_raw else None
+        except ValueError:
+            errors['weight'] = 'Peso inválido.'
+            weight = None
+
+        if not errors:
+            m = BodyMeasurement(
+                user=client,
+                trainer=request.user,
+                weight=weight,
+                notes=request.POST.get('notes', ''),
+            )
+            if height_raw:
+                try:
+                    m.height = float(height_raw.replace(',', '.'))
+                except ValueError:
+                    pass
+            if waist_raw:
+                try:
+                    m.waist_cm = float(waist_raw.replace(',', '.'))
+                except ValueError:
+                    pass
+            m.save()
+            messages.success(request, f'Medición registrada. Peso: {m.weight} kg'
+                             + (f' — IMC: {m.imc} ({m.imc_classification})' if m.imc else '') + '.')
+            return redirect('trainer_client_detail', pk=client_pk)
+
+        measurements = client.measurements.all()
+        return render(request, 'trainer/body_measurement_add.html', {
+            'client': client, 'errors': errors, 'form': request.POST,
+            'measurements': measurements,
+        })
+
+    measurements = client.measurements.all()
+    return render(request, 'trainer/body_measurement_add.html', {
+        'client': client, 'errors': {}, 'form': {},
+        'measurements': measurements,
     })

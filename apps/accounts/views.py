@@ -172,6 +172,37 @@ def register_view(request):
                 training_goal=training_goal if training_goal in dict(User.GOAL_CHOICES) else '',
             )
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+
+            # ── Notificar a la entrenadora por email ──────────────────────────
+            try:
+                from django.core.mail import send_mail
+                from django.conf import settings as _cfg
+                superuser_emails = list(
+                    User.objects.filter(is_superuser=True).exclude(email='')
+                    .values_list('email', flat=True)
+                )
+                if superuser_emails:
+                    plan_txt  = plan.name if plan else 'Sin plan'
+                    goal_txt  = dict(User.GOAL_CHOICES).get(training_goal, 'No indicado')
+                    send_mail(
+                        subject=f'🏋️ Nuevo registro: {user.get_full_name() or user.username}',
+                        message=(
+                            f'Nueva inscripción en ProFit Studio:\n\n'
+                            f'Nombre: {user.get_full_name()}\n'
+                            f'Usuario: {user.username}\n'
+                            f'Email: {user.email}\n'
+                            f'Teléfono: {user.phone or "No indicado"}\n'
+                            f'Plan de interés: {plan_txt}\n'
+                            f'Objetivo: {goal_txt}\n\n'
+                            f'Accede al panel para asignarle entrenadora y membresía.'
+                        ),
+                        from_email=getattr(_cfg, 'DEFAULT_FROM_EMAIL', 'noreply@profitstudio.com'),
+                        recipient_list=superuser_emails,
+                        fail_silently=True,
+                    )
+            except Exception:
+                pass
+
             return redirect('register_success')
 
         return render(request, 'accounts/register.html', {
@@ -433,6 +464,8 @@ def member_profile_edit(request):
             user.email = email
             user.phone = phone
             user.gender = gender if gender in ('F', 'M', 'O') else ''
+            if 'profile_photo' in request.FILES:
+                user.profile_photo = request.FILES['profile_photo']
             if new_password:
                 user.set_password(new_password)
                 login(request, user, backend='django.contrib.auth.backends.ModelBackend')

@@ -5,4 +5,6 @@ urlpatterns = [
     path('', views.assessment_list, name='assessment_list'),
     path('trainer/new/<int:client_pk>/', views.trainer_assessment_create, name='trainer_assessment_create'),
     path('trainer/<int:pk>/', views.trainer_assessment_detail, name='trainer_assessment_detail'),
+    # Mediciones corporales
+    path('measurements/<int:client_pk>/add/', views.trainer_measurement_add, name='trainer_measurement_add'),
 ]

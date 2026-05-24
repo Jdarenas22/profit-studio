@@ -334,6 +334,52 @@
   </div>
 </section>
 
+<!-- ── TESTIMONIOS ─────────────────────────────────────────────────── -->
+{% if testimonials %}
+<section class="py-24 bg-black">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Resultados reales</p>
+      <h2 class="text-4xl sm:text-5xl font-black text-white">Lo que dicen<br/><span class="text-primary">nuestros clientes</span></h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for t in testimonials %}
+      <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 flex flex-col">
+        <!-- Estrellas -->
+        <div class="flex gap-1 mb-4">
+          {% for i in "12345"|make_list %}
+            {% if forloop.counter <= t.rating %}
+            <i class="fa fa-star text-primary text-sm"></i>
+            {% else %}
+            <i class="fa fa-star text-white/20 text-sm"></i>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <!-- Testimonio -->
+        <p class="text-white/70 text-sm leading-relaxed flex-1 mb-5">"{{ t.text }}"</p>
+        <!-- Autor -->
+        <div class="flex items-center gap-3 pt-5 border-t border-white/10">
+          {% if t.photo %}
+          <img src="{{ t.photo.url }}" alt="{{ t.name }}"
+               class="w-10 h-10 rounded-xl object-cover shrink-0">
+          {% else %}
+          <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+            <span class="text-primary font-bold text-sm">{{ t.initials }}</span>
+          </div>
+          {% endif %}
+          <div>
+            <p class="text-white font-semibold text-sm">{{ t.name }}</p>
+            {% if t.role %}<p class="text-primary text-xs">{{ t.role }}</p>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
 <!-- ── CTA FINAL ──────────────────────────────────────────────────────── -->
 <section class="py-24 bg-primary relative overflow-hidden">
   <div class="absolute inset-0 bg-gradient-to-br from-primary to-orange-700"></div>

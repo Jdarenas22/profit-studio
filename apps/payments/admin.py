@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Payment
+from .models import Payment, ManualPayment
 
 
 @admin.register(Payment)
@@ -17,3 +17,13 @@ class PaymentAdmin(admin.ModelAdmin):
     def method_display(self, obj):
         return obj.method_display
     method_display.short_description = 'Método'
+
+
+@admin.register(ManualPayment)
+class ManualPaymentAdmin(admin.ModelAdmin):
+    list_display = ['user', 'amount', 'method', 'payment_date', 'plan', 'trainer']
+    list_filter = ['method', 'payment_date']
+    search_fields = ['user__username', 'user__first_name', 'user__last_name']
+    raw_id_fields = ['user', 'trainer', 'plan']
+    readonly_fields = ['created_at']
+    date_hierarchy = 'payment_date'

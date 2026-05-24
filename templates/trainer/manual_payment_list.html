@@ -1,0 +1,93 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Pagos manuales — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="flex items-center justify-between mb-8">
+  <div>
+    <h1 class="text-2xl font-black text-white">
+      {% if client %}Pagos de {{ client.get_full_name|default:client.username }}{% else %}Todos los pagos{% endif %}
+    </h1>
+    <p class="text-white/40 text-sm mt-1">Pagos registrados manualmente (efectivo, transferencias, etc.)</p>
+  </div>
+</div>
+
+<!-- Resumen -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+    <p class="text-white/40 text-xs uppercase tracking-wider mb-1">Total recaudado</p>
+    <p class="text-3xl font-black text-primary">${{ total|floatformat:0 }}</p>
+    <p class="text-white/30 text-xs mt-1">COP · {{ payments|length }} pago{{ payments|length|pluralize:"s" }}</p>
+  </div>
+  {% if client %}
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 flex items-center justify-between">
+    <div>
+      <p class="text-white/40 text-xs mb-1">Cliente</p>
+      <p class="text-white font-bold">{{ client.get_full_name|default:client.username }}</p>
+    </div>
+    <a href="{% url 'trainer_manual_payment_add' client.pk %}"
+       class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+      <i class="fa fa-plus"></i> Nuevo
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Tabla -->
+<div class="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden">
+  {% if payments %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="border-b border-white/10">
+        <tr class="text-white/30 text-xs uppercase tracking-wider">
+          <th class="text-left px-6 py-4">Fecha</th>
+          <th class="text-left px-6 py-4">Cliente</th>
+          <th class="text-left px-6 py-4">Plan</th>
+          <th class="text-left px-6 py-4">Método</th>
+          <th class="text-right px-6 py-4">Monto</th>
+          <th class="text-left px-6 py-4">Comprobante</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        {% for p in payments %}
+        <tr class="hover:bg-white/2 transition-colors">
+          <td class="px-6 py-4 text-white/60">{{ p.payment_date|date:"d/m/Y" }}</td>
+          <td class="px-6 py-4">
+            <a href="{% url 'trainer_client_detail' p.user.pk %}" class="text-white hover:text-primary transition-colors font-medium">
+              {{ p.user.get_full_name|default:p.user.username }}
+            </a>
+          </td>
+          <td class="px-6 py-4 text-white/50">{{ p.plan.name|default:"—" }}</td>
+          <td class="px-6 py-4">
+            <span class="text-xs bg-white/5 text-white/60 px-2 py-1 rounded-lg">{{ p.method_label }}</span>
+          </td>
+          <td class="px-6 py-4 text-right font-black text-primary">${{ p.amount|floatformat:0 }}</td>
+          <td class="px-6 py-4">
+            {% if p.receipt %}
+            <a href="{{ p.receipt.url }}" target="_blank" class="text-primary hover:text-primary-dark text-xs">
+              <i class="fa fa-image mr-1"></i>Ver
+            </a>
+            {% else %}
+            <span class="text-white/20 text-xs">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% if p.notes %}
+        <tr class="bg-black/20">
+          <td colspan="6" class="px-6 py-2 text-white/30 text-xs italic">
+            <i class="fa fa-note-sticky mr-1 text-primary/50"></i>{{ p.notes }}
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-16 text-white/20">
+    <i class="fa fa-receipt text-4xl mb-3"></i>
+    <p class="text-sm">No hay pagos registrados aún.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

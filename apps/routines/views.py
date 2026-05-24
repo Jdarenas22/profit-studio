@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
 from apps.accounts.decorators import trainer_required
-from .models import Routine, RoutineDay, RoutineExercise
+from .models import Routine, RoutineDay, RoutineExercise, RoutineDayLog
 
 
 @login_required
@@ -138,3 +138,26 @@ def trainer_routine_delete(request, pk):
         messages.success(request, f'Rutina "{name}" eliminada.')
         return redirect('trainer_routine_list')
     return HttpResponse(status=405)
+
+
+# ─── Registro de días completados (cliente) ────────────────────────────────────
+
+@login_required
+def mark_day_complete(request, day_pk):
+    """El cliente marca un día de rutina como completado hoy."""
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    day = get_object_or_404(RoutineDay, pk=day_pk, routine__user=request.user)
+
+    from django.utils import timezone
+    today = timezone.now().date()
+
+    # Evitar duplicados el mismo día
+    if not RoutineDayLog.objects.filter(user=request.user, routine_day=day, completed_at=today).exists():
+        RoutineDayLog.objects.create(user=request.user, routine_day=day)
+        messages.success(request, f'¡{day.name} completado! Sigue así 💪')
+    else:
+        messages.info(request, f'Ya registraste {day.name} hoy.')
+
+    return redirect('dashboard')

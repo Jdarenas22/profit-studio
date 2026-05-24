@@ -75,3 +75,29 @@ class RoutineExercise(models.Model):
 
     def __str__(self):
         return f"{self.exercise.name} — {self.day}"
+
+
+class RoutineDayLog(models.Model):
+    """Registro de un día de entrenamiento completado por el cliente."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='day_logs',
+        verbose_name='Cliente',
+    )
+    routine_day = models.ForeignKey(
+        RoutineDay,
+        on_delete=models.CASCADE,
+        related_name='logs',
+        verbose_name='Día de rutina',
+    )
+    completed_at = models.DateField(auto_now_add=True)
+    notes = models.CharField(max_length=200, blank=True, verbose_name='Nota rápida')
+
+    class Meta:
+        verbose_name = 'Registro de entrenamiento'
+        verbose_name_plural = 'Registros de entrenamiento'
+        ordering = ['-completed_at']
+
+    def __str__(self):
+        return f"{self.user} — {self.routine_day.name} — {self.completed_at}"

@@ -2,15 +2,18 @@ import json
 import logging
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.memberships.models import Membership, MembershipPlan
-from .models import Payment
+from apps.accounts.decorators import trainer_required
+from apps.accounts.models import User
+from .models import Payment, ManualPayment
 from .services import compute_integrity_signature, verify_webhook_event
 
 logger = logging.getLogger(__name__)
@@ -168,3 +171,82 @@ def _activate_membership(payment):
         logger.info(f"Membership {'created' if created else 'renewed'} for user {payment.user_id}")
     except Exception as exc:
         logger.error(f"Membership activation failed for payment {payment.reference}: {exc}", exc_info=True)
+
+
+# ─── Panel de pagos manuales (entrenadora) ─────────────────────────────────────
+
+@trainer_required
+def trainer_manual_payment_list(request):
+    client_pk = request.GET.get('client')
+    payments = ManualPayment.objects.select_related('user', 'trainer', 'plan').order_by('-payment_date')
+    client = None
+    if client_pk:
+        client = get_object_or_404(User, pk=client_pk, role='member')
+        payments = payments.filter(user=client)
+    total = sum(p.amount for p in payments)
+    return render(request, 'trainer/manual_payment_list.html', {
+        'payments': payments,
+        'client': client,
+        'total': total,
+    })
+
+
+@trainer_required
+def trainer_manual_payment_add(request, client_pk):
+    client = get_object_or_404(User, pk=client_pk, role='member')
+    plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
+    errors = {}
+
+    if request.method == 'POST':
+        amount_raw   = request.POST.get('amount', '').strip()
+        method       = request.POST.get('method', 'cash')
+        payment_date = request.POST.get('payment_date', '').strip()
+        plan_id      = request.POST.get('plan') or None
+        notes        = request.POST.get('notes', '').strip()
+
+        if not amount_raw:
+            errors['amount'] = 'El monto es obligatorio.'
+        if not payment_date:
+            errors['payment_date'] = 'La fecha es obligatoria.'
+
+        if not errors:
+            try:
+                amount = int(amount_raw.replace('.', '').replace(',', ''))
+            except ValueError:
+                errors['amount'] = 'Monto inválido.'
+
+        if not errors:
+            mp = ManualPayment(
+                user=client,
+                trainer=request.user,
+                amount=amount,
+                method=method,
+                payment_date=payment_date,
+                notes=notes,
+            )
+            if plan_id:
+                try:
+                    mp.plan = MembershipPlan.objects.get(pk=plan_id)
+                except MembershipPlan.DoesNotExist:
+                    pass
+            if 'receipt' in request.FILES:
+                mp.receipt = request.FILES['receipt']
+            mp.save()
+            messages.success(request, f'Pago de ${amount:,} registrado para {client.get_full_name() or client.username}.')
+            return redirect('trainer_client_detail', pk=client_pk)
+
+        return render(request, 'trainer/manual_payment_add.html', {
+            'client': client, 'plans': plans, 'errors': errors, 'form': request.POST,
+        })
+
+    return render(request, 'trainer/manual_payment_add.html', {
+        'client': client, 'plans': plans, 'errors': {}, 'form': {},
+    })
+
+
+# ─── Historial de pagos (cliente) ──────────────────────────────────────────────
+
+@login_required
+def member_payment_history(request):
+    payments = request.user.manual_payments.select_related('plan', 'trainer').order_by('-payment_date')
+    return render(request, 'accounts/payment_history.html', {'payments': payments})

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Mis pagos — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-3xl mx-auto">
+  <nav class="flex items-center gap-2 text-white/30 text-sm mb-8">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs"></i>
+    <span class="text-white/60">Mis pagos</span>
+  </nav>
+
+  <h1 class="text-2xl font-black text-white mb-6">Historial de pagos</h1>
+
+  {% if payments %}
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="border-b border-white/10">
+          <tr class="text-white/30 text-xs uppercase tracking-wider">
+            <th class="text-left px-6 py-4">Fecha</th>
+            <th class="text-left px-6 py-4">Plan</th>
+            <th class="text-left px-6 py-4">Método</th>
+            <th class="text-right px-6 py-4">Monto</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for p in payments %}
+          <tr>
+            <td class="px-6 py-4 text-white/60">{{ p.payment_date|date:"d/m/Y" }}</td>
+            <td class="px-6 py-4 text-white/70">{{ p.plan.name|default:"—" }}</td>
+            <td class="px-6 py-4">
+              <span class="text-xs bg-white/5 text-white/50 px-2 py-1 rounded-lg">{{ p.method_label }}</span>
+            </td>
+            <td class="px-6 py-4 text-right font-black text-primary">${{ p.amount|floatformat:0 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center py-20 text-white/20">
+    <i class="fa fa-receipt text-5xl mb-4"></i>
+    <p class="text-lg font-medium">Sin pagos registrados</p>
+    <p class="text-sm mt-2">Tus pagos aparecerán aquí una vez que la entrenadora los registre.</p>
+  </div>
+  {% endif %}
+
+  <div class="mt-6 text-center">
+    <a href="{% url 'dashboard' %}" class="text-white/40 hover:text-primary text-sm transition-colors">
+      <i class="fa fa-arrow-left mr-1"></i>Volver al panel
+    </a>
+  </div>
+</section>
+{% endblock %}
