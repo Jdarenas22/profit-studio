@@ -17,13 +17,17 @@ DATABASES = {
 }
 
 # ─── Seguridad ──────────────────────────────────────────────────────────────────
+# Railway revisa /health/ con HTTP directo al contenedor (sin pasar por su proxy
+# HTTPS). Si SECURE_SSL_REDIRECT=True, Django lo redirige a HTTPS → 301 → el
+# health check nunca obtiene 200 → timeout → "Fallo de HealthCheck".
+# Por eso excluimos /health/ del redireccionamiento SSL.
 SECURE_SSL_REDIRECT = True
+SECURE_REDIRECT_EXEMPT = [r'^health/$']   # ← Railway healthcheck usa HTTP interno
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
