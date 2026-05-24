@@ -15,7 +15,21 @@ python manage.py migrate --noinput 2>&1 && echo ">>> migrate OK" || echo ">>> mi
 echo ">>> Ejecutando collectstatic..."
 python manage.py collectstatic --noinput 2>&1 && echo ">>> collectstatic OK" || echo ">>> collectstatic FALLÓ (continuando)"
 
-# 4. Gunicorn — siempre arranca
+# 4. Crear cuenta de entrenadora Yiseth (solo si no existe)
+echo ">>> Creando cuenta de entrenadora..."
+python manage.py create_trainer \
+    --username yiseth \
+    --first-name Yiseth \
+    --last-name "Misas García" \
+    --email profitstudio075@gmail.com \
+    --password "ProFit2024!" \
+    2>&1 && echo ">>> create_trainer OK" || echo ">>> create_trainer FALLÓ (continuando)"
+
+# 5. Cargar datos iniciales de ejercicios (continúa aunque falle)
+echo ">>> Cargando datos iniciales..."
+python manage.py load_initial_data 2>&1 && echo ">>> load_initial_data OK" || echo ">>> load_initial_data FALLÓ (continuando)"
+
+# 6. Gunicorn — siempre arranca
 echo ">>> Iniciando Gunicorn en 0.0.0.0:$PORT..."
 exec gunicorn config.wsgi:application \
     --bind 0.0.0.0:$PORT \
