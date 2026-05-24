@@ -1,7 +1,12 @@
 from .base import *
 
 DEBUG = False
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+
+# ALLOWED_HOSTS — Railway asigna el dominio automáticamente
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
+
+# Necesario para que HTTPS funcione correctamente detrás del proxy de Railway
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ─── Base de datos PostgreSQL ───────────────────────────────────────────────────
 DATABASES = {
@@ -19,35 +24,52 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-# ─── Cloudflare R2 — almacenamiento de archivos ─────────────────────────────────
-AWS_ACCESS_KEY_ID = env('R2_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = env('R2_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = env('R2_BUCKET_NAME')
-AWS_S3_ENDPOINT_URL = env('R2_ENDPOINT_URL')
-AWS_DEFAULT_ACL = 'private'
-AWS_S3_FILE_OVERWRITE = False
-AWS_QUERYSTRING_AUTH = True
-AWS_QUERYSTRING_EXPIRE = 3600  # URLs firmadas válidas 1 hora
+# ─── Cloudflare R2 — almacenamiento de archivos (OPCIONAL) ─────────────────────
+# Si no se configuran estas variables, los archivos se guardan en disco local.
+# Configura R2 cuando quieras almacenar videos y fotos en la nube.
+_r2_key      = env('R2_ACCESS_KEY_ID', default='')
+_r2_secret   = env('R2_SECRET_ACCESS_KEY', default='')
+_r2_bucket   = env('R2_BUCKET_NAME', default='')
+_r2_endpoint = env('R2_ENDPOINT_URL', default='')
 
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-MEDIA_URL = f"{env('R2_ENDPOINT_URL')}/{env('R2_BUCKET_NAME')}/"
+if _r2_key and _r2_secret and _r2_bucket and _r2_endpoint:
+    AWS_ACCESS_KEY_ID       = _r2_key
+    AWS_SECRET_ACCESS_KEY   = _r2_secret
+    AWS_STORAGE_BUCKET_NAME = _r2_bucket
+    AWS_S3_ENDPOINT_URL     = _r2_endpoint
+    AWS_DEFAULT_ACL         = 'private'
+    AWS_S3_FILE_OVERWRITE   = False
+    AWS_QUERYSTRING_AUTH    = True
+    AWS_QUERYSTRING_EXPIRE  = 3600
+    DEFAULT_FILE_STORAGE    = 'storages.backends.s3boto3.S3Boto3Storage'
+    MEDIA_URL = f'{_r2_endpoint}/{_r2_bucket}/'
+else:
+    # Fallback: almacenamiento local en el servidor
+    MEDIA_ROOT = BASE_DIR / 'media'
+    MEDIA_URL  = '/media/'
 
-# ─── Cache Redis ────────────────────────────────────────────────────────────────
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': env('REDIS_URL'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+# ─── Cache y sesiones (OPCIONAL con Redis) ──────────────────────────────────────
+# Sin Redis usa cache en memoria local — suficiente para empezar.
+# Agrega Redis cuando necesites escalar o usar Celery.
+_redis_url = env('REDIS_URL', default='')
+
+if _redis_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': _redis_url,
+            'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'},
         }
     }
-}
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
-
-# ─── Celery con Redis ───────────────────────────────────────────────────────────
-CELERY_BROKER_URL = env('REDIS_URL')
-CELERY_RESULT_BACKEND = env('REDIS_URL')
+    SESSION_ENGINE      = 'django.contrib.sessions.backends.cache'
+    SESSION_CACHE_ALIAS = 'default'
+    CELERY_BROKER_URL      = _redis_url
+    CELERY_RESULT_BACKEND  = _redis_url
+else:
+    # Fallback: cache en memoria local, sesiones en base de datos
+    CACHES = {
+        'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'},
+    }
 
 # ─── Logging ────────────────────────────────────────────────────────────────────
 LOGGING = {
