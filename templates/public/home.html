@@ -6,10 +6,13 @@
 {% block content %}
 
 <!-- ── HERO ──────────────────────────────────────────────────────────────── -->
-<section class="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
-  <!-- Fondo con gradiente -->
-  <div class="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black"></div>
-  <!-- Decoración naranja -->
+<section class="relative min-h-screen flex items-center justify-center overflow-hidden bg-black"
+         style="background-image: url('{% static 'images/hero-gym.jpg' %}'); background-size: cover; background-position: center; background-attachment: fixed;">
+  <!-- Capa oscura sobre la imagen para legibilidad del texto -->
+  <div class="absolute inset-0 bg-black/70"></div>
+  <!-- Gradiente adicional para profundidad -->
+  <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/60"></div>
+  <!-- Toque naranja sutil -->
   <div class="absolute top-1/4 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
   <div class="absolute bottom-1/4 left-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
 
