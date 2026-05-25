@@ -120,6 +120,19 @@
         </div>
       </div>
 
+      {% if user.is_trainer %}
+      <!-- Bio — solo visible para entrenadores -->
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">
+          Bio / Descripción
+          <span class="text-white/25 font-normal ml-1">(aparece en la sección Nosotros)</span>
+        </label>
+        <textarea name="bio" rows="4"
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
+                  placeholder="Especialidad, certificaciones, filosofía de entrenamiento...">{{ form.bio|default:'' }}</textarea>
+      </div>
+      {% endif %}
+
       <div class="bg-black/20 rounded-xl px-4 py-3">
         <p class="text-white/30 text-xs">
           <i class="fa fa-lock mr-1"></i>

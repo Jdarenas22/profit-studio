@@ -1,0 +1,137 @@
+{% extends 'trainer/base.html' %}
+{% block title %}Editar entrenador/a — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="max-w-2xl mx-auto">
+
+  <!-- Breadcrumb -->
+  <nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+    <a href="{% url 'trainer_staff_list' %}" class="hover:text-primary transition-colors">Entrenadores</a>
+    <i class="fa fa-chevron-right text-xs"></i>
+    <span class="text-white/60">{{ trainer_obj.get_full_name|default:trainer_obj.username }}</span>
+  </nav>
+
+  <!-- Header con foto actual -->
+  <div class="flex items-center gap-5 mb-8">
+    <div class="relative shrink-0">
+      {% if trainer_obj.profile_photo %}
+      <img src="{{ trainer_obj.profile_photo.url }}"
+           alt="{{ trainer_obj.get_full_name }}"
+           class="w-20 h-20 rounded-2xl object-cover object-top border-2 border-primary/30">
+      {% else %}
+      <div class="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center border-2 border-dashed border-primary/20">
+        <span class="text-primary font-black text-3xl">{{ trainer_obj.first_name|first|upper|default:trainer_obj.username|first|upper }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <div>
+      <h1 class="text-2xl font-black text-white">Editar perfil</h1>
+      <p class="text-white/40 text-sm mt-0.5">{{ trainer_obj.get_full_name|default:trainer_obj.username }}</p>
+      <p class="text-white/25 text-xs mt-0.5">@{{ trainer_obj.username }}</p>
+    </div>
+  </div>
+
+  {% if messages %}
+  {% for message in messages %}
+  <div class="bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-xl px-4 py-3 mb-6">
+    <i class="fa fa-check-circle mr-2"></i>{{ message }}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data" class="space-y-5">
+    {% csrf_token %}
+
+    <!-- Foto de perfil — la que aparece en Nosotros -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-1">Foto de perfil</h2>
+      <p class="text-white/30 text-xs mb-4">Esta foto aparece en la sección <span class="text-primary">Nosotros</span> de la web pública.</p>
+
+      {% if trainer_obj.profile_photo %}
+      <div class="flex items-center gap-4 mb-4">
+        <img src="{{ trainer_obj.profile_photo.url }}"
+             alt="Foto actual"
+             class="w-16 h-16 rounded-xl object-cover object-top border border-white/10">
+        <div>
+          <p class="text-white/50 text-sm font-medium">Foto actual</p>
+          <p class="text-white/30 text-xs">Sube una nueva para reemplazarla</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <input type="file" name="profile_photo" accept="image/*"
+             class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm
+                    file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1.5
+                    file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+      <p class="text-white/20 text-xs mt-2">JPG o PNG · Orientación vertical recomendada para que se vea mejor en Nosotros</p>
+    </div>
+
+    <!-- Datos personales -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Datos personales</h2>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Nombre *</label>
+          <input type="text" name="first_name" required
+                 value="{{ form.first_name|default:'' }}"
+                 class="w-full bg-black/40 border {% if errors.first_name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.first_name %}<p class="text-red-400 text-xs mt-1">{{ errors.first_name }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Apellido *</label>
+          <input type="text" name="last_name" required
+                 value="{{ form.last_name|default:'' }}"
+                 class="w-full bg-black/40 border {% if errors.last_name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.last_name %}<p class="text-red-400 text-xs mt-1">{{ errors.last_name }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Correo *</label>
+          <input type="email" name="email" required
+                 value="{{ form.email|default:'' }}"
+                 class="w-full bg-black/40 border {% if errors.email %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.email %}<p class="text-red-400 text-xs mt-1">{{ errors.email }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-white/60 text-xs font-medium mb-2">Teléfono</label>
+          <input type="tel" name="phone"
+                 value="{{ form.phone|default:'' }}"
+                 placeholder="+57 300 000 0000"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        </div>
+      </div>
+
+      <!-- Bio / Descripción -->
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">
+          Bio / Descripción
+          <span class="text-white/25 font-normal ml-1">(aparece en la sección Nosotros)</span>
+        </label>
+        <textarea name="bio" rows="4"
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
+                  placeholder="Especialidad, certificaciones, filosofía de entrenamiento...">{{ form.bio|default:'' }}</textarea>
+      </div>
+
+      <div class="bg-black/20 rounded-xl px-4 py-3">
+        <p class="text-white/25 text-xs">
+          <i class="fa fa-lock mr-1"></i>
+          El nombre de usuario <span class="text-white/40 font-medium">@{{ trainer_obj.username }}</span> no puede cambiarse aquí.
+          Para cambiar la contraseña, el entrenador debe hacerlo desde su propio perfil.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit"
+              class="flex-1 bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-colors text-sm">
+        <i class="fa fa-save mr-2"></i> Guardar cambios
+      </button>
+      <a href="{% url 'trainer_staff_list' %}"
+         class="px-5 py-3.5 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

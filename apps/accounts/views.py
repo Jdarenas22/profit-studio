@@ -464,6 +464,8 @@ def member_profile_edit(request):
             user.email = email
             user.phone = phone
             user.gender = gender if gender in ('F', 'M', 'O') else ''
+            if user.is_trainer:
+                user.bio = request.POST.get('bio', '').strip()
             if 'profile_photo' in request.FILES:
                 user.profile_photo = request.FILES['profile_photo']
             if new_password:
@@ -486,6 +488,7 @@ def member_profile_edit(request):
             'email': user.email,
             'phone': user.phone,
             'gender': user.gender,
+            'bio': user.bio,
         },
     })
 
@@ -562,6 +565,63 @@ def trainer_staff_list(request):
         return redirect('trainer_dashboard')
     trainers = User.objects.filter(role='trainer').order_by('first_name', 'last_name')
     return render(request, 'trainer/trainer_list.html', {'trainers': trainers})
+
+
+@login_required
+def trainer_edit_trainer(request, pk):
+    """Editar datos de un entrenador — solo superusuario."""
+    if not request.user.is_superuser:
+        messages.error(request, 'No tienes permiso para esta acción.')
+        return redirect('trainer_dashboard')
+
+    trainer = get_object_or_404(User, pk=pk, role='trainer')
+    errors = {}
+
+    if request.method == 'POST':
+        first_name = request.POST.get('first_name', '').strip()
+        last_name  = request.POST.get('last_name', '').strip()
+        email      = request.POST.get('email', '').strip().lower()
+        phone      = request.POST.get('phone', '').strip()
+        bio        = request.POST.get('bio', '').strip()
+
+        if not first_name:
+            errors['first_name'] = 'Requerido.'
+        if not last_name:
+            errors['last_name'] = 'Requerido.'
+        if not email:
+            errors['email'] = 'Requerido.'
+        elif User.objects.filter(email__iexact=email).exclude(pk=pk).exists():
+            errors['email'] = 'Ya existe una cuenta con ese correo.'
+
+        if not errors:
+            trainer.first_name = first_name
+            trainer.last_name  = last_name
+            trainer.email      = email
+            trainer.phone      = phone
+            trainer.bio        = bio
+            if 'profile_photo' in request.FILES:
+                trainer.profile_photo = request.FILES['profile_photo']
+            trainer.save()
+            messages.success(request, f'Perfil de {trainer.get_full_name()} actualizado correctamente.')
+            return redirect('trainer_staff_list')
+
+        return render(request, 'trainer/trainer_edit.html', {
+            'trainer_obj': trainer,
+            'errors': errors,
+            'form': request.POST,
+        })
+
+    return render(request, 'trainer/trainer_edit.html', {
+        'trainer_obj': trainer,
+        'errors': {},
+        'form': {
+            'first_name': trainer.first_name,
+            'last_name':  trainer.last_name,
+            'email':      trainer.email,
+            'phone':      trainer.phone,
+            'bio':        trainer.bio,
+        },
+    })
 
 
 @login_required

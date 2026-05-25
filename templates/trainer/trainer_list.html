@@ -16,30 +16,64 @@
 {% if trainers %}
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
   {% for trainer in trainers %}
-  <div class="bg-zinc-900 border {% if trainer.is_superuser %}border-primary/30{% else %}border-white/10{% endif %} rounded-2xl p-5">
-    <div class="flex items-center gap-4 mb-4">
-      <div class="w-12 h-12 {% if trainer.is_superuser %}bg-primary/20{% else %}bg-white/5{% endif %} rounded-2xl flex items-center justify-center shrink-0">
-        <span class="{% if trainer.is_superuser %}text-primary{% else %}text-white/60{% endif %} font-black text-lg">
-          {{ trainer.first_name|first|upper|default:trainer.username|first|upper }}
-        </span>
-      </div>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <p class="text-white font-bold truncate">{{ trainer.get_full_name|default:trainer.username }}</p>
-          {% if trainer.is_superuser %}
-          <span class="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full shrink-0">Principal</span>
-          {% endif %}
+  <div class="bg-zinc-900 border {% if trainer.is_superuser %}border-primary/30{% else %}border-white/10{% endif %} rounded-2xl overflow-hidden">
+
+    <!-- Foto o avatar -->
+    <div class="relative h-40 bg-zinc-800 flex items-center justify-center overflow-hidden">
+      {% if trainer.profile_photo %}
+      <img src="{{ trainer.profile_photo.url }}"
+           alt="{{ trainer.get_full_name }}"
+           class="w-full h-full object-cover object-top">
+      {% else %}
+      <div class="flex flex-col items-center gap-2">
+        <div class="w-16 h-16 {% if trainer.is_superuser %}bg-primary/20{% else %}bg-white/10{% endif %} rounded-2xl flex items-center justify-center">
+          <span class="{% if trainer.is_superuser %}text-primary{% else %}text-white/50{% endif %} font-black text-2xl">
+            {{ trainer.first_name|first|upper|default:trainer.username|first|upper }}
+          </span>
         </div>
-        <p class="text-white/40 text-xs truncate">{{ trainer.email|default:"Sin email" }}</p>
+        <p class="text-white/20 text-xs">Sin foto de perfil</p>
+      </div>
+      {% endif %}
+
+      {% if trainer.is_superuser %}
+      <span class="absolute top-3 left-3 text-xs bg-primary text-white px-2.5 py-1 rounded-full font-bold">
+        Principal
+      </span>
+      {% endif %}
+
+      <!-- Botón editar flotante -->
+      <a href="{% url 'trainer_edit_trainer' trainer.pk %}"
+         class="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-primary border border-white/10 hover:border-primary rounded-xl flex items-center justify-center transition-all group"
+         title="Editar perfil">
+        <i class="fa fa-pen text-white/60 group-hover:text-white text-xs"></i>
+      </a>
+    </div>
+
+    <!-- Info -->
+    <div class="p-5">
+      <div class="flex items-start justify-between mb-1">
+        <div>
+          <p class="text-white font-bold text-lg leading-tight">{{ trainer.first_name }}</p>
+          <p class="font-bold text-base leading-tight" style="color:#FF6B00;">{{ trainer.last_name }}</p>
+        </div>
+      </div>
+      <p class="text-white/40 text-xs mb-3">{{ trainer.email|default:"Sin email" }}</p>
+
+      {% if trainer.bio %}
+      <p class="text-white/40 text-xs leading-relaxed mb-4 line-clamp-2">{{ trainer.bio }}</p>
+      {% else %}
+      <p class="text-white/20 text-xs italic mb-4">Sin descripción — agrega una bio desde Editar</p>
+      {% endif %}
+
+      <div class="flex items-center justify-between text-xs text-white/30 pt-4 border-t border-white/5">
+        <span><i class="fa fa-users mr-1"></i> {{ trainer.assigned_clients.count }} cliente{{ trainer.assigned_clients.count|pluralize:"s" }}</span>
+        <a href="{% url 'trainer_edit_trainer' trainer.pk %}"
+           class="text-primary hover:text-primary-dark font-semibold transition-colors">
+          <i class="fa fa-pen mr-1"></i>Editar
+        </a>
       </div>
     </div>
-    {% if trainer.bio %}
-    <p class="text-white/40 text-xs leading-relaxed mb-4 line-clamp-2">{{ trainer.bio }}</p>
-    {% endif %}
-    <div class="flex items-center justify-between text-xs text-white/30">
-      <span><i class="fa fa-users mr-1"></i> {{ trainer.assigned_clients.count }} cliente{{ trainer.assigned_clients.count|pluralize:"s" }}</span>
-      <span>@{{ trainer.username }}</span>
-    </div>
+
   </div>
   {% endfor %}
 </div>
