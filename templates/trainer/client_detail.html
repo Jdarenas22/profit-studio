@@ -102,6 +102,45 @@
       {% endif %}
     </div>
 
+    <!-- Entrenador asignado (solo superusuario) -->
+    {% if request.user.is_superuser %}
+    <div class="{% if not client.assigned_trainer %}bg-yellow-500/5 border border-yellow-500/20{% else %}bg-zinc-900 border border-white/10{% endif %} rounded-2xl p-6">
+      <h2 class="text-white font-bold mb-4">Entrenador/a asignado/a</h2>
+      {% if client.assigned_trainer %}
+      <div class="flex items-center gap-3 mb-4">
+        {% if client.assigned_trainer.profile_photo %}
+        <img src="{{ client.assigned_trainer.profile_photo.url }}"
+             class="w-10 h-10 rounded-xl object-cover shrink-0 border border-white/10">
+        {% else %}
+        <div class="w-10 h-10 bg-primary/15 rounded-xl flex items-center justify-center shrink-0">
+          <span class="text-primary font-black text-sm">{{ client.assigned_trainer.first_name|first|upper }}</span>
+        </div>
+        {% endif %}
+        <div>
+          <p class="text-white font-semibold text-sm">{{ client.assigned_trainer.get_full_name|default:client.assigned_trainer.username }}</p>
+          <p class="text-white/30 text-xs">@{{ client.assigned_trainer.username }}</p>
+        </div>
+      </div>
+      <a href="{% url 'trainer_assign_client' client.pk %}"
+         class="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-sm font-medium py-2.5 rounded-xl transition-colors">
+        <i class="fa fa-arrows-rotate"></i> Cambiar entrenador/a
+      </a>
+      {% else %}
+      <div class="text-center py-4 mb-4">
+        <div class="w-10 h-10 bg-yellow-500/10 rounded-xl flex items-center justify-center mx-auto mb-2">
+          <i class="fa fa-circle-exclamation text-yellow-400 text-lg"></i>
+        </div>
+        <p class="text-yellow-300 text-sm font-semibold">Sin entrenador asignado</p>
+        <p class="text-yellow-400/50 text-xs mt-1">Este cliente no aparece en el panel de ningún entrenador.</p>
+      </div>
+      <a href="{% url 'trainer_assign_client' client.pk %}"
+         class="flex items-center justify-center gap-2 w-full bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-300 text-sm font-bold py-2.5 rounded-xl transition-colors">
+        <i class="fa fa-user-plus"></i> Asignar entrenador/a
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Acciones rápidas -->
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
       <h2 class="text-white font-bold mb-4">Acciones</h2>

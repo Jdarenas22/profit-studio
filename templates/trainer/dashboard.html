@@ -38,6 +38,23 @@
     </a>
   </div>
 
+  <!-- Alerta: clientes sin entrenador asignado (solo superusuario) -->
+  {% if is_superuser and unassigned_clients %}
+  <a href="{% url 'trainer_clients' %}"
+     class="flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 hover:border-yellow-500/40 rounded-2xl px-5 py-4 mb-6 transition-colors group">
+    <div class="w-10 h-10 bg-yellow-500/15 rounded-xl flex items-center justify-center shrink-0">
+      <i class="fa fa-triangle-exclamation text-yellow-400 text-lg"></i>
+    </div>
+    <div class="flex-1">
+      <p class="text-yellow-300 text-sm font-semibold">
+        {{ unassigned_clients }} cliente{{ unassigned_clients|pluralize:"s" }} sin entrenador asignado
+      </p>
+      <p class="text-yellow-400/50 text-xs mt-0.5">Haz clic para ver la lista y asignar entrenador/a.</p>
+    </div>
+    <i class="fa fa-arrow-right text-yellow-400/40 group-hover:text-yellow-400 transition-colors"></i>
+  </a>
+  {% endif %}
+
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
     <!-- Membresías próximas a vencer -->
