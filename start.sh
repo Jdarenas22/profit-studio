@@ -22,7 +22,7 @@ python manage.py create_trainer \
     --first-name Yiseth \
     --last-name "Misas García" \
     --email profitstudio075@gmail.com \
-    --password "ProFit2024!" \
+    --password "${TRAINER_PASSWORD:-ProFit2024!}" \
     --superuser \
     2>&1 && echo ">>> create_trainer OK" || echo ">>> create_trainer FALLÓ (continuando)"
 

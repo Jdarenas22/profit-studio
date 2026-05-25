@@ -2,8 +2,14 @@ from .base import *
 
 DEBUG = False
 
-# ALLOWED_HOSTS — Railway asigna el dominio automáticamente
+# ALLOWED_HOSTS — define ALLOWED_HOSTS en Railway con tu dominio real
+# Ejemplo: ALLOWED_HOSTS=profit-studio.up.railway.app,tudominio.com
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
+
+# Cabecera que Railway inyecta para indicar el host original
+CSRF_TRUSTED_ORIGINS = [
+    f'https://{host}' for host in ALLOWED_HOSTS if host != '*'
+] or ['https://*.up.railway.app']
 
 # Necesario para que HTTPS funcione correctamente detrás del proxy de Railway
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

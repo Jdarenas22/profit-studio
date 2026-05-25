@@ -6,15 +6,26 @@
 {% block content %}
 
 <!-- ── HERO ──────────────────────────────────────────────────────────────── -->
-<section class="relative min-h-screen flex items-center justify-center overflow-hidden bg-black"
-         style="background-image: url('{% static 'images/hero-gym.jpg' %}'); background-size: cover; background-position: center; background-attachment: fixed;">
-  <!-- Capa oscura sobre la imagen para legibilidad del texto -->
-  <div class="absolute inset-0 bg-black/70"></div>
+<section id="hero-section" class="relative min-h-screen flex items-center justify-center overflow-hidden bg-black"
+         style="background-color:#0a0a0a;">
+  <!-- Imagen de fondo (se activa con JS si existe) -->
+  <div id="hero-bg" class="absolute inset-0 bg-cover bg-center bg-fixed opacity-0 transition-opacity duration-700"
+       style="background-image: url('{% static 'images/hero-gym.jpg' %}');"></div>
+  <!-- Capa oscura sobre la imagen -->
+  <div class="absolute inset-0 bg-black/65"></div>
   <!-- Gradiente adicional para profundidad -->
-  <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/60"></div>
+  <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/50"></div>
   <!-- Toque naranja sutil -->
   <div class="absolute top-1/4 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
   <div class="absolute bottom-1/4 left-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+  <script>
+    (function(){
+      var bg = document.getElementById('hero-bg');
+      var img = new Image();
+      img.onload = function(){ bg.style.opacity = '1'; };
+      img.src = bg.style.backgroundImage.slice(5, -2);
+    })();
+  </script>
 
   <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-20">
     <!-- Badge -->
