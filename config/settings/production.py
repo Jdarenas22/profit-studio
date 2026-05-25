@@ -40,22 +40,24 @@ X_FRAME_OPTIONS = 'DENY'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # ─── Cloudflare R2 — almacenamiento de archivos (OPCIONAL) ─────────────────────
-_r2_key      = env('R2_ACCESS_KEY_ID', default='')
-_r2_secret   = env('R2_SECRET_ACCESS_KEY', default='')
-_r2_bucket   = env('R2_BUCKET_NAME', default='')
-_r2_endpoint = env('R2_ENDPOINT_URL', default='')
+_r2_key       = env('R2_ACCESS_KEY_ID', default='')
+_r2_secret    = env('R2_SECRET_ACCESS_KEY', default='')
+_r2_bucket    = env('R2_BUCKET_NAME', default='')
+_r2_endpoint  = env('R2_ENDPOINT_URL', default='')   # API de boto3: https://<account-id>.r2.cloudflarestorage.com
+_r2_public    = env('R2_PUBLIC_URL', default='')      # URL pública del bucket: https://pub-xxxx.r2.dev
 
 if _r2_key and _r2_secret and _r2_bucket and _r2_endpoint:
     AWS_ACCESS_KEY_ID       = _r2_key
     AWS_SECRET_ACCESS_KEY   = _r2_secret
     AWS_STORAGE_BUCKET_NAME = _r2_bucket
-    AWS_S3_ENDPOINT_URL     = _r2_endpoint
-    AWS_DEFAULT_ACL         = 'private'
+    AWS_S3_ENDPOINT_URL     = _r2_endpoint  # Usado por boto3 para subir archivos
+    AWS_DEFAULT_ACL         = None           # R2 no soporta ACLs por objeto; acceso controlado a nivel bucket
     AWS_S3_FILE_OVERWRITE   = False
-    AWS_QUERYSTRING_AUTH    = True
-    AWS_QUERYSTRING_EXPIRE  = 3600
+    AWS_QUERYSTRING_AUTH    = False          # URLs permanentes (requiere bucket público en Cloudflare)
     DEFAULT_FILE_STORAGE    = 'storages.backends.s3boto3.S3Boto3Storage'
-    MEDIA_URL = f'{_r2_endpoint}/{_r2_bucket}/'
+    # URL pública del bucket (ej: https://pub-abc123.r2.dev)
+    # Si no se define R2_PUBLIC_URL se usa el endpoint de API como fallback
+    MEDIA_URL = (_r2_public.rstrip('/') + '/') if _r2_public else f'{_r2_endpoint}/{_r2_bucket}/'
 else:
     MEDIA_ROOT = BASE_DIR / 'media'
     MEDIA_URL  = '/media/'
