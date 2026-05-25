@@ -41,51 +41,103 @@
         <!-- Ejercicios del día -->
         <div class="space-y-3">
           {% for re in day.exercises.all %}
-          <div class="bg-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl p-5 transition-all duration-200">
-            <div class="flex items-start gap-4">
-              <!-- Número de orden -->
-              <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 text-primary font-black text-sm">
-                {{ forloop.counter }}
+          <div class="bg-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-200">
+
+            {% if re.exercise.image %}
+            <!-- Thumbnail de imagen del ejercicio (clickeable si tiene video) -->
+            {% if re.exercise.video_url %}
+            <a href="{{ re.exercise.video_url }}" target="_blank" rel="noopener noreferrer"
+               class="relative block h-36 sm:h-44 overflow-hidden group cursor-pointer">
+              <img src="{{ re.exercise.image.url }}" alt="{{ re.exercise.name }}"
+                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute inset-0 bg-black/30 group-hover:bg-black/55 transition-colors duration-300"></div>
+              <!-- Número en esquina -->
+              <div class="absolute top-3 left-3 w-7 h-7 bg-black/60 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                <span class="text-white font-black text-xs">{{ forloop.counter }}</span>
               </div>
-
-              <div class="flex-1 min-w-0">
-                <div class="flex items-start justify-between gap-3 mb-3">
-                  <h3 class="text-white font-bold text-base">{{ re.exercise.name }}</h3>
-                  {% if re.exercise.video_file %}
-                  <a href="{% url 'exercise_detail' re.exercise.pk %}"
-                     class="shrink-0 w-8 h-8 bg-primary rounded-lg flex items-center justify-center hover:bg-primary-dark transition-colors"
-                     title="Ver video">
-                    <i class="fa fa-play text-white text-xs"></i>
-                  </a>
-                  {% endif %}
+              <!-- Play central -->
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="w-12 h-12 bg-primary/90 group-hover:bg-primary group-hover:scale-110 transition-all duration-300 rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
+                  <i class="fa fa-play text-white text-sm ml-0.5"></i>
                 </div>
-
-                <!-- Parámetros -->
-                <div class="flex flex-wrap gap-3 mb-3">
-                  <div class="flex items-center gap-1.5 bg-black/40 rounded-lg px-3 py-1.5">
-                    <i class="fa fa-layer-group text-primary text-xs"></i>
-                    <span class="text-white text-xs font-semibold">{{ re.sets }} series</span>
-                  </div>
-                  <div class="flex items-center gap-1.5 bg-black/40 rounded-lg px-3 py-1.5">
-                    <i class="fa fa-repeat text-primary text-xs"></i>
-                    <span class="text-white text-xs font-semibold">{{ re.reps }} reps</span>
-                  </div>
-                  <div class="flex items-center gap-1.5 bg-black/40 rounded-lg px-3 py-1.5">
-                    <i class="fa fa-clock text-primary text-xs"></i>
-                    <span class="text-white text-xs font-semibold">{{ re.rest_seconds }}s descanso</span>
-                  </div>
-                </div>
-
-                {% if re.observations %}
-                <div class="bg-primary/5 border border-primary/10 rounded-xl px-3 py-2">
-                  <p class="text-white/60 text-xs leading-relaxed">
-                    <i class="fa fa-note-sticky text-primary mr-1 text-xs"></i>
-                    {{ re.observations }}
-                  </p>
-                </div>
-                {% endif %}
+              </div>
+              <!-- Badge YouTube -->
+              <div class="absolute bottom-3 right-3">
+                <span class="flex items-center gap-1.5 bg-black/60 text-white text-xs px-2.5 py-1.5 rounded-lg">
+                  <i class="fab fa-youtube text-red-500"></i> YouTube
+                </span>
+              </div>
+            </a>
+            {% else %}
+            <!-- Imagen sin video — solo decorativa -->
+            <div class="relative h-36 sm:h-44 overflow-hidden">
+              <img src="{{ re.exercise.image.url }}" alt="{{ re.exercise.name }}"
+                   class="w-full h-full object-cover">
+              <div class="absolute inset-0 bg-black/20"></div>
+              <!-- Número en esquina -->
+              <div class="absolute top-3 left-3 w-7 h-7 bg-black/60 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                <span class="text-white font-black text-xs">{{ forloop.counter }}</span>
               </div>
             </div>
+            {% endif %}
+            {% endif %}
+
+            <!-- Contenido de la tarjeta -->
+            <div class="p-5">
+              <div class="flex items-start gap-4">
+                {% if not re.exercise.image %}
+                <!-- Sin imagen: número como indicador -->
+                <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shrink-0 text-primary font-black text-sm">
+                  {{ forloop.counter }}
+                </div>
+                {% endif %}
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-3 mb-3">
+                    <h3 class="text-white font-bold text-base">{{ re.exercise.name }}</h3>
+                    {% if re.exercise.video_url and not re.exercise.image %}
+                    <!-- Sin imagen pero con video: botón play texto -->
+                    <a href="{{ re.exercise.video_url }}" target="_blank" rel="noopener noreferrer"
+                       class="shrink-0 inline-flex items-center gap-1.5 bg-red-600/15 hover:bg-red-600/25 text-red-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border border-red-500/20">
+                      <i class="fab fa-youtube"></i> Ver video
+                    </a>
+                    {% elif re.exercise.video_file and not re.exercise.image %}
+                    <a href="{% url 'exercise_detail' re.exercise.pk %}"
+                       class="shrink-0 w-8 h-8 bg-primary rounded-lg flex items-center justify-center hover:bg-primary-dark transition-colors"
+                       title="Ver video">
+                      <i class="fa fa-play text-white text-xs"></i>
+                    </a>
+                    {% endif %}
+                  </div>
+
+                  <!-- Parámetros -->
+                  <div class="flex flex-wrap gap-3 mb-3">
+                    <div class="flex items-center gap-1.5 bg-black/40 rounded-lg px-3 py-1.5">
+                      <i class="fa fa-layer-group text-primary text-xs"></i>
+                      <span class="text-white text-xs font-semibold">{{ re.sets }} series</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-black/40 rounded-lg px-3 py-1.5">
+                      <i class="fa fa-repeat text-primary text-xs"></i>
+                      <span class="text-white text-xs font-semibold">{{ re.reps }} reps</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-black/40 rounded-lg px-3 py-1.5">
+                      <i class="fa fa-clock text-primary text-xs"></i>
+                      <span class="text-white text-xs font-semibold">{{ re.rest_seconds }}s descanso</span>
+                    </div>
+                  </div>
+
+                  {% if re.observations %}
+                  <div class="bg-primary/5 border border-primary/10 rounded-xl px-3 py-2">
+                    <p class="text-white/60 text-xs leading-relaxed">
+                      <i class="fa fa-note-sticky text-primary mr-1 text-xs"></i>
+                      {{ re.observations }}
+                    </p>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
           </div>
           {% endfor %}
         </div>

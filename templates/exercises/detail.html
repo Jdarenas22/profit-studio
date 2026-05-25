@@ -17,8 +17,31 @@
     <!-- Video / Imagen (col 3) -->
     <div class="lg:col-span-3">
 
-      {% if exercise.video_url %}
-      <!-- ✅ YouTube embed (preferido — no requiere almacenamiento) -->
+      {% if exercise.image and exercise.video_url %}
+      <!-- ✅ Imagen con botón Play → abre video en YouTube (tab nueva) -->
+      <a href="{{ exercise.video_url }}" target="_blank" rel="noopener noreferrer"
+         class="relative block aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 group cursor-pointer">
+        <img src="{{ exercise.image.url }}" alt="{{ exercise.name }}"
+             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+        <!-- Overlay oscuro -->
+        <div class="absolute inset-0 bg-black/25 group-hover:bg-black/50 transition-colors duration-300"></div>
+        <!-- Botón play central -->
+        <div class="absolute inset-0 flex items-center justify-center">
+          <div class="w-18 h-18 w-[72px] h-[72px] bg-primary/90 group-hover:bg-primary group-hover:scale-110 transition-all duration-300 rounded-full flex items-center justify-center shadow-2xl shadow-primary/30">
+            <i class="fa fa-play text-white text-2xl ml-1"></i>
+          </div>
+        </div>
+        <!-- Badge YouTube -->
+        <div class="absolute bottom-4 right-4">
+          <span class="flex items-center gap-2 bg-black/70 backdrop-blur-sm text-white text-xs font-semibold px-3 py-2 rounded-xl border border-white/10">
+            <i class="fab fa-youtube text-red-500 text-base"></i>
+            Ver en YouTube
+          </span>
+        </div>
+      </a>
+
+      {% elif exercise.video_url %}
+      <!-- ✅ Solo URL YouTube (sin imagen) — embed iframe -->
       <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
         <iframe src="{{ exercise.youtube_embed_url }}"
                 class="w-full h-full"
@@ -41,12 +64,14 @@
       </div>
 
       {% elif exercise.image %}
+      <!-- Solo imagen (sin video) -->
       <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
         <img src="{{ exercise.image.url }}" alt="{{ exercise.name }}"
              class="w-full h-full object-cover" />
       </div>
 
       {% else %}
+      <!-- Sin imagen ni video -->
       <div class="aspect-video bg-zinc-900 rounded-2xl border border-white/10 flex items-center justify-center">
         <div class="text-center text-white/20">
           <i class="fa fa-dumbbell text-5xl mb-3"></i>
@@ -66,7 +91,6 @@
         <h3 class="text-primary text-xs font-semibold uppercase tracking-wider mb-3">
           <i class="fa fa-lightbulb mr-1"></i> Recomendaciones
         </h3>
-        <!-- linebreaksbr preserva los saltos de línea del texto guardado -->
         <div class="text-white/70 text-sm leading-relaxed space-y-1">
           {{ exercise.recommendations|linebreaksbr }}
         </div>
@@ -90,17 +114,30 @@
           {% else %}bg-red-500/10 text-red-400 border-red-500/20{% endif %}">
           {{ exercise.get_level_display }}
         </span>
+        {% if exercise.video_url %}
+        <span class="bg-red-500/10 text-red-400 text-xs font-semibold px-3 py-1.5 rounded-full border border-red-500/20 flex items-center gap-1.5">
+          <i class="fab fa-youtube"></i> Video disponible
+        </span>
+        {% endif %}
       </div>
 
       <h1 class="text-3xl font-black text-white">{{ exercise.name }}</h1>
 
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
         <h3 class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Descripción</h3>
-        <!-- linebreaksbr convierte \n en <br> para respetar el formato original -->
         <div class="text-white/70 text-sm leading-relaxed space-y-1">
           {{ exercise.description|linebreaksbr }}
         </div>
       </div>
+
+      <!-- CTA YouTube si hay video -->
+      {% if exercise.video_url %}
+      <a href="{{ exercise.video_url }}" target="_blank" rel="noopener noreferrer"
+         class="flex items-center justify-center gap-3 w-full bg-red-600/15 hover:bg-red-600/25 border border-red-500/20 hover:border-red-500/40 text-red-400 font-semibold py-3 rounded-xl transition-all">
+        <i class="fab fa-youtube text-xl"></i>
+        Ver video en YouTube
+      </a>
+      {% endif %}
 
       <!-- Back -->
       <a href="{% url 'exercises' %}"

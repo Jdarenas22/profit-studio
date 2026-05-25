@@ -7,11 +7,14 @@ echo ">>> DJANGO_SETTINGS_MODULE = $DJANGO_SETTINGS_MODULE"
 echo ">>> DATABASE_URL definida: ${DATABASE_URL:+SI}${DATABASE_URL:-NO (usando SQLite)}"
 echo ">>> PORT = $PORT"
 
-# 2. Migraciones (continúa aunque falle)
+# 2. Crear directorio de media (fotos de perfil, imágenes de ejercicios)
+mkdir -p "$(pwd)/media/profiles" "$(pwd)/media/exercises/images" "$(pwd)/media/exercises/videos" 2>/dev/null || true
+
+# 3. Migraciones (continúa aunque falle)
 echo ">>> Ejecutando migrate..."
 python manage.py migrate --noinput 2>&1 && echo ">>> migrate OK" || echo ">>> migrate FALLÓ (continuando)"
 
-# 3. Archivos estáticos (continúa aunque falle)
+# 4. Archivos estáticos (continúa aunque falle)
 echo ">>> Ejecutando collectstatic..."
 python manage.py collectstatic --noinput 2>&1 && echo ">>> collectstatic OK" || echo ">>> collectstatic FALLÓ (continuando)"
 

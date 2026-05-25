@@ -107,6 +107,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# ─── Archivos media (subidas por usuarios) ───────────────────────────────────────
+# Producción sin R2 usa estas mismas rutas; con R2 las sobreescribe production.py.
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ─── Brute force protection (django-axes) ──────────────────────────────────────
