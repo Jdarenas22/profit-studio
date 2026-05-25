@@ -114,10 +114,18 @@
             La valoración inicial es el punto de partida para conocer realmente el cuerpo de cada persona. El Test de Ruffier-Dickson nos da una radiografía de la condición cardiovascular desde el día 1.
           </p>
           {% endif %}
-          <div class="flex gap-4">
+          <div class="flex flex-col sm:flex-row gap-3">
             <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
-               class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm">
-              <i class="fab fa-whatsapp"></i> Escribir ahora
+               class="inline-flex items-center justify-center gap-2.5 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3.5 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg shadow-primary/20 text-sm">
+              <i class="fab fa-whatsapp text-base"></i> Escribir ahora
+            </a>
+            <a href="{{ INSTAGRAM_URL }}" target="_blank" rel="noopener"
+               class="inline-flex items-center justify-center gap-2.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-pink-500/30 text-white font-semibold px-6 py-3.5 rounded-xl transition-all duration-200 text-sm group">
+              <div class="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                   style="background: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);">
+                <i class="fab fa-instagram text-white text-xs"></i>
+              </div>
+              <span class="group-hover:text-pink-300 transition-colors">@profitstudio075</span>
             </a>
           </div>
         </div>
