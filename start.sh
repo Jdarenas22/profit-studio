@@ -18,7 +18,7 @@ python manage.py migrate --noinput 2>&1 && echo ">>> migrate OK" || echo ">>> mi
 echo ">>> Ejecutando collectstatic..."
 python manage.py collectstatic --noinput 2>&1 && echo ">>> collectstatic OK" || echo ">>> collectstatic FALLÓ (continuando)"
 
-# 4. Crear cuenta de entrenadora Yiseth como superusuaria (solo si no existe)
+# 5. Crear cuenta de entrenadora Yiseth como superusuaria (solo si no existe)
 echo ">>> Creando cuenta de entrenadora principal..."
 python manage.py create_trainer \
     --username yiseth \

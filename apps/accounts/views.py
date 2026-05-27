@@ -3,9 +3,18 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 import urllib.parse
 from .decorators import trainer_required
 from .models import User
+
+
+def _get_accessible_client(request, pk):
+    """Returns the member with the given PK only if the requesting trainer has access.
+    Non-superusers can only access their assigned clients; raises 404 otherwise."""
+    if request.user.is_superuser:
+        return get_object_or_404(User, pk=pk, role='member')
+    return get_object_or_404(User, pk=pk, role='member', assigned_trainer=request.user)
 
 
 def login_view(request):
@@ -23,7 +32,10 @@ def login_view(request):
                 request.session.set_expiry(864000)  # 10 días en segundos
             else:
                 request.session.set_expiry(0)  # Expira al cerrar el navegador
-            return redirect(request.GET.get('next', 'dashboard'))
+            next_url = request.GET.get('next', '')
+            if next_url and url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
+            return redirect('dashboard')
         else:
             messages.error(request, 'Usuario o contraseña incorrectos.')
 
@@ -325,7 +337,7 @@ def trainer_client_list(request):
 
 @trainer_required
 def trainer_client_detail(request, pk):
-    client = get_object_or_404(User, pk=pk, role='member')
+    client = _get_accessible_client(request, pk)
     try:
         membership = client.membership
     except Exception:
@@ -342,7 +354,7 @@ def trainer_client_detail(request, pk):
 
 @trainer_required
 def trainer_client_edit(request, pk):
-    client = get_object_or_404(User, pk=pk, role='member')
+    client = _get_accessible_client(request, pk)
     from apps.memberships.models import MembershipPlan
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
     errors = {}
@@ -417,7 +429,7 @@ def trainer_client_edit(request, pk):
 
 @trainer_required
 def trainer_client_delete(request, pk):
-    client = get_object_or_404(User, pk=pk, role='member')
+    client = _get_accessible_client(request, pk)
     if request.method == 'POST':
         full_name = client.get_full_name() or client.username
         client.delete()

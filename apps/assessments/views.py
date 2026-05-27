@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from apps.accounts.decorators import trainer_required
 from apps.accounts.models import User
+from apps.accounts.views import _get_accessible_client
 from .models import InitialAssessment, DixonTest, BodyMeasurement
 
 
@@ -16,7 +17,7 @@ def assessment_list(request):
 
 @trainer_required
 def trainer_assessment_create(request, client_pk):
-    client = get_object_or_404(User, pk=client_pk, role='member')
+    client = _get_accessible_client(request, client_pk)
 
     if request.method == 'POST':
         assessment = InitialAssessment.objects.create(
@@ -91,7 +92,7 @@ def trainer_assessment_detail(request, pk):
 
 @trainer_required
 def trainer_measurement_add(request, client_pk):
-    client = get_object_or_404(User, pk=client_pk, role='member')
+    client = _get_accessible_client(request, client_pk)
 
     if request.method == 'POST':
         weight_raw = request.POST.get('weight', '').strip()
