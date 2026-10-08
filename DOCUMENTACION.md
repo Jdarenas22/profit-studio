@@ -83,7 +83,7 @@ El sistema tiene dos tipos de usuarios:
 ## 3. Estructura de carpetas
 
 ```
-kit-web-scrolling/               ← Carpeta raíz del proyecto
+profit-studio/                   ← Carpeta raíz del proyecto
 │
 ├── manage.py                    ← Comando principal de Django (nunca modificar)
 ├── .env                         ← Variables secretas (NO subir a git, NO compartir)
