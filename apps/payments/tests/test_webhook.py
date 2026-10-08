@@ -240,7 +240,7 @@ class WebhookStatusTests(WebhookBase):
 
 class WebhookMembershipDatesTests(WebhookBase):
     def test_renews_from_current_end_when_still_valid(self):
-        today = timezone.now().date()
+        today = timezone.localdate()
         Membership.objects.create(
             user=self.client_a, plan=self.plan, start_date=today - timedelta(days=5),
             end_date=today + timedelta(days=10), is_active=True,
@@ -250,7 +250,7 @@ class WebhookMembershipDatesTests(WebhookBase):
         self.assertEqual(membership.end_date, today + timedelta(days=10 + self.plan.duration_days))
 
     def test_expired_membership_restarts_from_today(self):
-        today = timezone.now().date()
+        today = timezone.localdate()
         Membership.objects.create(
             user=self.client_a, plan=self.plan, start_date=today - timedelta(days=60),
             end_date=today - timedelta(days=30), is_active=True,
@@ -261,7 +261,7 @@ class WebhookMembershipDatesTests(WebhookBase):
         self.assertEqual(membership.end_date, today + timedelta(days=self.plan.duration_days))
 
     def test_deactivated_membership_does_not_inherit_future_days(self):
-        today = timezone.now().date()
+        today = timezone.localdate()
         Membership.objects.create(
             user=self.client_a, plan=self.plan, start_date=today - timedelta(days=5),
             end_date=today + timedelta(days=20), is_active=False,
@@ -275,7 +275,7 @@ class WebhookMembershipDatesTests(WebhookBase):
         longer = MembershipPlan.objects.create(name='Trimestral', duration_days=90, reference_price=100000)
         self.payment.plan = longer
         self.payment.save()
-        today = timezone.now().date()
+        today = timezone.localdate()
         Membership.objects.create(
             user=self.client_a, plan=self.plan, start_date=today, end_date=today + timedelta(days=3),
             is_active=True,

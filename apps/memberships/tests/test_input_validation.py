@@ -1,7 +1,8 @@
 """trainer_membership_manage: duración, plan, acción y notas validados."""
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.tests.helpers import ScenarioTestCase
 from apps.memberships.models import Membership, MembershipPlan
@@ -19,7 +20,7 @@ class MembershipManageValidationTests(ScenarioTestCase):
         response = self.post(action='activate', plan_id=self.plan.pk)
         self.assertRedirects(response, reverse('trainer_client_detail', args=[self.client_a.pk]))
         m = Membership.objects.get(user=self.client_a)
-        self.assertEqual(m.end_date, date.today() + timedelta(days=30))
+        self.assertEqual(m.end_date, timezone.localdate() + timedelta(days=30))
         self.assertEqual(m.activated_by, self.trainer_a)
 
     def test_custom_duration_within_range(self):
@@ -38,7 +39,7 @@ class MembershipManageValidationTests(ScenarioTestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertIn('duration_days', response.context['errors'])
                 self.assertTrue([str(m) for m in response.context['messages']])
-        self.assertFalse(Membership.objects.filter(user=self.client_a, end_date__gt=date.today() + timedelta(days=31)).exists())
+        self.assertFalse(Membership.objects.filter(user=self.client_a, end_date__gt=timezone.localdate() + timedelta(days=31)).exists())
 
     def test_invalid_duration_does_not_touch_an_existing_membership(self):
         self.post(action='activate', plan_id=self.plan.pk)
@@ -73,7 +74,7 @@ class MembershipManageValidationTests(ScenarioTestCase):
         self.post(action='activate', plan_id=self.plan.pk)
         self.post(action='renew')            # sin plan ni duración: usa el plan actual (30 días)
         m = Membership.objects.get(user=self.client_a)
-        self.assertEqual(m.end_date, date.today() + timedelta(days=60))
+        self.assertEqual(m.end_date, timezone.localdate() + timedelta(days=60))
 
     def test_renew_without_any_plan_or_duration_is_an_error(self):
         response = self.post(action='renew')

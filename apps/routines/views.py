@@ -192,7 +192,7 @@ def mark_day_complete(request, day_pk):
     day = get_object_or_404(RoutineDay, pk=day_pk, routine__user=request.user)
 
     from django.utils import timezone
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # Evitar duplicados el mismo día
     if not RoutineDayLog.objects.filter(user=request.user, routine_day=day, completed_at=today).exists():

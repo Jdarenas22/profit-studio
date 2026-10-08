@@ -111,7 +111,7 @@ def trainer_dashboard(request):
     from apps.routines.models import Routine
     from apps.assessments.models import InitialAssessment
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     is_super = request.user.is_superuser
 
     # Superusuaria ve todo; los demás entrenadores solo sus clientes asignados
