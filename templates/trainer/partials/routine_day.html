@@ -52,7 +52,8 @@
     <form hx-post="{% url 'trainer_add_exercise_to_day' routine.pk day.pk %}"
           hx-target="#exercises-{{ day.pk }}"
           hx-swap="beforeend"
-          hx-on::after-request="this.reset(); filterText=''; showAddExercise=false; document.getElementById('empty-exercises-{{ day.pk }}')?.remove();"
+          @htmx:before-swap="if ($event.detail.xhr.getResponseHeader('X-Form-Error')) { $event.detail.shouldSwap = false; $refs.formError.textContent = new DOMParser().parseFromString($event.detail.serverResponse, 'text/html').body.textContent; } else { $refs.formError.textContent = ''; }"
+          @htmx:after-request="if ($event.detail.successful && !$event.detail.xhr.getResponseHeader('X-Form-Error')) { $el.reset(); filterText = ''; showAddExercise = false; document.getElementById('empty-exercises-{{ day.pk }}')?.remove(); }"
           class="space-y-4">
       {% csrf_token %}
 
@@ -96,6 +97,8 @@
                placeholder="Ej: Controlar la bajada lentamente"
                class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none transition-colors">
       </div>
+
+      <p x-ref="formError" role="alert" class="text-red-400 text-xs empty:hidden"></p>
 
       <button type="submit"
               class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">

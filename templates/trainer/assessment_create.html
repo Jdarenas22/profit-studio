@@ -18,13 +18,19 @@
 
   <form method="POST"
         x-data="{
-          weight: '',
-          height: '',
-          p0: '', p1: '', p2: '',
+          weight: '{{ form.weight|default:''|escapejs }}',
+          height: '{{ form.height|default:''|escapejs }}',
+          p0: '{{ form.p0|default:''|escapejs }}', p1: '{{ form.p1|default:''|escapejs }}', p2: '{{ form.p2|default:''|escapejs }}',
+          err: {
+            p0: {% if errors.p0 %}true{% else %}false{% endif %},
+            p1: {% if errors.p1 %}true{% else %}false{% endif %},
+            p2: {% if errors.p2 %}true{% else %}false{% endif %}
+          },
 
           get imc() {
-            const w = parseFloat(this.weight);
-            const h = parseFloat(this.height);
+            const w = parseFloat(String(this.weight).replace(',', '.'));
+            let h = parseFloat(String(this.height).replace(',', '.'));
+            if (h > 3) h = h / 100;
             if (w > 0 && h > 0) return (w / (h * h)).toFixed(2);
             return null;
           },
@@ -97,17 +103,20 @@
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Edad *</label>
           <input type="number" name="age" min="5" max="100" required
+                 value="{{ form.age|default:'' }}"
                  placeholder="Ej: 28"
-                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                 class="w-full bg-black/40 border {% if errors.age %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.age %}<p class="text-red-400 text-xs mt-1">{{ errors.age }}</p>{% endif %}
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Sexo *</label>
           <select name="sex" required
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                  class="w-full bg-black/40 border {% if errors.sex %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
             {% for value, label in sex_choices %}
-            <option value="{{ value }}">{{ label }}</option>
+            <option value="{{ value }}" {% if form.sex == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
+          {% if errors.sex %}<p class="text-red-400 text-xs mt-1">{{ errors.sex }}</p>{% endif %}
         </div>
       </div>
 
@@ -115,17 +124,20 @@
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Peso (kg) *</label>
-          <input type="number" name="weight" step="0.1" min="20" max="300" required
+          <input type="number" name="weight" step="0.01" min="20" max="400" required
                  x-model="weight"
                  placeholder="Ej: 72.5"
-                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                 class="w-full bg-black/40 border {% if errors.weight %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.weight %}<p class="text-red-400 text-xs mt-1">{{ errors.weight }}</p>{% endif %}
         </div>
         <div>
-          <label class="block text-white/60 text-xs font-medium mb-2">Estatura (m) *</label>
-          <input type="number" name="height" step="0.01" min="1" max="2.5" required
+          <label class="block text-white/60 text-xs font-medium mb-2">Estatura *</label>
+          <input type="text" name="height" inputmode="decimal" maxlength="6" required
                  x-model="height"
-                 placeholder="Ej: 1.68"
-                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                 placeholder="Ej: 1.68 o 168"
+                 class="w-full bg-black/40 border {% if errors.height %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.height %}<p class="text-red-400 text-xs mt-1">{{ errors.height }}</p>{% endif %}
+          <p class="text-white/25 text-xs mt-1">En metros (1,68) o en cm (168).</p>
         </div>
       </div>
 
@@ -146,23 +158,26 @@
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Objetivo principal *</label>
-        <textarea name="goal" rows="2" required
+        <textarea name="goal" rows="2" required maxlength="1000"
                   placeholder="Pérdida de peso, ganar músculo, mejorar resistencia..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+                  class="w-full bg-black/40 border {% if errors.goal %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.goal|default:'' }}</textarea>
+        {% if errors.goal %}<p class="text-red-400 text-xs mt-1">{{ errors.goal }}</p>{% endif %}
       </div>
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Restricciones físicas (opcional)</label>
-        <textarea name="physical_restrictions" rows="2"
+        <textarea name="physical_restrictions" rows="2" maxlength="2000"
                   placeholder="Lesiones, dolores crónicos, limitaciones de movimiento..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+                  class="w-full bg-black/40 border {% if errors.physical_restrictions %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.physical_restrictions|default:'' }}</textarea>
+        {% if errors.physical_restrictions %}<p class="text-red-400 text-xs mt-1">{{ errors.physical_restrictions }}</p>{% endif %}
       </div>
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Observaciones generales (opcional)</label>
-        <textarea name="observations" rows="2"
+        <textarea name="observations" rows="2" maxlength="2000"
                   placeholder="Notas adicionales relevantes..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+                  class="w-full bg-black/40 border {% if errors.observations %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.observations|default:'' }}</textarea>
+        {% if errors.observations %}<p class="text-red-400 text-xs mt-1">{{ errors.observations }}</p>{% endif %}
       </div>
     </div>
 
@@ -179,30 +194,33 @@
       <div class="grid grid-cols-3 gap-4">
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">P0 — Reposo *</label>
-          <input type="number" name="p0" min="0" max="250"
-                 x-model="p0"
+          <input type="number" name="p0" min="20" max="250"
+                 x-model="p0" @input="err.p0 = false"
                  placeholder="Ej: 72"
-                 :class="(p0 !== '' && parseInt(p0) < 0) ? 'border-red-500' : 'border-white/10'"
+                 :class="(err.p0 || (p0 !== '' && parseInt(p0) < 0)) ? 'border-red-500' : 'border-white/10'"
                  class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
           <p class="text-white/25 text-xs mt-1">Pulso inicial en reposo</p>
+          {% if errors.p0 %}<p class="text-red-400 text-xs mt-1">{{ errors.p0 }}</p>{% endif %}
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">P1 — Post-actividad *</label>
-          <input type="number" name="p1" min="0" max="250"
-                 x-model="p1"
+          <input type="number" name="p1" min="20" max="250"
+                 x-model="p1" @input="err.p1 = false"
                  placeholder="Ej: 150"
-                 :class="(p1 !== '' && parseInt(p1) < 0) ? 'border-red-500' : 'border-white/10'"
+                 :class="(err.p1 || (p1 !== '' && parseInt(p1) < 0)) ? 'border-red-500' : 'border-white/10'"
                  class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
           <p class="text-white/25 text-xs mt-1">Tras actividad física</p>
+          {% if errors.p1 %}<p class="text-red-400 text-xs mt-1">{{ errors.p1 }}</p>{% endif %}
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">P2 — 1 min después *</label>
-          <input type="number" name="p2" min="0" max="250"
-                 x-model="p2"
+          <input type="number" name="p2" min="20" max="250"
+                 x-model="p2" @input="err.p2 = false"
                  placeholder="Ej: 100"
-                 :class="(p2 !== '' && parseInt(p2) < 0) ? 'border-red-500' : 'border-white/10'"
+                 :class="(err.p2 || (p2 !== '' && parseInt(p2) < 0)) ? 'border-red-500' : 'border-white/10'"
                  class="w-full bg-black/40 border focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
           <p class="text-white/25 text-xs mt-1">Un minuto después</p>
+          {% if errors.p2 %}<p class="text-red-400 text-xs mt-1">{{ errors.p2 }}</p>{% endif %}
         </div>
       </div>
 
@@ -235,9 +253,10 @@
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Observaciones del test (opcional)</label>
-        <textarea name="dixon_observations" rows="2"
+        <textarea name="dixon_observations" rows="2" maxlength="1000"
                   placeholder="Notas sobre la prueba cardiovascular..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+                  class="w-full bg-black/40 border {% if errors.dixon_observations %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.dixon_observations|default:'' }}</textarea>
+        {% if errors.dixon_observations %}<p class="text-red-400 text-xs mt-1">{{ errors.dixon_observations }}</p>{% endif %}
       </div>
     </div>
     <!-- ─────────────────────────────────────────────────────────────────── -->

@@ -23,31 +23,34 @@
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Peso (kg) *</label>
           <input type="text" name="weight" required value="{{ form.weight|default:'' }}"
-                 placeholder="Ej: 72.5"
+                 inputmode="decimal" maxlength="7" placeholder="Ej: 72.5"
                  class="w-full bg-black/40 border {% if errors.weight %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
           {% if errors.weight %}<p class="text-red-400 text-xs mt-1">{{ errors.weight }}</p>{% endif %}
         </div>
         <div>
-          <label class="block text-white/60 text-xs font-medium mb-2">Estatura (m) — para IMC</label>
+          <label class="block text-white/60 text-xs font-medium mb-2">Estatura — para IMC</label>
           <input type="text" name="height" value="{{ form.height|default:'' }}"
-                 placeholder="Ej: 1.65"
-                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
-          <p class="text-white/25 text-xs mt-1">Dejar vacío si no cambia</p>
+                 inputmode="decimal" maxlength="6" placeholder="Ej: 1.65 o 165"
+                 class="w-full bg-black/40 border {% if errors.height %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.height %}<p class="text-red-400 text-xs mt-1">{{ errors.height }}</p>{% endif %}
+          <p class="text-white/25 text-xs mt-1">En metros (1,65) o cm (165). Dejar vacío si no cambia</p>
         </div>
       </div>
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Cintura (cm) — opcional</label>
         <input type="text" name="waist_cm" value="{{ form.waist_cm|default:'' }}"
-               placeholder="Ej: 85"
-               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+               inputmode="decimal" maxlength="6" placeholder="Ej: 85"
+               class="w-full bg-black/40 border {% if errors.waist_cm %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        {% if errors.waist_cm %}<p class="text-red-400 text-xs mt-1">{{ errors.waist_cm }}</p>{% endif %}
       </div>
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Observaciones (opcional)</label>
-        <textarea name="notes" rows="2"
+        <textarea name="notes" rows="2" maxlength="2000"
                   placeholder="Notas sobre esta medición..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+                  class="w-full bg-black/40 border {% if errors.notes %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+        {% if errors.notes %}<p class="text-red-400 text-xs mt-1">{{ errors.notes }}</p>{% endif %}
       </div>
     </div>
 

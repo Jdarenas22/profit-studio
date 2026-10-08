@@ -47,7 +47,8 @@
   <form hx-post="{% url 'trainer_add_day' routine.pk %}"
         hx-target="#days-list"
         hx-swap="beforeend"
-        hx-on::after-request="this.reset(); document.getElementById('empty-days')?.remove();"
+        hx-on::before-swap="var failed = event.detail.xhr.getResponseHeader('X-Form-Error'); if (failed) { event.detail.shouldSwap = false; document.getElementById('day-error').textContent = new DOMParser().parseFromString(event.detail.serverResponse, 'text/html').body.textContent; } else { document.getElementById('day-error').textContent = ''; }"
+        hx-on::after-request="if (event.detail.successful && !event.detail.xhr.getResponseHeader('X-Form-Error')) { this.reset(); document.getElementById('empty-days')?.remove(); }"
         class="flex gap-3">
     {% csrf_token %}
     <input type="text" name="day_name"
@@ -59,5 +60,6 @@
       <i class="fa fa-plus mr-1.5"></i> Agregar día
     </button>
   </form>
+  <p id="day-error" role="alert" class="text-red-400 text-xs mt-2 empty:hidden"></p>
 </div>
 {% endblock %}

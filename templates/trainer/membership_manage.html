@@ -51,7 +51,7 @@
   {% endif %}
 
   <!-- Formulario de acción -->
-  <form method="POST" x-data="{ selectedPlan: null, customDays: false }" class="space-y-5">
+  <form method="POST" x-data="{ selectedPlan: '{{ form.plan_id|default:''|escapejs }}' || null, customDays: {% if form.duration_days %}true{% else %}false{% endif %} }" class="space-y-5">
     {% csrf_token %}
 
     <!-- Selección de plan -->
@@ -73,6 +73,7 @@
         </label>
         {% endfor %}
       </div>
+      {% if errors.plan_id %}<p class="text-red-400 text-xs mt-1">{{ errors.plan_id }}</p>{% endif %}
     </div>
 
     <!-- Duración personalizada -->
@@ -82,9 +83,11 @@
         <span class="text-white/60 text-sm">Personalizar duración (días)</span>
       </label>
       <div x-show="customDays" x-cloak>
-        <input type="number" name="duration_days" min="1" max="730"
+        <input type="number" name="duration_days" min="1" max="3650"
+               value="{{ form.duration_days|default:'' }}"
                placeholder="Ej: 45"
-               class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+               class="w-full bg-zinc-900 border {% if errors.duration_days %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        {% if errors.duration_days %}<p class="text-red-400 text-xs mt-1">{{ errors.duration_days }}</p>{% endif %}
         <p class="text-white/30 text-xs mt-1">Deja vacío para usar la duración predeterminada del plan seleccionado.</p>
       </div>
     </div>
@@ -92,10 +95,13 @@
     <!-- Notas -->
     <div>
       <label class="block text-white/60 text-sm font-medium mb-2">Notas (opcional)</label>
-      <textarea name="notes" rows="2"
+      <textarea name="notes" rows="2" maxlength="1000"
                 placeholder="Observaciones sobre el pago o la membresía..."
-                class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if membership %}{{ membership.notes }}{% endif %}</textarea>
+                class="w-full bg-zinc-900 border {% if errors.notes %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if form %}{{ form.notes|default:'' }}{% elif membership %}{{ membership.notes }}{% endif %}</textarea>
+      {% if errors.notes %}<p class="text-red-400 text-xs mt-1">{{ errors.notes }}</p>{% endif %}
     </div>
+
+    {% if errors.action %}<p class="text-red-400 text-xs mt-1">{{ errors.action }}</p>{% endif %}
 
     <!-- Botones de acción -->
     <div class="flex flex-col sm:flex-row gap-3 pt-2">
@@ -106,12 +112,12 @@
         {% if not membership %}Activar membresía{% else %}Reactivar membresía{% endif %}
       </button>
       {% else %}
-      <button type="submit" name="action" value="renew"
+      <button type="submit" name="action" value="renew" formnovalidate
               class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
         <i class="fa fa-rotate mr-2"></i> Renovar membresía
       </button>
-      <button type="submit" name="action" value="deactivate"
-              onclick="return confirm('¿Desactivar la membresía de {{ client.get_full_name|default:client.username }}?')"
+      <button type="submit" name="action" value="deactivate" formnovalidate
+              onclick="return confirm('¿Desactivar la membresía de {{ client.get_full_name|default:client.username|escapejs }}?')"
               class="bg-red-600/20 hover:bg-red-600/40 border border-red-600/30 text-red-400 font-semibold py-3 px-5 rounded-xl transition-colors text-sm">
         <i class="fa fa-ban mr-1"></i> Desactivar
       </button>

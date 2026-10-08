@@ -51,15 +51,16 @@
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Teléfono</label>
-          <input type="tel" name="phone"
+          <input type="tel" name="phone" maxlength="20"
                  value="{{ form.phone|default:'' }}"
                  placeholder="+57 300 000 0000"
-                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                 class="w-full bg-black/40 border {% if errors.phone %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.phone %}<p class="text-red-400 text-xs mt-1">{{ errors.phone }}</p>{% endif %}
         </div>
       </div>
 
       <!-- Género -->
-      <div x-data="{ gender: '{{ form.gender|default:'' }}' }">
+      <div x-data="{ gender: '{{ form.gender|default:''|escapejs }}' }">
         <label class="block text-white/60 text-xs font-medium mb-2">Género</label>
         <div class="grid grid-cols-3 gap-2">
           <label class="cursor-pointer">
@@ -84,6 +85,7 @@
             </div>
           </label>
         </div>
+        {% if errors.gender %}<p class="text-red-400 text-xs mt-1">{{ errors.gender }}</p>{% endif %}
       </div>
 
       <div class="grid grid-cols-2 gap-4">
@@ -110,7 +112,7 @@
     <!-- Activar membresía (opcional) -->
     {% if plans %}
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6"
-         x-data="{ activatePlan: false, selectedPlan: '' }">
+         x-data="{ activatePlan: {% if form.activate_plan %}true{% else %}false{% endif %}, selectedPlan: '{{ form.activate_plan|default:''|escapejs }}' }">
       <label class="flex items-center gap-3 cursor-pointer mb-4">
         <input type="checkbox" x-model="activatePlan" class="w-4 h-4 accent-orange-500">
         <div>
