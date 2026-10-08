@@ -751,6 +751,8 @@ R2_ACCESS_KEY_ID        = (tu clave de Cloudflare R2)
 R2_SECRET_ACCESS_KEY    = (tu clave secreta de R2)
 R2_BUCKET_NAME          = profitstudio-media
 R2_ENDPOINT_URL         = https://TU_ACCOUNT_ID.r2.cloudflarestorage.com
+R2_PUBLIC_URL           = https://pub-xxxx.r2.dev   (URL pública del bucket de media, https y sin ruta)
+R2_RECEIPTS_BUCKET_NAME = profitstudio-receipts   (bucket PRIVADO de comprobantes)
 
 # Contacto
 WHATSAPP_NUMBER         = +573005638196
@@ -829,6 +831,8 @@ El archivo `.env` en la raíz del proyecto controla el comportamiento del sistem
 | `R2_SECRET_ACCESS_KEY` | ✅ | Credencial secreta de R2 |
 | `R2_BUCKET_NAME` | ✅ | Nombre del bucket en R2 (ej: `profitstudio-media`) |
 | `R2_ENDPOINT_URL` | ✅ | URL del endpoint de R2 (`https://ACCOUNT_ID.r2.cloudflarestorage.com`) |
+| `R2_PUBLIC_URL` | ✅ | URL pública del bucket de media (`https://pub-xxxx.r2.dev`, https y sin ruta); sin ella las imágenes no se ven |
+| `R2_RECEIPTS_BUCKET_NAME` | ✅ | Bucket PRIVADO de comprobantes (`profitstudio-receipts`) |
 | `WHATSAPP_NUMBER` | ❌ | Número con código de país (ej: `+573005638196`) |
 | `WHATSAPP_LINK` | ❌ | Link directo de WhatsApp (`https://wa.me/573005638196`) |
 | `INSTAGRAM_URL` | ❌ | URL del perfil de Instagram |

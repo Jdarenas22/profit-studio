@@ -89,8 +89,8 @@ Variables de entorno requeridas en Railway:
 ### Almacenamiento de archivos media
 
 - **Sin R2 configurado**: guarda en `BASE_DIR/media/` (se pierde con cada redeploy en Railway)
-- **Con R2**: usa `django-storages[s3]` + boto3 con `AWS_QUERYSTRING_AUTH=False` (URLs permanentes). `R2_ENDPOINT_URL` es el endpoint S3 API de boto3; `R2_PUBLIC_URL` es la URL pública del bucket (e.g., `https://pub-xxx.r2.dev`)
-- **Comprobantes de pago (`receipts/`) nunca son públicos**: `ManualPayment.receipt` usa `apps/payments/storage.py` (con R2: bucket aparte `R2_RECEIPTS_BUCKET_NAME`, sin dominio público, URLs firmadas de 5 min) y solo se entregan por la vista `payment_receipt`. `/media/receipts/...` responde 404 (`config/media.py`).
+- **Con R2**: usa `django-storages[s3]` + boto3 con `AWS_QUERYSTRING_AUTH=False` (URLs permanentes). `R2_ENDPOINT_URL` es el endpoint S3 API de boto3; `R2_PUBLIC_URL` es la URL pública del bucket (e.g., `https://pub-xxx.r2.dev`, https y sin ruta). django-storages NO usa `MEDIA_URL`: `production.py` toma el host de `R2_PUBLIC_URL` como `AWS_S3_CUSTOM_DOMAIN` para que `FieldFile.url` salga como `https://pub-xxx.r2.dev/<archivo>` (sin el bucket en la ruta). Sin `R2_PUBLIC_URL` las URLs apuntan al endpoint de la API y no se ven en el navegador. Una `R2_PUBLIC_URL` mal formada (sin https, con ruta) detiene el arranque.
+- **Comprobantes de pago (`receipts/`) nunca son públicos**: `ManualPayment.receipt` usa `apps/payments/storage.py` (con R2: bucket aparte `R2_RECEIPTS_BUCKET_NAME`, sin dominio público: `custom_domain=None` y `querystring_auth=True` explícitos, URLs firmadas de 5 min contra el endpoint de la API) y solo se entregan por la vista `payment_receipt`. `/media/receipts/...` responde 404 (`config/media.py`).
 
 ### Frontend
 

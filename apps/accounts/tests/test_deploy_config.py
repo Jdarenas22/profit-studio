@@ -39,14 +39,21 @@ CLEAN_ENV = {
 PROBE = (
     "import json, django, os;"
     "os.environ['DJANGO_SETTINGS_MODULE']='config.settings.production';"
+    "django.setup();"
     "from django.conf import settings;"
+    "from django.core.files.storage import default_storage;"
+    "from apps.payments.models import ManualPayment;"
     "print(json.dumps({'hosts': settings.ALLOWED_HOSTS, 'csrf': settings.CSRF_TRUSTED_ORIGINS,"
     " 'secret_ok': bool(settings.SECRET_KEY), 'debug': settings.DEBUG,"
     " 'axes_ip': settings.AXES_CLIENT_IP_CALLABLE,"
     " 'axes_params': settings.AXES_LOCKOUT_PARAMETERS,"
     " 'axes_reset': settings.AXES_RESET_ON_SUCCESS,"
     " 'receipts_bucket': getattr(settings, 'RECEIPTS_BUCKET_NAME', None),"
-    " 'media_url': settings.MEDIA_URL}))"
+    " 'media_url': settings.MEDIA_URL,"
+    " 'custom_domain': getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None),"
+    " 'url_protocol': getattr(settings, 'AWS_S3_URL_PROTOCOL', None),"
+    " 'file_url': default_storage.url('exercises/images/a.jpg'),"
+    " 'receipt_url': ManualPayment._meta.get_field('receipt').storage.url('receipts/x.png')}))"
 )
 
 
@@ -94,6 +101,65 @@ class ProductionSettingsTests(SimpleTestCase):
         self.assertEqual(data['receipts_bucket'], '')
         self.assertEqual(data['media_url'], '/media/')
         self.assertNotIn('R2_RECEIPTS_BUCKET_NAME', err)
+
+    # ── URLs de la media pública con R2 (django-storages no usa MEDIA_URL) ──────────
+    def test_r2_public_url_becomes_custom_domain_and_media_urls_are_public(self):
+        code, data, err = load_production(R2_RECEIPTS_BUCKET_NAME='recibos-privado', **self.R2_ENV)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['custom_domain'], 'pub-xxxx.r2.dev')   # solo host: sin esquema ni barra
+        self.assertEqual(data['url_protocol'], 'https:')
+        self.assertEqual(data['media_url'], 'https://pub-xxxx.r2.dev/')
+        # sin el bucket en la ruta (r2.dev sirve el bucket en la raíz) y sin firma
+        self.assertEqual(data['file_url'], 'https://pub-xxxx.r2.dev/exercises/images/a.jpg')
+
+    def test_r2_public_url_with_trailing_slash_or_port(self):
+        for raw, domain in (('https://pub-xxxx.r2.dev/', 'pub-xxxx.r2.dev'),
+                            ('https://cdn.ejemplo.com:8443', 'cdn.ejemplo.com:8443')):
+            with self.subTest(url=raw):
+                code, data, err = load_production(**{**self.R2_ENV, 'R2_PUBLIC_URL': raw})
+                self.assertEqual(code, 0, err)
+                self.assertEqual(data['custom_domain'], domain)
+                self.assertEqual(data['file_url'], f'https://{domain}/exercises/images/a.jpg')
+
+    def test_receipts_never_use_the_public_domain_and_are_signed(self):
+        code, data, err = load_production(R2_RECEIPTS_BUCKET_NAME='recibos-privado', **self.R2_ENV)
+        self.assertEqual(code, 0, err)
+        url = data['receipt_url']
+        self.assertNotIn('pub-xxxx.r2.dev', url)
+        self.assertTrue(url.startswith('https://acc123.r2.cloudflarestorage.com/recibos-privado/receipts/x.png'), url)
+        self.assertIn('X-Amz-Signature=', url)
+
+    def test_receipts_stay_private_even_without_a_receipts_bucket(self):
+        code, data, err = load_production(**self.R2_ENV)
+        self.assertEqual(code, 0, err)
+        self.assertNotIn('pub-xxxx.r2.dev', data['receipt_url'])
+        self.assertIn('X-Amz-Signature=', data['receipt_url'])
+
+    def test_r2_without_public_url_keeps_the_api_endpoint_fallback(self):
+        code, data, err = load_production(**{**self.R2_ENV, 'R2_PUBLIC_URL': ''})
+        self.assertEqual(code, 0, err)
+        self.assertIsNone(data['custom_domain'])
+        self.assertEqual(data['media_url'], 'https://acc123.r2.cloudflarestorage.com/media-publico/')
+        self.assertTrue(data['file_url'].startswith(
+            'https://acc123.r2.cloudflarestorage.com/media-publico/exercises/images/a.jpg'), data['file_url'])
+        self.assertNotIn('X-Amz-Signature', data['file_url'])   # AWS_QUERYSTRING_AUTH=False
+
+    def test_malformed_r2_public_url_stops_the_server(self):
+        for bad in ('pub-xxxx.r2.dev', 'http://pub-xxxx.r2.dev', 'https://pub-xxxx.r2.dev/media-publico',
+                    'https://pub-xxxx.r2.dev/?a=1', 'https://usuario:clave@pub-xxxx.r2.dev'):
+            with self.subTest(url=bad):
+                code, _, err = load_production(**{**self.R2_ENV, 'R2_PUBLIC_URL': bad})
+                self.assertNotEqual(code, 0)
+                self.assertIn('ImproperlyConfigured', err)
+                self.assertIn('R2_PUBLIC_URL', err)
+                self.assertNotIn('clave', err)
+
+    def test_r2_public_url_is_ignored_when_r2_is_not_configured(self):
+        code, data, err = load_production(R2_PUBLIC_URL='https://pub-xxxx.r2.dev')
+        self.assertEqual(code, 0, err)
+        self.assertIsNone(data['custom_domain'])
+        self.assertEqual(data['media_url'], '/media/')
+        self.assertEqual(data['file_url'], '/media/exercises/images/a.jpg')
 
     def test_secret_key_is_required_and_not_a_placeholder(self):
         for bad in ('', '   ', 'django-insecure-dev-key-change-in-production',
