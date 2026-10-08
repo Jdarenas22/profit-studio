@@ -2,8 +2,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from apps.accounts.decorators import trainer_required
-from apps.accounts.models import User
-from apps.accounts.views import _get_accessible_client
+from apps.accounts.permissions import (
+    clients_for_trainer, ensure_client_access, get_client_for_trainer,
+)
 from .models import InitialAssessment, DixonTest, BodyMeasurement
 
 
@@ -11,13 +12,15 @@ from .models import InitialAssessment, DixonTest, BodyMeasurement
 def assessment_list(request):
     if not request.user.is_trainer:
         return render(request, 'accounts/forbidden.html', status=403)
-    assessments = request.user.conducted_assessments.select_related('user', 'dixon_test').order_by('-date')
+    assessments = request.user.conducted_assessments.filter(
+        user__in=clients_for_trainer(request.user)
+    ).select_related('user', 'dixon_test').order_by('-date')
     return render(request, 'assessments/list.html', {'assessments': assessments})
 
 
 @trainer_required
 def trainer_assessment_create(request, client_pk):
-    client = _get_accessible_client(request, client_pk)
+    client = get_client_for_trainer(request, client_pk)
 
     if request.method == 'POST':
         assessment = InitialAssessment.objects.create(
@@ -60,7 +63,8 @@ def trainer_assessment_create(request, client_pk):
 
 @trainer_required
 def trainer_assessment_detail(request, pk):
-    assessment = get_object_or_404(InitialAssessment, pk=pk)
+    assessment = get_object_or_404(InitialAssessment.objects.select_related('user'), pk=pk)
+    ensure_client_access(request, assessment.user)
     try:
         dixon = assessment.dixon_test
     except Exception:
@@ -92,7 +96,7 @@ def trainer_assessment_detail(request, pk):
 
 @trainer_required
 def trainer_measurement_add(request, client_pk):
-    client = _get_accessible_client(request, client_pk)
+    client = get_client_for_trainer(request, client_pk)
 
     if request.method == 'POST':
         weight_raw = request.POST.get('weight', '').strip()

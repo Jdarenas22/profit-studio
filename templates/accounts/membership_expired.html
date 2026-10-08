@@ -33,7 +33,11 @@
     </a>
 
     <div class="mt-6">
-      <a href="{% url 'logout' %}" class="text-white/20 hover:text-white/50 text-xs transition-colors">Cerrar sesión</a>
+      <form method="post" action="{% url 'logout' %}" class="inline"
+            onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
+        {% csrf_token %}
+        <button type="submit" class="text-white/20 hover:text-white/50 text-xs transition-colors">Cerrar sesión</button>
+      </form>
     </div>
   </div>
 </section>

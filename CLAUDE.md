@@ -17,7 +17,8 @@ DJANGO_SETTINGS_MODULE=config.settings.production python manage.py runserver  # 
 python manage.py migrate
 python manage.py load_initial_data   # Crea categorías de ejercicios y planes de membresía
 python manage.py create_trainer --username yiseth --first-name Yiseth --last-name "Misas García" \
-    --email profitstudio075@gmail.com --password "xxx" --superuser
+    --email profitstudio075@gmail.com --superuser
+# La contraseña se lee de TRAINER_INITIAL_PASSWORD (o se pide por consola); nunca va en el comando
 
 # Producción (Railway ejecuta start.sh automáticamente)
 # El flujo es: migrate → collectstatic → create_trainer → load_initial_data → gunicorn
@@ -43,7 +44,8 @@ El modelo `User` extiende `AbstractUser` con campo `role` ('trainer' / 'member')
 
 - Solo `is_superuser` ve Pagos y Entrenadores en el nav del panel trainer
 - Solo `is_superuser` puede crear/editar otros trainers y asignar clientes
-- `is_superuser` ve todos los clientes; otros trainers solo ven los asignados (`assigned_trainer=request.user`)
+- `is_superuser` ve todos los clientes y es la única que los asigna; otros trainers ven SOLO los asignados (`assigned_trainer=request.user`). Los clientes auto-registrados quedan sin asignar (solo los ve la superusuaria); los que crea un trainer con "Agregar cliente" quedan asignados a ese trainer
+- Toda vista que reciba el pk de un cliente (o de una valoración, rutina, membresía, medición o pago manual) debe usar `apps/accounts/permissions.py` (`get_client_for_trainer`, `clients_for_trainer`, `ensure_client_access`); lo no accesible responde 404
 
 ```python
 # Propiedades clave del User
@@ -59,9 +61,10 @@ user.assigned_clients  # reverse relation (clientes asignados a este trainer)
 @trainer_required        # is_authenticated + is_trainer; 403 si no
 @membership_required     # trainers pasan siempre; members necesitan membresía válida
 @login_required          # estándar Django
+@superuser_required      # solo la entrenadora principal (trainer + is_superuser)
 ```
 
-Para vistas solo de superusuario no hay decorador dedicado — se hace con `if not request.user.is_superuser: redirect('trainer_dashboard')` al inicio de la vista.
+El cierre de sesión (`logout`) solo acepta POST: se hace con un formulario con `{% csrf_token %}`.
 
 ### Settings
 
@@ -76,7 +79,8 @@ No existe `local.py`. La selección del settings file es via `DJANGO_SETTINGS_MO
 Variables de entorno requeridas en Railway:
 
 - `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`
-- `TRAINER_PASSWORD` (contraseña inicial de Yiseth)
+- `SECRET_KEY` y `ALLOWED_HOSTS` son OBLIGATORIAS: `production.py` no arranca si faltan, si ALLOWED_HOSTS tiene `*` o si SECRET_KEY es un valor de ejemplo
+- `TRAINER_INITIAL_PASSWORD` (opcional; también se acepta el nombre antiguo `TRAINER_PASSWORD`): si existe, `start.sh` crea la superusuaria `yiseth` con esa contraseña. Sin ella no se crea la cuenta. Nunca hay contraseña por defecto en el código
 - R2: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL`, `R2_PUBLIC_URL`
 - Wompi: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`
 - Email: `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`

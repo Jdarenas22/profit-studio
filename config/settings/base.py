@@ -118,6 +118,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = 1  # horas
 AXES_LOCKOUT_TEMPLATE = 'accounts/lockout.html'
+# Bloqueo por combinación usuario + IP: un atacante no puede dejar fuera al usuario
+# legítimo (que entra desde otra IP) ni bloquear a todos los visitantes a la vez.
+AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
+AXES_RESET_ON_SUCCESS = True
 
 # ─── Contacto ProFit Studio ────────────────────────────────────────────────────
 WHATSAPP_NUMBER = env('WHATSAPP_NUMBER', default='+573005638196')

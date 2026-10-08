@@ -1,15 +1,56 @@
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *
 
 DEBUG = False
 
-# ALLOWED_HOSTS — define ALLOWED_HOSTS en Railway con tu dominio real
-# Ejemplo: ALLOWED_HOSTS=profit-studio.up.railway.app,tudominio.com
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
+# ─── Variables obligatorias: el servidor NO arranca si faltan o son inseguras ───
+# SECRET_KEY: sin valor por defecto. Se rechazan el valor de desarrollo de base.py
+# y el de ejemplo de .env.example.
+SECRET_KEY = env('SECRET_KEY', default='')
+if (
+    not SECRET_KEY.strip()
+    or 'insecure' in SECRET_KEY.lower()
+    or SECRET_KEY.lower().startswith(('cambia-esta', 'changeme', 'change-me', 'tu-clave'))
+):
+    raise ImproperlyConfigured(
+        'SECRET_KEY es obligatoria en producción: defínela como variable de entorno '
+        '(Railway > Variables) con un valor largo y aleatorio; no sirven el valor por '
+        'defecto ni el de .env.example.'
+    )
 
-# Cabecera que Railway inyecta para indicar el host original
+# ALLOWED_HOSTS: obligatorio y sin comodín. Ejemplo:
+#   ALLOWED_HOSTS=profit-studio.up.railway.app,tudominio.com
+ALLOWED_HOSTS = [h.strip() for h in env.list('ALLOWED_HOSTS', default=[]) if h.strip()]
+if not ALLOWED_HOSTS or '*' in ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        'ALLOWED_HOSTS es obligatorio en producción y no puede contener "*". '
+        'Ejemplo: ALLOWED_HOSTS=profit-studio.up.railway.app,tudominio.com'
+    )
+
+# Railway inyecta RAILWAY_PUBLIC_DOMAIN con el dominio público del servicio.
+_railway_domain = env('RAILWAY_PUBLIC_DOMAIN', default='').strip()
+if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_railway_domain)
+
+# Orígenes de confianza para CSRF (formularios por HTTPS): los dominios declarados.
+# Un host que empieza con "." (subdominios) se traduce a "https://*.dominio".
 CSRF_TRUSTED_ORIGINS = [
-    f'https://{host}' for host in ALLOWED_HOSTS if host != '*'
-] or ['https://*.up.railway.app']
+    f'https://*{host}' if host.startswith('.') else f'https://{host}'
+    for host in ALLOWED_HOSTS
+]
+
+# El healthcheck de Railway llama con el host healthcheck.railway.app: se añade
+# siempre a ALLOWED_HOSTS (después de calcular CSRF, no necesita origen de confianza)
+# para que un ALLOWED_HOSTS bien configurado nunca rompa el despliegue.
+if 'healthcheck.railway.app' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('healthcheck.railway.app')
+
+# ─── django-axes detrás del proxy de Railway ───────────────────────────────────
+# Railway envía la IP real del cliente en X-Real-IP. Sin esto, todos los visitantes
+# compartirían la IP del proxy. django-axes 6.5.0 solo entiende las opciones de proxy
+# (AXES_IPWARE_*) si está instalado django-ipware (no lo está): se usa una función propia.
+AXES_CLIENT_IP_CALLABLE = 'apps.accounts.axes_utils.get_client_ip'
 
 # Necesario para que HTTPS funcione correctamente detrás del proxy de Railway
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

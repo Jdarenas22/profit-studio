@@ -1,20 +1,15 @@
+from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 import urllib.parse
-from .decorators import trainer_required
+from .decorators import trainer_required, superuser_required
 from .models import User
-
-
-def _get_accessible_client(request, pk):
-    """Returns the member with the given PK only if the requesting trainer has access.
-    Non-superusers can only access their assigned clients; raises 404 otherwise."""
-    if request.user.is_superuser:
-        return get_object_or_404(User, pk=pk, role='member')
-    return get_object_or_404(User, pk=pk, role='member', assigned_trainer=request.user)
+from .permissions import clients_for_trainer, get_client_for_trainer
 
 
 def login_view(request):
@@ -32,8 +27,14 @@ def login_view(request):
                 request.session.set_expiry(864000)  # 10 días en segundos
             else:
                 request.session.set_expiry(0)  # Expira al cerrar el navegador
-            next_url = request.GET.get('next', '')
-            if next_url and url_has_allowed_host_and_scheme(url=next_url, allowed_hosts={request.get_host()}):
+            # Solo se acepta un 'next' interno (evita redirección abierta); puede
+            # venir en el formulario (POST) o en la URL (GET).
+            next_url = request.POST.get('next') or request.GET.get('next') or ''
+            if next_url and url_has_allowed_host_and_scheme(
+                url=next_url,
+                allowed_hosts={request.get_host()},
+                require_https=request.is_secure(),
+            ):
                 return redirect(next_url)
             return redirect('dashboard')
         else:
@@ -42,6 +43,7 @@ def login_view(request):
     return render(request, 'accounts/login.html')
 
 
+@require_POST
 def logout_view(request):
     logout(request)
     return redirect('home')
@@ -81,11 +83,8 @@ def trainer_dashboard(request):
     today = timezone.now().date()
     is_super = request.user.is_superuser
 
-    # Superusuario ve todo; otros entrenadores solo sus clientes asignados
-    if is_super:
-        my_clients_qs = User.objects.filter(role='member')
-    else:
-        my_clients_qs = User.objects.filter(role='member', assigned_trainer=request.user)
+    # Superusuaria ve todo; los demás entrenadores solo sus clientes asignados
+    my_clients_qs = clients_for_trainer(request.user)
 
     my_client_ids = my_clients_qs.values_list('pk', flat=True)
 
@@ -102,8 +101,8 @@ def trainer_dashboard(request):
         ).select_related('user'),
         'total_exercises': Exercise.objects.filter(is_active=True).count(),
         'total_routines': Routine.objects.filter(
-            is_active=True, trainer=request.user
-        ).count() if not is_super else Routine.objects.filter(is_active=True).count(),
+            is_active=True, user_id__in=my_client_ids
+        ).count(),
         'recent_clients': my_clients_qs.order_by('-date_joined')[:6],
         'recent_assessments': InitialAssessment.objects.filter(
             user_id__in=my_client_ids
@@ -289,6 +288,8 @@ def trainer_add_client(request):
                 first_name=first_name, last_name=last_name,
                 phone=phone, role=User.ROLE_MEMBER,
                 gender=gender if gender in ('F', 'M', 'O') else '',
+                # Asignación automática: el cliente queda a cargo de quien lo crea
+                assigned_trainer=request.user,
             )
             if plan_id:
                 try:
@@ -322,12 +323,8 @@ def trainer_add_client(request):
 @trainer_required
 def trainer_client_list(request):
     is_super = request.user.is_superuser
-    if is_super:
-        clients = User.objects.filter(role='member').select_related('assigned_trainer').order_by('first_name', 'last_name')
-        unassigned_count = User.objects.filter(role='member', assigned_trainer__isnull=True).count()
-    else:
-        clients = User.objects.filter(role='member', assigned_trainer=request.user).order_by('first_name', 'last_name')
-        unassigned_count = 0
+    clients = clients_for_trainer(request.user).select_related('assigned_trainer').order_by('first_name', 'last_name')
+    unassigned_count = clients.filter(assigned_trainer__isnull=True).count() if is_super else 0
     return render(request, 'trainer/clients.html', {
         'clients': clients,
         'is_superuser': is_super,
@@ -337,7 +334,7 @@ def trainer_client_list(request):
 
 @trainer_required
 def trainer_client_detail(request, pk):
-    client = _get_accessible_client(request, pk)
+    client = get_client_for_trainer(request, pk)
     try:
         membership = client.membership
     except Exception:
@@ -354,7 +351,7 @@ def trainer_client_detail(request, pk):
 
 @trainer_required
 def trainer_client_edit(request, pk):
-    client = _get_accessible_client(request, pk)
+    client = get_client_for_trainer(request, pk)
     from apps.memberships.models import MembershipPlan
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
     errors = {}
@@ -429,7 +426,7 @@ def trainer_client_edit(request, pk):
 
 @trainer_required
 def trainer_client_delete(request, pk):
-    client = _get_accessible_client(request, pk)
+    client = get_client_for_trainer(request, pk)
     if request.method == 'POST':
         full_name = client.get_full_name() or client.username
         client.delete()
@@ -506,13 +503,9 @@ def member_profile_edit(request):
 
 
 # ── Solo Yiseth (superusuario) puede crear nuevos entrenadores ──────────────────
-@login_required
+@superuser_required
 def trainer_create_trainer(request):
     """Vista exclusiva del superusuario para crear cuentas de entrenadores."""
-    if not request.user.is_superuser:
-        messages.error(request, 'No tienes permiso para acceder a esta sección.')
-        return redirect('trainer_dashboard')
-
     errors = {}
 
     if request.method == 'POST':
@@ -570,22 +563,16 @@ def trainer_create_trainer(request):
     return render(request, 'trainer/trainer_form.html', {'errors': {}, 'form': {}})
 
 
-@login_required
+@superuser_required
 def trainer_staff_list(request):
     """Lista de entrenadores — solo superusuario."""
-    if not request.user.is_superuser:
-        return redirect('trainer_dashboard')
     trainers = User.objects.filter(role='trainer').order_by('first_name', 'last_name')
     return render(request, 'trainer/trainer_list.html', {'trainers': trainers})
 
 
-@login_required
+@superuser_required
 def trainer_edit_trainer(request, pk):
     """Editar datos de un entrenador — solo superusuario."""
-    if not request.user.is_superuser:
-        messages.error(request, 'No tienes permiso para esta acción.')
-        return redirect('trainer_dashboard')
-
     trainer = get_object_or_404(User, pk=pk, role='trainer')
     errors = {}
 
@@ -636,20 +623,18 @@ def trainer_edit_trainer(request, pk):
     })
 
 
-@login_required
+@superuser_required
 def trainer_assign_client(request, pk):
-    """Asigna un entrenador a un cliente — solo superusuario."""
-    if not request.user.is_superuser:
-        messages.error(request, 'Sin permiso.')
-        return redirect('trainer_clients')
-
+    """Asigna un entrenador a un cliente — solo superusuario (única que asigna)."""
     client = get_object_or_404(User, pk=pk, role='member')
     trainers = User.objects.filter(role='trainer').order_by('first_name')
 
     if request.method == 'POST':
         trainer_id = request.POST.get('trainer_id') or None
         if trainer_id:
-            client.assigned_trainer = get_object_or_404(User, pk=trainer_id, role='trainer')
+            if not str(trainer_id).isdigit():
+                raise Http404
+            client.assigned_trainer = get_object_or_404(User, pk=int(trainer_id), role='trainer')
         else:
             client.assigned_trainer = None
         client.save()
