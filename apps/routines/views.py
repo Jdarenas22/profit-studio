@@ -1,8 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from apps.accounts.decorators import trainer_required
+from apps.accounts.permissions import clients_for_trainer
 from .models import Routine, RoutineDay, RoutineExercise, RoutineDayLog
 
 
@@ -26,20 +27,35 @@ def member_routine(request):
 
 # ─── Trainer — Routine management ─────────────────────────────────────────────
 
+def get_routine_for_trainer(request, pk):
+    """Devuelve la rutina `pk` solo si su cliente es accesible para el usuario; si no, 404."""
+    return get_object_or_404(
+        Routine.objects.select_related('user'),
+        pk=pk,
+        user__in=clients_for_trainer(request.user),
+    )
+
+
 @trainer_required
 def trainer_routine_list(request):
-    routines = Routine.objects.select_related('user').filter(is_active=True).order_by('-created_at')
+    routines = Routine.objects.select_related('user').filter(
+        is_active=True, user__in=clients_for_trainer(request.user)
+    ).order_by('-created_at')
     return render(request, 'trainer/routine_list.html', {'routines': routines})
 
 
 @trainer_required
 def trainer_routine_create(request):
-    from apps.accounts.models import User
-    clients = User.objects.filter(role='member').order_by('first_name', 'last_name')
+    clients = clients_for_trainer(request.user).order_by('first_name', 'last_name')
     if request.method == 'POST':
+        # El destinatario debe ser un cliente (role='member') accesible para este entrenador
+        client_id = request.POST.get('client', '')
+        if not str(client_id).isdigit():
+            raise Http404
+        client = get_object_or_404(clients, pk=int(client_id))
         routine = Routine.objects.create(
             name=request.POST['name'],
-            user_id=request.POST['client'],
+            user=client,
             trainer=request.user,
             notes=request.POST.get('notes', ''),
         )
@@ -51,7 +67,7 @@ def trainer_routine_create(request):
 @trainer_required
 def trainer_routine_builder(request, pk):
     from apps.exercises.models import Exercise, ExerciseCategory
-    routine = get_object_or_404(Routine, pk=pk)
+    routine = get_routine_for_trainer(request, pk)
     exercises = Exercise.objects.filter(is_active=True).select_related('category').order_by('name')
     categories = ExerciseCategory.objects.all()
     return render(request, 'trainer/routine_builder.html', {
@@ -63,7 +79,7 @@ def trainer_routine_builder(request, pk):
 
 @trainer_required
 def trainer_add_day(request, pk):
-    routine = get_object_or_404(Routine, pk=pk)
+    routine = get_routine_for_trainer(request, pk)
     if request.method == 'POST':
         name = request.POST.get('day_name', '').strip()
         if not name:
@@ -84,7 +100,7 @@ def trainer_add_day(request, pk):
 
 @trainer_required
 def trainer_delete_day(request, pk, day_pk):
-    routine = get_object_or_404(Routine, pk=pk)
+    routine = get_routine_for_trainer(request, pk)
     day = get_object_or_404(RoutineDay, pk=day_pk, routine=routine)
     if request.method == 'POST':
         day.delete()
@@ -94,7 +110,7 @@ def trainer_delete_day(request, pk, day_pk):
 
 @trainer_required
 def trainer_add_exercise_to_day(request, pk, day_pk):
-    routine = get_object_or_404(Routine, pk=pk)
+    routine = get_routine_for_trainer(request, pk)
     day = get_object_or_404(RoutineDay, pk=day_pk, routine=routine)
     if request.method == 'POST':
         from apps.exercises.models import Exercise
@@ -119,7 +135,7 @@ def trainer_add_exercise_to_day(request, pk, day_pk):
 
 @trainer_required
 def trainer_remove_exercise(request, pk, day_pk, re_pk):
-    routine = get_object_or_404(Routine, pk=pk)
+    routine = get_routine_for_trainer(request, pk)
     day = get_object_or_404(RoutineDay, pk=day_pk, routine=routine)
     re = get_object_or_404(RoutineExercise, pk=re_pk, day=day)
     if request.method == 'POST':
@@ -130,7 +146,7 @@ def trainer_remove_exercise(request, pk, day_pk, re_pk):
 
 @trainer_required
 def trainer_routine_delete(request, pk):
-    routine = get_object_or_404(Routine, pk=pk)
+    routine = get_routine_for_trainer(request, pk)
     if request.method == 'POST':
         name = routine.name
         routine.is_active = False

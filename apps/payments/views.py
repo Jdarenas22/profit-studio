@@ -4,7 +4,7 @@ import logging
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from apps.memberships.models import Membership, MembershipPlan
 from apps.accounts.decorators import trainer_required
-from apps.accounts.models import User
+from apps.accounts.permissions import clients_for_trainer, get_client_for_trainer
 from .models import Payment, ManualPayment
 from .services import compute_integrity_signature, verify_webhook_event
 
@@ -67,8 +67,9 @@ def payment_return(request):
     payment = None
 
     if transaction_id:
+        # Solo el dueño del pago puede verlo (evita leer pagos ajenos con ?id=)
         payment = Payment.objects.select_related('plan').filter(
-            wompi_transaction_id=transaction_id
+            wompi_transaction_id=transaction_id, user=request.user
         ).first()
 
     if not payment and transaction_id:
@@ -178,10 +179,15 @@ def _activate_membership(payment):
 @trainer_required
 def trainer_manual_payment_list(request):
     client_pk = request.GET.get('client')
-    payments = ManualPayment.objects.select_related('user', 'trainer', 'plan').order_by('-payment_date')
+    # Solo pagos de clientes accesibles (superusuaria: todos; entrenador: los suyos)
+    payments = ManualPayment.objects.select_related('user', 'trainer', 'plan').filter(
+        user__in=clients_for_trainer(request.user)
+    ).order_by('-payment_date')
     client = None
     if client_pk:
-        client = get_object_or_404(User, pk=client_pk, role='member')
+        if not client_pk.isdigit():
+            raise Http404
+        client = get_client_for_trainer(request, int(client_pk))
         payments = payments.filter(user=client)
     total = sum(p.amount for p in payments)
     return render(request, 'trainer/manual_payment_list.html', {
@@ -193,7 +199,7 @@ def trainer_manual_payment_list(request):
 
 @trainer_required
 def trainer_manual_payment_add(request, client_pk):
-    client = get_object_or_404(User, pk=client_pk, role='member')
+    client = get_client_for_trainer(request, client_pk)
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
     errors = {}
 

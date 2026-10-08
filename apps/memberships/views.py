@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from apps.accounts.decorators import trainer_required
-from apps.accounts.models import User
+from apps.accounts.permissions import get_client_for_trainer
 from .models import MembershipPlan, Membership
 
 
@@ -12,7 +12,7 @@ def plans_view(request):
 
 @trainer_required
 def trainer_membership_manage(request, client_pk):
-    client = get_object_or_404(User, pk=client_pk, role='member')
+    client = get_client_for_trainer(request, client_pk)
     plans = MembershipPlan.objects.filter(is_active=True)
 
     try:

@@ -28,11 +28,13 @@
           <a href="{% url 'dashboard' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
             <i class="fa fa-user-circle mr-1"></i>{{ user.first_name|default:user.username }}
           </a>
-          <a href="{% url 'logout' %}"
-             onclick="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');"
-             class="text-sm text-white/50 hover:text-white transition-colors">
-            Salir
-          </a>
+          <form method="post" action="{% url 'logout' %}" class="flex"
+                onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
+            {% csrf_token %}
+            <button type="submit" class="text-sm text-white/50 hover:text-white transition-colors">
+              Salir
+            </button>
+          </form>
         {% else %}
           <a href="{% url 'login' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
             Iniciar sesión
@@ -63,9 +65,11 @@
         <a href="{% url 'dashboard' %}" class="block text-white/70 py-2 font-medium">
           <i class="fa fa-user-circle mr-2"></i>Mi perfil
         </a>
-        <a href="{% url 'logout' %}"
-           onclick="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');"
-           class="block text-white/50 py-2">Cerrar sesión</a>
+        <form method="post" action="{% url 'logout' %}"
+              onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
+          {% csrf_token %}
+          <button type="submit" class="block w-full text-left text-white/50 py-2">Cerrar sesión</button>
+        </form>
       {% else %}
         <a href="{% url 'login' %}" class="block text-white/70 py-2 font-medium">Iniciar sesión</a>
         <a href="{% url 'register' %}"

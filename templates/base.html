@@ -117,13 +117,28 @@
       var REMEMBER_KEY = 'pfs_remember';
       var CHANNEL     = 'pfs_session_sync';
 
+      // La vista logout solo acepta POST: se envía con fetch + CSRF y, si el
+      // servidor confirma, se redirige. keepalive evita que el navegador cancele
+      // la petición si la página se descarga mientras está en vuelo. Si falla no
+      // se redirige (evita un bucle de recargas con la sesión aún abierta).
+      function postLogout() {
+        fetch('{% url "logout" %}', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+          keepalive: true
+        }).then(function (res) {
+          if (res.ok) window.location.replace('/');
+        }).catch(function () {});
+      }
+
       // Si el usuario eligió "Recordarme", omitir toda la verificación
       if (localStorage.getItem(REMEMBER_KEY) === '1') return;
 
       // Fallback para navegadores muy antiguos sin BroadcastChannel
       if (typeof BroadcastChannel === 'undefined') {
         if (!sessionStorage.getItem(SESSION_KEY)) {
-          window.location.replace('{% url "logout" %}');
+          postLogout();
         }
         sessionStorage.setItem(SESSION_KEY, '1');
         return;
@@ -162,7 +177,7 @@
         if (!confirmed) {
           // Nadie respondió → el navegador fue cerrado y reabierto → logout
           localStorage.removeItem(REMEMBER_KEY);
-          window.location.replace('{% url "logout" %}');
+          postLogout();
         }
       }, 150);
     })();

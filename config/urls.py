@@ -35,11 +35,15 @@ if settings.DEBUG:
     except ImportError:
         pass
 else:
-    # En producción (Railway) Django sirve media files directamente.
-    # No hay nginx ni R2 configurado — esto permite ver imágenes/videos subidos.
-    # Nota: los archivos se pierden al redesplegar (Railway no tiene volumen persistente).
+    # Producción: Django sirve /media/ SOLO si NO hay almacenamiento externo (R2)
+    # y MEDIA_ROOT está definido y no vacío. Con R2 los archivos salen del bucket
+    # (R2_PUBLIC_URL) y esta ruta no debe existir; con MEDIA_ROOT vacío serviría el
+    # directorio de trabajo y expondría .env y el código fuente.
+    # Nota: los archivos locales se pierden al redesplegar (Railway no tiene volumen persistente).
     # Para videos permanentes usa el campo "URL de YouTube" en el formulario de ejercicios.
-    import re as _re
-    urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
-    ]
+    _media_root = str(getattr(settings, 'MEDIA_ROOT', '') or '').strip()
+    _uses_r2 = bool(getattr(settings, 'AWS_STORAGE_BUCKET_NAME', ''))
+    if _media_root and not _uses_r2:
+        urlpatterns += [
+            re_path(r'^media/(?P<path>.*)$', serve, {'document_root': _media_root}),
+        ]

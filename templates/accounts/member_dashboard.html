@@ -32,10 +32,14 @@
          class="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
         <i class="fa fa-receipt"></i> <span class="hidden sm:inline">Mis pagos</span>
       </a>
-      <a href="{% url 'logout' %}" onclick="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');"
-         class="text-white/30 hover:text-white text-sm transition-colors px-2 py-2">
-        <i class="fa fa-sign-out-alt"></i>
-      </a>
+      <form method="post" action="{% url 'logout' %}" class="flex"
+            onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
+        {% csrf_token %}
+        <button type="submit" aria-label="Cerrar sesión"
+                class="text-white/30 hover:text-white text-sm transition-colors px-2 py-2">
+          <i class="fa fa-sign-out-alt"></i>
+        </button>
+      </form>
     </div>
   </div>
 

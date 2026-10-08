@@ -1,4 +1,7 @@
 import getpass
+import os
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from apps.accounts.models import User
 
@@ -11,7 +14,11 @@ class Command(BaseCommand):
         parser.add_argument('--email', default='')
         parser.add_argument('--first-name', dest='first_name', default='Adriana')
         parser.add_argument('--last-name', dest='last_name', default='')
-        parser.add_argument('--password', default='')
+        parser.add_argument(
+            '--password', default='',
+            help='NO recomendado: queda visible en la lista de procesos. Prefiere la variable '
+                 'de entorno TRAINER_INITIAL_PASSWORD (o TRAINER_PASSWORD) o el aviso interactivo.',
+        )
         parser.add_argument('--superuser', action='store_true', default=False,
                             help='Otorgar permisos de superusuario (solo para la entrenadora principal)')
 
@@ -41,12 +48,27 @@ class Command(BaseCommand):
             return
 
         if not password:
+            # Preferir el entorno: no queda en los argumentos del proceso ni en los logs.
+            # TRAINER_PASSWORD se acepta por compatibilidad con despliegues anteriores.
+            password = (
+                os.environ.get('TRAINER_INITIAL_PASSWORD')
+                or os.environ.get('TRAINER_PASSWORD')
+                or ''
+            )
+        if not password:
             password = getpass.getpass('Contraseña para la entrenadora: ')
             confirm = getpass.getpass('Confirmar contraseña: ')
             if password != confirm:
                 raise CommandError('Las contraseñas no coinciden.')
         if len(password) < 8:
             raise CommandError('La contraseña debe tener al menos 8 caracteres.')
+        try:
+            validate_password(password, user=User(
+                username=username, email=email,
+                first_name=first_name, last_name=last_name,
+            ))
+        except ValidationError as exc:
+            raise CommandError('Contraseña no válida: ' + ' '.join(exc.messages))
 
         trainer = User.objects.create_user(
             username=username,

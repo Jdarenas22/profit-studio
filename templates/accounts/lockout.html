@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Cuenta bloqueada temporalmente — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="min-h-screen flex items-center justify-center py-20 bg-black">
+  <div class="w-full max-w-md px-4">
+    <div class="bg-zinc-900 border border-white/10 rounded-3xl p-8 sm:p-10 text-center">
+      <div class="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa fa-lock text-red-400 text-2xl" aria-hidden="true"></i>
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-black text-white mb-3">Cuenta bloqueada temporalmente</h1>
+
+      <div role="alert" class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 mb-6">
+        <p class="text-red-300 text-sm font-medium">
+          Demasiados intentos fallidos de inicio de sesión.
+        </p>
+      </div>
+
+      <p class="text-white/70 text-base mb-2">
+        Por tu seguridad, bloqueamos el acceso después de 5 intentos fallidos.
+      </p>
+      <p class="text-white/70 text-base mb-8">
+        Vuelve a intentarlo en <strong class="text-white font-semibold">1 hora</strong>.
+      </p>
+
+      <div class="space-y-3">
+        <a href="{% url 'password_reset' %}"
+           class="w-full inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-colors text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+          <i class="fa fa-lock-open" aria-hidden="true"></i> Recuperar mi contraseña
+        </a>
+        <a href="{% url 'home' %}"
+           class="w-full inline-flex items-center justify-center gap-2 border border-white/10 hover:border-primary text-white/80 hover:text-white font-semibold py-3.5 rounded-xl transition-colors text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+          <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver al inicio
+        </a>
+      </div>
+
+      <p class="mt-6 pt-6 border-t border-white/10 text-white/60 text-sm">
+        ¿Necesitas ayuda? Escríbenos por WhatsApp con el botón verde de la esquina.
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}
