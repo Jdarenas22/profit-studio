@@ -1,10 +1,12 @@
 """trainer_membership_manage: duración, plan, acción y notas validados."""
 from datetime import timedelta
+from unittest import mock
 
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.tests.helpers import ScenarioTestCase
+from apps.memberships import views
 from apps.memberships.models import Membership, MembershipPlan
 
 
@@ -38,8 +40,23 @@ class MembershipManageValidationTests(ScenarioTestCase):
                     continue          # vacío = duración del plan (caso válido)
                 self.assertEqual(response.status_code, 200)
                 self.assertIn('duration_days', response.context['errors'])
-                self.assertTrue([str(m) for m in response.context['messages']])
+                # membership_manage.html pinta el error junto al campo: sin duplicado flash
+                self.assertFalse([str(m) for m in response.context['messages']])
         self.assertFalse(Membership.objects.filter(user=self.client_a, end_date__gt=timezone.localdate() + timedelta(days=31)).exists())
+
+    def test_inline_errors_are_not_flashed_but_unpainted_ones_are(self):
+        # plan_id, duration_days, notes y action se pintan en la plantilla
+        for data, field in (({'action': 'activate'}, 'plan_id'),
+                            ({'action': 'activate', 'plan_id': self.plan.pk, 'notes': 'x' * 3000}, 'notes'),
+                            ({'action': 'inventada'}, 'action')):
+            with self.subTest(field=field):
+                response = self.post(**data)
+                self.assertIn(field, response.context['errors'])
+                self.assertFalse([str(m) for m in response.context['messages']])
+        rendered = tuple(f for f in views.MEMBERSHIP_RENDERED if f != 'plan_id')
+        with mock.patch.object(views, 'MEMBERSHIP_RENDERED', rendered):
+            response = self.post(action='activate')
+        self.assertTrue([str(m) for m in response.context['messages']])
 
     def test_invalid_duration_does_not_touch_an_existing_membership(self):
         self.post(action='activate', plan_id=self.plan.pk)

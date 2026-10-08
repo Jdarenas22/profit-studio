@@ -108,9 +108,12 @@ class RegisterValidationTests(RegisterBase):
         self.assert_rejected('gender', gender='X')
         self.assert_rejected('training_goal', training_goal='hackear')
 
-    def test_errors_not_shown_next_to_fields_are_flashed(self):
+    def test_errors_shown_next_to_the_field_are_not_flashed_again(self):
+        # register.html pinta `errors.phone`; el aviso flash sería un duplicado
+        # (más casos en test_flash_errors.py)
         response = self.register(phone='abc')
-        self.assertTrue(any('Teléfono' in m for m in messages_of(response)))
+        self.assertIn('phone', response.context['errors'])
+        self.assertFalse(any('Teléfono' in m for m in messages_of(response)))
 
     def test_stale_or_garbage_plan_is_ignored_not_fatal(self):
         for i, plan in enumerate(('abc', '99999', '-1', ' ')):

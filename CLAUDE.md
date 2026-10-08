@@ -81,7 +81,7 @@ Variables de entorno requeridas en Railway:
 - `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`
 - `SECRET_KEY` y `ALLOWED_HOSTS` son OBLIGATORIAS: `production.py` no arranca si faltan, si ALLOWED_HOSTS tiene `*` o si SECRET_KEY es un valor de ejemplo
 - `TRAINER_INITIAL_PASSWORD` (opcional; también se acepta el nombre antiguo `TRAINER_PASSWORD`): si existe, `start.sh` crea la superusuaria `yiseth` con esa contraseña. Sin ella no se crea la cuenta. Nunca hay contraseña por defecto en el código
-- R2: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL`, `R2_PUBLIC_URL`
+- R2: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL`, `R2_PUBLIC_URL`, `R2_RECEIPTS_BUCKET_NAME` (bucket PRIVADO para comprobantes)
 - Wompi: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`
 - Email: `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
 - `WHATSAPP_NUMBER`, `WHATSAPP_LINK`, `INSTAGRAM_URL`
@@ -90,6 +90,7 @@ Variables de entorno requeridas en Railway:
 
 - **Sin R2 configurado**: guarda en `BASE_DIR/media/` (se pierde con cada redeploy en Railway)
 - **Con R2**: usa `django-storages[s3]` + boto3 con `AWS_QUERYSTRING_AUTH=False` (URLs permanentes). `R2_ENDPOINT_URL` es el endpoint S3 API de boto3; `R2_PUBLIC_URL` es la URL pública del bucket (e.g., `https://pub-xxx.r2.dev`)
+- **Comprobantes de pago (`receipts/`) nunca son públicos**: `ManualPayment.receipt` usa `apps/payments/storage.py` (con R2: bucket aparte `R2_RECEIPTS_BUCKET_NAME`, sin dominio público, URLs firmadas de 5 min) y solo se entregan por la vista `payment_receipt`. `/media/receipts/...` responde 404 (`config/media.py`).
 
 ### Frontend
 

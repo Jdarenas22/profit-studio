@@ -2,15 +2,18 @@
 import io
 import shutil
 import tempfile
+from unittest import mock
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
+from django.utils.html import escape
 from PIL import Image
 
 from apps.accounts.form_utils import SafeImageField, SafeVideoField
 from apps.accounts.tests.helpers import ScenarioTestCase
+from apps.exercises import views
 from apps.exercises.models import Exercise, ExerciseCategory
 from apps.exercises.validators import extract_youtube_id
 
@@ -270,8 +273,23 @@ class ExerciseFormViewTests(ScenarioTestCase):
         e.refresh_from_db()
         self.assertEqual(e.name, 'Original')
 
-    def test_errors_are_flashed_because_template_does_not_show_them(self):
+    def test_inline_errors_are_not_flashed_again(self):
+        # exercise_form.html pinta el error de video_url junto al campo
         response = self.client.post(self.create_url, self.payload(video_url='https://evil.com'))
+        self.assertIn('video_url', response.context['errors'])
+        self.assertContains(response, escape(response.context['errors']['video_url']))
+        self.assertFalse([str(m) for m in response.context['messages']])
+        # lo mismo al editar
+        e = Exercise.objects.create(name='Original', level='beginner', description='d', muscles='m')
+        response = self.client.post(reverse('trainer_exercise_edit', args=[e.pk]),
+                                    self.payload(video_url='https://evil.com'))
+        self.assertIn('video_url', response.context['errors'])
+        self.assertFalse([str(m) for m in response.context['messages']])
+
+    def test_error_not_painted_by_the_template_is_flashed(self):
+        rendered = tuple(f for f in views.EXERCISE_RENDERED if f != 'video_url')
+        with mock.patch.object(views, 'EXERCISE_RENDERED', rendered):
+            response = self.client.post(self.create_url, self.payload(video_url='https://evil.com'))
         self.assertTrue(any('YouTube' in str(m) for m in response.context['messages']))
 
 

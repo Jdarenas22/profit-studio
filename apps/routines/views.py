@@ -10,6 +10,9 @@ from apps.accounts.permissions import clients_for_trainer
 from .forms import RoutineDayForm, RoutineExerciseForm, RoutineForm
 from .models import Routine, RoutineDay, RoutineExercise, RoutineDayLog
 
+# Campos cuyo error ya pinta routine_create.html junto al input (`errors.<campo>`).
+ROUTINE_RENDERED = ('name', 'notes')
+
 
 def htmx_form_error(form):
     """Fragmento HTML con el primer error del formulario, para las vistas que responde HTMX.
@@ -80,7 +83,7 @@ def trainer_routine_create(request):
             messages.success(request, f'Rutina "{routine.name}" creada. Ahora agrégale días y ejercicios.')
             return redirect('trainer_routine_builder', pk=routine.pk)
         errors = errors_dict(form)
-        flash_errors(request, form, errors)   # la plantilla no pinta errores por campo
+        flash_errors(request, form, errors, skip=ROUTINE_RENDERED)
         return render(request, 'trainer/routine_create.html', {
             'clients': clients, 'errors': errors, 'form': request.POST,
         })

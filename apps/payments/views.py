@@ -179,9 +179,12 @@ def trainer_manual_payment_list(request):
     })
 
 
-# Campos cuyo error la plantilla actual NO muestra junto al campo: se avisan con un mensaje flash
-_FIELDS_WITHOUT_INLINE_ERROR = ('method', 'plan', 'receipt', 'notes')
-_FIELD_LABELS = {'method': 'Método de pago', 'plan': 'Plan', 'receipt': 'Comprobante', 'notes': 'Notas'}
+# Campos cuyo error manual_payment_add.html ya pinta junto al input (`errors.<campo>`).
+# Cualquier otro error (p. ej. uno general del formulario) se avisa con un mensaje flash para
+# que nunca falle en silencio; los pintados NO se repiten como flash.
+_FIELDS_WITH_INLINE_ERROR = ('amount', 'payment_date', 'method', 'plan', 'receipt', 'notes')
+_FIELD_LABELS = {'method': 'Método de pago', 'plan': 'Plan', 'receipt': 'Comprobante', 'notes': 'Notas',
+                 'amount': 'Monto', 'payment_date': 'Fecha de pago', '__all__': 'Formulario'}
 
 
 @trainer_required
@@ -212,9 +215,9 @@ def trainer_manual_payment_add(request, client_pk):
             return redirect('trainer_client_detail', pk=client_pk)
 
         errors = form.error_messages_by_field()
-        for field in _FIELDS_WITHOUT_INLINE_ERROR:
-            if field in errors:
-                messages.error(request, f"{_FIELD_LABELS[field]}: {errors[field]}")
+        for field, text in errors.items():
+            if field not in _FIELDS_WITH_INLINE_ERROR:
+                messages.error(request, f"{_FIELD_LABELS.get(field, field)}: {text}")
         # `form` conserva el nombre que usa la plantilla (los valores enviados)
         return render(request, 'trainer/manual_payment_add.html', {
             'client': client, 'plans': plans, 'errors': errors, 'form': request.POST,

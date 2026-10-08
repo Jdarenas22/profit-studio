@@ -1,3 +1,5 @@
+import warnings
+
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *
@@ -86,22 +88,47 @@ _r2_secret    = env('R2_SECRET_ACCESS_KEY', default='')
 _r2_bucket    = env('R2_BUCKET_NAME', default='')
 _r2_endpoint  = env('R2_ENDPOINT_URL', default='')   # API de boto3: https://<account-id>.r2.cloudflarestorage.com
 _r2_public    = env('R2_PUBLIC_URL', default='')      # URL pública del bucket: https://pub-xxxx.r2.dev
+# Bucket PRIVADO solo para comprobantes de pago (receipts/). Ver apps/payments/storage.py.
+_r2_receipts  = env('R2_RECEIPTS_BUCKET_NAME', default='')
 
 if _r2_key and _r2_secret and _r2_bucket and _r2_endpoint:
     AWS_ACCESS_KEY_ID       = _r2_key
     AWS_SECRET_ACCESS_KEY   = _r2_secret
     AWS_STORAGE_BUCKET_NAME = _r2_bucket
     AWS_S3_ENDPOINT_URL     = _r2_endpoint  # Usado por boto3 para subir archivos
+    AWS_S3_REGION_NAME      = 'auto'         # R2 no tiene regiones; "auto" es lo que documenta Cloudflare
+    AWS_S3_SIGNATURE_VERSION = 's3v4'        # R2 solo acepta firmas SigV4 (las URLs firmadas lo necesitan)
     AWS_DEFAULT_ACL         = None           # R2 no soporta ACLs por objeto; acceso controlado a nivel bucket
     AWS_S3_FILE_OVERWRITE   = False
-    AWS_QUERYSTRING_AUTH    = False          # URLs permanentes (requiere bucket público en Cloudflare)
+    AWS_QUERYSTRING_AUTH    = False          # media pública: URLs permanentes (requiere bucket público en Cloudflare)
     DEFAULT_FILE_STORAGE    = 'storages.backends.s3boto3.S3Boto3Storage'
     # URL pública del bucket (ej: https://pub-abc123.r2.dev)
     # Si no se define R2_PUBLIC_URL se usa el endpoint de API como fallback
     MEDIA_URL = (_r2_public.rstrip('/') + '/') if _r2_public else f'{_r2_endpoint}/{_r2_bucket}/'
+
+    # ── Comprobantes de pago: NUNCA públicos ──────────────────────────────────────
+    # En R2 "público" (r2.dev o dominio personalizado) se activa por BUCKET completo, no por
+    # prefijo: si receipts/ vive en el bucket público de media, cualquiera que tenga la URL
+    # (https://pub-xxxx.r2.dev/receipts/<id>.png) ve el comprobante. Por eso los comprobantes
+    # usan su propio storage (apps/payments/storage.py): sin dominio personalizado, URLs
+    # firmadas de 5 minutos, y bucket aparte si se define R2_RECEIPTS_BUCKET_NAME.
+    # La app los entrega solo por payments/receipts/<pk>/ (la vista lee con las credenciales
+    # del servidor y comprueba quién pide el archivo).
+    # MEDIA_URL / R2_PUBLIC_URL solo alimentan el storage de media pública; los comprobantes
+    # no los usan.
+    RECEIPTS_BUCKET_NAME = _r2_receipts
+    if not _r2_receipts or _r2_receipts == _r2_bucket:
+        warnings.warn(
+            'R2_RECEIPTS_BUCKET_NAME no está definido (o es igual a R2_BUCKET_NAME): los '
+            'comprobantes se guardan en el bucket de media. Si ese bucket tiene acceso público '
+            '(r2.dev o dominio personalizado), los comprobantes serían públicos para quien '
+            'tenga la URL. Crea un bucket privado y define R2_RECEIPTS_BUCKET_NAME.',
+            RuntimeWarning, stacklevel=2,
+        )
 else:
     MEDIA_ROOT = BASE_DIR / 'media'
     MEDIA_URL  = '/media/'
+    RECEIPTS_BUCKET_NAME = ''
 
 # ─── Cache y sesiones (OPCIONAL con Redis) ──────────────────────────────────────
 _redis_url = env('REDIS_URL', default='')

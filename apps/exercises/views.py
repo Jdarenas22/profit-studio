@@ -7,6 +7,11 @@ from apps.accounts.form_utils import errors_dict, flash_errors
 from .forms import ExerciseFilterForm, ExerciseForm
 from .models import Exercise, ExerciseCategory
 
+# Campos cuyo error ya pinta exercise_form.html junto al input (`errors.<campo>`).
+# `is_public` (casilla) no se pinta: si fallara, se avisa con `messages`.
+EXERCISE_RENDERED = ('name', 'category', 'level', 'description', 'muscles', 'recommendations',
+                     'video_url', 'video_file', 'image')
+
 
 def public_exercises(request):
     exercises = Exercise.objects.filter(
@@ -73,7 +78,7 @@ def trainer_exercise_create(request):
             messages.success(request, f'Ejercicio "{exercise.name}" creado correctamente.')
             return redirect('trainer_exercise_list')
         errors = errors_dict(form)
-        flash_errors(request, form, errors)   # la plantilla aún no pinta errores por campo
+        flash_errors(request, form, errors, skip=EXERCISE_RENDERED)
         return render(request, 'trainer/exercise_form.html', {
             'categories': categories,
             'level_choices': Exercise.LEVEL_CHOICES,
@@ -97,7 +102,7 @@ def trainer_exercise_edit(request, pk):
             messages.success(request, f'Ejercicio "{exercise.name}" actualizado.')
             return redirect('trainer_exercise_list')
         errors = errors_dict(form)
-        flash_errors(request, form, errors)
+        flash_errors(request, form, errors, skip=EXERCISE_RENDERED)
         return render(request, 'trainer/exercise_form.html', {
             # se relee: la instancia del formulario queda con los valores tecleados, aunque sean inválidos
             'exercise': get_object_or_404(Exercise, pk=pk),

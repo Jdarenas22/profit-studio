@@ -3,6 +3,8 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from .storage import receipts_storage
+
 
 def _gen_reference():
     return f"PROFIT-{uuid.uuid4().hex[:12].upper()}"
@@ -133,7 +135,7 @@ class ManualPayment(models.Model):
     # FileField (no ImageField) porque tambien se aceptan PDF. El contenido se
     # valida en ManualPaymentForm (tamano y tipo real segun el contenido).
     receipt = models.FileField(
-        upload_to=receipt_upload_to, blank=True, null=True,
+        upload_to=receipt_upload_to, storage=receipts_storage, blank=True, null=True,
         verbose_name='Comprobante (foto o PDF)',
     )
     notes = models.TextField(blank=True, verbose_name='Notas')

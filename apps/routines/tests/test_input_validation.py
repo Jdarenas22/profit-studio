@@ -1,8 +1,11 @@
 """Rutinas, días y ejercicios en día: validación de entradas (vistas normales y HTMX)."""
+from unittest import mock
+
 from django.urls import reverse
 
 from apps.accounts.tests.helpers import ScenarioTestCase
 from apps.exercises.models import Exercise
+from apps.routines import views
 from apps.routines.models import Routine, RoutineDay, RoutineExercise
 
 
@@ -12,7 +15,7 @@ class RoutineCreateValidationTests(ScenarioTestCase):
         self.url = reverse('trainer_routine_create')
         self.count = Routine.objects.count()
 
-    def test_blank_or_too_long_name_is_rejected_with_messages(self):
+    def test_blank_or_too_long_name_is_rejected_inline_without_duplicate_flash(self):
         for data in ({'name': '', 'client': self.client_a.pk}, {'name': '   ', 'client': self.client_a.pk},
                      {'name': 'x' * 201, 'client': self.client_a.pk},
                      {'name': 'ok', 'client': self.client_a.pk, 'notes': 'x' * 2001}):
@@ -20,8 +23,15 @@ class RoutineCreateValidationTests(ScenarioTestCase):
                 response = self.client.post(self.url, data)
                 self.assertEqual(response.status_code, 200)
                 self.assertTrue(response.context['errors'])
-                self.assertTrue([str(m) for m in response.context['messages']])
+                # routine_create.html pinta name y notes junto al campo: sin duplicado flash
+                self.assertFalse([str(m) for m in response.context['messages']])
         self.assertEqual(Routine.objects.count(), self.count)
+
+    def test_error_not_painted_by_the_template_is_flashed(self):
+        rendered = tuple(f for f in views.ROUTINE_RENDERED if f != 'name')
+        with mock.patch.object(views, 'ROUTINE_RENDERED', rendered):
+            response = self.client.post(self.url, {'name': '', 'client': self.client_a.pk})
+        self.assertTrue([str(m) for m in response.context['messages']])
 
     def test_missing_name_does_not_raise_key_error(self):
         self.assertEqual(self.client.post(self.url, {'client': self.client_a.pk}).status_code, 200)

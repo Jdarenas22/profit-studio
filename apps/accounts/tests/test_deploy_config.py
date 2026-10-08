@@ -32,7 +32,7 @@ CLEAN_ENV = {
     'DATABASE_URL': 'sqlite:///:memory:',
     'REDIS_URL': '',
     'R2_ACCESS_KEY_ID': '', 'R2_SECRET_ACCESS_KEY': '', 'R2_BUCKET_NAME': '',
-    'R2_ENDPOINT_URL': '', 'R2_PUBLIC_URL': '',
+    'R2_ENDPOINT_URL': '', 'R2_PUBLIC_URL': '', 'R2_RECEIPTS_BUCKET_NAME': '',
     'EMAIL_HOST_USER': '',
 }
 
@@ -44,7 +44,9 @@ PROBE = (
     " 'secret_ok': bool(settings.SECRET_KEY), 'debug': settings.DEBUG,"
     " 'axes_ip': settings.AXES_CLIENT_IP_CALLABLE,"
     " 'axes_params': settings.AXES_LOCKOUT_PARAMETERS,"
-    " 'axes_reset': settings.AXES_RESET_ON_SUCCESS}))"
+    " 'axes_reset': settings.AXES_RESET_ON_SUCCESS,"
+    " 'receipts_bucket': getattr(settings, 'RECEIPTS_BUCKET_NAME', None),"
+    " 'media_url': settings.MEDIA_URL}))"
 )
 
 
@@ -69,6 +71,29 @@ class ProductionSettingsTests(SimpleTestCase):
         self.assertEqual(data['axes_ip'], 'apps.accounts.axes_utils.get_client_ip')
         self.assertEqual(data['axes_params'], [['username', 'ip_address']])
         self.assertTrue(data['axes_reset'])
+
+    R2_ENV = {'R2_ACCESS_KEY_ID': 'k', 'R2_SECRET_ACCESS_KEY': 's', 'R2_BUCKET_NAME': 'media-publico',
+              'R2_ENDPOINT_URL': 'https://acc123.r2.cloudflarestorage.com',
+              'R2_PUBLIC_URL': 'https://pub-xxxx.r2.dev'}
+
+    def test_r2_with_private_receipts_bucket_has_no_warning(self):
+        code, data, err = load_production(R2_RECEIPTS_BUCKET_NAME='recibos-privado', **self.R2_ENV)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['receipts_bucket'], 'recibos-privado')
+        self.assertNotIn('R2_RECEIPTS_BUCKET_NAME', err)
+
+    def test_r2_without_receipts_bucket_warns_that_receipts_share_the_media_bucket(self):
+        code, data, err = load_production(**self.R2_ENV)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['receipts_bucket'], '')
+        self.assertIn('R2_RECEIPTS_BUCKET_NAME', err)
+
+    def test_without_r2_there_is_no_receipts_bucket_and_no_warning(self):
+        code, data, err = load_production()
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['receipts_bucket'], '')
+        self.assertEqual(data['media_url'], '/media/')
+        self.assertNotIn('R2_RECEIPTS_BUCKET_NAME', err)
 
     def test_secret_key_is_required_and_not_a_placeholder(self):
         for bad in ('', '   ', 'django-insecure-dev-key-change-in-production',

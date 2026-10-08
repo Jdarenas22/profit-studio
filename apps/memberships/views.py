@@ -7,6 +7,9 @@ from apps.accounts.permissions import get_client_for_trainer
 from .forms import ACTIVATE, DEACTIVATE, MembershipManageForm
 from .models import MembershipPlan, Membership
 
+# Campos cuyo error ya pinta membership_manage.html junto al input (`errors.<campo>`).
+MEMBERSHIP_RENDERED = ('plan_id', 'duration_days', 'notes', 'action')
+
 
 def plans_view(request):
     plans = MembershipPlan.objects.filter(is_active=True)
@@ -27,7 +30,7 @@ def trainer_membership_manage(request, client_pk):
         form = MembershipManageForm(request.POST, membership=membership)
         if not form.is_valid():
             errors = errors_dict(form)
-            flash_errors(request, form, errors)   # la plantilla no pinta errores por campo
+            flash_errors(request, form, errors, skip=MEMBERSHIP_RENDERED)
             return render(request, 'trainer/membership_manage.html', {
                 'client': client,
                 'membership': membership,

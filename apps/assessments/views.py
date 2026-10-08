@@ -11,9 +11,13 @@ from apps.accounts.permissions import (
 from .forms import BodyMeasurementForm, DixonTestForm, InitialAssessmentForm
 from .models import InitialAssessment, DixonTest, BodyMeasurement
 
-# Las plantillas de valoración/medición no pintan errores por campo (salvo `weight` en la
-# medición): todo se avisa con `messages`, y además se pasa `errors`/`form` en el contexto.
-MEASUREMENT_RENDERED = ('weight',)
+# Campos cuyo error ya pinta la plantilla junto al input (`errors.<campo>`, verificado en
+# assessment_create.html, assessment_detail.html y body_measurement_add.html). Lo que no
+# esté aquí (p. ej. errores generales `__all__`) se avisa además con `messages`.
+ASSESSMENT_RENDERED = ('age', 'sex', 'weight', 'height', 'goal', 'physical_restrictions',
+                       'observations', 'p0', 'p1', 'p2', 'dixon_observations')
+DIXON_RENDERED = ('p0', 'p1', 'p2', 'dixon_observations')
+MEASUREMENT_RENDERED = ('weight', 'height', 'waist_cm', 'notes')
 
 
 @login_required
@@ -60,7 +64,7 @@ def trainer_assessment_create(request, client_pk):
             return redirect('trainer_assessment_detail', pk=assessment.pk)
 
         errors = errors_dict(form)
-        flash_errors(request, form, errors)
+        flash_errors(request, form, errors, skip=ASSESSMENT_RENDERED)
         return render(request, 'trainer/assessment_create.html', {
             'client': client,
             'sex_choices': InitialAssessment.SEX_CHOICES,
@@ -99,7 +103,7 @@ def trainer_assessment_detail(request, pk):
             return redirect('trainer_assessment_detail', pk=pk)
 
         errors = errors_dict(form)
-        flash_errors(request, form, errors)
+        flash_errors(request, form, errors, skip=DIXON_RENDERED)
         return render(request, 'trainer/assessment_detail.html', {
             'assessment': assessment,
             'dixon': dixon,

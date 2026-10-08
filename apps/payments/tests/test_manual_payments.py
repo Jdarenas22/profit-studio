@@ -1,17 +1,21 @@
 """Pago manual: formulario (monto, fecha, método, plan, comprobante) y entrega protegida de comprobantes."""
 import io
+import os
 import shutil
 import tempfile
 from datetime import timedelta
+from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 from PIL import Image
 
 from apps.accounts.tests.helpers import ScenarioTestCase
 from apps.memberships.models import MembershipPlan
+from apps.payments import views
 from apps.payments.forms import MAX_RECEIPT_BYTES, ManualPaymentForm, validate_receipt_file
 from apps.payments.models import ManualPayment
 from django import forms
@@ -203,14 +207,39 @@ class ManualPaymentViewTests(ScenarioTestCase):
         self.assertIn('payment_date', response.context['errors'])
         self.assertEqual(ManualPayment.objects.count(), before)
 
-    def test_receipt_error_is_visible_as_flash_message(self):
-        self.login(self.trainer_a)
-        response = self.client.post(self.url(self.client_a), {
+    def _bad_receipt_post(self):
+        return self.client.post(self.url(self.client_a), {
             'amount': '1000', 'payment_date': self.today, 'method': 'cash',
             'receipt': upload('a.png', b'no soy una imagen'),
         })
+
+    def test_receipt_error_is_painted_inline_and_not_flashed_again(self):
+        # manual_payment_add.html pinta `errors.receipt` junto al campo
+        self.login(self.trainer_a)
+        response = self._bad_receipt_post()
         self.assertIn('receipt', response.context['errors'])
+        self.assertContains(response, escape(response.context['errors']['receipt']))
+        self.assertFalse([str(m) for m in response.context['messages']])
+        self.assertNotContains(response, 'Comprobante: ')
+
+    def test_inline_fields_are_never_flashed(self):
+        self.login(self.trainer_a)
+        for field, over in (('amount', {'amount': ''}), ('payment_date', {'payment_date': ''}),
+                            ('method', {'method': 'bitcoin'}), ('notes', {'notes': 'x' * 1001})):
+            with self.subTest(field=field):
+                data = {'amount': '1000', 'payment_date': self.today, 'method': 'cash'}
+                data.update(over)
+                response = self.client.post(self.url(self.client_a), data)
+                self.assertIn(field, response.context['errors'])
+                self.assertFalse([str(m) for m in response.context['messages']])
+
+    def test_error_not_painted_by_the_template_is_flashed(self):
+        self.login(self.trainer_a)
+        inline = tuple(f for f in views._FIELDS_WITH_INLINE_ERROR if f != 'receipt')
+        with mock.patch.object(views, '_FIELDS_WITH_INLINE_ERROR', inline):
+            response = self._bad_receipt_post()
         self.assertContains(response, 'Comprobante: ')
+        self.assertTrue([str(m) for m in response.context['messages']])
 
     def test_receipt_saved_with_random_name(self):
         self.login(self.trainer_a)
@@ -289,3 +318,130 @@ class ReceiptDownloadTests(ScenarioTestCase):
     def test_post_not_allowed(self):
         self.login(self.boss)
         self.assertEqual(self.client.post(self.url).status_code, 405)
+
+
+# ─── Comprobantes: sin acceso público directo ──────────────────────────────────
+
+class ReceiptsNotPublicTests(ScenarioTestCase):
+    """/media/receipts/... responde 404 aunque el archivo exista; la vista protegida sí lo entrega."""
+
+    def setUp(self):
+        import importlib
+        import config.urls
+        from django.urls import clear_url_caches
+
+        self.media = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media, ignore_errors=True)
+        for sub, name in (('receipts', 'x.png'), ('profiles', 'p.png')):
+            os.makedirs(os.path.join(self.media, sub), exist_ok=True)
+            with open(os.path.join(self.media, sub, name), 'wb') as fh:
+                fh.write(image_bytes('PNG'))
+
+        def reload_urls(debug):
+            with override_settings(DEBUG=debug, MEDIA_ROOT=self.media):
+                importlib.reload(config.urls)
+            clear_url_caches()
+
+        self.reload_urls = reload_urls
+        self.addCleanup(lambda: (importlib.reload(config.urls), clear_url_caches()))
+
+    def _check_public_route(self, debug):
+        self.reload_urls(debug)
+        with override_settings(DEBUG=debug, MEDIA_ROOT=self.media):
+            # El resto de media sigue sirviéndose (el bloqueo es solo para receipts/)
+            ok = self.client.get('/media/profiles/p.png')
+            self.assertEqual(ok.status_code, 200, 'la media pública debe seguir funcionando')
+            ok.close()
+            for url in ('/media/receipts/x.png', '/media/receipts/', '/media/receipts',
+                        '/media//receipts/x.png', '/media/./receipts/x.png',
+                        '/media/profiles/../receipts/x.png', '/media/RECEIPTS/x.png',
+                        '/media/receipts./x.png', '/media/receipts%2Fx.png',
+                        '/media/receipts/no-existe.png', '/media/%72eceipts/x.png'):
+                with self.subTest(url=url):
+                    self.assertEqual(self.client.get(url).status_code, 404, url)
+
+    def test_public_media_route_blocks_receipts_in_production_without_r2(self):
+        self._check_public_route(debug=False)
+
+    def test_public_media_route_blocks_receipts_in_debug_too(self):
+        self._check_public_route(debug=True)
+
+    def test_protected_view_still_serves_the_same_file(self):
+        self.reload_urls(False)
+        with override_settings(DEBUG=False, MEDIA_ROOT=self.media):
+            mp = ManualPayment.objects.create(
+                user=self.client_a, trainer=self.trainer_a, amount=1000,
+                payment_date=timezone.localdate(), receipt=upload('c.png', image_bytes('PNG')),
+            )
+            public_url = '/media/' + mp.receipt.name          # lo que antes era público
+            self.assertTrue(mp.receipt.name.startswith('receipts/'))
+            for user in (self.client_a, self.trainer_a, self.boss):
+                self.client.logout()
+                self.login(user)
+                response = self.client.get(reverse('payment_receipt', args=[mp.pk]))
+                self.assertEqual(response.status_code, 200, user.username)
+                self.assertEqual(b''.join(response.streaming_content), image_bytes('PNG'))
+                self.assertEqual(self.client.get(public_url).status_code, 404, user.username)
+            self.client.logout()
+            self.assertEqual(self.client.get(public_url).status_code, 404)   # anónimo tampoco
+
+
+class PrivateMediaPathTests(SimpleTestCase):
+    def test_paths_under_receipts_are_private_in_every_spelling(self):
+        from config.media import is_private_media_path
+        for path in ('receipts/x.png', 'receipts', '/receipts/x.png', './receipts/x.png',
+                     'a/../receipts/x.png', 'RECEIPTS/x.png', 'Receipts/sub/x.png', 'receipts./x.png',
+                     'receipts /x.png', 'receipts\\x.png', '../x', '..'):
+            with self.subTest(path=path):
+                self.assertTrue(is_private_media_path(path), path)
+
+    def test_other_paths_are_public(self):
+        from config.media import is_private_media_path
+        for path in ('profiles/p.png', 'exercises/images/a.jpg', 'my-receipts/x.png',
+                     'receipts-old/x.png', 'profiles/receipts/x.png', 'receiptsx', '', '.'):
+            with self.subTest(path=path):
+                self.assertFalse(is_private_media_path(path), path)
+
+
+class ReceiptsStorageTests(SimpleTestCase):
+    """Con R2 los comprobantes usan un storage privado; sin R2, el de siempre."""
+
+    R2 = dict(
+        AWS_ACCESS_KEY_ID='k', AWS_SECRET_ACCESS_KEY='s', AWS_STORAGE_BUCKET_NAME='media-publico',
+        AWS_S3_ENDPOINT_URL='https://acc123.r2.cloudflarestorage.com', AWS_DEFAULT_ACL=None,
+        AWS_QUERYSTRING_AUTH=False, AWS_S3_REGION_NAME='auto', AWS_S3_SIGNATURE_VERSION='s3v4',
+        AWS_S3_CUSTOM_DOMAIN='pub-xxxx.r2.dev',   # dominio público del bucket de media
+    )
+
+    def test_without_r2_uses_the_default_storage(self):
+        from django.core.files.storage import default_storage
+        from apps.payments.storage import receipts_storage
+        with override_settings(AWS_STORAGE_BUCKET_NAME=''):
+            self.assertIs(receipts_storage(), default_storage)
+
+    def test_model_field_uses_the_receipts_storage_factory(self):
+        from apps.payments.storage import receipts_storage
+        field = ManualPayment._meta.get_field('receipt')
+        self.assertIs(field._storage_callable, receipts_storage)
+
+    def test_with_r2_receipts_use_private_signed_storage_on_their_own_bucket(self):
+        from apps.payments.storage import receipts_storage
+        with override_settings(RECEIPTS_BUCKET_NAME='recibos-privado', **self.R2):
+            storage = receipts_storage()
+            self.assertEqual(storage.bucket_name, 'recibos-privado')
+            self.assertIsNone(storage.custom_domain)      # no hereda el dominio público de media
+            self.assertTrue(storage.querystring_auth)
+            self.assertEqual(storage.querystring_expire, 300)
+            url = storage.url('receipts/abc.png')         # firma local: no hace llamadas de red
+            self.assertNotIn('pub-xxxx.r2.dev', url)
+            self.assertIn('recibos-privado/receipts/abc.png', url)
+            self.assertIn('X-Amz-Signature=', url)        # SigV4 (la única que acepta R2)
+            self.assertIn('X-Amz-Expires=300', url)
+
+    def test_with_r2_and_no_receipts_bucket_falls_back_to_media_bucket_but_stays_signed(self):
+        from apps.payments.storage import receipts_storage
+        with override_settings(RECEIPTS_BUCKET_NAME='', **self.R2):
+            storage = receipts_storage()
+            self.assertEqual(storage.bucket_name, 'media-publico')
+            self.assertIsNone(storage.custom_domain)
+            self.assertIn('X-Amz-Signature=', storage.url('receipts/abc.png'))

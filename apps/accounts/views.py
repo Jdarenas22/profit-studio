@@ -29,13 +29,20 @@ logger = logging.getLogger(__name__)
 
 # Campos que cada plantilla ya pinta junto al input (`errors.<campo>`): el resto de
 # errores se avisa además con `messages` para que nunca fallen en silencio.
-REGISTER_RENDERED = ('first_name', 'last_name', 'email', 'username', 'password1', 'password2')
-CLIENT_ADD_RENDERED = ('first_name', 'last_name', 'email', 'username', 'password')
-CLIENT_EDIT_RENDERED = ('first_name', 'last_name', 'email', 'username', 'new_password')
-PROFILE_RENDERED = ('first_name', 'last_name', 'email', 'current_password', 'new_password',
-                    'confirm_password')
-TRAINER_FORM_RENDERED = ('first_name', 'last_name', 'email', 'username', 'password', 'password2')
-TRAINER_EDIT_RENDERED = ('first_name', 'last_name', 'email')
+# Cada tupla se verificó contra su plantilla con `errors.<campo>` (register.html,
+# client_add.html, client_edit.html, profile_edit.html, trainer_form.html, trainer_edit.html).
+# Si una plantilla deja de pintar un campo, hay que quitarlo de aquí para que vuelva el aviso.
+REGISTER_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'password1',
+                     'password2', 'gender', 'training_goal')
+CLIENT_ADD_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'password',
+                       'gender')
+CLIENT_EDIT_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'new_password',
+                        'gender')
+PROFILE_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'gender', 'bio', 'profile_photo',
+                    'current_password', 'new_password', 'confirm_password')
+TRAINER_FORM_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'password',
+                         'password2', 'bio')
+TRAINER_EDIT_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'bio', 'profile_photo')
 
 # Límites del registro público (por IP, ventana fija). Se pueden ajustar en settings.
 REGISTER_ATTEMPTS_LIMIT = getattr(settings, 'REGISTER_ATTEMPTS_LIMIT', 20)    # envíos de formulario / ventana

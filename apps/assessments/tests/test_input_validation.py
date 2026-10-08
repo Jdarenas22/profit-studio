@@ -1,9 +1,12 @@
 """Valoraciones, test Ruffier-Dickson y mediciones: entradas inválidas no deben dar 500."""
 from decimal import Decimal
+from unittest import mock
 
 from django.urls import reverse
+from django.utils.html import escape
 
 from apps.accounts.tests.helpers import ScenarioTestCase
+from apps.assessments import views
 from apps.assessments.forms import BodyMeasurementForm, InitialAssessmentForm
 from apps.assessments.models import BodyMeasurement, DixonTest, InitialAssessment
 
@@ -28,8 +31,17 @@ class AssessmentCreateTests(ScenarioTestCase):
         self.assertEqual(response.status_code, 200, over)
         self.assertIn(field, response.context['errors'], over)
         self.assertEqual(InitialAssessment.objects.count(), self.count, over)
-        self.assertTrue(messages_of(response), 'la plantilla no pinta errores: debe avisarse con messages')
+        # assessment_create.html pinta el error junto al campo: no se repite como flash
+        self.assertFalse(messages_of(response), 'error pintado inline: no debe duplicarse como flash')
+        self.assertContains(response, escape(response.context['errors'][field]))
         return response
+
+    def test_error_not_painted_by_the_template_is_flashed(self):
+        rendered = tuple(f for f in views.ASSESSMENT_RENDERED if f != 'age')
+        with mock.patch.object(views, 'ASSESSMENT_RENDERED', rendered):
+            response = self.client.post(self.url, self.payload(age='x'))
+        self.assertIn('age', response.context['errors'])
+        self.assertTrue(any('edad' in m.lower() for m in messages_of(response)))
 
     def test_valid_assessment_in_meters(self):
         response = self.client.post(self.url, self.payload())
@@ -109,6 +121,13 @@ class DixonDetailTests(ScenarioTestCase):
         self.login(self.trainer_a)
         self.url = reverse('trainer_assessment_detail', args=[self.assessment_a.pk])
 
+    def test_error_not_painted_by_the_template_is_flashed(self):
+        rendered = tuple(f for f in views.DIXON_RENDERED if f != 'dixon_observations')
+        with mock.patch.object(views, 'DIXON_RENDERED', rendered):
+            response = self.client.post(self.url, {'p0': '70', 'p1': '100', 'p2': '80',
+                                                   'dixon_observations': 'x' * 1001})
+        self.assertTrue(any('Observaciones del test' in m for m in messages_of(response)))
+
     def test_valid_pulses_create_and_then_update(self):
         response = self.client.post(self.url, {'p0': '70', 'p1': '100', 'p2': '80'})
         self.assertRedirects(response, self.url)
@@ -128,7 +147,7 @@ class DixonDetailTests(ScenarioTestCase):
                 response = self.client.post(self.url, data)
                 self.assertEqual(response.status_code, 200)
                 self.assertTrue(response.context['errors'])
-                self.assertTrue(messages_of(response))
+                self.assertFalse(messages_of(response))   # assessment_detail.html los pinta inline
         self.assertFalse(DixonTest.objects.filter(assessment=self.assessment_a).exists())
 
     def test_observations_are_limited(self):
@@ -174,8 +193,20 @@ class BodyMeasurementTests(ScenarioTestCase):
                 self.assertEqual(response.context['form'].get('weight', ''), data.get('weight', ''))
         self.assertEqual(BodyMeasurement.objects.count(), self.count)
 
-    def test_non_weight_errors_are_flashed_because_template_only_shows_weight(self):
-        response = self.client.post(self.url, {'weight': '70', 'height': '0'})
+    def test_inline_errors_are_not_flashed_again(self):
+        # body_measurement_add.html pinta weight, height, waist_cm y notes
+        for data, fields in (({'weight': '70', 'height': '0'}, {'height'}),
+                             ({'weight': 'abc', 'waist_cm': '1', 'notes': 'x' * 2001},
+                              {'weight', 'waist_cm', 'notes'})):
+            with self.subTest(fields=sorted(fields)):
+                response = self.client.post(self.url, data)
+                self.assertTrue(fields <= set(response.context['errors']))
+                self.assertFalse(messages_of(response))
+
+    def test_error_not_painted_by_the_template_is_flashed(self):
+        rendered = tuple(f for f in views.MEASUREMENT_RENDERED if f != 'height')
+        with mock.patch.object(views, 'MEASUREMENT_RENDERED', rendered):
+            response = self.client.post(self.url, {'weight': '70', 'height': '0'})
         self.assertTrue(any('estatura' in m.lower() for m in messages_of(response)))
 
 
