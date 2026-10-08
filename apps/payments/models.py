@@ -1,3 +1,4 @@
+import os
 import uuid
 from django.conf import settings
 from django.db import models
@@ -5,6 +6,14 @@ from django.db import models
 
 def _gen_reference():
     return f"PROFIT-{uuid.uuid4().hex[:12].upper()}"
+
+
+def receipt_upload_to(instance, filename):
+    """Nombre aleatorio e impredecible para los comprobantes (no se conserva el nombre original)."""
+    ext = os.path.splitext(filename or '')[1].lower()
+    if ext not in ('.jpg', '.jpeg', '.png', '.webp', '.pdf'):
+        ext = ''
+    return f"receipts/{uuid.uuid4().hex}{ext}"
 
 
 class Payment(models.Model):
@@ -121,9 +130,11 @@ class ManualPayment(models.Model):
         default=METHOD_CASH, verbose_name='Método de pago',
     )
     payment_date = models.DateField(verbose_name='Fecha de pago')
-    receipt = models.ImageField(
-        upload_to='receipts/', blank=True, null=True,
-        verbose_name='Comprobante (foto)',
+    # FileField (no ImageField) porque tambien se aceptan PDF. El contenido se
+    # valida en ManualPaymentForm (tamano y tipo real segun el contenido).
+    receipt = models.FileField(
+        upload_to=receipt_upload_to, blank=True, null=True,
+        verbose_name='Comprobante (foto o PDF)',
     )
     notes = models.TextField(blank=True, verbose_name='Notas')
     created_at = models.DateTimeField(auto_now_add=True)
