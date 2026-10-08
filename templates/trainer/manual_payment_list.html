@@ -64,8 +64,8 @@
           <td class="px-6 py-4 text-right font-black text-primary">${{ p.amount|floatformat:0 }}</td>
           <td class="px-6 py-4">
             {% if p.receipt %}
-            <a href="{{ p.receipt.url }}" target="_blank" class="text-primary hover:text-primary-dark text-xs">
-              <i class="fa fa-image mr-1"></i>Ver
+            <a href="{% url 'payment_receipt' p.pk %}" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-primary-dark text-xs">
+              <i class="fa fa-paperclip mr-1" aria-hidden="true"></i>Ver
             </a>
             {% else %}
             <span class="text-white/20 text-xs">—</span>

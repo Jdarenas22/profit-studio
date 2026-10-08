@@ -24,13 +24,14 @@
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Monto (COP) *</label>
           <input type="text" name="amount" required value="{{ form.amount|default:'' }}"
-                 placeholder="Ej: 150000"
+                 inputmode="numeric" maxlength="20" placeholder="Ej: 150000"
                  class="w-full bg-black/40 border {% if errors.amount %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
           {% if errors.amount %}<p class="text-red-400 text-xs mt-1">{{ errors.amount }}</p>{% endif %}
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Fecha de pago *</label>
           <input type="date" name="payment_date" required value="{{ form.payment_date|default:'' }}"
+                 max="{% now 'Y-m-d' %}" min="2020-01-01"
                  class="w-full bg-black/40 border {% if errors.payment_date %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
           {% if errors.payment_date %}<p class="text-red-400 text-xs mt-1">{{ errors.payment_date }}</p>{% endif %}
         </div>
@@ -40,18 +41,19 @@
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Método de pago</label>
           <select name="method"
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                  class="w-full bg-black/40 border {% if errors.method %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
             <option value="cash"      {% if form.method == 'cash' %}selected{% endif %}>💵 Efectivo</option>
             <option value="transfer"  {% if form.method == 'transfer' %}selected{% endif %}>🏦 Transferencia</option>
             <option value="nequi"     {% if form.method == 'nequi' %}selected{% endif %}>📱 Nequi</option>
             <option value="daviplata" {% if form.method == 'daviplata' %}selected{% endif %}>📱 Daviplata</option>
             <option value="other"     {% if form.method == 'other' %}selected{% endif %}>Otro</option>
           </select>
+          {% if errors.method %}<p class="text-red-400 text-xs mt-1">{{ errors.method }}</p>{% endif %}
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Plan (opcional)</label>
           <select name="plan"
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                  class="w-full bg-black/40 border {% if errors.plan %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
             <option value="">— Sin plan —</option>
             {% for plan in plans %}
             <option value="{{ plan.pk }}" {% if form.plan == plan.pk|stringformat:"s" %}selected{% endif %}>
@@ -59,20 +61,24 @@
             </option>
             {% endfor %}
           </select>
+          {% if errors.plan %}<p class="text-red-400 text-xs mt-1">{{ errors.plan }}</p>{% endif %}
         </div>
       </div>
 
       <div>
-        <label class="block text-white/60 text-xs font-medium mb-2">Comprobante (foto opcional)</label>
-        <input type="file" name="receipt" accept="image/*"
-               class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+        <label class="block text-white/60 text-xs font-medium mb-2">Comprobante (foto o PDF, máx. 5 MB)</label>
+        <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf"
+               class="w-full bg-black/40 border {% if errors.receipt %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+        {% if errors.receipt %}<p class="text-red-400 text-xs mt-1">{{ errors.receipt }}</p>{% endif %}
+        {% if form %}<p class="text-white/30 text-xs mt-1">Por seguridad, vuelve a seleccionar el archivo.</p>{% endif %}
       </div>
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Notas (opcional)</label>
-        <textarea name="notes" rows="2"
+        <textarea name="notes" rows="2" maxlength="1000"
                   placeholder="Observaciones sobre este pago..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+                  class="w-full bg-black/40 border {% if errors.notes %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+        {% if errors.notes %}<p class="text-red-400 text-xs mt-1">{{ errors.notes }}</p>{% endif %}
       </div>
     </div>
 

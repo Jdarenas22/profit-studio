@@ -28,63 +28,69 @@
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Nombre del ejercicio *</label>
-        <input type="text" name="name" required
-               value="{% if exercise %}{{ exercise.name }}{% endif %}"
+        <input type="text" name="name" required maxlength="200"
+               value="{% if form %}{{ form.name|default:'' }}{% elif exercise %}{{ exercise.name }}{% endif %}"
                placeholder="Ej: Press de banca"
-               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+               class="w-full bg-black/40 border {% if errors.name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        {% if errors.name %}<p class="text-red-400 text-xs mt-1">{{ errors.name }}</p>{% endif %}
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Categoría</label>
           <select name="category"
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                  class="w-full bg-black/40 border {% if errors.category %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
             <option value="">— Sin categoría —</option>
             {% for cat in categories %}
-            <option value="{{ cat.pk }}" {% if exercise and exercise.category_id == cat.pk %}selected{% endif %}>
+            <option value="{{ cat.pk }}" {% if form %}{% if form.category == cat.pk|stringformat:'s' %}selected{% endif %}{% elif exercise and exercise.category_id == cat.pk %}selected{% endif %}>
               {{ cat.name }}
             </option>
             {% endfor %}
           </select>
+          {% if errors.category %}<p class="text-red-400 text-xs mt-1">{{ errors.category }}</p>{% endif %}
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Nivel *</label>
           <select name="level" required
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                  class="w-full bg-black/40 border {% if errors.level %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
             {% for value, label in level_choices %}
-            <option value="{{ value }}" {% if exercise and exercise.level == value %}selected{% endif %}>
+            <option value="{{ value }}" {% if form %}{% if form.level == value %}selected{% endif %}{% elif exercise and exercise.level == value %}selected{% endif %}>
               {{ label }}
             </option>
             {% endfor %}
           </select>
+          {% if errors.level %}<p class="text-red-400 text-xs mt-1">{{ errors.level }}</p>{% endif %}
         </div>
       </div>
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Descripción *</label>
-        <textarea name="description" rows="3" required
+        <textarea name="description" rows="3" required maxlength="5000"
                   placeholder="Cómo se ejecuta el ejercicio..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if exercise %}{{ exercise.description }}{% endif %}</textarea>
+                  class="w-full bg-black/40 border {% if errors.description %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if form %}{{ form.description|default:'' }}{% elif exercise %}{{ exercise.description }}{% endif %}</textarea>
+        {% if errors.description %}<p class="text-red-400 text-xs mt-1">{{ errors.description }}</p>{% endif %}
       </div>
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Músculos trabajados *</label>
-        <input type="text" name="muscles" required
-               value="{% if exercise %}{{ exercise.muscles }}{% endif %}"
+        <input type="text" name="muscles" required maxlength="1000"
+               value="{% if form %}{{ form.muscles|default:'' }}{% elif exercise %}{{ exercise.muscles }}{% endif %}"
                placeholder="Ej: Pectoral mayor, deltoides anterior, tríceps"
-               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+               class="w-full bg-black/40 border {% if errors.muscles %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        {% if errors.muscles %}<p class="text-red-400 text-xs mt-1">{{ errors.muscles }}</p>{% endif %}
       </div>
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Recomendaciones (opcional)</label>
-        <textarea name="recommendations" rows="2"
+        <textarea name="recommendations" rows="2" maxlength="3000"
                   placeholder="Consejos técnicos, errores comunes a evitar..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if exercise %}{{ exercise.recommendations }}{% endif %}</textarea>
+                  class="w-full bg-black/40 border {% if errors.recommendations %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{% if form %}{{ form.recommendations|default:'' }}{% elif exercise %}{{ exercise.recommendations }}{% endif %}</textarea>
+        {% if errors.recommendations %}<p class="text-red-400 text-xs mt-1">{{ errors.recommendations }}</p>{% endif %}
       </div>
 
       <label class="flex items-center gap-3 cursor-pointer">
         <input type="checkbox" name="is_public"
-               {% if exercise and exercise.is_public %}checked{% endif %}
+               {% if form %}{% if form.is_public %}checked{% endif %}{% elif exercise and exercise.is_public %}checked{% endif %}
                class="w-4 h-4 accent-orange-500">
         <div>
           <span class="text-white text-sm font-medium">Visible en la galería pública</span>
@@ -106,10 +112,11 @@
           <i class="fab fa-youtube text-red-400 mr-1"></i> Enlace de YouTube
           <span class="text-primary font-semibold ml-1">(Recomendado)</span>
         </label>
-        <input type="url" name="video_url"
-               value="{% if exercise %}{{ exercise.video_url }}{% endif %}"
+        <input type="url" name="video_url" maxlength="200"
+               value="{% if form %}{{ form.video_url|default:'' }}{% elif exercise %}{{ exercise.video_url }}{% endif %}"
                placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."
-               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+               class="w-full bg-black/40 border {% if errors.video_url %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        {% if errors.video_url %}<p class="text-red-400 text-xs mt-1">{{ errors.video_url }}</p>{% endif %}
         <p class="text-white/20 text-xs mt-1">Copia el enlace desde YouTube y pégalo aquí. Funciona con enlaces cortos (youtu.be) y largos.</p>
       </div>
 
@@ -122,23 +129,26 @@
 
       <!-- Archivo de video (solo funciona bien en local) -->
       <div>
-        <label class="block text-white/60 text-xs font-medium mb-2">Video (MP4, MOV)</label>
+        <label class="block text-white/60 text-xs font-medium mb-2">Video (MP4, WEBM o MOV, máx. 100 MB)</label>
         {% if exercise and exercise.video_file %}
         <p class="text-white/30 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Video cargado. <span class="text-yellow-400/60">⚠ Se perderá en el próximo redespliegue. Usa YouTube en su lugar.</span></p>
         {% endif %}
-        <input type="file" name="video_file" accept="video/*"
-               class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+        <input type="file" name="video_file" accept="video/mp4,video/webm,video/quicktime"
+               class="w-full bg-black/40 border {% if errors.video_file %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+        {% if errors.video_file %}<p class="text-red-400 text-xs mt-1">{{ errors.video_file }}</p>{% endif %}
         <p class="text-white/20 text-xs mt-1">Los clientes no podrán descargar el video.</p>
       </div>
 
       <!-- Imagen de portada -->
       <div>
-        <label class="block text-white/60 text-xs font-medium mb-2">Imagen de portada (JPG, PNG)</label>
+        <label class="block text-white/60 text-xs font-medium mb-2">Imagen de portada (JPG, PNG, WEBP o GIF, máx. 5 MB)</label>
         {% if exercise and exercise.image %}
         <p class="text-white/30 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Imagen actual guardada</p>
         {% endif %}
-        <input type="file" name="image" accept="image/*"
-               class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+        <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif"
+               class="w-full bg-black/40 border {% if errors.image %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+        {% if errors.image %}<p class="text-red-400 text-xs mt-1">{{ errors.image }}</p>{% endif %}
+        {% if form %}<p class="text-white/30 text-xs mt-1">Por seguridad, si querías subir archivos, vuelve a seleccionarlos.</p>{% endif %}
       </div>
     </div>
 

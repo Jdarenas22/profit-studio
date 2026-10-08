@@ -31,15 +31,7 @@
     </div>
   </div>
 
-  {% if messages %}
-  {% for message in messages %}
-  <div class="bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-xl px-4 py-3 mb-6">
-    <i class="fa fa-check-circle mr-2"></i>{{ message }}
-  </div>
-  {% endfor %}
-  {% endif %}
-
-  <form method="POST" enctype="multipart/form-data" class="space-y-5">
+<form method="POST" enctype="multipart/form-data" class="space-y-5">
     {% csrf_token %}
 
     <!-- Foto de perfil — la que aparece en Nosotros -->
@@ -59,11 +51,12 @@
       </div>
       {% endif %}
 
-      <input type="file" name="profile_photo" accept="image/*"
-             class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm
+      <input type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp,image/gif"
+             class="w-full bg-black/40 border {% if errors.profile_photo %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm
                     file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1.5
                     file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
-      <p class="text-white/20 text-xs mt-2">JPG o PNG · Orientación vertical recomendada para que se vea mejor en Nosotros</p>
+      {% if errors.profile_photo %}<p class="text-red-400 text-xs mt-1">{{ errors.profile_photo }}</p>{% endif %}
+      <p class="text-white/20 text-xs mt-2">JPG, PNG, WEBP o GIF, máx. 5 MB · Orientación vertical recomendada para que se vea mejor en Nosotros</p>
     </div>
 
     <!-- Datos personales -->
@@ -97,10 +90,11 @@
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Teléfono</label>
-          <input type="tel" name="phone"
+          <input type="tel" name="phone" maxlength="20"
                  value="{{ form.phone|default:'' }}"
                  placeholder="+57 300 000 0000"
-                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                 class="w-full bg-black/40 border {% if errors.phone %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.phone %}<p class="text-red-400 text-xs mt-1">{{ errors.phone }}</p>{% endif %}
         </div>
       </div>
 
@@ -110,9 +104,10 @@
           Bio / Descripción
           <span class="text-white/25 font-normal ml-1">(aparece en la sección Nosotros)</span>
         </label>
-        <textarea name="bio" rows="4"
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
+        <textarea name="bio" maxlength="1500" rows="4"
+                  class="w-full bg-black/40 border {% if errors.bio %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
                   placeholder="Especialidad, certificaciones, filosofía de entrenamiento...">{{ form.bio|default:'' }}</textarea>
+        {% if errors.bio %}<p class="text-red-400 text-xs mt-1">{{ errors.bio }}</p>{% endif %}
       </div>
 
       <div class="bg-black/20 rounded-xl px-4 py-3">

@@ -50,9 +50,10 @@
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Teléfono</label>
-          <input type="tel" name="phone"
+          <input type="tel" name="phone" maxlength="20"
                  value="{{ form.phone|default:'' }}"
-                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                 class="w-full bg-black/40 border {% if errors.phone %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.phone %}<p class="text-red-400 text-xs mt-1">{{ errors.phone }}</p>{% endif %}
         </div>
       </div>
 
@@ -65,7 +66,7 @@
       </div>
 
       <!-- Género -->
-      <div x-data="{ gender: '{{ form.gender|default:'' }}' }">
+      <div x-data="{ gender: '{{ form.gender|default:''|escapejs }}' }">
         <label class="block text-white/60 text-xs font-medium mb-2">Género</label>
         <div class="grid grid-cols-3 gap-2">
           <label class="cursor-pointer">
@@ -90,11 +91,12 @@
             </div>
           </label>
         </div>
+        {% if errors.gender %}<p class="text-red-400 text-xs mt-1">{{ errors.gender }}</p>{% endif %}
       </div>
     </div>
 
     <!-- Cambiar contraseña (opcional) -->
-    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ changePass: false }">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ changePass: {% if errors.new_password %}true{% else %}false{% endif %} }">
       <label class="flex items-center gap-3 cursor-pointer">
         <input type="checkbox" x-model="changePass" class="w-4 h-4 accent-orange-500">
         <div>
@@ -113,7 +115,7 @@
 
     <!-- Plan de interés -->
     {% if plans %}
-    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ selectedPlan: '{{ form.interested_plan|default:'' }}' }">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ selectedPlan: '{{ form.interested_plan|default:''|escapejs }}' }">
       <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Plan de interés</h2>
       <p class="text-white/30 text-xs mb-4">Plan que el cliente desea contratar (opcional).</p>
 

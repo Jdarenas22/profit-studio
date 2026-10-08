@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
 
@@ -85,7 +86,7 @@ class User(AbstractUser):
     def has_active_membership(self):
         try:
             return self.membership.is_valid
-        except Exception:
+        except ObjectDoesNotExist:
             return False
 
     def __str__(self):

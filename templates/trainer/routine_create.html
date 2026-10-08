@@ -19,9 +19,11 @@
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Nombre de la rutina *</label>
-        <input type="text" name="name" required
+        <input type="text" name="name" required maxlength="200"
+               value="{{ form.name|default:'' }}"
                placeholder="Ej: Rutina de fuerza - Nivel inicial"
-               class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+               class="w-full bg-black/40 border {% if errors.name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        {% if errors.name %}<p class="text-red-400 text-xs mt-1">{{ errors.name }}</p>{% endif %}
       </div>
 
       <div>
@@ -30,7 +32,7 @@
                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
           <option value="">— Selecciona un cliente —</option>
           {% for client in clients %}
-          <option value="{{ client.pk }}" {% if request.GET.client == client.pk|stringformat:'s' %}selected{% endif %}>
+          <option value="{{ client.pk }}" {% if form %}{% if form.client == client.pk|stringformat:'s' %}selected{% endif %}{% elif request.GET.client == client.pk|stringformat:'s' %}selected{% endif %}>
             {{ client.get_full_name|default:client.username }}
           </option>
           {% endfor %}
@@ -39,9 +41,10 @@
 
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Notas generales (opcional)</label>
-        <textarea name="notes" rows="2"
+        <textarea name="notes" rows="2" maxlength="2000"
                   placeholder="Frecuencia semanal, objetivo de la rutina..."
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors"></textarea>
+                  class="w-full bg-black/40 border {% if errors.notes %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+        {% if errors.notes %}<p class="text-red-400 text-xs mt-1">{{ errors.notes }}</p>{% endif %}
       </div>
     </div>
 

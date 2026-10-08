@@ -28,15 +28,7 @@
     </div>
   </div>
 
-  {% if messages %}
-  {% for message in messages %}
-  <div class="bg-green-500/10 border border-green-500/30 text-green-400 text-sm rounded-xl px-4 py-3 mb-6">
-    <i class="fa fa-check-circle mr-2"></i>{{ message }}
-  </div>
-  {% endfor %}
-  {% endif %}
-
-  <form method="POST" enctype="multipart/form-data" class="space-y-5">
+<form method="POST" enctype="multipart/form-data" class="space-y-5">
     {% csrf_token %}
 
     <!-- Foto de perfil -->
@@ -49,9 +41,10 @@
         <p class="text-white/40 text-xs"><i class="fa fa-check-circle text-green-400 mr-1"></i>Foto actual guardada</p>
       </div>
       {% endif %}
-      <input type="file" name="profile_photo" accept="image/*"
-             class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
-      <p class="text-white/20 text-xs mt-1.5">JPG o PNG recomendado. Se verá en tu panel y en el perfil de la entrenadora.</p>
+      <input type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp,image/gif"
+             class="w-full bg-black/40 border {% if errors.profile_photo %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
+      {% if errors.profile_photo %}<p class="text-red-400 text-xs mt-1">{{ errors.profile_photo }}</p>{% endif %}
+      <p class="text-white/20 text-xs mt-1.5">JPG, PNG, WEBP o GIF, máx. 5 MB. Se verá en tu panel y en el perfil de la entrenadora.</p>
     </div>
 
     <!-- Datos personales -->
@@ -85,15 +78,16 @@
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Teléfono</label>
-          <input type="tel" name="phone"
+          <input type="tel" name="phone" maxlength="20"
                  value="{{ form.phone|default:'' }}"
                  placeholder="+57 300 000 0000"
-                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+                 class="w-full bg-black/40 border {% if errors.phone %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          {% if errors.phone %}<p class="text-red-400 text-xs mt-1">{{ errors.phone }}</p>{% endif %}
         </div>
       </div>
 
       <!-- Género -->
-      <div x-data="{ gender: '{{ form.gender|default:'' }}' }">
+      <div x-data="{ gender: '{{ form.gender|default:''|escapejs }}' }">
         <label class="block text-white/60 text-xs font-medium mb-2">Género</label>
         <div class="grid grid-cols-3 gap-2">
           <label class="cursor-pointer">
@@ -118,6 +112,7 @@
             </div>
           </label>
         </div>
+        {% if errors.gender %}<p class="text-red-400 text-xs mt-1">{{ errors.gender }}</p>{% endif %}
       </div>
 
       {% if user.is_trainer %}
@@ -127,9 +122,10 @@
           Bio / Descripción
           <span class="text-white/25 font-normal ml-1">(aparece en la sección Nosotros)</span>
         </label>
-        <textarea name="bio" rows="4"
-                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
+        <textarea name="bio" maxlength="1500" rows="4"
+                  class="w-full bg-black/40 border {% if errors.bio %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
                   placeholder="Especialidad, certificaciones, filosofía de entrenamiento...">{{ form.bio|default:'' }}</textarea>
+        {% if errors.bio %}<p class="text-red-400 text-xs mt-1">{{ errors.bio }}</p>{% endif %}
       </div>
       {% endif %}
 
@@ -142,7 +138,7 @@
     </div>
 
     <!-- Cambiar contraseña -->
-    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ changePass: false }">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ changePass: {% if errors.current_password or errors.new_password or errors.confirm_password %}true{% else %}false{% endif %} }">
       <label class="flex items-center gap-3 cursor-pointer">
         <input type="checkbox" x-model="changePass" class="w-4 h-4 accent-orange-500">
         <div>

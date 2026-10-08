@@ -55,32 +55,32 @@ class Membership(models.Model):
 
     @property
     def is_valid(self):
-        return self.is_active and self.end_date >= timezone.now().date()
+        return self.is_active and self.end_date >= timezone.localdate()
 
     @property
     def days_remaining(self):
         if not self.is_valid:
             return 0
-        return (self.end_date - timezone.now().date()).days
+        return (self.end_date - timezone.localdate()).days
 
     @property
     def status_display(self):
         if not self.is_active:
             return 'Desactivada'
-        if self.end_date < timezone.now().date():
+        if self.end_date < timezone.localdate():
             return 'Vencida'
         return 'Activa'
 
     def activate(self, plan, duration_days, activated_by):
         self.plan = plan
-        self.start_date = timezone.now().date()
+        self.start_date = timezone.localdate()
         self.end_date = self.start_date + timedelta(days=duration_days)
         self.is_active = True
         self.activated_by = activated_by
         self.save()
 
     def renew(self, duration_days, activated_by):
-        today = timezone.now().date()
+        today = timezone.localdate()
         # Si ya venció, renueva desde hoy; si aún está vigente, extiende desde fin actual
         base = max(self.end_date, today)
         self.end_date = base + timedelta(days=duration_days)

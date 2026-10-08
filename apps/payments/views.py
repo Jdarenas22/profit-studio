@@ -1,48 +1,68 @@
 import json
 import logging
+import mimetypes
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
-from apps.memberships.models import Membership, MembershipPlan
+from apps.memberships.models import MembershipPlan
 from apps.accounts.decorators import trainer_required
 from apps.accounts.permissions import clients_for_trainer, get_client_for_trainer
+from .forms import ManualPaymentForm
 from .models import Payment, ManualPayment
-from .services import compute_integrity_signature, verify_webhook_event
+from .services import (
+    WompiConfigError, apply_transaction_event, compute_integrity_signature, verify_webhook_event,
+)
 
 logger = logging.getLogger(__name__)
+
+_CHECKOUT_UNAVAILABLE = 'El pago en línea no está disponible por ahora. Contáctanos por WhatsApp.'
 
 
 @login_required
 def payment_checkout(request, plan_pk):
     plan = get_object_or_404(MembershipPlan, pk=plan_pk, is_active=True)
 
+    # Sin llaves de Wompi no se genera un checkout (la firma sería inválida)
+    if not settings.WOMPI_INTEGRITY_SECRET or not settings.WOMPI_PUBLIC_KEY:
+        logger.error("Wompi checkout: faltan WOMPI_PUBLIC_KEY / WOMPI_INTEGRITY_SECRET en la configuración")
+        messages.error(request, _CHECKOUT_UNAVAILABLE)
+        return redirect('plans')
+
+    amount_cents = int(plan.reference_price * 100)
+
     # Reuse an existing pending payment to avoid duplicates on page refresh
+    # (solo si el precio del plan no cambió desde que se creó)
     payment = Payment.objects.filter(
         user=request.user,
         plan=plan,
         status=Payment.STATUS_PENDING,
+        amount_cents=amount_cents,
     ).first()
 
     if not payment:
         payment = Payment.objects.create(
             user=request.user,
             plan=plan,
-            amount_cents=int(plan.reference_price * 100),
+            amount_cents=amount_cents,
         )
 
-    integrity_sig = compute_integrity_signature(
-        payment.reference,
-        payment.amount_cents,
-        payment.currency,
-        settings.WOMPI_INTEGRITY_SECRET,
-    )
+    try:
+        integrity_sig = compute_integrity_signature(
+            payment.reference,
+            payment.amount_cents,
+            payment.currency,
+            settings.WOMPI_INTEGRITY_SECRET,
+        )
+    except WompiConfigError:
+        logger.error("Wompi checkout: WOMPI_INTEGRITY_SECRET vacío")
+        messages.error(request, _CHECKOUT_UNAVAILABLE)
+        return redirect('plans')
 
     return render(request, 'payments/checkout.html', {
         'plan': plan,
@@ -91,87 +111,49 @@ def payment_webhook(request):
     """
     Wompi posts signed events here. We verify the signature before acting.
     This endpoint MUST NOT require CSRF — Wompi calls it server-to-server.
-    Security is guaranteed by the HMAC-SHA256 signature verification.
+    Security is guaranteed by the SHA256 checksum verification
+    (propiedades firmadas + timestamp + secreto de eventos).
+
+    Códigos de respuesta (Wompi reintenta hasta 3 veces en 24 h mientras la
+    respuesta sea distinta de 200):
+      200  evento procesado, duplicado, ignorado o con datos inconsistentes que un
+           reintento no arreglaría (monto/moneda distintos, referencia desconocida)
+      400  cuerpo que no es JSON válido
+      401  firma inválida
+      503  falta WOMPI_EVENTS_SECRET (reintentar tiene sentido cuando se configure)
+      500  falló la activación de la membresía: se revierte todo y Wompi reintenta
     """
+    if not settings.WOMPI_EVENTS_SECRET:
+        logger.error("Wompi webhook: WOMPI_EVENTS_SECRET no configurado — no se puede verificar")
+        return HttpResponse(status=503)
+
     try:
         payload = json.loads(request.body.decode('utf-8'))
     except (json.JSONDecodeError, UnicodeDecodeError):
         logger.error("Wompi webhook: invalid JSON body")
         return HttpResponse(status=400)
+    if not isinstance(payload, dict):
+        logger.error("Wompi webhook: JSON body is not an object")
+        return HttpResponse(status=400)
 
-    if not verify_webhook_event(payload, settings.WOMPI_EVENTS_SECRET):
+    if not verify_webhook_event(
+        payload, settings.WOMPI_EVENTS_SECRET, request.headers.get('X-Event-Checksum'),
+    ):
         logger.warning("Wompi webhook: signature mismatch — rejected")
         return HttpResponse(status=401)
 
-    event = payload.get('event', '')
-    if event != 'transaction.updated':
+    if payload.get('event') != 'transaction.updated':
         return HttpResponse(status=200)
-
-    tx = payload.get('data', {}).get('transaction', {})
-    reference = tx.get('reference', '')
-    wompi_status = tx.get('status', '')
-    wompi_id = tx.get('id', '')
-    method_type = tx.get('payment_method_type', '')
 
     try:
-        payment = Payment.objects.select_related('user', 'plan').get(reference=reference)
-    except Payment.DoesNotExist:
-        logger.warning(f"Wompi webhook: unknown reference {reference!r}")
-        return HttpResponse(status=200)
+        outcome = apply_transaction_event(payload)
+    except Exception:
+        # La transacción ya se revirtió: el pago sigue como estaba. Wompi reintentará.
+        logger.exception("Wompi webhook: fallo al aplicar el evento; se pedirá reintento")
+        return HttpResponse(status=500)
 
-    # Idempotency: ignore already-processed approvals
-    if payment.status == Payment.STATUS_APPROVED:
-        return HttpResponse(status=200)
-
-    payment.wompi_transaction_id = wompi_id
-    payment.payment_method_type = method_type
-    payment.raw_webhook = payload
-
-    if wompi_status == 'APPROVED':
-        payment.status = Payment.STATUS_APPROVED
-        payment.save()
-        _activate_membership(payment)
-        logger.info(f"Payment APPROVED: {reference} | user={payment.user_id} | method={method_type}")
-    elif wompi_status == 'DECLINED':
-        payment.status = Payment.STATUS_DECLINED
-        payment.save()
-        logger.info(f"Payment DECLINED: {reference}")
-    elif wompi_status == 'VOIDED':
-        payment.status = Payment.STATUS_VOIDED
-        payment.save()
-    else:
-        payment.save()
-
+    logger.info(f"Wompi webhook processed: {outcome}")
     return HttpResponse(status=200)
-
-
-def _activate_membership(payment):
-    """Activate or renew a membership after a confirmed Wompi payment."""
-    if not payment.user or not payment.plan:
-        logger.error(f"Cannot activate membership: payment {payment.reference} has no user or plan")
-        return
-    try:
-        today = timezone.now().date()
-        membership, created = Membership.objects.get_or_create(
-            user=payment.user,
-            defaults={
-                'plan': payment.plan,
-                'start_date': today,
-                'end_date': today,
-                'is_active': False,
-                'activated_by': None,
-            },
-        )
-        if created:
-            membership.activate(payment.plan, payment.plan.duration_days, activated_by=None)
-        else:
-            # Renew/upgrade existing membership
-            membership.plan = payment.plan
-            membership.save(update_fields=['plan'])
-            membership.renew(payment.plan.duration_days, activated_by=None)
-        logger.info(f"Membership {'created' if created else 'renewed'} for user {payment.user_id}")
-    except Exception as exc:
-        logger.error(f"Membership activation failed for payment {payment.reference}: {exc}", exc_info=True)
 
 
 # ─── Panel de pagos manuales (entrenadora) ─────────────────────────────────────
@@ -197,50 +179,46 @@ def trainer_manual_payment_list(request):
     })
 
 
+# Campos cuyo error manual_payment_add.html ya pinta junto al input (`errors.<campo>`).
+# Cualquier otro error (p. ej. uno general del formulario) se avisa con un mensaje flash para
+# que nunca falle en silencio; los pintados NO se repiten como flash.
+_FIELDS_WITH_INLINE_ERROR = ('amount', 'payment_date', 'method', 'plan', 'receipt', 'notes')
+_FIELD_LABELS = {'method': 'Método de pago', 'plan': 'Plan', 'receipt': 'Comprobante', 'notes': 'Notas',
+                 'amount': 'Monto', 'payment_date': 'Fecha de pago', '__all__': 'Formulario'}
+
+
 @trainer_required
 def trainer_manual_payment_add(request, client_pk):
     client = get_client_for_trainer(request, client_pk)
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
-    errors = {}
 
     if request.method == 'POST':
-        amount_raw   = request.POST.get('amount', '').strip()
-        method       = request.POST.get('method', 'cash')
-        payment_date = request.POST.get('payment_date', '').strip()
-        plan_id      = request.POST.get('plan') or None
-        notes        = request.POST.get('notes', '').strip()
-
-        if not amount_raw:
-            errors['amount'] = 'El monto es obligatorio.'
-        if not payment_date:
-            errors['payment_date'] = 'La fecha es obligatoria.'
-
-        if not errors:
-            try:
-                amount = int(amount_raw.replace('.', '').replace(',', ''))
-            except ValueError:
-                errors['amount'] = 'Monto inválido.'
-
-        if not errors:
+        form = ManualPaymentForm(request.POST, request.FILES)
+        if form.is_valid():
+            data = form.cleaned_data
             mp = ManualPayment(
                 user=client,
                 trainer=request.user,
-                amount=amount,
-                method=method,
-                payment_date=payment_date,
-                notes=notes,
+                amount=data['amount'],
+                method=data['method'],
+                payment_date=data['payment_date'],
+                plan=data['plan'],
+                notes=data['notes'],
             )
-            if plan_id:
-                try:
-                    mp.plan = MembershipPlan.objects.get(pk=plan_id)
-                except MembershipPlan.DoesNotExist:
-                    pass
-            if 'receipt' in request.FILES:
-                mp.receipt = request.FILES['receipt']
+            if data['receipt']:
+                mp.receipt = data['receipt']
             mp.save()
-            messages.success(request, f'Pago de ${amount:,} registrado para {client.get_full_name() or client.username}.')
+            messages.success(
+                request,
+                f"Pago de ${mp.amount:,} registrado para {client.get_full_name() or client.username}.",
+            )
             return redirect('trainer_client_detail', pk=client_pk)
 
+        errors = form.error_messages_by_field()
+        for field, text in errors.items():
+            if field not in _FIELDS_WITH_INLINE_ERROR:
+                messages.error(request, f"{_FIELD_LABELS.get(field, field)}: {text}")
+        # `form` conserva el nombre que usa la plantilla (los valores enviados)
         return render(request, 'trainer/manual_payment_add.html', {
             'client': client, 'plans': plans, 'errors': errors, 'form': request.POST,
         })
@@ -248,6 +226,33 @@ def trainer_manual_payment_add(request, client_pk):
     return render(request, 'trainer/manual_payment_add.html', {
         'client': client, 'plans': plans, 'errors': {}, 'form': {},
     })
+
+
+@login_required
+@require_GET
+def payment_receipt(request, pk):
+    """
+    Entrega un comprobante solo a quien corresponde: el propio cliente, o el
+    entrenador con acceso a ese cliente (la superusuaria, a todos). Otro caso: 404.
+    """
+    mp = get_object_or_404(ManualPayment, pk=pk)
+    user = request.user
+    allowed = mp.user_id == user.pk or (
+        user.is_trainer and clients_for_trainer(user).filter(pk=mp.user_id).exists()
+    )
+    if not allowed or not mp.receipt:
+        raise Http404
+
+    try:
+        handle = mp.receipt.open('rb')
+    except OSError:
+        raise Http404
+    content_type = mimetypes.guess_type(mp.receipt.name)[0] or 'application/octet-stream'
+    response = FileResponse(handle, content_type=content_type)
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Cache-Control'] = 'private, no-store'
+    response['Content-Disposition'] = 'inline'
+    return response
 
 
 # ─── Historial de pagos (cliente) ──────────────────────────────────────────────

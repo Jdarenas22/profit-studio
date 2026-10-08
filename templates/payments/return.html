@@ -61,6 +61,35 @@
       </a>
       {% endif %}
 
+      {% elif payment.status == 'error' %}
+      <!-- ERROR: no se pudo confirmar automáticamente (sin recarga automática) -->
+      <div class="w-20 h-20 bg-yellow-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa fa-triangle-exclamation text-yellow-400 text-4xl" aria-hidden="true"></i>
+      </div>
+      <h1 class="text-3xl font-black text-white mb-3">No pudimos confirmar tu pago</h1>
+      <p class="text-white/50 text-lg mb-4" role="status">
+        No pudimos confirmar tu pago automáticamente. Contáctanos por WhatsApp con tu referencia
+        y lo revisamos contigo.
+      </p>
+      <p class="text-white/40 text-sm mb-8">
+        Referencia: <span class="text-white/70 font-mono break-all">{{ payment.reference }}</span>
+      </p>
+      <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener noreferrer"
+         class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 rounded-xl transition-colors mb-4">
+        <i class="fab fa-whatsapp text-xl" aria-hidden="true"></i> Escribir por WhatsApp
+      </a>
+
+      {% elif payment.status == 'voided' %}
+      <!-- ANULADO (sin recarga automática) -->
+      <div class="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa fa-ban text-white/40 text-4xl" aria-hidden="true"></i>
+      </div>
+      <h1 class="text-3xl font-black text-white mb-3">Pago anulado</h1>
+      <p class="text-white/50 text-lg mb-8">
+        Este pago fue anulado. Si crees que es un error, escríbenos por WhatsApp con tu referencia
+        <span class="text-white/70 font-mono break-all">{{ payment.reference }}</span>.
+      </p>
+
       {% else %}
       <!-- PENDIENTE / PROCESANDO -->
       <div class="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
