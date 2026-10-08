@@ -1,22 +1,38 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpResponse
+from django.utils.html import format_html
 from apps.accounts.decorators import trainer_required
+from apps.accounts.form_utils import errors_dict, flash_errors
 from apps.accounts.permissions import clients_for_trainer
+from .forms import RoutineDayForm, RoutineExerciseForm, RoutineForm
 from .models import Routine, RoutineDay, RoutineExercise, RoutineDayLog
+
+
+def htmx_form_error(form):
+    """Fragmento HTML con el primer error del formulario, para las vistas que responde HTMX.
+
+    Se responde 200 (no 4xx) a propósito: htmx 1.x NO intercambia (swap) las respuestas 4xx/5xx
+    y el mensaje no se vería. El mismo estilo que usaba `trainer_add_day`. La cabecera
+    `X-Form-Error` permite al front distinguir esta respuesta de un éxito.
+    """
+    message = next(iter(errors_dict(form).values()))
+    response = HttpResponse(format_html('<p class="text-red-400 text-xs p-2" role="alert">{}</p>', message))
+    response['X-Form-Error'] = '1'
+    return response
 
 
 @login_required
 def member_routine(request):
     if not request.user.is_trainer:
         try:
-            if not request.user.membership.is_valid:
-                return render(request, 'accounts/membership_expired.html', {
-                    'membership': request.user.membership,
-                })
-        except Exception:
+            membership = request.user.membership
+        except ObjectDoesNotExist:
             return render(request, 'accounts/no_membership.html')
+        if not membership.is_valid:
+            return render(request, 'accounts/membership_expired.html', {'membership': membership})
 
     routines = Routine.objects.filter(
         user=request.user, is_active=True
@@ -53,14 +69,21 @@ def trainer_routine_create(request):
         if not str(client_id).isdigit():
             raise Http404
         client = get_object_or_404(clients, pk=int(client_id))
-        routine = Routine.objects.create(
-            name=request.POST['name'],
-            user=client,
-            trainer=request.user,
-            notes=request.POST.get('notes', ''),
-        )
-        messages.success(request, f'Rutina "{routine.name}" creada. Ahora agrégale días y ejercicios.')
-        return redirect('trainer_routine_builder', pk=routine.pk)
+        form = RoutineForm(request.POST)
+        if form.is_valid():
+            routine = Routine.objects.create(
+                name=form.cleaned_data['name'],
+                user=client,
+                trainer=request.user,
+                notes=form.cleaned_data['notes'],
+            )
+            messages.success(request, f'Rutina "{routine.name}" creada. Ahora agrégale días y ejercicios.')
+            return redirect('trainer_routine_builder', pk=routine.pk)
+        errors = errors_dict(form)
+        flash_errors(request, form, errors)   # la plantilla no pinta errores por campo
+        return render(request, 'trainer/routine_create.html', {
+            'clients': clients, 'errors': errors, 'form': request.POST,
+        })
     return render(request, 'trainer/routine_create.html', {'clients': clients})
 
 
@@ -81,11 +104,11 @@ def trainer_routine_builder(request, pk):
 def trainer_add_day(request, pk):
     routine = get_routine_for_trainer(request, pk)
     if request.method == 'POST':
-        name = request.POST.get('day_name', '').strip()
-        if not name:
-            return HttpResponse('<p class="text-red-400 text-xs p-2">El nombre del día es obligatorio.</p>')
+        form = RoutineDayForm(request.POST)
+        if not form.is_valid():
+            return htmx_form_error(form)
         order = routine.days.count()
-        day = RoutineDay.objects.create(routine=routine, name=name, order=order)
+        day = RoutineDay.objects.create(routine=routine, name=form.cleaned_data['day_name'], order=order)
         from apps.exercises.models import Exercise, ExerciseCategory
         exercises = Exercise.objects.filter(is_active=True).select_related('category').order_by('name')
         categories = ExerciseCategory.objects.all()
@@ -113,16 +136,18 @@ def trainer_add_exercise_to_day(request, pk, day_pk):
     routine = get_routine_for_trainer(request, pk)
     day = get_object_or_404(RoutineDay, pk=day_pk, routine=routine)
     if request.method == 'POST':
-        from apps.exercises.models import Exercise
-        exercise = get_object_or_404(Exercise, pk=request.POST['exercise'])
+        form = RoutineExerciseForm(request.POST)
+        if not form.is_valid():
+            return htmx_form_error(form)
+        data = form.cleaned_data
         order = day.exercises.count()
         re = RoutineExercise.objects.create(
             day=day,
-            exercise=exercise,
-            sets=int(request.POST.get('sets', 3)),
-            reps=request.POST.get('reps', '10'),
-            rest_seconds=int(request.POST.get('rest_seconds', 60)),
-            observations=request.POST.get('observations', ''),
+            exercise=data['exercise'],
+            sets=data['sets'],
+            reps=data['reps'],
+            rest_seconds=data['rest_seconds'],
+            observations=data['observations'],
             order=order,
         )
         return render(request, 'trainer/partials/routine_exercise.html', {

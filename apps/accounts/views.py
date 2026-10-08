@@ -1,3 +1,10 @@
+import logging
+import urllib.parse
+
+from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import BadHeaderError, send_mail
+from django.db import IntegrityError, transaction
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
@@ -6,10 +13,34 @@ from django.contrib import messages
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-import urllib.parse
+
+from .axes_utils import get_client_ip
 from .decorators import trainer_required, superuser_required
+from .form_utils import errors_dict, flash_errors
+from .forms import (
+    MemberProfileForm, RegisterForm, TrainerAddClientForm, TrainerClientEditForm,
+    TrainerCreateTrainerForm, TrainerEditForm,
+)
 from .models import User
 from .permissions import clients_for_trainer, get_client_for_trainer
+from .ratelimit import hit
+
+logger = logging.getLogger(__name__)
+
+# Campos que cada plantilla ya pinta junto al input (`errors.<campo>`): el resto de
+# errores se avisa además con `messages` para que nunca fallen en silencio.
+REGISTER_RENDERED = ('first_name', 'last_name', 'email', 'username', 'password1', 'password2')
+CLIENT_ADD_RENDERED = ('first_name', 'last_name', 'email', 'username', 'password')
+CLIENT_EDIT_RENDERED = ('first_name', 'last_name', 'email', 'username', 'new_password')
+PROFILE_RENDERED = ('first_name', 'last_name', 'email', 'current_password', 'new_password',
+                    'confirm_password')
+TRAINER_FORM_RENDERED = ('first_name', 'last_name', 'email', 'username', 'password', 'password2')
+TRAINER_EDIT_RENDERED = ('first_name', 'last_name', 'email')
+
+# Límites del registro público (por IP, ventana fija). Se pueden ajustar en settings.
+REGISTER_ATTEMPTS_LIMIT = getattr(settings, 'REGISTER_ATTEMPTS_LIMIT', 20)    # envíos de formulario / ventana
+REGISTER_SUCCESS_LIMIT = getattr(settings, 'REGISTER_SUCCESS_LIMIT', 5)       # cuentas creadas / ventana
+REGISTER_WINDOW_SECONDS = getattr(settings, 'REGISTER_WINDOW_SECONDS', 3600)
 
 
 def login_view(request):
@@ -56,12 +87,12 @@ def dashboard(request):
 
     try:
         membership = request.user.membership
-        if not membership.is_valid:
-            return render(request, 'accounts/membership_expired.html', {
-                'membership': membership,
-            })
-    except Exception:
+    except ObjectDoesNotExist:
         return render(request, 'accounts/no_membership.html')
+    if not membership.is_valid:
+        return render(request, 'accounts/membership_expired.html', {
+            'membership': membership,
+        })
 
     routines = request.user.routines.filter(is_active=True).prefetch_related(
         'days__exercises__exercise'
@@ -116,121 +147,117 @@ def trainer_dashboard(request):
     return render(request, 'trainer/dashboard.html', context)
 
 
+def _notify_new_registration(user, plan):
+    """Avisa por correo a la(s) superusuaria(s). Un fallo de correo nunca rompe el registro."""
+    try:
+        superuser_emails = list(
+            User.objects.filter(is_superuser=True).exclude(email='')
+            .values_list('email', flat=True)
+        )
+        if not superuser_emails:
+            return
+        plan_txt = plan.name if plan else 'Sin plan'
+        goal_txt = dict(User.GOAL_CHOICES).get(user.training_goal, 'No indicado')
+        send_mail(
+            subject=f'🏋️ Nuevo registro: {user.get_full_name() or user.username}',
+            message=(
+                'Nueva inscripción en ProFit Studio:\n\n'
+                f'Nombre: {user.get_full_name()}\n'
+                f'Usuario: {user.username}\n'
+                f'Email: {user.email}\n'
+                f'Teléfono: {user.phone or "No indicado"}\n'
+                f'Plan de interés: {plan_txt}\n'
+                f'Objetivo: {goal_txt}\n\n'
+                'Accede al panel para asignarle entrenadora y membresía.'
+            ),
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@profitstudio.com'),
+            recipient_list=superuser_emails,
+            fail_silently=True,
+        )
+    except (BadHeaderError, OSError):
+        logger.exception('No se pudo enviar el aviso de nuevo registro (usuario %s).', user.pk)
+
+
+def _register_context(plans, selected_plan_id, errors, form):
+    return {
+        'plans': plans,
+        'selected_plan_id': selected_plan_id,
+        'goal_choices': User.GOAL_CHOICES,
+        'errors': errors,
+        'form': form,
+    }
+
+
+def _register_rate_limited(request, plans, selected_plan_id):
+    messages.error(
+        request,
+        'Hemos recibido demasiados intentos de registro desde tu conexión. '
+        'Espera un rato e inténtalo de nuevo, o escríbenos por WhatsApp.',
+    )
+    response = render(request, 'accounts/register.html',
+                      _register_context(plans, selected_plan_id, {}, request.POST), status=429)
+    response['Retry-After'] = str(REGISTER_WINDOW_SECONDS)
+    return response
+
+
 def register_view(request):
-    """Auto-registro público: cualquier visitante puede crear su cuenta de miembro."""
+    """Auto-registro público: cualquier visitante puede crear su cuenta de miembro.
+
+    Protecciones: validación con `RegisterForm` (incluye `validate_password`), límite de
+    frecuencia por IP (envíos y cuentas creadas por hora) y aviso genérico si el correo
+    ya existe.
+
+    NO implementado (opción para decidir): verificación de correo. Consistiría en crear la
+    cuenta como inactiva, enviar un enlace firmado (django.core.signing, con caducidad) y
+    activarla al abrirlo; con eso la respuesta del registro podría ser idéntica exista o no
+    el correo, que es la única forma de cerrar del todo la enumeración de cuentas.
+    """
     if request.user.is_authenticated:
         return redirect('dashboard')
 
     from apps.memberships.models import MembershipPlan
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
-    selected_plan_id = request.GET.get('plan') or request.POST.get('interested_plan')
-    goal_choices = User.GOAL_CHOICES
 
-    errors = {}
+    if request.method != 'POST':
+        selected_plan_id = request.GET.get('plan') or None
+        return render(request, 'accounts/register.html', _register_context(plans, selected_plan_id, {}, {}))
 
-    if request.method == 'POST':
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip().lower()
-        username = request.POST.get('username', '').strip().lower()
-        phone = request.POST.get('phone', '').strip()
-        gender = request.POST.get('gender', '')
-        password1 = request.POST.get('password1', '')
-        password2 = request.POST.get('password2', '')
-        plan_id = request.POST.get('interested_plan') or None
+    ip = get_client_ip(request) or 'desconocida'
+    plan_id = request.POST.get('interested_plan') or None
+    if not hit('register-attempt', ip, REGISTER_ATTEMPTS_LIMIT, REGISTER_WINDOW_SECONDS):
+        return _register_rate_limited(request, plans, plan_id)
 
-        if not first_name:
-            errors['first_name'] = 'El nombre es obligatorio.'
-        if not last_name:
-            errors['last_name'] = 'El apellido es obligatorio.'
-        if not email:
-            errors['email'] = 'El correo es obligatorio.'
-        elif User.objects.filter(email__iexact=email).exists():
-            errors['email'] = 'Ya existe una cuenta con ese correo.'
-        if not username:
-            errors['username'] = 'El usuario es obligatorio.'
-        elif len(username) < 4:
-            errors['username'] = 'Mínimo 4 caracteres.'
-        elif not username.replace('_', '').replace('.', '').isalnum():
-            errors['username'] = 'Solo letras, números, puntos y guiones bajos.'
-        elif User.objects.filter(username__iexact=username).exists():
-            errors['username'] = 'Ese nombre de usuario ya está en uso.'
-        if len(password1) < 8:
-            errors['password1'] = 'La contraseña debe tener mínimo 8 caracteres.'
-        if password1 != password2:
-            errors['password2'] = 'Las contraseñas no coinciden.'
-
-        training_goal = request.POST.get('training_goal', '')
-
-        if not errors:
-            plan = None
-            if plan_id:
-                try:
-                    plan = MembershipPlan.objects.get(pk=plan_id, is_active=True)
-                except MembershipPlan.DoesNotExist:
-                    pass
-
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password1,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                gender=gender if gender in ('F', 'M', 'O') else '',
-                role=User.ROLE_MEMBER,
-                interested_plan=plan,
-                training_goal=training_goal if training_goal in dict(User.GOAL_CHOICES) else '',
-            )
-            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-
-            # ── Notificar a la entrenadora por email ──────────────────────────
-            try:
-                from django.core.mail import send_mail
-                from django.conf import settings as _cfg
-                superuser_emails = list(
-                    User.objects.filter(is_superuser=True).exclude(email='')
-                    .values_list('email', flat=True)
+    form = RegisterForm(request.POST)
+    if form.is_valid():
+        # Solo las cuentas realmente creadas cuentan para el límite estricto, así un error de
+        # tecleo no bloquea a una persona legítima.
+        if not hit('register-success', ip, REGISTER_SUCCESS_LIMIT, REGISTER_WINDOW_SECONDS):
+            return _register_rate_limited(request, plans, plan_id)
+        data = form.cleaned_data
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=data['username'],
+                    email=data['email'],
+                    password=data['password1'],
+                    first_name=data['first_name'],
+                    last_name=data['last_name'],
+                    phone=data['phone'],
+                    gender=data['gender'],
+                    role=User.ROLE_MEMBER,
+                    interested_plan=data['interested_plan'],
+                    training_goal=data['training_goal'],
                 )
-                if superuser_emails:
-                    plan_txt  = plan.name if plan else 'Sin plan'
-                    goal_txt  = dict(User.GOAL_CHOICES).get(training_goal, 'No indicado')
-                    send_mail(
-                        subject=f'🏋️ Nuevo registro: {user.get_full_name() or user.username}',
-                        message=(
-                            f'Nueva inscripción en ProFit Studio:\n\n'
-                            f'Nombre: {user.get_full_name()}\n'
-                            f'Usuario: {user.username}\n'
-                            f'Email: {user.email}\n'
-                            f'Teléfono: {user.phone or "No indicado"}\n'
-                            f'Plan de interés: {plan_txt}\n'
-                            f'Objetivo: {goal_txt}\n\n'
-                            f'Accede al panel para asignarle entrenadora y membresía.'
-                        ),
-                        from_email=getattr(_cfg, 'DEFAULT_FROM_EMAIL', 'noreply@profitstudio.com'),
-                        recipient_list=superuser_emails,
-                        fail_silently=True,
-                    )
-            except Exception:
-                pass
-
+        except IntegrityError:   # carrera: otro registro tomó el mismo usuario justo ahora
+            form.add_error('username', form.username_taken_message)
+        else:
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            _notify_new_registration(user, data['interested_plan'])
             return redirect('register_success')
 
-        return render(request, 'accounts/register.html', {
-            'plans': plans,
-            'selected_plan_id': plan_id,
-            'goal_choices': goal_choices,
-            'errors': errors,
-            'form': request.POST,
-        })
-
-    return render(request, 'accounts/register.html', {
-        'plans': plans,
-        'selected_plan_id': selected_plan_id,
-        'goal_choices': goal_choices,
-        'errors': {},
-        'form': {},
-    })
+    errors = errors_dict(form)
+    flash_errors(request, form, errors, skip=REGISTER_RENDERED)
+    return render(request, 'accounts/register.html', _register_context(plans, plan_id, errors, request.POST))
 
 
 def register_success(request):
@@ -255,58 +282,37 @@ def trainer_add_client(request):
     """La entrenadora crea una cuenta de cliente y opcionalmente activa su membresía."""
     from apps.memberships.models import MembershipPlan, Membership
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
-    errors = {}
 
     if request.method == 'POST':
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip().lower()
-        username = request.POST.get('username', '').strip().lower()
-        phone = request.POST.get('phone', '').strip()
-        gender = request.POST.get('gender', '')
-        password = request.POST.get('password', '')
-        plan_id = request.POST.get('activate_plan') or None
-
-        if not first_name:
-            errors['first_name'] = 'Requerido.'
-        if not last_name:
-            errors['last_name'] = 'Requerido.'
-        if not email:
-            errors['email'] = 'Requerido.'
-        elif User.objects.filter(email__iexact=email).exists():
-            errors['email'] = 'Ya existe una cuenta con ese correo.'
-        if not username:
-            errors['username'] = 'Requerido.'
-        elif User.objects.filter(username__iexact=username).exists():
-            errors['username'] = 'Nombre de usuario ya en uso.'
-        if len(password) < 8:
-            errors['password'] = 'Mínimo 8 caracteres.'
-
-        if not errors:
-            client = User.objects.create_user(
-                username=username, email=email, password=password,
-                first_name=first_name, last_name=last_name,
-                phone=phone, role=User.ROLE_MEMBER,
-                gender=gender if gender in ('F', 'M', 'O') else '',
-                # Asignación automática: el cliente queda a cargo de quien lo crea
-                assigned_trainer=request.user,
-            )
-            if plan_id:
-                try:
-                    plan = MembershipPlan.objects.get(pk=plan_id)
+        form = TrainerAddClientForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            try:
+                with transaction.atomic():
+                    client = User.objects.create_user(
+                        username=data['username'], email=data['email'], password=data['password'],
+                        first_name=data['first_name'], last_name=data['last_name'],
+                        phone=data['phone'], role=User.ROLE_MEMBER, gender=data['gender'],
+                        # Asignación automática: el cliente queda a cargo de quien lo crea
+                        assigned_trainer=request.user,
+                    )
+            except IntegrityError:   # carrera con otra creación del mismo usuario
+                form.add_error('username', form.username_taken_message)
+            else:
+                plan = data['activate_plan']
+                if plan:
                     membership = Membership(user=client)
                     membership.activate(plan, plan.duration_days, request.user)
                     messages.success(
                         request,
                         f'Cliente {client.get_full_name()} creado y membresía "{plan.name}" activada.'
                     )
-                except MembershipPlan.DoesNotExist:
-                    messages.success(request, f'Cliente {client.get_full_name()} creado correctamente.')
-            else:
-                messages.success(request, f'Cliente {client.get_full_name()} creado. Recuerda activar su membresía.')
+                else:
+                    messages.success(request, f'Cliente {client.get_full_name()} creado. Recuerda activar su membresía.')
+                return redirect('trainer_client_detail', pk=client.pk)
 
-            return redirect('trainer_client_detail', pk=client.pk)
-
+        errors = errors_dict(form)
+        flash_errors(request, form, errors, skip=CLIENT_ADD_RENDERED)
         return render(request, 'trainer/client_add.html', {
             'plans': plans,
             'errors': errors,
@@ -337,7 +343,7 @@ def trainer_client_detail(request, pk):
     client = get_client_for_trainer(request, pk)
     try:
         membership = client.membership
-    except Exception:
+    except ObjectDoesNotExist:
         membership = None
     assessments = client.assessments.select_related('dixon_test').order_by('-date')
     routines = client.routines.filter(is_active=True).prefetch_related('days__exercises__exercise')
@@ -354,55 +360,33 @@ def trainer_client_edit(request, pk):
     client = get_client_for_trainer(request, pk)
     from apps.memberships.models import MembershipPlan
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
-    errors = {}
 
     if request.method == 'POST':
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip().lower()
-        username = request.POST.get('username', '').strip().lower()
-        phone = request.POST.get('phone', '').strip()
-        gender = request.POST.get('gender', '')
-        plan_id = request.POST.get('interested_plan') or None
-        new_password = request.POST.get('new_password', '')
-
-        if not first_name:
-            errors['first_name'] = 'Requerido.'
-        if not last_name:
-            errors['last_name'] = 'Requerido.'
-        if not email:
-            errors['email'] = 'Requerido.'
-        elif User.objects.filter(email__iexact=email).exclude(pk=pk).exists():
-            errors['email'] = 'Ya existe una cuenta con ese correo.'
-        if not username:
-            errors['username'] = 'Requerido.'
-        elif User.objects.filter(username__iexact=username).exclude(pk=pk).exists():
-            errors['username'] = 'Nombre de usuario ya en uso.'
-        if new_password and len(new_password) < 8:
-            errors['new_password'] = 'Mínimo 8 caracteres.'
-
-        if not errors:
-            client.first_name = first_name
-            client.last_name = last_name
-            client.email = email
-            client.username = username
-            client.phone = phone
-            client.gender = gender if gender in ('F', 'M', 'O') else ''
-            if plan_id:
-                try:
-                    client.interested_plan = MembershipPlan.objects.get(pk=plan_id, is_active=True)
-                except MembershipPlan.DoesNotExist:
-                    client.interested_plan = None
+        form = TrainerClientEditForm(request.POST, client=client)
+        if form.is_valid():
+            data = form.cleaned_data
+            client.first_name = data['first_name']
+            client.last_name = data['last_name']
+            client.email = data['email']
+            client.username = data['username']
+            client.phone = data['phone']
+            client.gender = data['gender']
+            client.interested_plan = data['interested_plan']
+            if data['new_password']:
+                client.set_password(data['new_password'])
+            try:
+                with transaction.atomic():
+                    client.save()
+            except IntegrityError:   # carrera con otro cambio de usuario
+                form.add_error('username', form.username_taken_message)
             else:
-                client.interested_plan = None
-            if new_password:
-                client.set_password(new_password)
-            client.save()
-            messages.success(request, f'Datos de {client.get_full_name()} actualizados correctamente.')
-            return redirect('trainer_client_detail', pk=client.pk)
+                messages.success(request, f'Datos de {client.get_full_name()} actualizados correctamente.')
+                return redirect('trainer_client_detail', pk=client.pk)
 
+        errors = errors_dict(form)
+        flash_errors(request, form, errors, skip=CLIENT_EDIT_RENDERED)
         return render(request, 'trainer/client_edit.html', {
-            'client': client,
+            'client': get_client_for_trainer(request, pk),   # se relee: sin datos a medio editar
             'plans': plans,
             'errors': errors,
             'form': request.POST,
@@ -438,52 +422,31 @@ def trainer_client_delete(request, pk):
 @login_required
 def member_profile_edit(request):
     user = request.user
-    errors = {}
 
     if request.method == 'POST':
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip().lower()
-        phone = request.POST.get('phone', '').strip()
-        gender = request.POST.get('gender', '')
-        current_password = request.POST.get('current_password', '')
-        new_password = request.POST.get('new_password', '')
-        confirm_password = request.POST.get('confirm_password', '')
-
-        if not first_name:
-            errors['first_name'] = 'El nombre es obligatorio.'
-        if not last_name:
-            errors['last_name'] = 'El apellido es obligatorio.'
-        if not email:
-            errors['email'] = 'El correo es obligatorio.'
-        elif User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
-            errors['email'] = 'Ya existe una cuenta con ese correo.'
-
-        if new_password or current_password:
-            if not user.check_password(current_password):
-                errors['current_password'] = 'Contraseña actual incorrecta.'
-            elif len(new_password) < 8:
-                errors['new_password'] = 'La contraseña debe tener mínimo 8 caracteres.'
-            elif new_password != confirm_password:
-                errors['confirm_password'] = 'Las contraseñas no coinciden.'
-
-        if not errors:
-            user.first_name = first_name
-            user.last_name = last_name
-            user.email = email
-            user.phone = phone
-            user.gender = gender if gender in ('F', 'M', 'O') else ''
+        form = MemberProfileForm(request.POST, request.FILES, user=user)
+        if form.is_valid():
+            data = form.cleaned_data
+            user.first_name = data['first_name']
+            user.last_name = data['last_name']
+            user.email = data['email']
+            user.phone = data['phone']
+            user.gender = data['gender']
             if user.is_trainer:
-                user.bio = request.POST.get('bio', '').strip()
-            if 'profile_photo' in request.FILES:
-                user.profile_photo = request.FILES['profile_photo']
-            if new_password:
-                user.set_password(new_password)
-                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                user.bio = data['bio']
+            if data['profile_photo']:
+                user.profile_photo = data['profile_photo']
+            if data['new_password']:
+                user.set_password(data['new_password'])
             user.save()
+            if data['new_password']:
+                # set_password invalida la sesión actual: se vuelve a iniciar para no sacar a la persona
+                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, 'Tu perfil ha sido actualizado correctamente.')
             return redirect('dashboard')
 
+        errors = errors_dict(form)
+        flash_errors(request, form, errors, skip=PROFILE_RENDERED)
         return render(request, 'accounts/profile_edit.html', {
             'errors': errors,
             'form': request.POST,
@@ -506,55 +469,36 @@ def member_profile_edit(request):
 @superuser_required
 def trainer_create_trainer(request):
     """Vista exclusiva del superusuario para crear cuentas de entrenadores."""
-    errors = {}
-
     if request.method == 'POST':
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip().lower()
-        username = request.POST.get('username', '').strip().lower()
-        phone = request.POST.get('phone', '').strip()
-        bio = request.POST.get('bio', '').strip()
-        password = request.POST.get('password', '')
-        password2 = request.POST.get('password2', '')
+        form = TrainerCreateTrainerForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            try:
+                with transaction.atomic():
+                    trainer = User.objects.create_user(
+                        username=data['username'],
+                        email=data['email'],
+                        password=data['password'],
+                        first_name=data['first_name'],
+                        last_name=data['last_name'],
+                        phone=data['phone'],
+                        bio=data['bio'],
+                        role=User.ROLE_TRAINER,
+                        is_staff=True,
+                        is_superuser=False,  # Solo Yiseth es superusuaria
+                    )
+            except IntegrityError:   # carrera con otra creación del mismo usuario
+                form.add_error('username', form.username_taken_message)
+            else:
+                messages.success(
+                    request,
+                    f'Entrenador/a {trainer.get_full_name()} creado/a correctamente. '
+                    f'Usuario: {trainer.username} — Deberá cambiar su contraseña al ingresar.'
+                )
+                return redirect('trainer_staff_list')
 
-        if not first_name:
-            errors['first_name'] = 'Requerido.'
-        if not last_name:
-            errors['last_name'] = 'Requerido.'
-        if not email:
-            errors['email'] = 'Requerido.'
-        elif User.objects.filter(email__iexact=email).exists():
-            errors['email'] = 'Ya existe una cuenta con ese correo.'
-        if not username:
-            errors['username'] = 'Requerido.'
-        elif User.objects.filter(username__iexact=username).exists():
-            errors['username'] = 'Nombre de usuario ya en uso.'
-        if len(password) < 8:
-            errors['password'] = 'Mínimo 8 caracteres.'
-        if password != password2:
-            errors['password2'] = 'Las contraseñas no coinciden.'
-
-        if not errors:
-            trainer = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                bio=bio,
-                role=User.ROLE_TRAINER,
-                is_staff=True,
-                is_superuser=False,  # Solo Yiseth es superusuaria
-            )
-            messages.success(
-                request,
-                f'Entrenador/a {trainer.get_full_name()} creado/a correctamente. '
-                f'Usuario: {trainer.username} — Deberá cambiar su contraseña al ingresar.'
-            )
-            return redirect('trainer_staff_list')
-
+        errors = errors_dict(form)
+        flash_errors(request, form, errors, skip=TRAINER_FORM_RENDERED)
         return render(request, 'trainer/trainer_form.html', {
             'errors': errors,
             'form': request.POST,
@@ -574,38 +518,26 @@ def trainer_staff_list(request):
 def trainer_edit_trainer(request, pk):
     """Editar datos de un entrenador — solo superusuario."""
     trainer = get_object_or_404(User, pk=pk, role='trainer')
-    errors = {}
 
     if request.method == 'POST':
-        first_name = request.POST.get('first_name', '').strip()
-        last_name  = request.POST.get('last_name', '').strip()
-        email      = request.POST.get('email', '').strip().lower()
-        phone      = request.POST.get('phone', '').strip()
-        bio        = request.POST.get('bio', '').strip()
-
-        if not first_name:
-            errors['first_name'] = 'Requerido.'
-        if not last_name:
-            errors['last_name'] = 'Requerido.'
-        if not email:
-            errors['email'] = 'Requerido.'
-        elif User.objects.filter(email__iexact=email).exclude(pk=pk).exists():
-            errors['email'] = 'Ya existe una cuenta con ese correo.'
-
-        if not errors:
-            trainer.first_name = first_name
-            trainer.last_name  = last_name
-            trainer.email      = email
-            trainer.phone      = phone
-            trainer.bio        = bio
-            if 'profile_photo' in request.FILES:
-                trainer.profile_photo = request.FILES['profile_photo']
+        form = TrainerEditForm(request.POST, request.FILES, trainer=trainer)
+        if form.is_valid():
+            data = form.cleaned_data
+            trainer.first_name = data['first_name']
+            trainer.last_name = data['last_name']
+            trainer.email = data['email']
+            trainer.phone = data['phone']
+            trainer.bio = data['bio']
+            if data['profile_photo']:
+                trainer.profile_photo = data['profile_photo']
             trainer.save()
             messages.success(request, f'Perfil de {trainer.get_full_name()} actualizado correctamente.')
             return redirect('trainer_staff_list')
 
+        errors = errors_dict(form)
+        flash_errors(request, form, errors, skip=TRAINER_EDIT_RENDERED)
         return render(request, 'trainer/trainer_edit.html', {
-            'trainer_obj': trainer,
+            'trainer_obj': get_object_or_404(User, pk=pk, role='trainer'),
             'errors': errors,
             'form': request.POST,
         })

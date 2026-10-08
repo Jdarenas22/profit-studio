@@ -1,4 +1,5 @@
 from functools import wraps
+from django.core.exceptions import ObjectDoesNotExist
 from django.contrib import messages
 from django.shortcuts import redirect, render
 
@@ -46,7 +47,7 @@ def membership_required(view_func):
                 return render(request, 'accounts/membership_expired.html', {
                     'membership': request.user.membership,
                 })
-        except Exception:
+        except ObjectDoesNotExist:
             return render(request, 'accounts/no_membership.html')
         return view_func(request, *args, **kwargs)
     return _wrapped

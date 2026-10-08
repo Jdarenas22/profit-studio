@@ -1,7 +1,10 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from apps.accounts.decorators import trainer_required
+from apps.accounts.form_utils import errors_dict, flash_errors
 from apps.accounts.permissions import get_client_for_trainer
+from .forms import ACTIVATE, DEACTIVATE, MembershipManageForm
 from .models import MembershipPlan, Membership
 
 
@@ -17,22 +20,34 @@ def trainer_membership_manage(request, client_pk):
 
     try:
         membership = client.membership
-    except Exception:
+    except ObjectDoesNotExist:
         membership = None
 
     if request.method == 'POST':
-        action = request.POST.get('action')
-        plan_id = request.POST.get('plan_id')
-        notes = request.POST.get('notes', '')
+        form = MembershipManageForm(request.POST, membership=membership)
+        if not form.is_valid():
+            errors = errors_dict(form)
+            flash_errors(request, form, errors)   # la plantilla no pinta errores por campo
+            return render(request, 'trainer/membership_manage.html', {
+                'client': client,
+                'membership': membership,
+                'plans': plans,
+                'errors': errors,
+                'form': request.POST,
+            })
 
-        if action in ('activate', 'renew'):
-            plan = get_object_or_404(MembershipPlan, pk=plan_id)
-            duration = int(request.POST.get('duration_days') or plan.duration_days)
+        data = form.cleaned_data
+        action = data['action']
+        notes = data['notes']
+
+        if action in (ACTIVATE, 'renew'):
+            plan = data['plan_id']
+            duration = data['duration_days']
 
             if membership is None:
                 membership = Membership(user=client)
                 membership.activate(plan, duration, request.user)
-            elif action == 'activate':
+            elif action == ACTIVATE:
                 membership.activate(plan, duration, request.user)
             else:
                 membership.renew(duration, request.user)
@@ -41,13 +56,16 @@ def trainer_membership_manage(request, client_pk):
                 membership.notes = notes
                 membership.save(update_fields=['notes'])
 
-            label = 'activada' if action == 'activate' else 'renovada'
+            label = 'activada' if action == ACTIVATE else 'renovada'
             messages.success(request, f'Membresía {label} correctamente. Vence el {membership.end_date.strftime("%d/%m/%Y")}.')
 
-        elif action == 'deactivate' and membership:
-            membership.is_active = False
-            membership.save(update_fields=['is_active'])
-            messages.success(request, 'Membresía desactivada.')
+        elif action == DEACTIVATE:
+            if membership:
+                membership.is_active = False
+                membership.save(update_fields=['is_active'])
+                messages.success(request, 'Membresía desactivada.')
+            else:
+                messages.error(request, 'El cliente no tiene una membresía para desactivar.')
 
         return redirect('trainer_client_detail', pk=client_pk)
 

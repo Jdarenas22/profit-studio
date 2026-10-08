@@ -1,5 +1,7 @@
 from django.db import models
 
+from .validators import extract_youtube_id, validate_youtube_url
+
 
 class ExerciseCategory(models.Model):
     name = models.CharField(max_length=100, verbose_name='Nombre')
@@ -43,6 +45,7 @@ class Exercise(models.Model):
     # Video por URL de YouTube (preferido en producción — no requiere almacenamiento)
     video_url = models.URLField(
         blank=True, default='',
+        validators=[validate_youtube_url],
         verbose_name='URL de video (YouTube)',
         help_text='Pega el enlace de YouTube. Ej: https://youtu.be/abc123 o https://youtube.com/watch?v=abc123',
     )
@@ -70,22 +73,25 @@ class Exercise(models.Model):
 
     @property
     def youtube_embed_url(self):
-        """Convierte cualquier URL de YouTube al formato de embed."""
-        import re
-        url = self.video_url
-        if not url:
+        """URL de embed de YouTube, o '' si `video_url` no es un enlace HTTPS de YouTube.
+
+        Nunca devuelve la URL original: lo que acaba dentro de un <iframe> siempre se
+        reconstruye a partir del ID de video validado.
+        """
+        video_id = extract_youtube_id(self.video_url)
+        if not video_id:
             return ''
-        patterns = [
-            r'youtu\.be/([^?&\s]+)',
-            r'youtube\.com/watch\?v=([^&\s]+)',
-            r'youtube\.com/embed/([^?&\s]+)',
-            r'youtube\.com/shorts/([^?&\s]+)',
-        ]
-        for pattern in patterns:
-            m = re.search(pattern, url)
-            if m:
-                return f'https://www.youtube.com/embed/{m.group(1)}?rel=0&modestbranding=1'
-        return url  # fallback: devuelve la URL tal cual
+        return f'https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1'
+
+    @property
+    def safe_video_url(self):
+        """Enlace para abrir el video en YouTube (href), o '' si la URL guardada no es válida.
+
+        Las plantillas deberían usar esta propiedad en lugar de `video_url` dentro de un href:
+        así un valor antiguo como `javascript:...` guardado antes de esta validación no se pinta.
+        """
+        video_id = extract_youtube_id(self.video_url)
+        return f'https://www.youtube.com/watch?v={video_id}' if video_id else ''
 
     def __str__(self):
         return self.name
