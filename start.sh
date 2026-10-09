@@ -90,6 +90,39 @@ else
     exit 1
 fi
 
+# 3c. Revisión de infraestructura (base, R2, Wompi, correo): solo deja el resultado en los
+#     logs de Railway. ESTRICTAMENTE no bloqueante: sin --smtp (no abre conexión al correo),
+#     con tope de tiempo (CHECK_INFRA_TIMEOUT, por defecto 60 s) y, pase lo que pase (error,
+#     código distinto de 0 o cuelgue), el arranque continúa. check_infra no imprime secretos.
+CHECK_INFRA_TIMEOUT="${CHECK_INFRA_TIMEOUT:-60}"
+case "$CHECK_INFRA_TIMEOUT" in
+    ''|*[!0-9]*) CHECK_INFRA_TIMEOUT=60 ;;
+esac
+echo ">>> Revisión de infraestructura (check_infra, máximo ${CHECK_INFRA_TIMEOUT}s; no bloquea el arranque)..."
+if command -v timeout >/dev/null 2>&1; then
+    timeout -k 5 "$CHECK_INFRA_TIMEOUT" python manage.py check_infra </dev/null 2>&1
+    check_infra_rc=$?
+else
+    # Sin 'timeout' en el contenedor: el comando corre en segundo plano y un vigilante lo
+    # termina si pasa del tope.
+    python manage.py check_infra </dev/null 2>&1 &
+    check_infra_pid=$!
+    ( sleep "$CHECK_INFRA_TIMEOUT"; kill -TERM "$check_infra_pid" 2>/dev/null; sleep 5; kill -KILL "$check_infra_pid" 2>/dev/null ) >/dev/null 2>&1 &
+    check_infra_watchdog=$!
+    wait "$check_infra_pid" 2>/dev/null
+    check_infra_rc=$?
+    kill "$check_infra_watchdog" 2>/dev/null
+    wait "$check_infra_watchdog" 2>/dev/null
+fi
+if [ "$check_infra_rc" -eq 0 ]; then
+    echo ">>> check_infra OK"
+else
+    case "$check_infra_rc" in
+        124|137|143) echo ">>> check_infra se detuvo por pasar el tope de ${CHECK_INFRA_TIMEOUT}s." ;;
+    esac
+    echo ">>> check_infra terminó con avisos/errores (revisa arriba); el arranque continúa."
+fi
+
 # 4. Archivos estáticos — se tolera el fallo a propósito: production.py usa
 #    CompressedStaticFilesStorage (sin manifest), así que la app arranca y el
 #    login/health siguen funcionando aunque falte algún archivo estático
