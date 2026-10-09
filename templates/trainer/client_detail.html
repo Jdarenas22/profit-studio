@@ -168,43 +168,6 @@
       </div>
     </div>
 
-    <!-- Mediciones corporales -->
-    {% with measurements=client.measurements.all|slice:":5" %}
-    {% if measurements %}
-    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-white font-bold">Mediciones</h2>
-        <a href="{% url 'trainer_measurement_add' client.pk %}"
-           class="text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
-          <i class="fa fa-plus mr-1"></i> Nueva
-        </a>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="text-white/30 border-b border-white/5">
-              <th class="text-left pb-2">Fecha</th>
-              <th class="text-right pb-2">Peso</th>
-              <th class="text-right pb-2">IMC</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-white/5">
-            {% for m in measurements %}
-            <tr class="text-white/60">
-              <td class="py-1.5">{{ m.date|date:"d/m/Y" }}</td>
-              <td class="py-1.5 text-right font-semibold text-white">{{ m.weight }} kg</td>
-              <td class="py-1.5 text-right">
-                {% if m.imc %}<span class="text-primary font-bold">{{ m.imc }}</span>{% else %}—{% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {% endif %}
-    {% endwith %}
-
   </div>
 
   <!-- Valoraciones y rutinas -->
@@ -321,4 +284,20 @@
 
   </div>
 </div>
+
+<!-- Mediciones corporales (ancho completo: la tabla tiene varias columnas) -->
+{% with measurements=client.measurements.all|slice:":10" %}
+{% if measurements %}
+<section aria-labelledby="client-measures-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mt-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 id="client-measures-title" class="text-white font-bold">Mediciones</h2>
+    <a href="{% url 'trainer_measurement_add' client.pk %}"
+       class="inline-flex items-center min-h-[44px] px-2 text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
+      <i class="fa fa-plus mr-1" aria-hidden="true"></i> Nueva
+    </a>
+  </div>
+  {% include 'trainer/partials/measurement_history_table.html' with show_actions=True %}
+</section>
+{% endif %}
+{% endwith %}
 {% endblock %}

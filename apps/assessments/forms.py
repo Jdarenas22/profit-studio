@@ -18,6 +18,8 @@ WEIGHT_MIN, WEIGHT_MAX = Decimal('20'), Decimal('400')       # kg
 HEIGHT_MIN, HEIGHT_MAX = Decimal('0.5'), Decimal('2.5')      # metros
 CM_THRESHOLD = Decimal('3')                                   # por encima de esto se lee como cm
 WAIST_MIN, WAIST_MAX = Decimal('30'), Decimal('300')         # cm
+HIP_MIN, HIP_MAX = Decimal('30'), Decimal('300')             # cm
+FAT_MIN, FAT_MAX = Decimal('3'), Decimal('70')               # % de grasa corporal
 PULSE_MIN, PULSE_MAX = 20, 250                                # pulsaciones por minuto
 # El IMC se guarda en DecimalField(5,2) (máx. 999,99). Fuera de 8-100 el par peso/estatura
 # no es creíble (error de tecleo) y, en el extremo, desbordaría la columna en PostgreSQL.
@@ -132,7 +134,10 @@ class DixonTestForm(forms.Form):
 
 
 class BodyMeasurementForm(forms.Form):
-    """Medición corporal. Claves iguales a las de la plantilla: weight, height, waist_cm, notes."""
+    """Medición corporal (la usan la clienta y el entrenador).
+
+    Claves iguales a las de la plantilla: weight, height, waist_cm, hip_cm, body_fat_pct, notes.
+    """
 
     weight = _weight_field(places=1)
     height = HeightField(label='Estatura', required=False)
@@ -143,9 +148,56 @@ class BodyMeasurementForm(forms.Form):
                         'min_value': f'La cintura debe estar entre {WAIST_MIN} y {WAIST_MAX} cm.',
                         'max_value': f'La cintura debe estar entre {WAIST_MIN} y {WAIST_MAX} cm.'},
     )
+    hip_cm = DecimalInRangeField(
+        label='Cadera (cm)', required=False, places=1,
+        min_value=HIP_MIN, max_value=HIP_MAX,
+        error_messages={'invalid': 'Cadera inválida.',
+                        'min_value': f'La cadera debe estar entre {HIP_MIN} y {HIP_MAX} cm.',
+                        'max_value': f'La cadera debe estar entre {HIP_MIN} y {HIP_MAX} cm.'},
+    )
+    # Ojo: los mensajes de min/max no pueden llevar el signo % (Django los formatea con '%').
+    body_fat_pct = DecimalInRangeField(
+        label='Grasa corporal (%)', required=False, places=1,
+        min_value=FAT_MIN, max_value=FAT_MAX,
+        error_messages={'invalid': 'Porcentaje de grasa inválido.',
+                        'min_value': f'El porcentaje de grasa debe estar entre {FAT_MIN} y {FAT_MAX} por ciento.',
+                        'max_value': f'El porcentaje de grasa debe estar entre {FAT_MIN} y {FAT_MAX} por ciento.'},
+    )
     notes = _text_field('Observaciones', 2000)
 
     def clean(self):
         cleaned = super().clean()
         _check_imc(self, cleaned.get('weight'), cleaned.get('height'))
+        return cleaned
+
+
+class MemberMeasurementForm(BodyMeasurementForm):
+    """Medición registrada por la propia clienta.
+
+    Diferencia con la del entrenador: la estatura es obligatoria SOLO si no hay ninguna
+    anterior (última medición o valoración inicial). Si ya hay una y la clienta no escribe
+    otra, se usa esa para el IMC (`effective_height`).
+    """
+
+    def __init__(self, *args, known_height=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.known_height = known_height
+        self.effective_height = None
+
+    def clean(self):
+        cleaned = super().clean()
+        height = cleaned.get('height')
+        if 'height' in self.errors:          # ya tiene su propio error (rango o IMC)
+            return cleaned
+        if height is None:
+            if self.known_height is None:
+                self.add_error('height', 'Escribe tu estatura (solo la primera vez).')
+                return cleaned
+            height = self.known_height
+            # La estatura heredada no la tecleó la clienta: si el IMC no cuadra, el error
+            # es del peso (lo único que escribió).
+            weight = cleaned.get('weight')
+            if weight is not None and not IMC_MIN <= float(weight) / (float(height) ** 2) <= IMC_MAX:
+                self.add_error('weight', IMC_MESSAGE)
+        self.effective_height = height
         return cleaned

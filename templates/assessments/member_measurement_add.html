@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar medidas — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-2xl mx-auto">
+
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <a href="{% url 'member_measurement_list' %}" class="hover:text-primary transition-colors">Mis medidas</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Registrar</span>
+  </nav>
+
+  <h1 class="text-2xl font-black text-white mb-2">Registrar mis medidas</h1>
+  <p class="text-white/60 text-sm mb-6">
+    Guardamos la fecha de hoy automáticamente. Solo el peso es obligatorio; las demás medidas te ayudan a ver tu progreso.
+  </p>
+
+  {% if errors %}
+  <div role="alert" class="mb-5 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+    <i class="fa fa-circle-exclamation mr-1" aria-hidden="true"></i>
+    {% if errors.general %}{{ errors.general }}{% else %}Revisa los campos marcados en rojo y vuelve a guardar.{% endif %}
+  </div>
+  {% endif %}
+
+  <form method="POST" novalidate class="space-y-5"
+        x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+    {% csrf_token %}
+
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-5">
+      <h2 class="text-white font-bold text-sm uppercase tracking-wider">Medidas</h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {% include 'assessments/partials/measurement_field.html' with name='weight' label='Peso (kg)' value=form.weight error=errors.weight required=True placeholder='Ej: 72,5' maxlength='7' help='En kilos. Puedes usar coma o punto (72,5).' %}
+
+        <div>
+          <label for="id_height" class="block text-white/80 text-sm font-medium mb-2">
+            Estatura
+            {% if height_required %}<span class="text-primary" aria-hidden="true">*</span><span class="sr-only">(obligatoria)</span>{% else %}<span class="text-white/60 font-normal">(opcional)</span>{% endif %}
+          </label>
+          <input type="text" id="id_height" name="height"
+                 inputmode="decimal" autocomplete="off" maxlength="6"
+                 {% if height_required %}required{% endif %}
+                 value="{{ form.height|default:'' }}" placeholder="Ej: 1,65 o 165"
+                 {% if errors.height %}aria-invalid="true"{% endif %}
+                 aria-describedby="help_height{% if errors.height %} err_height{% endif %}"
+                 class="w-full min-h-[44px] bg-black/40 border {% if errors.height %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/40 outline-none transition-colors">
+          <p id="help_height" class="text-white/60 text-xs leading-relaxed mt-1.5">
+            En metros o en centímetros: 1,65 o 165 cm.
+            {% if height_required %}Te la pedimos esta vez para calcular tu IMC; después la recordamos.
+            {% elif last_height %}Si la dejas vacía usamos tu última estatura ({{ last_height }} m).{% endif %}
+          </p>
+          {% if errors.height %}<p id="err_height" class="text-red-400 text-sm mt-1.5"><i class="fa fa-circle-exclamation mr-1" aria-hidden="true"></i>{{ errors.height }}</p>{% endif %}
+        </div>
+
+        {% include 'assessments/partials/measurement_field.html' with name='waist_cm' label='Cintura (cm)' value=form.waist_cm error=errors.waist_cm placeholder='Ej: 85' maxlength='6' help='A la altura del ombligo, sin apretar la cinta.' %}
+        {% include 'assessments/partials/measurement_field.html' with name='hip_cm' label='Cadera (cm)' value=form.hip_cm error=errors.hip_cm placeholder='Ej: 98' maxlength='6' help='En la parte más ancha de los glúteos.' %}
+        {% include 'assessments/partials/measurement_field.html' with name='body_fat_pct' label='Grasa corporal (%)' value=form.body_fat_pct error=errors.body_fat_pct placeholder='Ej: 28,5' maxlength='5' help='Solo si la conoces (por ejemplo, de una báscula de bioimpedancia).' %}
+      </div>
+
+      <details class="rounded-xl bg-black/30 border border-white/10 px-4 py-3 text-sm">
+        <summary class="cursor-pointer min-h-[24px] text-white/80 font-medium rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          ¿Cómo me mido bien?
+        </summary>
+        <ul class="mt-3 space-y-2 text-white/70 text-sm leading-relaxed list-disc pl-5">
+          <li>Pésate a la misma hora, de preferencia en la mañana y en ayunas.</li>
+          <li>Cintura: de pie y relajada, con la cinta a la altura del ombligo, paralela al piso, después de exhalar.</li>
+          <li>Cadera: con los pies juntos, por la parte más ancha de los glúteos.</li>
+          <li>Si te cuesta, pide ayuda a otra persona o consulta con tu entrenador.</li>
+        </ul>
+      </details>
+
+      <div>
+        <label for="id_notes" class="block text-white/80 text-sm font-medium mb-2">
+          Observaciones <span class="text-white/60 font-normal">(opcional)</span>
+        </label>
+        <textarea id="id_notes" name="notes" rows="3" maxlength="2000"
+                  placeholder="Notas sobre esta medición..."
+                  {% if errors.notes %}aria-invalid="true" aria-describedby="err_notes"{% endif %}
+                  class="w-full bg-black/40 border {% if errors.notes %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/40 outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+        {% if errors.notes %}<p id="err_notes" class="text-red-400 text-sm mt-1.5"><i class="fa fa-circle-exclamation mr-1" aria-hidden="true"></i>{{ errors.notes }}</p>{% endif %}
+      </div>
+    </div>
+
+    {% include 'partials/health_privacy_note.html' %}
+
+    <div class="flex flex-col-reverse sm:flex-row sm:items-center gap-3 pt-2">
+      <a href="{% url 'member_measurement_list' %}"
+         class="inline-flex items-center justify-center min-h-[44px] px-5 py-3 text-white/70 hover:text-white text-sm rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Cancelar</a>
+      <button type="submit" :disabled="sending"
+              class="sm:flex-1 inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold py-3 rounded-xl transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Guardando...' : 'Guardar medidas'">Guardar medidas</span>
+      </button>
+    </div>
+  </form>
+</section>
+{% endblock %}

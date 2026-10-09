@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if purpose == 'ai_processing' %}Autorización para usar inteligencia artificial{% else %}Autorización de datos de salud{% endif %} — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-2xl mx-auto">
+
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Autorización</span>
+  </nav>
+
+  <h1 class="text-2xl font-black text-white mb-2">
+    {% if purpose == 'ai_processing' %}Autorización para usar inteligencia artificial{% else %}Autorización para tratar tus datos de salud{% endif %}
+  </h1>
+  <p class="text-white/60 text-sm mb-6">
+    {% if purpose == 'ai_processing' %}
+      Es opcional: puedes guardar tu ficha de salud sin esta autorización, y tu entrenador armará tu plan manualmente.
+    {% else %}
+      Responder sobre tu salud es voluntario. Léela con calma y decide si quieres autorizarla.
+    {% endif %}
+  </p>
+
+  {% if already_granted %}
+  <div class="mb-6 rounded-2xl border border-green-500/40 bg-green-500/10 p-4 flex gap-3" role="status">
+    <i class="fa fa-circle-check text-green-400 mt-0.5 shrink-0" aria-hidden="true"></i>
+    <p class="text-green-100 text-sm leading-relaxed">
+      Diste tu autorización{% if granted_at %} el <strong>{{ granted_at|date:"d/m/Y" }}</strong>{% endif %}
+      (texto versión {{ text_version }}). Puedes retirarla cuando quieras.
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6 mb-6">
+    <div class="flex items-center justify-between gap-3 mb-3">
+      <h2 id="consent-text-title" class="text-white font-bold text-sm uppercase tracking-wider">Texto de la autorización</h2>
+      <span class="text-white/60 text-xs shrink-0">Versión {{ text_version }}</span>
+    </div>
+    <div role="region" aria-labelledby="consent-text-title" tabindex="0"
+         class="max-h-80 overflow-y-auto rounded-xl bg-black/40 border border-white/10 p-4 text-white/80 text-sm leading-relaxed [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      {{ body|linebreaks }}
+    </div>
+    <p class="text-white/60 text-xs leading-relaxed mt-3">
+      Derechos: conocer, actualizar, rectificar y suprimir tus datos y revocar esta autorización.
+      Para ejercerlos, escríbenos por
+      <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
+         class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">WhatsApp<span class="sr-only"> (se abre en una pestaña nueva)</span></a>
+      {% if privacy_policy_url %}o consulta la <a href="{{ privacy_policy_url }}" target="_blank" rel="noopener"
+         class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">política de tratamiento de datos<span class="sr-only"> (se abre en una pestaña nueva)</span></a>{% endif %}.
+    </p>
+  </div>
+
+  {% if not already_granted %}
+  <form method="POST" action="{% url 'member_consent' purpose %}" novalidate
+        x-data="{ accepted: false, sending: false }" @submit="sending = true" @pageshow.window="sending = false"
+        class="space-y-5">
+    {% csrf_token %}
+    <input type="hidden" name="text_version" value="{{ text_version }}">
+
+    <div class="bg-zinc-900 border {% if errors.accept %}border-red-500{% else %}border-white/10{% endif %} rounded-2xl p-5">
+      <label for="id_accept" class="flex items-start gap-3 min-h-[44px] cursor-pointer">
+        <input type="checkbox" id="id_accept" name="accept" required x-model="accepted"
+               {% if errors.accept %}aria-invalid="true" aria-describedby="err_accept"{% endif %}
+               class="mt-0.5 w-6 h-6 shrink-0 accent-orange-500 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+        <span class="text-white/90 text-sm leading-relaxed">
+          {% if purpose == 'ai_processing' %}
+            Autorizo que mis datos de salud, <strong>sin mi nombre ni datos de contacto</strong>, se envíen a Google (Gemini) para generar una propuesta de plan que mi entrenador revisará.
+          {% else %}
+            He leído el texto anterior y autorizo el tratamiento de mis datos de salud (como peso, medidas y los datos de mi ficha) para mi seguimiento y entrenamiento.
+          {% endif %}
+        </span>
+      </label>
+      {% if errors.accept %}<p id="err_accept" class="text-red-400 text-sm mt-2"><i class="fa fa-circle-exclamation mr-1" aria-hidden="true"></i>{{ errors.accept }}</p>{% endif %}
+    </div>
+
+    <div class="flex flex-col-reverse sm:flex-row sm:items-center gap-3">
+      <a href="{% url 'dashboard' %}"
+         class="inline-flex items-center justify-center min-h-[44px] px-5 py-3 text-white/70 hover:text-white text-sm rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ahora no</a>
+      <button type="submit" :disabled="!accepted || sending"
+              class="sm:flex-1 inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold py-3 rounded-xl transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Guardando...' : 'Acepto'">Acepto</span>
+      </button>
+    </div>
+    <p class="text-white/60 text-xs" x-show="!accepted" style="display: none;">Marca la casilla para poder continuar.</p>
+  </form>
+  {% else %}
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5"
+       x-data="{ confirming: false, sending: false }" @keydown.escape="confirming = false">
+    <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-2">Retirar mi autorización</h2>
+    <p class="text-white/70 text-sm leading-relaxed mb-4">
+      {% if purpose == 'ai_processing' %}
+        Si la retiras, tus datos ya no se enviarán a la inteligencia artificial y tu entrenador armará tu plan manualmente.
+      {% else %}
+        Si la retiras, dejaremos de usar tus datos de salud y no podrás registrar medidas ni usar tu ficha. Podrás pedir que se borren.
+      {% endif %}
+    </p>
+    <button type="button" x-show="!confirming"
+            @click="confirming = true; $nextTick(() => $refs.confirmRevoke.focus())"
+            class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-white/10 hover:bg-red-600/80 text-white text-sm font-semibold px-5 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <i class="fa fa-ban" aria-hidden="true"></i> Retirar autorización
+    </button>
+    <form method="POST" action="{% url 'member_consent_revoke' purpose %}"
+          x-show="confirming" style="display: none;" @submit="sending = true"
+          class="flex flex-col sm:flex-row sm:items-center gap-3">
+      {% csrf_token %}
+      <p class="text-white/90 text-sm flex-1">¿Seguro que quieres retirarla?</p>
+      <div class="flex gap-2">
+        <button type="submit" x-ref="confirmRevoke" :disabled="sending"
+                class="inline-flex items-center justify-center min-h-[44px] bg-red-600 hover:bg-red-500 text-white text-sm font-semibold px-4 rounded-xl transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+          Sí, retirar
+        </button>
+        <button type="button" @click="confirming = false"
+                class="inline-flex items-center justify-center min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

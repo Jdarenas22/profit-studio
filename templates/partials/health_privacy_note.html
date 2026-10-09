@@ -1,0 +1,10 @@
+{# Descargo corto: los datos de salud se tratan con consentimiento. Usado en medidas y consentimiento. #}
+<aside class="flex gap-3 rounded-2xl border border-white/10 bg-zinc-900/60 p-4" aria-label="Aviso sobre tus datos de salud">
+  <i class="fa fa-shield-halved text-primary mt-0.5 shrink-0" aria-hidden="true"></i>
+  <p class="text-white/70 text-sm leading-relaxed min-w-0">
+    Tus medidas son datos de salud. Los tratamos solo con tu autorización (Ley 1581 de 2012) y únicamente para tu seguimiento y entrenamiento.
+    Responder es voluntario y puedes retirar tu autorización cuando quieras desde
+    <a href="{% url 'member_consent' 'health_data' %}"
+       class="text-primary underline underline-offset-2 hover:text-primary-light rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">tu autorización de datos de salud</a>.
+  </p>
+</aside>
