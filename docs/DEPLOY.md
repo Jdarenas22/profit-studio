@@ -108,7 +108,7 @@ wrangler r2 bucket domain list profitstudio-receipts     # no debe haber dominio
 
 1. Haz merge a `main` (o cambia una variable): Railway construye y despliega solo.
 2. Mira el avance: `railway deployment list --service profit-studio` (estados `BUILDING` → `DEPLOYING` → `SUCCESS`).
-3. Revisa el arranque: `railway logs --service profit-studio`. Deben salir `migrate OK`, `collectstatic OK` y `Listening at …`.
+3. Revisa el arranque: `railway logs --service profit-studio`. Deben salir `Base de datos lista`, `migrate OK`, el bloque de `check_infra`, `collectstatic OK` y `Listening at …`.
 4. Comprueba `https://<tu-dominio>/health/`. Si falla justo al arrancar, espera unos segundos: el servicio estaba despertando.
 5. Si algo sale mal, en Railway → Deployments puedes volver al despliegue anterior (rollback).
 
@@ -124,15 +124,19 @@ python manage.py check_infra --json     # misma salida en JSON
 
 Muestra una tabla OK / AVISO / ERROR con la acción sugerida y termina con código distinto de cero si hay algún ERROR.
 
-**Contra producción** ejecútalo *dentro* del servicio, donde están las dependencias de producción y la base interna de Railway (solo funciona cuando el código con `check_infra` ya esté desplegado):
+**Contra producción:** `start.sh` ejecuta `check_infra` en **cada arranque** (sin `--smtp`, sin bloquear el arranque) y deja la tabla en los logs. Después de cada despliegue míralo con:
 
 ```text
-railway ssh --service profit-studio -- python manage.py check_infra --smtp
+railway logs --service profit-studio
 ```
 
-`railway ssh` necesita una llave SSH registrada en tu cuenta de Railway (`ssh-keygen -t ed25519` y luego `railway ssh keys`); sin ella el comando solo te lo indica y no ejecuta nada. Es una configuración de tu cuenta, así que hazla cuando tú lo decidas. Alternativa sin llave: el servicio `profit-studio` en el panel de Railway permite abrir un shell desde la web.
+Busca el bloque «Revisión de infraestructura — ProFit Studio» y revisa que no haya filas `[ERROR]`. Para comprobar el correo de verdad, pide una recuperación de contraseña desde la web publicada y mira si llega el mensaje (con el correo en consola, en los logs aparece impreso).
 
-No lo corras con `railway run` desde tu equipo: `railway run` ejecuta el comando en tu computador con las variables de Railway, y tu entorno local (SQLite, sin `psycopg2` ni `boto3`) no puede conectarse a la base interna ni a R2.
+**Lo que NO funciona desde tu equipo (probado el 2026-10-09):**
+
+- `railway run python manage.py check_infra`: ejecuta el comando en tu computador, y tu entorno local (SQLite, sin `psycopg2` ni `boto3`; Windows bloquea esos controladores) no puede conectarse a la base interna de Railway ni a R2.
+- `railway ssh --service profit-studio -- <comando>`: aunque se registre una llave SSH, el servidor respondió con un resumen genérico de la cuenta en lugar de ejecutar el comando dentro del contenedor. No se logró ejecutar comandos en producción por esta vía.
+- No se ha verificado que el panel web de Railway ofrezca un shell del servicio; no cuentes con él.
 
 ## 7. Antes de encender la función de salud
 
