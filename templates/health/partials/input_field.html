@@ -1,0 +1,18 @@
+{# Campo de una línea (texto, fecha, número, hora). Parámetros: name, label, value, type, required, help, placeholder, maxlength, inputmode, min, max, step, describedby_extra (id de otro texto de ayuda). #}
+<div>
+  <label for="id_{{ name }}" class="block text-white/80 text-sm font-medium mb-2">
+    {{ label }}{% if required %} <span class="text-primary" aria-hidden="true">*</span><span class="sr-only">(obligatorio)</span>{% else %} <span class="text-white/60 font-normal">(opcional)</span>{% endif %}
+  </label>
+  <input type="{{ type|default:'text' }}" id="id_{{ name }}" name="{{ name }}"
+         value="{{ value|default:'' }}"
+         {% if inputmode %}inputmode="{{ inputmode }}"{% endif %}
+         {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+         {% if min %}min="{{ min }}"{% endif %}{% if max %}max="{{ max }}"{% endif %}{% if step %}step="{{ step }}"{% endif %}
+         {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+         autocomplete="off"
+         {% if name in errors %}aria-invalid="true"{% endif %}
+         {% if help or describedby_extra or name in errors %}aria-describedby="{% if help %}help_{{ name }}{% endif %}{% if describedby_extra %} {{ describedby_extra }}{% endif %}{% if name in errors %} err_{{ name }}{% endif %}"{% endif %}
+         class="w-full min-h-[44px] bg-black/40 border {% if name in errors %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/40 outline-none transition-colors [color-scheme:dark]">
+  {% if help %}<p id="help_{{ name }}" class="text-white/60 text-xs leading-relaxed mt-1.5">{{ help }}</p>{% endif %}
+  {% include 'health/partials/field_error.html' %}
+</div>

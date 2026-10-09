@@ -1,0 +1,5 @@
+{# Dato de solo lectura. Parámetros: label, value, suffix, empty. #}
+<div class="min-w-0">
+  <dt class="text-white/60 text-xs mb-0.5">{{ label }}</dt>
+  <dd class="text-white text-sm [overflow-wrap:anywhere]">{% if value or value == 0 %}{{ value }}{% if suffix %} {{ suffix }}{% endif %}{% else %}<span class="text-white/60">{{ empty|default:'Sin dato' }}</span>{% endif %}</dd>
+</div>

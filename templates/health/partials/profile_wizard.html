@@ -1,0 +1,337 @@
+{% comment %} Asistente de 5 pasos de la ficha de salud y alimentación (F-04). Lo usan la clienta (health/profile_form.html)
+   y el entrenador (trainer/health_profile_form.html): mismo contexto, mismo HTML.
+   Parámetros: action_url (a dónde se envía), cancel_url (a dónde vuelve "Cancelar").
+   Todos los pasos viven en UN solo <form>: se ocultan con x-show (nunca x-if) para que el servidor reciba todo.
+   El servidor valida todo al guardar; el navegador solo ayuda (por eso novalidate). {% endcomment %}
+<form method="POST" action="{{ action_url }}" novalidate id="health-wizard"
+      x-data="healthWizard" data-initial-step="{{ first_error_step|default:1 }}"
+      @submit="sending = true" @pageshow.window="sending = false"
+      @change="sync($event)" @keydown.enter="onEnter($event)">
+  {% csrf_token %}
+
+  {% if errors %}
+  <div role="alert" class="mb-5 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+    <p class="flex items-start gap-2">
+      <i class="fa fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i>
+      <span>{% if errors.general %}{{ errors.general }}{% else %}Revisa los datos marcados: hay respuestas por corregir.{% endif %}</span>
+    </p>
+    {% if error_steps %}
+    <ul class="mt-2 flex flex-wrap gap-2">
+      {% for s in steps %}{% if s.number in error_steps %}
+      <li>
+        <button type="button" @click="go({{ s.number }})"
+                class="inline-flex items-center min-h-[44px] px-3 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-100 text-xs font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+          Paso {{ s.number }}: {{ s.title }}
+        </button>
+      </li>
+      {% endif %}{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Indicador de pasos -->
+  <nav aria-label="Pasos de la ficha" class="mb-5">
+    <ol class="flex items-start gap-1 sm:gap-2">
+      {% for s in steps %}
+      <li class="flex-1 min-w-0">
+        <button type="button" @click="go({{ s.number }})" :aria-current="step === {{ s.number }} ? 'step' : null"
+                class="w-full min-h-[44px] flex flex-col items-center gap-1 rounded-xl px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <span class="w-9 h-9 rounded-full border text-sm font-bold flex items-center justify-center transition-colors"
+                :class="step === {{ s.number }} ? 'border-primary bg-primary text-black' : '{% if s.number in error_steps %}border-red-500 bg-red-500/20 text-red-200{% else %}border-white/20 bg-white/10 text-white/80{% endif %}'">
+            {% if s.number in error_steps %}<i class="fa fa-exclamation" aria-hidden="true"></i>{% else %}{{ s.number }}{% endif %}
+          </span>
+          <span class="hidden sm:block text-xs leading-tight text-center text-white/70 [overflow-wrap:anywhere]"
+                :class="step === {{ s.number }} ? '!text-white font-semibold' : ''" aria-hidden="true">{{ s.title }}</span>
+          <span class="sr-only">Paso {{ s.number }} de {{ steps|length }}: {{ s.title }}{% if s.number in error_steps %} (tiene respuestas por corregir){% endif %}</span>
+        </button>
+      </li>
+      {% endfor %}
+    </ol>
+  </nav>
+
+  <!-- ═══ Paso 1: datos básicos y meta ═══ -->
+  <section x-show="step === 1" x-cloak aria-labelledby="step-title-1">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-6">
+      <div>
+        <p class="text-primary text-xs font-bold uppercase tracking-wider">Paso 1 de {{ steps|length }}</p>
+        <h2 id="step-title-1" tabindex="-1" x-ref="title1" class="text-xl font-black text-white scroll-mt-24 focus:outline-none">{{ steps.0.title }}</h2>
+      </div>
+
+      {% include 'health/partials/input_field.html' with name='birth_date' label='Fecha de nacimiento' type='date' value=form.birth_date required=True min=birth_date_min max=birth_date_max help='Usamos tu edad para ajustar el plan. La ficha en línea es para personas mayores de 18 años.' %}
+
+      {% include 'health/partials/radio_group.html' with name='sex_for_calculation' legend='Sexo para el cálculo' options=choices.sex value=form.sex_for_calculation required=True help='Se usa solo en las fórmulas para estimar calorías.' %}
+
+      {% include 'health/partials/select_field.html' with name='training_goal' label='Tu meta principal' options=choices.goals value=form.training_goal required=True %}
+
+      <div>
+        {% include 'health/partials/input_field.html' with name='target_weight_kg' label='Peso meta (kg)' value=form.target_weight_kg inputmode='decimal' maxlength='6' placeholder='Ej: 58,5' help='En kilos; puedes usar coma o punto. Debe ser coherente con tu estatura.' describedby_extra='help_known_height' %}
+        <p id="help_known_height" class="text-white/60 text-xs leading-relaxed mt-1.5">
+          {% if last_height %}Tu estatura registrada es {{ last_height }} m.{% else %}Aún no tienes estatura registrada: te la pedimos cuando registres tus medidas.{% endif %}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Paso 2: salud ═══ -->
+  <section x-show="step === 2" x-cloak aria-labelledby="step-title-2">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-6">
+      <div>
+        <p class="text-primary text-xs font-bold uppercase tracking-wider">Paso 2 de {{ steps|length }}</p>
+        <h2 id="step-title-2" tabindex="-1" x-ref="title2" class="text-xl font-black text-white scroll-mt-24 focus:outline-none">{{ steps.1.title }}</h2>
+        <p class="text-white/60 text-sm mt-1 leading-relaxed">
+          Marca solo lo que aplique; si algo no te aplica, déjalo en blanco. Esta información ayuda a que tu entrenamiento sea seguro para ti.
+        </p>
+      </div>
+
+      {% include 'health/partials/check_group.html' with name='conditions' legend='Condiciones de salud' options=choices.conditions selected=form.conditions help='Marca las que te haya diagnosticado un profesional de la salud. Si no tienes ninguna, déjalo en blanco.' %}
+      {% include 'health/partials/input_field.html' with name='other_condition_text' label='Si marcaste «Otra condición», ¿cuál?' value=form.other_condition_text maxlength='300' %}
+
+      <div x-show="hasConditions" x-cloak>
+        {% include 'health/partials/single_check.html' with name='condition_controlled' label='Mis condiciones están controladas con seguimiento médico' checked=form.condition_controlled %}
+      </div>
+
+      <div class="space-y-4">
+        {% include 'health/partials/single_check.html' with name='medical_clearance' label='Mi médico me autorizó a hacer ejercicio' checked=form.medical_clearance %}
+        <div x-show="medicalClearance" x-cloak>
+          {% include 'health/partials/input_field.html' with name='clearance_date' label='Fecha de la autorización médica' type='date' value=form.clearance_date required=True max=today help='Una autorización de menos de 12 meses es la que cuenta para tu plan.' %}
+        </div>
+      </div>
+
+      {% include 'health/partials/check_group.html' with name='medications' legend='Medicamentos que tomas' options=choices.medications selected=form.medications help='Si no tomas ninguno, déjalo en blanco.' %}
+      {% include 'health/partials/input_field.html' with name='medications_text' label='Si marcaste «Otro medicamento», ¿cuál?' value=form.medications_text maxlength='300' %}
+
+      {% include 'health/partials/check_group.html' with name='injuries' legend='Zonas con lesión o molestia' options=choices.injuries selected=form.injuries help='Marca las zonas donde tienes o has tenido lesiones o dolor al moverte.' %}
+      {% include 'health/partials/input_field.html' with name='injuries_text' label='Algo más sobre tus lesiones' value=form.injuries_text maxlength='300' %}
+
+      {% include 'health/partials/radio_group.html' with name='recent_surgery' legend='¿Te han operado recientemente?' options=choices.surgery value=form.recent_surgery required=True %}
+
+      <div x-show="!sexM" x-ref="pregnancyBox" x-cloak>
+        {% include 'health/partials/radio_group.html' with name='pregnancy_status' legend='¿Estás en embarazo, lactancia o posparto reciente?' options=choices.pregnancy value=form.pregnancy_status required=True %}
+      </div>
+      {# Con sexo masculino la pregunta no se hace: se envía "none" (el servidor rechaza otro valor) #}
+      <input type="hidden" name="pregnancy_status" value="none" x-ref="pregnancyNone" disabled>
+
+      {% include 'health/partials/radio_group.html' with name='eating_disorder_history' legend='¿Has tenido antecedentes de trastornos de la conducta alimentaria?' options=choices.eating_disorder value=form.eating_disorder_history required=True help='Esta pregunta es voluntaria. La usamos solo para que tu entrenador cuide con delicadeza tus recomendaciones de alimentación. Puedes elegir «Prefiero no decir».' %}
+    </div>
+  </section>
+
+  <!-- ═══ Paso 3: cuestionario de aptitud ═══ -->
+  <section x-show="step === 3" x-cloak aria-labelledby="step-title-3">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-6">
+      <div>
+        <p class="text-primary text-xs font-bold uppercase tracking-wider">Paso 3 de {{ steps|length }}</p>
+        <h2 id="step-title-3" tabindex="-1" x-ref="title3" class="text-xl font-black text-white scroll-mt-24 focus:outline-none">{{ steps.2.title }}</h2>
+        <p class="text-white/60 text-sm mt-1 leading-relaxed">
+          Son 7 preguntas rápidas para que entrenes con seguridad. Responde con calma: si dices «Sí» a alguna, tu entrenador la revisará contigo para empezar de la mejor manera. No es un diagnóstico.
+        </p>
+      </div>
+
+      {% for row in parq_rows %}
+      <fieldset class="min-w-0 border-t border-white/10 pt-5 first:border-t-0 first:pt-0"
+                aria-describedby="err_{{ row.field }}">
+        <legend class="text-white/90 text-sm leading-relaxed mb-3 [overflow-wrap:anywhere]">
+          <span class="text-white/60">{{ row.number }}.</span> {{ row.text }}
+          <span class="sr-only">(obligatoria)</span>
+        </legend>
+        <div class="grid grid-cols-2 gap-2 max-w-xs">
+          <label for="id_{{ row.field }}_yes"
+                 class="flex items-center gap-3 min-h-[44px] rounded-xl border bg-black/30 px-3 py-2.5 cursor-pointer transition-colors hover:bg-black/50 has-[:checked]:border-primary/60 has-[:checked]:bg-primary/10 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary {% if row.field in errors %}border-red-500/60{% else %}border-white/10{% endif %}">
+            <input type="radio" id="id_{{ row.field }}_yes" name="{{ row.field }}" value="yes" {% if row.value == 'yes' %}checked{% endif %}
+                   class="w-5 h-5 shrink-0 accent-orange-500 cursor-pointer focus-visible:outline-none">
+            <span class="text-white/90 text-sm">Sí</span>
+          </label>
+          <label for="id_{{ row.field }}_no"
+                 class="flex items-center gap-3 min-h-[44px] rounded-xl border bg-black/30 px-3 py-2.5 cursor-pointer transition-colors hover:bg-black/50 has-[:checked]:border-primary/60 has-[:checked]:bg-primary/10 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary {% if row.field in errors %}border-red-500/60{% else %}border-white/10{% endif %}">
+            <input type="radio" id="id_{{ row.field }}_no" name="{{ row.field }}" value="no" {% if row.value == 'no' %}checked{% endif %}
+                   class="w-5 h-5 shrink-0 accent-orange-500 cursor-pointer focus-visible:outline-none">
+            <span class="text-white/90 text-sm">No</span>
+          </label>
+        </div>
+        {% include 'health/partials/field_error.html' with name=row.field %}
+      </fieldset>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ═══ Paso 4: alimentación ═══ -->
+  <section x-show="step === 4" x-cloak aria-labelledby="step-title-4">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-6">
+      <div>
+        <p class="text-primary text-xs font-bold uppercase tracking-wider">Paso 4 de {{ steps|length }}</p>
+        <h2 id="step-title-4" tabindex="-1" x-ref="title4" class="text-xl font-black text-white scroll-mt-24 focus:outline-none">{{ steps.3.title }}</h2>
+      </div>
+
+      {% include 'health/partials/select_field.html' with name='diet_type' label='¿Cómo describirías tu alimentación?' options=choices.diet value=form.diet_type required=True %}
+
+      {% include 'health/partials/check_group.html' with name='allergies' legend='Alergias alimentarias' options=choices.allergies selected=form.allergies help='Si no tienes ninguna, déjalo en blanco.' %}
+      <div x-show="hasAllergies" x-cloak>
+        {% include 'health/partials/radio_group.html' with name='allergy_severity' legend='¿Qué tan fuerte es tu reacción?' options=choices.allergy_severity value=form.allergy_severity required=True wide=True %}
+      </div>
+
+      {% include 'health/partials/check_group.html' with name='intolerances' legend='Intolerancias' options=choices.intolerances selected=form.intolerances help='Alimentos que te caen mal sin ser una alergia. Si no tienes ninguna, déjalo en blanco.' %}
+
+      <fieldset class="min-w-0" aria-describedby="help_meal_slots{% if 'meal_slots' in errors %} err_meal_slots{% endif %}">
+        <legend class="block text-white/80 text-sm font-medium mb-2">
+          Comidas del día <span class="text-primary" aria-hidden="true">*</span><span class="sr-only">(obligatorio)</span>
+        </legend>
+        <p id="help_meal_slots" class="text-white/60 text-xs leading-relaxed mb-3">
+          Desayuno, almuerzo y cena siempre van. Puedes sumar media mañana y merienda. La hora es opcional.
+        </p>
+        <div class="space-y-2">
+          {% for row in meal_rows %}
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border {% if 'meal_slots' in errors and not row.required %}border-red-500/60{% else %}border-white/10{% endif %} bg-black/30 px-3 py-2.5">
+            <label for="id_meal_{{ row.code }}" class="flex items-center gap-3 min-h-[44px] flex-1 min-w-0 {% if not row.required %}cursor-pointer{% endif %}">
+              {% if row.required %}
+              {# Un <input> deshabilitado no se envía: el valor viaja en el campo oculto #}
+              <input type="checkbox" id="id_meal_{{ row.code }}" checked disabled
+                     class="w-6 h-6 shrink-0 accent-orange-500 opacity-70">
+              <input type="hidden" name="meal_slots" value="{{ row.code }}">
+              {% else %}
+              <input type="checkbox" id="id_meal_{{ row.code }}" name="meal_slots" value="{{ row.code }}"
+                     data-meal-optional="{{ row.code }}" {% if row.checked %}checked{% endif %}
+                     class="w-6 h-6 shrink-0 accent-orange-500 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+              {% endif %}
+              <span class="text-white/90 text-sm">{{ row.label }}{% if row.required %}<span class="text-white/60 text-xs"> (siempre incluida)</span>{% endif %}</span>
+            </label>
+            <div class="sm:w-44">
+              <label for="id_{{ row.field }}" class="block text-white/60 text-xs mb-1">Hora <span class="sr-only">de {{ row.label|lower }} </span>(opcional)</label>
+              <input type="time" id="id_{{ row.field }}" name="{{ row.field }}" value="{{ row.time }}"
+                     data-meal-time="{{ row.code }}"
+                     {% if row.field in errors %}aria-invalid="true" aria-describedby="err_{{ row.field }}"{% endif %}
+                     class="w-full min-h-[44px] bg-black/40 border {% if row.field in errors %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-3 py-2 text-white text-sm outline-none transition-colors disabled:opacity-40 [color-scheme:dark]">
+              {% include 'health/partials/field_error.html' with name=row.field %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% include 'health/partials/field_error.html' with name='meal_slots' %}
+      </fieldset>
+
+      {% include 'health/partials/radio_group.html' with name='cooking_access' legend='¿Puedes cocinar?' options=choices.cooking value=form.cooking_access required=True wide=True %}
+      {% include 'health/partials/radio_group.html' with name='budget_level' legend='Presupuesto para tu alimentación' options=choices.budget value=form.budget_level required=True %}
+
+      {% include 'health/partials/input_field.html' with name='eats_out_per_week' label='Comidas fuera de casa por semana' type='number' value=form.eats_out_per_week inputmode='numeric' min='0' max='21' help='Entre 0 y 21. Si lo dejas vacío, contamos 0.' %}
+
+      {% include 'health/partials/textarea_field.html' with name='disliked_foods_text' label='Alimentos que no te gustan o no comes' value=form.disliked_foods_text %}
+      {% include 'health/partials/textarea_field.html' with name='liked_foods_text' label='Alimentos que más te gustan' value=form.liked_foods_text %}
+    </div>
+  </section>
+
+  <!-- ═══ Paso 5: entrenamiento ═══ -->
+  <section x-show="step === 5" x-cloak aria-labelledby="step-title-5">
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-6">
+      <div>
+        <p class="text-primary text-xs font-bold uppercase tracking-wider">Paso 5 de {{ steps|length }}</p>
+        <h2 id="step-title-5" tabindex="-1" x-ref="title5" class="text-xl font-black text-white scroll-mt-24 focus:outline-none">{{ steps.4.title }}</h2>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {% include 'health/partials/input_field.html' with name='training_days_per_week' label='Días de entrenamiento por semana' type='number' value=form.training_days_per_week required=True inputmode='numeric' min='1' max='6' help='Entre 1 y 6 días.' %}
+        {% include 'health/partials/input_field.html' with name='session_minutes' label='Minutos por sesión' type='number' value=form.session_minutes required=True inputmode='numeric' min='20' max='120' help='Entre 20 y 120 minutos.' %}
+      </div>
+
+      {% include 'health/partials/radio_group.html' with name='training_place' legend='¿Dónde entrenas?' options=choices.training_place value=form.training_place required=True %}
+
+      <div x-show="atHome" x-cloak>
+        {% include 'health/partials/check_group.html' with name='equipment' legend='Equipo que tienes en casa' options=choices.equipment selected=form.equipment required=True help='Si no tienes nada, marca «Ninguno».' %}
+      </div>
+
+      {% include 'health/partials/radio_group.html' with name='experience_level' legend='Tu experiencia entrenando' options=choices.experience value=form.experience_level required=True %}
+      {% include 'health/partials/radio_group.html' with name='activity_level' legend='Tu nivel de actividad en el día a día' options=choices.activity value=form.activity_level required=True wide=True %}
+
+      {% include 'health/partials/input_field.html' with name='sleep_hours' label='Horas de sueño por noche' value=form.sleep_hours inputmode='decimal' maxlength='4' placeholder='Ej: 7,5' help='Entre 3 y 12 horas; puedes usar coma.' %}
+    </div>
+  </section>
+
+  <!-- Navegación -->
+  <div class="mt-5 flex flex-col-reverse sm:flex-row sm:items-center gap-3">
+    <a href="{{ cancel_url }}"
+       class="inline-flex items-center justify-center min-h-[44px] px-5 py-3 text-white/70 hover:text-white text-sm rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Cancelar</a>
+    <div class="flex flex-col-reverse sm:flex-row gap-3 sm:ml-auto sm:flex-1 sm:justify-end">
+      <button type="button" x-show="step > 1" x-cloak @click="prev()"
+              class="inline-flex items-center justify-center gap-2 min-h-[44px] px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        <i class="fa fa-arrow-left" aria-hidden="true"></i> Atrás
+      </button>
+      <button type="button" x-show="step < {{ steps|length }}" x-cloak @click="next()"
+              class="inline-flex items-center justify-center gap-2 min-h-[44px] px-6 py-3 bg-primary hover:bg-primary-dark text-black font-bold text-sm rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+        Siguiente <i class="fa fa-arrow-right" aria-hidden="true"></i>
+      </button>
+      <button type="submit" x-show="step === {{ steps|length }}" x-cloak :disabled="sending"
+              class="inline-flex items-center justify-center gap-2 min-h-[44px] px-6 py-3 bg-primary hover:bg-primary-dark text-black font-bold text-sm rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Guardando...' : '{% if is_edit %}Guardar cambios{% else %}Guardar ficha{% endif %}'">{% if is_edit %}Guardar cambios{% else %}Guardar ficha{% endif %}</span>
+      </button>
+    </div>
+  </div>
+</form>
+
+<script>
+  // Comportamiento del asistente. Los datos viajan en el formulario; aquí solo se muestran u ocultan partes.
+  document.addEventListener('alpine:init', function () {
+    Alpine.data('healthWizard', function () {
+      return {
+        step: 1,
+        total: 5,
+        sending: false,
+        hasConditions: false,
+        medicalClearance: false,
+        sexM: false,
+        hasAllergies: false,
+        atHome: false,
+
+        init() {
+          this.step = parseInt(this.$root.dataset.initialStep, 10) || 1;
+          this.sync();
+        },
+        go(n) {
+          this.step = n;
+          this.$nextTick(() => {
+            const title = this.$refs['title' + n];
+            if (title) title.focus();
+          });
+        },
+        next() { if (this.step < this.total) this.go(this.step + 1); },
+        prev() { if (this.step > 1) this.go(this.step - 1); },
+        // Enter en un campo no envía la ficha a medias: avanza al paso siguiente
+        onEnter(event) {
+          const tag = event.target.tagName;
+          if (tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'A') return;
+          if (this.step < this.total) {
+            event.preventDefault();
+            this.next();
+          }
+        },
+        sync(event) {
+          const form = this.$root;
+          const count = (name) => form.querySelectorAll('input[name="' + name + '"]:checked').length;
+
+          // "Ninguno" excluye al resto del equipo
+          if (event && event.target.name === 'equipment' && event.target.checked) {
+            form.querySelectorAll('input[name="equipment"]').forEach((box) => {
+              if (box !== event.target && (event.target.value === 'none' || box.value === 'none')) box.checked = false;
+            });
+          }
+
+          this.hasConditions = count('conditions') > 0;
+          this.medicalClearance = count('medical_clearance') > 0;
+          this.hasAllergies = count('allergies') > 0;
+          const sex = form.querySelector('input[name="sex_for_calculation"]:checked');
+          this.sexM = !!sex && sex.value === 'M';
+          const place = form.querySelector('input[name="training_place"]:checked');
+          this.atHome = !!place && place.value === 'home';
+
+          // Con sexo masculino no se pregunta por el embarazo: se envía "none" y se apagan las opciones
+          this.$refs.pregnancyBox.querySelectorAll('input').forEach((input) => { input.disabled = this.sexM; });
+          this.$refs.pregnancyNone.disabled = !this.sexM;
+
+          // La hora de una comida opcional solo se envía si la comida está elegida
+          form.querySelectorAll('[data-meal-optional]').forEach((box) => {
+            const time = form.querySelector('[data-meal-time="' + box.dataset.mealOptional + '"]');
+            if (time) time.disabled = !box.checked;
+          });
+        },
+      };
+    });
+  });
+</script>

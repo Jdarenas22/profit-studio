@@ -1,0 +1,19 @@
+{# Grupo de casillas (varias opciones, el mismo nombre repetido). Parámetros: name, legend, options [(código, etiqueta)], selected (lista de códigos), help, required, wide (una columna). #}
+<fieldset class="min-w-0" {% if help or name in errors %}aria-describedby="{% if help %}help_{{ name }}{% endif %}{% if name in errors %} err_{{ name }}{% endif %}"{% endif %}>
+  <legend class="block text-white/80 text-sm font-medium mb-2">
+    {{ legend }}{% if required %} <span class="text-primary" aria-hidden="true">*</span><span class="sr-only">(obligatorio)</span>{% else %} <span class="text-white/60 font-normal">(opcional)</span>{% endif %}
+  </legend>
+  {% if help %}<p id="help_{{ name }}" class="text-white/60 text-xs leading-relaxed mb-2">{{ help }}</p>{% endif %}
+  <div class="grid grid-cols-1 {% if not wide %}sm:grid-cols-2{% endif %} gap-2">
+    {% for code, label in options %}
+    <label for="id_{{ name }}_{{ forloop.counter }}"
+           class="flex items-start gap-3 min-h-[44px] rounded-xl border bg-black/30 px-3 py-2.5 cursor-pointer transition-colors hover:bg-black/50 has-[:checked]:border-primary/60 has-[:checked]:bg-primary/10 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary {% if name in errors %}border-red-500/60{% else %}border-white/10{% endif %}">
+      <input type="checkbox" id="id_{{ name }}_{{ forloop.counter }}" name="{{ name }}" value="{{ code }}"
+             {% if code in selected %}checked{% endif %}
+             class="mt-0.5 w-6 h-6 shrink-0 accent-orange-500 cursor-pointer focus-visible:outline-none">
+      <span class="text-white/90 text-sm leading-snug min-w-0 [overflow-wrap:anywhere]">{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  {% include 'health/partials/field_error.html' %}
+</fieldset>

@@ -1,0 +1,12 @@
+{# Lista de opciones elegidas, en etiquetas. Parámetros: label, items, empty, extra (texto libre, siempre escapado). #}
+<div class="min-w-0 sm:col-span-2">
+  <dt class="text-white/60 text-xs mb-1">{{ label }}</dt>
+  <dd>
+    {% if items %}
+    <ul class="flex flex-wrap gap-1.5">
+      {% for item in items %}<li class="rounded-lg bg-white/10 px-2.5 py-1 text-xs text-white/90 [overflow-wrap:anywhere]">{{ item }}</li>{% endfor %}
+    </ul>
+    {% else %}<span class="text-white/60 text-sm">{{ empty|default:'Ninguna' }}</span>{% endif %}
+    {% if extra %}<p class="text-white/70 text-sm mt-2 [overflow-wrap:anywhere]"><span class="text-white/60">Detalle:</span> {{ extra }}</p>{% endif %}
+  </dd>
+</div>

@@ -1,0 +1,13 @@
+{# Una casilla (sí/no). Parámetros: name, label, checked (bool), help. Envía "on" si está marcada. #}
+<div>
+  <label for="id_{{ name }}"
+         class="flex items-start gap-3 min-h-[44px] rounded-xl border bg-black/30 px-3 py-2.5 cursor-pointer transition-colors hover:bg-black/50 has-[:checked]:border-primary/60 has-[:checked]:bg-primary/10 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary {% if name in errors %}border-red-500/60{% else %}border-white/10{% endif %}">
+    <input type="checkbox" id="id_{{ name }}" name="{{ name }}"
+           {% if checked %}checked{% endif %}
+           {% if help or name in errors %}aria-describedby="{% if help %}help_{{ name }}{% endif %}{% if name in errors %} err_{{ name }}{% endif %}"{% endif %}
+           class="mt-0.5 w-6 h-6 shrink-0 accent-orange-500 cursor-pointer focus-visible:outline-none">
+    <span class="text-white/90 text-sm leading-snug min-w-0">{{ label }}</span>
+  </label>
+  {% if help %}<p id="help_{{ name }}" class="text-white/60 text-xs leading-relaxed mt-1.5">{{ help }}</p>{% endif %}
+  {% include 'health/partials/field_error.html' %}
+</div>
