@@ -144,8 +144,3 @@ WOMPI_EVENTS_SECRET = env('WOMPI_EVENTS_SECRET', default='')
 HEALTH_FEATURES_ENABLED = env.bool('HEALTH_FEATURES_ENABLED', default=False)
 # URL pública de la política de tratamiento de datos personales (vacía = no se muestra el enlace).
 PRIVACY_POLICY_URL = env('PRIVACY_POLICY_URL', default='')
-
-# ─── Celery ─────────────────────────────────────────────────────────────────────
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60
