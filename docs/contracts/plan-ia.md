@@ -366,7 +366,7 @@ Interfaz `AIClient.generate_json(task, system, payload, schema, job_ref) -> AIRe
 3. **Recuperación**: el hilo escribe `heartbeat_at` antes de cada llamada a Gemini. Un trabajo `running` con latido de más de 3 minutos (worker reiniciado, redeploy) vuelve a `queued` (o `failed` si agotó intentos). La recuperación corre (a) cuando alguien consulta el estado, (b) al lanzar cualquier trabajo nuevo y (c) con el comando opcional `process_plan_jobs` (se puede programar con un cron de Railway si algún día se quiere).
 4. En pruebas y desarrollo: `AI_PLANS_RUN_INLINE=true` ejecuta en el mismo hilo, sin concurrencia.
 
-Por qué no Celery: ya está declarado pero necesita Redis y un servicio worker aparte (más infraestructura a operar y pagar). Por qué no hilo "puro": se pierde trabajo en cada redeploy; la tabla + recuperación lo cubre. Si el volumen crece, la misma tabla sirve de cola para Celery sin rediseñar.
+Por qué no Celery (estaba declarado sin ninguna tarea y se quitó del proyecto en la limpieza de octubre de 2026): necesita Redis y un servicio worker aparte (más infraestructura a operar y pagar). Por qué no hilo "puro": se pierde trabajo en cada redeploy; la tabla + recuperación lo cubre. Si el volumen crece, la misma tabla sirve de cola para Celery sin rediseñar.
 
 ### 6.2 Tiempos y reintentos
 

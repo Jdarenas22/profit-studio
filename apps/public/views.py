@@ -1,5 +1,4 @@
 from django.shortcuts import render
-from django.http import JsonResponse
 
 
 def home(request):
@@ -16,7 +15,3 @@ def about(request):
 
 def contact(request):
     return render(request, 'public/contact.html')
-
-
-def health_check(request):
-    return JsonResponse({'status': 'ok'})

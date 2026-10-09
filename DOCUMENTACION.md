@@ -56,8 +56,7 @@ El sistema tiene dos tipos de usuarios:
 | **Gunicorn** | 22.0.0 | Servidor WSGI para producción (el que "sirve" la web) |
 | **PostgreSQL** | latest | Base de datos en producción (más robusta que SQLite) |
 | **SQLite** | built-in | Base de datos en desarrollo local (un solo archivo) |
-| **Celery** | 5.3.6 | Tareas en segundo plano (envío de correos, procesos largos) |
-| **Redis** | 5.0.7 | Cache y mensajería para Celery (solo en producción) |
+| **Redis** | 5.0.7 | Caché compartida opcional en producción (límite de intentos de login entre workers); sin `REDIS_URL` se usa memoria local |
 
 ### Frontend (navegador del usuario)
 
@@ -94,8 +93,7 @@ profit-studio/                   ← Carpeta raíz del proyecto
 ├── requirements/                ← Dependencias de Python
 │   ├── base.txt                 ← Dependencias compartidas (todos los entornos)
 │   ├── development.txt          ← Desarrollo: agrega debug toolbar
-│   ├── local.txt                ← Local sin PostgreSQL ni Redis
-│   └── production.txt           ← Producción (igual a base.txt)
+│   └── local.txt                ← Local sin PostgreSQL ni Redis
 │
 ├── config/                      ← Configuración central de Django
 │   ├── urls.py                  ← Enrutador principal — conecta las apps
@@ -103,8 +101,7 @@ profit-studio/                   ← Carpeta raíz del proyecto
 │   │   ├── base.py              ← Configuración compartida (apps, middleware, etc.)
 │   │   ├── development.py       ← Sobreescribe para desarrollo (SQLite, debug=True)
 │   │   └── production.py        ← Sobreescribe para producción (PostgreSQL, R2, SSL)
-│   ├── wsgi.py                  ← Punto de entrada para el servidor web
-│   └── celery.py                ← Configuración de tareas en segundo plano
+│   └── wsgi.py                  ← Punto de entrada para el servidor web
 │
 ├── apps/                        ← Todas las aplicaciones del proyecto
 │   ├── accounts/                ← Usuarios, login, registro, perfiles
@@ -723,7 +720,7 @@ Si quieres mostrar la foto de la entrenadora en `templates/public/home.html` o `
 
 ## 16. Cómo pasar a producción en Railway
 
-Railway es el servicio de hosting configurado en este proyecto. Sigue estos pasos:
+Railway es el servicio de hosting configurado en este proyecto. **La referencia vigente del despliegue (estado verificado, variables por proveedor, Cloudflare R2 y el comando `check_infra`) está en [`docs/DEPLOY.md`](docs/DEPLOY.md);** esta sección queda como guía de primeros pasos. Sigue estos pasos:
 
 ### Paso 1 — Crear cuenta y proyecto en Railway
 
@@ -826,7 +823,7 @@ El archivo `.env` en la raíz del proyecto controla el comportamiento del sistem
 | `DEBUG` | ✅ (`False`) | `True` en desarrollo, siempre `False` en producción |
 | `ALLOWED_HOSTS` | ✅ | Dominios permitidos, separados por coma |
 | `DATABASE_URL` | ✅ | URL de conexión PostgreSQL (Railway la genera automáticamente) |
-| `REDIS_URL` | ✅ | URL de Redis para cache y Celery (Railway lo proporciona) |
+| `REDIS_URL` | Opcional | URL de Redis para la caché compartida entre workers (si no existe se usa memoria local) |
 | `R2_ACCESS_KEY_ID` | ✅ | Credencial de Cloudflare R2 |
 | `R2_SECRET_ACCESS_KEY` | ✅ | Credencial secreta de R2 |
 | `R2_BUCKET_NAME` | ✅ | Nombre del bucket en R2 (ej: `profitstudio-media`) |

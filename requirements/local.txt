@@ -7,4 +7,4 @@ django-htmx==1.17.3
 whitenoise==6.6.0
 django-axes==6.5.0
 django-debug-toolbar==4.3.0
-# boto3 y redis son opcionales en local (se usan solo en producción con R2 y Celery)
+# boto3 y redis son opcionales en local (se usan solo en producción: boto3 con Cloudflare R2, redis como caché opcional)

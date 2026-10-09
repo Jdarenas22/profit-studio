@@ -176,8 +176,6 @@ if _redis_url:
     }
     SESSION_ENGINE      = 'django.contrib.sessions.backends.cache'
     SESSION_CACHE_ALIAS = 'default'
-    CELERY_BROKER_URL      = _redis_url
-    CELERY_RESULT_BACKEND  = _redis_url
 else:
     CACHES = {
         'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'},
