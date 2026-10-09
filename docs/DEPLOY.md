@@ -21,7 +21,7 @@ Cloudflare R2  (archivos subidos)
 - Dirección pública actual: `https://profit-studio-production.up.railway.app`
 - Healthcheck de Railway: `GET /health/` → `{"status": "ok"}` (no toca la base de datos).
 - `start.sh` hace, en este orden: `migrate` (si falla, **no arranca**) → `collectstatic` → crea la superusuaria `yiseth` (solo si existe `TRAINER_INITIAL_PASSWORD`) → `load_initial_data` → `gunicorn`.
-- Los servicios de Railway están en modo «sleeping»: la primera visita tras un rato sin tráfico puede tardar ~10 s en responder. Es normal.
+- Los servicios de Railway están en modo «sleeping» (App Sleeping): tras ~10 min sin tráfico Railway detiene el servicio web **y** Postgres, y los despierta con la primera visita, que tarda entre 10 y 20 s. «Sleeping» en el panel **no** significa desconectado. Para que el despertar sea fiable, `start.sh` espera a que Postgres acepte conexiones antes de migrar (hasta `DB_WAIT_SECONDS`, 90 s por defecto). Si prefieres respuesta inmediata siempre, desactiva «Serverless» en Settings de cada servicio (los deja siempre encendidos y cuesta más).
 
 ## 2. Estado verificado (2026-10-08)
 
@@ -129,6 +129,8 @@ Muestra una tabla OK / AVISO / ERROR con la acción sugerida y termina con códi
 ```text
 railway ssh --service profit-studio -- python manage.py check_infra --smtp
 ```
+
+`railway ssh` necesita una llave SSH registrada en tu cuenta de Railway (`ssh-keygen -t ed25519` y luego `railway ssh keys`); sin ella el comando solo te lo indica y no ejecuta nada. Es una configuración de tu cuenta, así que hazla cuando tú lo decidas. Alternativa sin llave: el servicio `profit-studio` en el panel de Railway permite abrir un shell desde la web.
 
 No lo corras con `railway run` desde tu equipo: `railway run` ejecuta el comando en tu computador con las variables de Railway, y tu entorno local (SQLite, sin `psycopg2` ni `boto3`) no puede conectarse a la base interna ni a R2.
 
