@@ -1,5 +1,8 @@
-from django.db import models
+from decimal import Decimal
+
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 
 # ─── Constantes centralizadas — fácil de modificar ────────────────────────────
 IMC_RANGES = [
@@ -125,7 +128,19 @@ class DixonTest(models.Model):
 
 
 class BodyMeasurement(models.Model):
-    """Registro periódico de medidas corporales del cliente."""
+    """Registro periódico de medidas corporales del cliente.
+
+    Lo puede crear el entrenador (`source='trainer'`) o la propia clienta (`source='member'`,
+    con `trainer` vacío). Es un dato de salud: solo se muestra a la clienta dueña y a los
+    entrenadores que la tienen asignada (apps/accounts/permissions.py).
+    """
+    SOURCE_TRAINER = 'trainer'
+    SOURCE_MEMBER = 'member'
+    SOURCE_CHOICES = [
+        (SOURCE_TRAINER, 'Entrenador/a'),
+        (SOURCE_MEMBER, 'Clienta'),
+    ]
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -151,12 +166,29 @@ class BodyMeasurement(models.Model):
         max_digits=5, decimal_places=1,
         null=True, blank=True, verbose_name='Cintura (cm)',
     )
+    hip_cm = models.DecimalField(
+        max_digits=5, decimal_places=1,
+        null=True, blank=True, verbose_name='Cadera (cm)',
+        validators=[MinValueValidator(Decimal('30')), MaxValueValidator(Decimal('300'))],
+    )
+    body_fat_pct = models.DecimalField(
+        max_digits=4, decimal_places=1,
+        null=True, blank=True, verbose_name='Grasa corporal (%)',
+        validators=[MinValueValidator(Decimal('3')), MaxValueValidator(Decimal('70'))],
+    )
     imc = models.DecimalField(
         max_digits=5, decimal_places=2,
         null=True, blank=True, verbose_name='IMC',
     )
     imc_classification = models.CharField(max_length=50, blank=True)
     notes = models.TextField(blank=True, verbose_name='Observaciones')
+    source = models.CharField(
+        max_length=10, choices=SOURCE_CHOICES, default=SOURCE_TRAINER,
+        verbose_name='Registrada por',
+    )
+    # Aviso interno (no se muestra a la clienta): el peso cambió de forma poco creíble
+    # frente a la medición anterior. Se guarda igual; el entrenador decide.
+    needs_review = models.BooleanField(default=False, verbose_name='Revisar posible error')
 
     class Meta:
         verbose_name = 'Medición corporal'

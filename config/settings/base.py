@@ -31,6 +31,7 @@ LOCAL_APPS = [
     'apps.accounts',
     'apps.memberships',
     'apps.assessments',
+    'apps.health',
     'apps.exercises',
     'apps.routines',
     'apps.payments',
@@ -80,6 +81,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.public.context_processors.site_settings',
+                'apps.health.context_processors.health_flags',
             ],
         },
     },
@@ -134,6 +136,14 @@ WOMPI_PUBLIC_KEY = env('WOMPI_PUBLIC_KEY', default='')
 WOMPI_PRIVATE_KEY = env('WOMPI_PRIVATE_KEY', default='')
 WOMPI_INTEGRITY_SECRET = env('WOMPI_INTEGRITY_SECRET', default='')
 WOMPI_EVENTS_SECRET = env('WOMPI_EVENTS_SECRET', default='')
+
+# ─── Salud de la clienta (medidas, consentimiento, ficha) ─────────────────────
+# Interruptor de las pantallas de salud de la clienta. APAGADO por defecto (producción): se
+# enciende cuando un abogado aprobó los textos de consentimiento y la superusuaria publicó la
+# versión definitiva (Admin > Textos de consentimiento). development.py lo enciende.
+HEALTH_FEATURES_ENABLED = env.bool('HEALTH_FEATURES_ENABLED', default=False)
+# URL pública de la política de tratamiento de datos personales (vacía = no se muestra el enlace).
+PRIVACY_POLICY_URL = env('PRIVACY_POLICY_URL', default='')
 
 # ─── Celery ─────────────────────────────────────────────────────────────────────
 CELERY_TIMEZONE = TIME_ZONE

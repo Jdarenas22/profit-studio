@@ -34,6 +34,29 @@ def superuser_required(view_func):
     return _wrapped
 
 
+def member_required(view_func):
+    """Pantallas SOLO de la clienta (datos de salud): sesión + rol cliente + membresía vigente.
+
+    Anónimo -> login. Entrenador/a o superusuaria -> 403 (usan las rutas del panel, que sí
+    comprueban la asignación; nadie entra a los datos de salud "como clienta" por error).
+    Cliente sin membresía o vencida -> la misma pantalla que ven sus rutinas.
+    """
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        if request.user.is_trainer:
+            return render(request, 'accounts/forbidden.html', status=403)
+        try:
+            membership = request.user.membership
+        except ObjectDoesNotExist:
+            return render(request, 'accounts/no_membership.html')
+        if not membership.is_valid:
+            return render(request, 'accounts/membership_expired.html', {'membership': membership})
+        return view_func(request, *args, **kwargs)
+    return _wrapped
+
+
 def membership_required(view_func):
     """Permite acceso a trainers siempre. Para members, exige membresía activa."""
     @wraps(view_func)

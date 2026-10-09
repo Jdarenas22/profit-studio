@@ -1,6 +1,6 @@
 {% extends 'trainer/base.html' %}
 
-{% block title %}Medición corporal — {{ client.get_full_name|default:client.username }}{% endblock %}
+{% block title %}Editar medición — {{ client.get_full_name|default:client.username }}{% endblock %}
 
 {% block trainer_content %}
 <nav class="flex items-center gap-2 text-white/60 text-sm mb-6">
@@ -8,11 +8,16 @@
   <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
   <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
   <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
-  <span class="text-white/80" aria-current="page">Nueva medición</span>
+  <span class="text-white/80" aria-current="page">Editar medición</span>
 </nav>
 
 <div class="max-w-3xl">
-  <h1 class="text-2xl font-black text-white mb-8">Registrar medición corporal</h1>
+  <h1 class="text-2xl font-black text-white mb-2">Editar medición corporal</h1>
+  <p class="text-white/60 text-sm mb-8">
+    Medición del <time datetime="{{ measurement.date|date:'Y-m-d' }}">{{ measurement.date|date:"d/m/Y" }}</time>,
+    registrada por {% if measurement.source == 'member' %}la clienta{% else %}un entrenador{% endif %}.
+    {% if measurement.needs_review %}<span class="inline-block ml-1 text-xs font-semibold bg-yellow-500/15 text-yellow-300 px-2 py-0.5 rounded-full">Revisar</span>{% endif %}
+  </p>
 
   <form method="POST" class="space-y-5">
     {% csrf_token %}
@@ -21,19 +26,11 @@
     <div class="flex items-center gap-3 pt-2">
       <button type="submit"
               class="flex-1 min-h-[44px] bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
-        <i class="fa fa-check mr-2" aria-hidden="true"></i>Guardar medición
+        <i class="fa fa-check mr-2" aria-hidden="true"></i>Guardar cambios
       </button>
       <a href="{% url 'trainer_client_detail' client.pk %}"
          class="inline-flex items-center min-h-[44px] px-5 py-3 text-white/60 hover:text-white text-sm transition-colors">Cancelar</a>
     </div>
   </form>
-
-  <!-- Historial previo -->
-  {% if measurements %}
-  <div class="mt-8 bg-zinc-900 border border-white/10 rounded-2xl p-6">
-    <h2 class="text-white font-bold mb-4">Historial de mediciones</h2>
-    {% include 'trainer/partials/measurement_history_table.html' %}
-  </div>
-  {% endif %}
 </div>
 {% endblock %}

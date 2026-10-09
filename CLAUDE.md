@@ -34,7 +34,8 @@ python manage.py create_trainer --username yiseth --first-name Yiseth --last-nam
 | `memberships` | Planes y membresías (activar, renovar, vencer) |
 | `exercises` | Banco de ejercicios con imagen/video YouTube |
 | `routines` | Rutinas multi-día asignadas a clientes |
-| `assessments` | Valoración inicial (IMC + Test Ruffier-Dickson) y mediciones corporales |
+| `assessments` | Valoración inicial (IMC + Test Ruffier-Dickson) y mediciones corporales (las registran el entrenador o la propia clienta; `services.py` tiene los casos de uso) |
+| `health` | Datos de salud de la clienta: textos de consentimiento versionados (`ConsentTextVersion`, solo superusuaria en el admin) y registro de autorizaciones (`ConsentRecord`). La ficha de salud llega en la fase A2 (ver `docs/contracts/plan-ia.md`) |
 | `payments` | Pagos online (Wompi) y manuales (efectivo/transferencia) |
 | `public` | Páginas públicas (home, nosotros, contacto, testimonios) |
 
@@ -62,6 +63,7 @@ user.assigned_clients  # reverse relation (clientes asignados a este trainer)
 @membership_required     # trainers pasan siempre; members necesitan membresía válida
 @login_required          # estándar Django
 @superuser_required      # solo la entrenadora principal (trainer + is_superuser)
+@member_required         # solo la clienta con membresía vigente (datos de salud); el entrenador recibe 403
 ```
 
 El cierre de sesión (`logout`) solo acepta POST: se hace con un formulario con `{% csrf_token %}`.
@@ -85,6 +87,7 @@ Variables de entorno requeridas en Railway:
 - Wompi: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`
 - Email: `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
 - `WHATSAPP_NUMBER`, `WHATSAPP_LINK`, `INSTAGRAM_URL`
+- `HEALTH_FEATURES_ENABLED` (opcional): enciende las pantallas de salud de la clienta ("Mis medidas", consentimiento). **Apagada por defecto en producción** (las rutas responden 404) hasta que un abogado apruebe los textos de consentimiento y la superusuaria publique la versión definitiva (Admin > Textos de consentimiento); `development.py` la enciende. `PRIVACY_POLICY_URL` (opcional): enlace público a la política de tratamiento de datos que se muestra junto al consentimiento
 
 ### Almacenamiento de archivos media
 
@@ -127,3 +130,11 @@ El modelo `Exercise` tiene `youtube_embed_url` property que convierte cualquier 
 ### Rutinas
 
 Estructura jerárquica: `Routine` → `RoutineDay` (días) → `RoutineExercise` (ejercicios con sets/reps/descanso). El builder del trainer es interactivo (Alpine.js). Los clientes ven sus rutinas en `member_routine.html` con thumbnails de imagen y botón de video YouTube directo.
+
+### Salud y consentimiento de la clienta (fase A1 de `docs/contracts/plan-ia.md`)
+
+- La clienta registra sus propias medidas (`/assessments/me/measurements/`, rutas `member_measurement_*`) solo con membresía vigente, función encendida (`HEALTH_FEATURES_ENABLED`) y consentimiento `health_data` vigente. Siempre trabaja sobre `request.user`; ninguna ruta de clienta recibe el id de otra persona. Puede borrar solo sus mediciones del mismo día (`source='member'`); el entrenador edita/borra las de sus clientes (`trainer_measurement_edit/delete`, con `ensure_client_access`).
+- Un consentimiento solo vale si no está retirado y su texto sigue siendo el vigente; al publicar una versión nueva hay que aceptarla de nuevo. Los textos iniciales (v1) son un BORRADOR con marcadores `[RAZÓN SOCIAL]`, `[NIT]`, `[CORREO DE DERECHOS]` (migración `health` 0002). La fase B debe llamar `apps.health.services.ai_texts_ready()` antes de enviar nada a la IA: en producción devuelve falso mientras queden marcadores `[...]`.
+- Menores de 18 (por la edad de la última valoración inicial; la fecha de nacimiento llega con la ficha en A2): no registran medidas ni dan consentimiento propio.
+- Las vistas de salud de la clienta responden `Cache-Control: no-store`, sin datos de salud en la URL ni en los logs.
+

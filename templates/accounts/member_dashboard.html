@@ -24,6 +24,12 @@
       </div>
     </div>
     <div class="flex items-center gap-2 shrink-0">
+      {% if HEALTH_FEATURES_ENABLED %}
+      <a href="{% url 'member_measurement_list' %}" aria-label="Mis medidas"
+         class="inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
+        <i class="fa fa-weight-scale" aria-hidden="true"></i> <span class="hidden sm:inline">Mis medidas</span>
+      </a>
+      {% endif %}
       <a href="{% url 'member_profile_edit' %}"
          class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
         <i class="fa fa-pen"></i> <span class="hidden sm:inline">Editar perfil</span>
@@ -59,6 +65,62 @@
       <span class="text-white/40 text-sm ml-1">días restantes</span>
     </div>
   </div>
+
+  <!-- Resumen de mis medidas (solo con la función de salud encendida; si no, sus rutas dan 404) -->
+  {% if HEALTH_FEATURES_ENABLED %}
+  {% with measurements=user.measurements.all|slice:":3" %}
+  <section aria-labelledby="dash-measures-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <h2 id="dash-measures-title" class="text-white font-bold">Mis medidas</h2>
+      <div class="flex flex-wrap items-center gap-2">
+        {% if measurements %}
+        <a href="{% url 'member_measurement_list' %}"
+           class="inline-flex items-center min-h-[44px] px-3 text-sm text-white/70 hover:text-primary underline underline-offset-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver historial</a>
+        {% endif %}
+        <a href="{% url 'member_measurement_add' %}"
+           class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-4 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+          <i class="fa fa-plus" aria-hidden="true"></i> Registrar medidas
+        </a>
+      </div>
+    </div>
+    {% if measurements %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <caption class="sr-only">Tus tres últimas mediciones</caption>
+        <thead>
+          <tr class="text-white/60 text-xs border-b border-white/10">
+            <th scope="col" class="text-left pb-2 font-medium">Fecha</th>
+            <th scope="col" class="text-right pb-2 font-medium">Peso</th>
+            <th scope="col" class="text-right pb-2 font-medium">IMC</th>
+            <th scope="col" class="text-right pb-2 font-medium">Cintura</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for m in measurements %}
+          <tr class="text-white/80">
+            <td class="py-2">{{ m.date|date:"d/m/Y" }}</td>
+            <td class="py-2 text-right font-semibold text-white">{{ m.weight }} kg</td>
+            <td class="py-2 text-right">
+              {% if m.imc %}<span class="text-primary font-bold">{{ m.imc }}</span>
+              <span class="text-white/60 text-xs"> {{ m.imc_classification }}</span>{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}
+            </td>
+            <td class="py-2 text-right">{% if m.waist_cm %}{{ m.waist_cm }} cm{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-white/60 text-sm">Aún no has registrado medidas. Empieza con tu peso para seguir tu progreso.</p>
+    {% endif %}
+    <p class="text-white/60 text-xs leading-relaxed mt-4">
+      <i class="fa fa-shield-halved text-primary mr-1" aria-hidden="true"></i>
+      Tus medidas son datos de salud y se tratan solo con tu autorización.
+      <a href="{% url 'member_consent' 'health_data' %}" class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver o retirar mi autorización</a>.
+    </p>
+  </section>
+  {% endwith %}
+  {% endif %}
 
   <!-- Rutinas -->
   {% if routines %}
@@ -139,40 +201,6 @@
       </a>
     </div>
   {% endif %}
-
-  <!-- Progreso corporal -->
-  {% with measurements=user.measurements.all|slice:":6" %}
-  {% if measurements %}
-  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mt-6">
-    <h2 class="text-white font-bold mb-5">Mi progreso corporal</h2>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-white/30 text-xs border-b border-white/5">
-            <th class="text-left pb-2">Fecha</th>
-            <th class="text-right pb-2">Peso</th>
-            <th class="text-right pb-2">IMC</th>
-            <th class="text-right pb-2">Cintura</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-white/5">
-          {% for m in measurements %}
-          <tr class="text-white/70">
-            <td class="py-2">{{ m.date|date:"d/m/Y" }}</td>
-            <td class="py-2 text-right font-semibold text-white">{{ m.weight }} kg</td>
-            <td class="py-2 text-right">
-              {% if m.imc %}<span class="text-primary font-bold">{{ m.imc }}</span>
-              <span class="text-white/30 text-xs"> {{ m.imc_classification }}</span>{% else %}—{% endif %}
-            </td>
-            <td class="py-2 text-right">{% if m.waist_cm %}{{ m.waist_cm }} cm{% else %}—{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
-  {% endwith %}
 
 </section>
 {% endblock %}

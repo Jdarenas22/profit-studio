@@ -1,0 +1,15 @@
+{# Campo numérico de medidas (coma o punto decimal). Parámetros: name, label, value, error, help, placeholder, maxlength, required #}
+<div>
+  <label for="id_{{ name }}" class="block text-white/80 text-sm font-medium mb-2">
+    {{ label }}{% if required %} <span class="text-primary" aria-hidden="true">*</span><span class="sr-only">(obligatorio)</span>{% else %} <span class="text-white/60 font-normal">(opcional)</span>{% endif %}
+  </label>
+  <input type="text" id="id_{{ name }}" name="{{ name }}"
+         inputmode="decimal" autocomplete="off" maxlength="{{ maxlength|default:'7' }}"
+         {% if required %}required{% endif %}
+         value="{{ value|default:'' }}" placeholder="{{ placeholder }}"
+         {% if error %}aria-invalid="true"{% endif %}
+         {% if help or error %}aria-describedby="{% if help %}help_{{ name }}{% endif %}{% if error %} err_{{ name }}{% endif %}"{% endif %}
+         class="w-full min-h-[44px] bg-black/40 border {% if error %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/40 outline-none transition-colors">
+  {% if help %}<p id="help_{{ name }}" class="text-white/60 text-xs leading-relaxed mt-1.5">{{ help }}</p>{% endif %}
+  {% if error %}<p id="err_{{ name }}" class="text-red-400 text-sm mt-1.5"><i class="fa fa-circle-exclamation mr-1" aria-hidden="true"></i>{{ error }}</p>{% endif %}
+</div>

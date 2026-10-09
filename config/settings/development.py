@@ -32,5 +32,8 @@ try:
 except ImportError:
     pass
 
+# ─── Salud de la clienta: encendida en desarrollo (se puede apagar con HEALTH_FEATURES_ENABLED=false)
+HEALTH_FEATURES_ENABLED = env.bool('HEALTH_FEATURES_ENABLED', default=True)
+
 # ─── Axes relajado en desarrollo ────────────────────────────────────────────────
 AXES_ENABLED = False

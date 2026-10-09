@@ -1,0 +1,65 @@
+<div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
+  <h2 class="text-white font-bold text-sm uppercase tracking-wider">Medidas</h2>
+
+  {% if errors.general %}
+  <p class="text-red-400 text-sm" role="alert">{{ errors.general }}</p>
+  {% endif %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
+      <label for="id_weight" class="block text-white/70 text-xs font-medium mb-2">Peso (kg) *</label>
+      <input type="text" id="id_weight" name="weight" required value="{{ form.weight|default:'' }}"
+             inputmode="decimal" maxlength="7" placeholder="Ej: 72.5"
+             {% if errors.weight %}aria-invalid="true" aria-describedby="err_weight"{% endif %}
+             class="w-full min-h-[44px] bg-black/40 border {% if errors.weight %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+      {% if errors.weight %}<p id="err_weight" class="text-red-400 text-xs mt-1">{{ errors.weight }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="id_height" class="block text-white/70 text-xs font-medium mb-2">Estatura — para IMC</label>
+      <input type="text" id="id_height" name="height" value="{{ form.height|default:'' }}"
+             inputmode="decimal" maxlength="6" placeholder="Ej: 1.65 o 165"
+             aria-describedby="hint_height{% if errors.height %} err_height{% endif %}"
+             {% if errors.height %}aria-invalid="true"{% endif %}
+             class="w-full min-h-[44px] bg-black/40 border {% if errors.height %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+      {% if errors.height %}<p id="err_height" class="text-red-400 text-xs mt-1">{{ errors.height }}</p>{% endif %}
+      <p id="hint_height" class="text-white/60 text-xs mt-1">En metros (1,65) o cm (165). Dejar vacío si no cambia</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
+      <label for="id_waist_cm" class="block text-white/70 text-xs font-medium mb-2">Cintura (cm) — opcional</label>
+      <input type="text" id="id_waist_cm" name="waist_cm" value="{{ form.waist_cm|default:'' }}"
+             inputmode="decimal" maxlength="6" placeholder="Ej: 85"
+             {% if errors.waist_cm %}aria-invalid="true" aria-describedby="err_waist_cm"{% endif %}
+             class="w-full min-h-[44px] bg-black/40 border {% if errors.waist_cm %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+      {% if errors.waist_cm %}<p id="err_waist_cm" class="text-red-400 text-xs mt-1">{{ errors.waist_cm }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="id_hip_cm" class="block text-white/70 text-xs font-medium mb-2">Cadera (cm) — opcional</label>
+      <input type="text" id="id_hip_cm" name="hip_cm" value="{{ form.hip_cm|default:'' }}"
+             inputmode="decimal" maxlength="6" placeholder="Ej: 98"
+             {% if errors.hip_cm %}aria-invalid="true" aria-describedby="err_hip_cm"{% endif %}
+             class="w-full min-h-[44px] bg-black/40 border {% if errors.hip_cm %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+      {% if errors.hip_cm %}<p id="err_hip_cm" class="text-red-400 text-xs mt-1">{{ errors.hip_cm }}</p>{% endif %}
+    </div>
+  </div>
+
+  <div>
+    <label for="id_body_fat_pct" class="block text-white/70 text-xs font-medium mb-2">Grasa corporal (%) — opcional</label>
+    <input type="text" id="id_body_fat_pct" name="body_fat_pct" value="{{ form.body_fat_pct|default:'' }}"
+           inputmode="decimal" maxlength="5" placeholder="Ej: 24.5"
+           {% if errors.body_fat_pct %}aria-invalid="true" aria-describedby="err_body_fat_pct"{% endif %}
+           class="w-full min-h-[44px] bg-black/40 border {% if errors.body_fat_pct %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+    {% if errors.body_fat_pct %}<p id="err_body_fat_pct" class="text-red-400 text-xs mt-1">{{ errors.body_fat_pct }}</p>{% endif %}
+  </div>
+
+  <div>
+    <label for="id_notes" class="block text-white/70 text-xs font-medium mb-2">Observaciones (opcional)</label>
+    <textarea id="id_notes" name="notes" rows="2" maxlength="2000"
+              placeholder="Notas sobre esta medición..."
+              {% if errors.notes %}aria-invalid="true" aria-describedby="err_notes"{% endif %}
+              class="w-full bg-black/40 border {% if errors.notes %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none resize-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">{{ form.notes|default:'' }}</textarea>
+    {% if errors.notes %}<p id="err_notes" class="text-red-400 text-xs mt-1">{{ errors.notes }}</p>{% endif %}
+  </div>
+</div>
