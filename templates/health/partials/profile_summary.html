@@ -1,0 +1,96 @@
+{% comment %} Contenido de la ficha, solo lectura. Lo usan la clienta (profile_detail) y el entrenador (health_profile).
+   Contexto: profile, goal_label. Parámetro: for_trainer (muestra el conteo del cuestionario). Todo texto va escapado. {% endcomment %}
+<div class="space-y-5">
+
+  <section aria-labelledby="sum-basics" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
+    <h2 id="sum-basics" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Datos básicos y meta</h2>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+      {% include 'health/partials/summary_item.html' with label='Edad' value=profile.age suffix='años' %}
+      {% include 'health/partials/summary_item.html' with label='Sexo para el cálculo' value=profile.sex_label %}
+      {% include 'health/partials/summary_item.html' with label='Meta' value=goal_label empty='Sin definir' %}
+      {% include 'health/partials/summary_item.html' with label='Peso meta' value=profile.target_weight_kg suffix='kg' empty='Sin definir' %}
+    </dl>
+  </section>
+
+  <section aria-labelledby="sum-health" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
+    <h2 id="sum-health" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Salud</h2>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+      {% include 'health/partials/summary_list.html' with label='Condiciones de salud' items=profile.conditions_labels extra=profile.other_condition_text %}
+      {% if profile.conditions %}
+      {% include 'health/partials/summary_item.html' with label='Condiciones controladas' value=profile.condition_controlled|yesno:'Sí,No' %}
+      {% endif %}
+      <div class="min-w-0">
+        <dt class="text-white/60 text-xs mb-0.5">Autorización médica para hacer ejercicio</dt>
+        <dd class="text-white text-sm">{% if profile.medical_clearance %}Sí{% if profile.clearance_date %}, del {{ profile.clearance_date|date:"d/m/Y" }}{% endif %}{% else %}No{% endif %}</dd>
+      </div>
+      {% include 'health/partials/summary_list.html' with label='Medicamentos' items=profile.medications_labels extra=profile.medications_text %}
+      {% include 'health/partials/summary_list.html' with label='Zonas con lesión o molestia' items=profile.injuries_labels extra=profile.injuries_text %}
+      {% include 'health/partials/summary_item.html' with label='Cirugía reciente' value=profile.get_recent_surgery_display %}
+      {% if profile.sex_for_calculation != 'M' %}
+      {% include 'health/partials/summary_item.html' with label='Embarazo o lactancia' value=profile.get_pregnancy_status_display %}
+      {% endif %}
+      {% include 'health/partials/summary_item.html' with label='Antecedentes de trastornos de la conducta alimentaria' value=profile.get_eating_disorder_history_display %}
+    </dl>
+  </section>
+
+  <section aria-labelledby="sum-parq" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
+    <h2 id="sum-parq" class="text-white font-bold text-sm uppercase tracking-wider mb-1">Cuestionario de aptitud</h2>
+    {% if for_trainer %}
+    <p class="text-white/70 text-sm mb-4">Respuestas «Sí»: <strong class="text-white">{{ profile.parq_yes_count }}</strong> de {{ profile.parq_answers|length }}.</p>
+    {% else %}
+    <p class="text-white/60 text-sm mb-4">Tus respuestas a las 7 preguntas. Tu entrenador las revisa contigo.</p>
+    {% endif %}
+    <ol class="divide-y divide-white/5">
+      {% for q in profile.parq_answers %}
+      <li class="flex items-start justify-between gap-4 py-2.5">
+        <span class="text-white/80 text-sm leading-snug min-w-0 [overflow-wrap:anywhere]"><span class="text-white/60">{{ q.number }}.</span> {{ q.text }}</span>
+        <span class="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold {% if q.answer %}bg-primary/20 text-orange-200{% else %}bg-white/10 text-white/80{% endif %}">
+          <span class="sr-only">Respuesta: </span>{% if q.answer %}Sí{% else %}No{% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section aria-labelledby="sum-food" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
+    <h2 id="sum-food" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Alimentación</h2>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+      {% include 'health/partials/summary_item.html' with label='Tipo de alimentación' value=profile.get_diet_type_display %}
+      {% include 'health/partials/summary_item.html' with label='Posibilidad de cocinar' value=profile.get_cooking_access_display %}
+      {% include 'health/partials/summary_list.html' with label='Alergias' items=profile.allergies_labels %}
+      {% if profile.allergies %}
+      {% include 'health/partials/summary_item.html' with label='Gravedad de la reacción' value=profile.get_allergy_severity_display %}
+      {% endif %}
+      {% include 'health/partials/summary_list.html' with label='Intolerancias' items=profile.intolerances_labels %}
+      <div class="min-w-0 sm:col-span-2">
+        <dt class="text-white/60 text-xs mb-1">Comidas del día</dt>
+        <dd>
+          <ul class="flex flex-wrap gap-1.5">
+            {% for meal in profile.meal_schedule %}
+            <li class="rounded-lg bg-white/10 px-2.5 py-1 text-xs text-white/90">{{ meal.label }}{% if meal.time %} · {{ meal.time }}{% endif %}</li>
+            {% endfor %}
+          </ul>
+        </dd>
+      </div>
+      {% include 'health/partials/summary_item.html' with label='Presupuesto' value=profile.get_budget_level_display %}
+      {% include 'health/partials/summary_item.html' with label='Comidas fuera de casa por semana' value=profile.eats_out_per_week %}
+      {% include 'health/partials/summary_item.html' with label='Alimentos que no gustan o no se comen' value=profile.disliked_foods_text empty='Ninguno indicado' %}
+      {% include 'health/partials/summary_item.html' with label='Alimentos favoritos' value=profile.liked_foods_text empty='Ninguno indicado' %}
+    </dl>
+  </section>
+
+  <section aria-labelledby="sum-training" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
+    <h2 id="sum-training" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Entrenamiento</h2>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+      {% include 'health/partials/summary_item.html' with label='Días de entrenamiento por semana' value=profile.training_days_per_week %}
+      {% include 'health/partials/summary_item.html' with label='Duración de cada sesión' value=profile.session_minutes suffix='minutos' %}
+      {% include 'health/partials/summary_item.html' with label='Lugar de entrenamiento' value=profile.get_training_place_display %}
+      {% if profile.training_place == 'home' %}
+      {% include 'health/partials/summary_list.html' with label='Equipo en casa' items=profile.equipment_labels %}
+      {% endif %}
+      {% include 'health/partials/summary_item.html' with label='Experiencia entrenando' value=profile.get_experience_level_display %}
+      {% include 'health/partials/summary_item.html' with label='Nivel de actividad diaria' value=profile.get_activity_level_display %}
+      {% include 'health/partials/summary_item.html' with label='Horas de sueño por noche' value=profile.sleep_hours suffix='horas' %}
+    </dl>
+  </section>
+</div>

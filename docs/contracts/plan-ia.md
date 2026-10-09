@@ -100,10 +100,10 @@ Solo la superusuaria lo gestiona (admin). Una versión publicada no se edita: se
 | Otros | `recent_surgery` (`none`/`under_6m`/`6_12m`/`over_12m`); `pregnancy_status` (`none`/`pregnant`/`lactating`/`postpartum_under_6m`); `eating_disorder_history` (`no`/`yes`/`prefer_not_say`) |
 | PAR-Q (7 preguntas Sí/No) | `parq` = `{q1..q7}`: 1 cardiopatía con ejercicio solo supervisado; 2 dolor de pecho al hacer actividad; 3 dolor de pecho en reposo el último mes; 4 mareo o pérdida de conocimiento; 5 problema óseo/articular que empeora con la actividad; 6 medicamentos para presión o corazón; 7 otra razón para no hacer actividad. **[A VALIDAR]** frente a la versión oficial vigente del PAR-Q+ en español (se parafrasea, no se copia) |
 | Texto libre (solo para el entrenador, **nunca a la IA**) | `other_condition_text`, `medications_text`, `injuries_text`, `disliked_foods_text`, `liked_foods_text` (máx. 300 caracteres c/u; se limpian y se muestran siempre escapados) |
-| Alimentación | `diet_type` (`omnivore`/`vegetarian`/`vegan`/`pescatarian`/`halal`/`kosher`/`other`), `allergies` (`gluten`, `milk`, `egg`, `peanut`, `tree_nut`, `fish`, `shellfish`, `soy`, `sesame`), `allergy_severity` (`mild`/`anaphylaxis`), `intolerances` (`lactose`, `fructose`, `fodmap`, `other`), `meal_slots` (subconjunto de `breakfast`, `mid_morning`, `lunch`, `snack`, `dinner`; entre 3 y 5), `meal_times` ({slot: "HH:MM"}), `cooking_access` (`full`/`basic`/`none`), `budget_level` (`low`/`medium`/`high`), `eats_out_per_week` (0-21) |
+| Alimentación | `diet_type` (`omnivore`/`vegetarian`/`vegan`/`pescatarian`/`halal`/`kosher`/`other`), `allergies` (`gluten`, `milk`, `egg`, `peanut`, `tree_nut`, `fish`, `shellfish`, `soy`, `sesame`), `allergy_severity` (`mild`/`anaphylaxis`), `intolerances` (`lactose`, `fructose`, `fodmap`, `other`), `meal_slots` (**siempre** `breakfast`, `lunch` y `dinner`; opcionalmente `mid_morning` y/o `snack`; entre 3 y 5 en total, decisión confirmada en A2), `meal_times` ({slot: "HH:MM"}), `cooking_access` (`full`/`basic`/`none`), `budget_level` (`low`/`medium`/`high`), `eats_out_per_week` (0-21) |
 | Entrenamiento | `training_days_per_week` (1-6), `session_minutes` (20-120), `training_place` (`gym`/`home`), `equipment` (`none`, `dumbbells`, `bands`, `bench`, `barbell`, `machines`, `cardio_machine`, `mat`), `experience_level` (`none`/`beginner`/`intermediate`/`advanced`), `activity_level` (`sedentary`/`light`/`moderate`/`active`), `sleep_hours` (3-12) |
 
-Fase C añade (migración `health` 0002) dos relaciones `disliked_foods` / `liked_foods` hacia `Food` para elegir del catálogo; hasta entonces solo existen los textos libres.
+Fase C añade (migración `health` 0004; la 0003 es la de la ficha de A2) dos relaciones `disliked_foods` / `liked_foods` hacia `Food` para elegir del catálogo; hasta entonces solo existen los textos libres.
 
 **`HealthAccessLog`**: quién (`actor`), de qué clienta, acción (`view`/`edit`/`export`/`delete`) y cuándo. Se escribe cada vez que un entrenador o la superusuaria abre o edita una ficha (principio de seguridad y acceso restringido de la Ley 1581).
 
@@ -218,7 +218,7 @@ Mensaje a la clienta ante una bandera roja (genérico, sin diagnósticos): "Por 
 | Carbohidratos | el resto; fibra mínima 25 g (14 g por 1000 kcal) |
 | Redondeo | kcal a 10; gramos a 1 |
 
-Reparto por comida (`meal_slots` de la ficha): 3 comidas = desayuno 30 / almuerzo 40 / cena 30; 4 = 25 / 35 / merienda 15 / 25; 5 = 25 / media mañana 10 / 30 / merienda 10 / 25 (%).
+Reparto por comida (`meal_slots` de la ficha): 3 comidas = desayuno 30 / almuerzo 40 / cena 30; 4 = 25 / 35 / merienda 15 / 25; 5 = 25 / media mañana 10 / 30 / merienda 10 / 25 (%). Como la ficha exige desayuno, almuerzo y cena y permite media mañana y/o merienda, falta definir 4 comidas **con media mañana y sin merienda**: propuesta 25 / 10 / 35 / 30 **[A VALIDAR]** (la fase B debe confirmarla).
 
 ### 3.5 Filtrado de catálogos (antes de llamar a la IA)
 
@@ -574,7 +574,7 @@ Se documentan en `CLAUDE.md` y en un `.env.example` sin valores reales. `product
 | | Contenido | Modelos / migraciones | Rutas | Formularios | Pruebas | Pantallas (ver `requests.md`) |
 | --- | --- | --- | --- | --- | --- | --- |
 | **A1** | Clienta registra sus medidas + consentimiento de datos de salud | `assessments` 0005; `health` 0001 (`ConsentTextVersion`, `ConsentRecord`) + datos del texto v1 | `member_measurement_*`, `trainer_measurement_edit/delete`, `member_consent*` | `BodyMeasurementForm` ampliado, `ConsentForm` | autorización, validaciones, consentimiento | F-01, F-02, F-03 |
-| **A2** | Ficha de salud y alimentación, confirmación, exportar/borrar | `health` 0001 (`HealthProfile`, `HealthAccessLog`) | `member_health_*`, `trainer_health_profile*` | `HealthProfileForm` por secciones | versiones, menores, confirmación, acceso, `no-store` | F-04, F-05 |
+| **A2** | Ficha de salud y alimentación, confirmación, exportar/borrar | `health` 0003 (`HealthProfile`, `HealthAccessLog`; la 0001 y la 0002 son de A1) | `member_health_*`, `trainer_health_profile*` | `HealthProfileForm` por secciones | versiones, menores, confirmación, acceso, `no-store` | F-04, F-05 |
 | **B** | Motor de reglas + Gemini + plan de ejercicio + bandeja mínima del entrenador | `exercises` 0004 (etiquetas); `plans` 0001 (`Plan`, `PlanGenerationJob`, `PlanEvent`, `TrainerCredential`); arreglo `mark_day_complete`; `requests` | `member_plans`, `member_plan_request*`, `trainer_plan_inbox/detail/approve/regenerate/archive/generate` | `PlanRequestForm`, `ApproveForm`, `RegenerateForm` | reglas, banderas, validación, cliente simulado, asincronía, borradores no visibles | F-06 a F-10 |
 | **C** | Plan de alimentación con 3 opciones, intercambios, "otra opción" | `plans` 0002 (`Food`, `NutritionPlan`, `MealSlot`, `MealOption`, `MealOptionItem`, `MealChoice`); `health` 0002 (M2M); comando `load_foods` | `member_nutrition_plan`, `member_meal_choice`, `member_meal_alternative`, `member_exchanges`, `member_shopping_list`, `trainer_meal_option_edit` | `MealChoiceForm`, `MealOptionEditForm` | alérgenos, bandas, 3 opciones, cupos de "otra opción", IDOR | F-11 a F-14 |
 | **D** | Seguimiento y bandeja completa | sin modelos nuevos obligatorios | `trainer_plan_badge/clone`, `trainer_client_plans`, `trainer_client_progress`, `trainer_plan_jobs`, `member_meal_complete` | `CloneForm` | versiones, progreso, adherencia, avisos | F-15 a F-17 |
@@ -646,3 +646,44 @@ Implementado: medidas de la clienta, edición/borrado por el entrenador y consen
 - Textos legales: v1 con marcadores `[RAZÓN SOCIAL]`, `[NIT]`, `[CORREO DE DERECHOS]`. `apps.health.services.ai_texts_ready()` queda listo para la fase B: en producción (no DEBUG) es falso mientras algún texto vigente tenga marcadores `[...]`. En A1 no se bloquea el consentimiento de salud con marcadores; lo que lo protege es el interruptor `HEALTH_FEATURES_ENABLED`.
 - Un entrenador (o la superusuaria) que abre una ruta de clienta recibe 403 (decorador `member_required`).
 - El historial de consentimientos no está en el admin (solo `ConsentTextVersion`); su pantalla llega con A2 (F-05).
+
+### Fase A2 (2026-10-08, rama `plan-ia-a2-ficha`)
+
+Implementado: ficha de salud y alimentación (`HealthProfile`, versionada), confirmación de la clienta, corrección del entrenador, exportar, borrar, registro de accesos (`HealthAccessLog`) y el módulo puro de banderas. Pruebas sin red (formularios, servicios, vistas, banderas). Pendiente: las 5 plantillas (frontend); ver el bloque "Contrato A2 para el frontend" en `docs/contracts/requests.md`.
+
+**Qué se construyó**
+
+- `apps/health/choices.py` (listas cerradas con etiquetas en español, PAR-Q parafraseado **[A VALIDAR]**, pasos del asistente), `forms.py` (`HealthProfileForm`, un solo formulario para los 5 pasos, con `SECTION_FIELDS` y `error_steps`), `dates.py`, modelos `HealthProfile` y `HealthAccessLog`, migración `health` **0003**, y casos de uso en `services.py` (`save_profile`, `confirm_profile`, `delete_profile`, `export_data`, `log_access`, `profile_flags`, `consent_cards`, `is_minor` nuevo).
+- Rutas: `member_health_profile` (GET detalle / formulario con `?edit=1`, POST guarda), `member_health_profile_confirm`, `member_health_export` (JSON adjunto), `member_health_delete`, `trainer_health_profile`, `trainer_health_profile_edit`. Todas con `Cache-Control: no-store`.
+- `apps/plans/rules/flags.py`: paquete **Python puro** (sin Django ni red) que implementa R01-R15, Y01-Y13, I01, I02 y los datos faltantes M01-M09 (`Facts` -> `FlagReport`). `apps/plans/` **no está** en `INSTALLED_APPS` (la fase B le agrega su `AppConfig`). Los umbrales son constantes con la marca **[A VALIDAR]**. Las banderas nunca llegan a una pantalla de la clienta.
+
+**Decisiones confirmadas por la persona (2026-10-08)**
+
+1. `meal_slots` incluye siempre desayuno, almuerzo y cena; opcionalmente media mañana y/o merienda (3 a 5).
+2. Guardar la ficha exige el consentimiento `health_data` vigente, no el de IA.
+3. El entrenador ve el contenido de la ficha solo con `health_data` vigente de la clienta (si no, ve "sin autorización vigente" y no se escribe registro de lectura).
+4. El entrenador solo corrige una ficha existente (no la crea) y no puede guardar una ficha de menor.
+5. `birth_date` vive en la ficha y manda sobre la edad de la valoración en `is_minor`; sin ficha queda el respaldo por valoración (así una menor identificada por el entrenador nunca llega a crear ficha).
+6. Exportar y borrar exigen membresía vigente (como dice la sección 2.4).
+7. La meta sigue en `User.training_goal` (el formulario la pide y el servicio la actualiza).
+8. `HealthAccessLog` registra también exportar y borrar de la propia clienta; el entrenador, `trainer_health_profile_edit` con interruptor (`health_feature_required`).
+9. Retirar el consentimiento `health_data` ofrece borrar la ficha (`member_consent_revoke` -> `member_health_delete?from_revoke=1`).
+
+**Diferencias respecto a las secciones 2 y 14 (todas menores)**
+
+- La migración es la `health` **0003** (no la 0001).
+- `HealthProfile.consent` es un FK al `ConsentRecord` vigente al guardar (`SET_NULL`); `created_by` también es `SET_NULL`. `HealthAccessLog.actor` es `SET_NULL` y `client` es `CASCADE` (el registro sobrevive a "borrar ficha" pero se va con la cuenta; pregunta legal abierta: conservar evidencia tras borrar la cuenta).
+- Una sola ficha vigente por clienta (restricción parcial `health_profile_one_current`) y `unique(user, version)`; si dos guardados chocan, el segundo responde `ProfileConflict` y no se pierde nada.
+- Obligatorios: fecha de nacimiento, sexo para el cálculo, meta, las 7 respuestas del PAR-Q, cirugía, embarazo/lactancia, antecedentes alimentarios, dieta, comidas, cocina, presupuesto, días, minutos, lugar, experiencia y nivel de actividad. Opcionales: peso meta, horas de sueño (3-12), comidas fuera por semana (vacío = 0), horarios, listas (vacío = ninguna), textos libres y equipo (obligatorio solo en casa; `none` es excluyente; en el gimnasio se vacía).
+- Coherencias: embarazo/lactancia/posparto con sexo `M` -> error; autorización médica exige fecha (no futura) y sin autorización se limpia; sin condiciones se limpia "condiciones controladas"; la gravedad de la alergia es obligatoria solo si hay alergias; los horarios solo se guardan para las comidas elegidas; peso meta 30-250 y coherente con la estatura conocida (IMC 8-100); edad de 18 a 100 años.
+- Textos libres: NFC, sin caracteres de control o invisibles, espacios colapsados, máx. 300 sobre el texto limpio, y **se rechazan `<` y `>`** (siempre se muestran escapados).
+- Exportar entrega ficha (todas las versiones), medidas, consentimientos y registro de accesos (quién = "tú" / "entrenador", sin nombres). No incluye las valoraciones iniciales ni las notas del entrenador.
+- Banderas: el contrato 3.2 se aplicó al pie de la letra (R14 exige condición controlada **y** autorización vigente; una autorización es vigente si tiene menos de 12 meses exactos y no es futura). Códigos extra de datos faltantes: `M04_NO_PROFILE` (sin ficha) y `M04_PROFILE_UNCONFIRMED` (ficha sin confirmar).
+- `trainer_health_profile` no depende del interruptor (el entrenador siempre puede revisar); `trainer_health_profile_edit` sí (apagado = 404).
+
+**Pendiente / riesgos**
+
+- Contenido clínico (umbrales, banderas, PAR-Q parafraseado) **[A VALIDAR]** por un profesional de la salud.
+- El texto legal v1 de `health_data` dice "medidas corporales y demás datos de salud que decida registrar": el abogado debe cubrir explícitamente la ficha (condiciones, medicamentos, alergias, embarazo, antecedentes alimentarios).
+- Con membresía vencida la clienta no puede exportar ni borrar su ficha (así lo dice el contrato): falta otro canal (p. ej. el correo de derechos).
+- Sin cifrado en reposo (riesgo 6). La función sigue apagada en producción (`HEALTH_FEATURES_ENABLED`).

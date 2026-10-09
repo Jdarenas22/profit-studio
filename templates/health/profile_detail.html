@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi ficha de salud — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-5xl mx-auto">
+
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Mi ficha de salud</span>
+  </nav>
+
+  <h1 class="text-2xl font-black text-white mb-1">Mi ficha de salud y alimentación</h1>
+  <p class="text-white/60 text-sm mb-6">
+    Versión {{ profile.version }}, guardada el {{ profile.created_at|date:"d/m/Y" }}{% if edited_by_trainer %} y corregida por tu entrenador/a{% endif %}.
+  </p>
+
+  <!-- Estado de la ficha -->
+  {% if needs_confirmation %}
+  <div role="status" class="mb-6 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-4 sm:p-5">
+    <div class="flex gap-3">
+      <i class="fa fa-triangle-exclamation text-yellow-300 mt-0.5 shrink-0" aria-hidden="true"></i>
+      <div class="min-w-0">
+        <p class="text-yellow-100 text-sm leading-relaxed">
+          <strong>Tu entrenador/a corrigió tu ficha.</strong> Revisa los datos y confírmalos para que queden al día.
+          Si algo no está bien, puedes corregirlo.
+        </p>
+        {% if not health_consent_valid %}
+        <p class="text-yellow-100/90 text-sm leading-relaxed mt-2">
+          Para confirmar, primero tendrás que volver a dar tu autorización de datos de salud.
+        </p>
+        {% endif %}
+      </div>
+    </div>
+    <form method="POST" action="{% url 'member_health_profile_confirm' %}" class="mt-4 sm:pl-7"
+          x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+      {% csrf_token %}
+      <button type="submit" :disabled="sending"
+              class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 py-2 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Confirmando...' : 'Confirmar mis datos'">Confirmar mis datos</span>
+      </button>
+    </form>
+  </div>
+  {% elif profile.confirmed_by_client_at %}
+  <div role="status" class="mb-6 flex gap-3 rounded-2xl border border-green-500/40 bg-green-500/10 p-4">
+    <i class="fa fa-circle-check text-green-400 mt-0.5 shrink-0" aria-hidden="true"></i>
+    <p class="text-green-100 text-sm leading-relaxed">Tus datos están confirmados desde el {{ profile.confirmed_by_client_at|date:"d/m/Y" }}.</p>
+  </div>
+  {% endif %}
+
+  {% if not health_consent_valid and not needs_confirmation %}
+  <div role="status" class="mb-6 flex gap-3 rounded-2xl border border-white/10 bg-zinc-900 p-4">
+    <i class="fa fa-circle-info text-primary mt-0.5 shrink-0" aria-hidden="true"></i>
+    <p class="text-white/80 text-sm leading-relaxed">
+      Tu autorización de datos de salud no está vigente. Para corregir tu ficha tendrás que
+      <a href="{% url 'member_consent' 'health_data' %}"
+         class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">volver a autorizarla</a>.
+      Mientras tanto, tu entrenador/a no puede ver el contenido de tu ficha.
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+    <!-- Contenido de la ficha -->
+    <div class="lg:col-span-2 min-w-0 order-2 lg:order-1">
+      {% include 'health/partials/profile_summary.html' %}
+    </div>
+
+    <!-- Acciones y consentimientos -->
+    <div class="space-y-5 min-w-0 order-1 lg:order-2">
+
+      <section aria-labelledby="profile-actions-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+        <h2 id="profile-actions-title" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Mi ficha</h2>
+        <div class="space-y-2">
+          <a href="{% url 'member_health_profile' %}?edit=1"
+             class="flex items-center justify-center gap-2 min-h-[44px] w-full bg-primary hover:bg-primary-dark text-black font-bold text-sm px-4 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+            <i class="fa fa-pen" aria-hidden="true"></i> Corregir mis datos
+          </a>
+          <a href="{% url 'member_measurement_add' %}"
+             class="flex items-center justify-center gap-2 min-h-[44px] w-full bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <i class="fa fa-weight-scale" aria-hidden="true"></i> Registrar mis medidas
+          </a>
+          <a href="{% url 'member_health_export' %}"
+             class="flex items-center justify-center gap-2 min-h-[44px] w-full bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <i class="fa fa-download" aria-hidden="true"></i> Descargar mis datos
+          </a>
+          <a href="{% url 'member_health_delete' %}"
+             class="flex items-center justify-center gap-2 min-h-[44px] w-full bg-red-500/10 hover:bg-red-500/20 text-red-300 text-sm font-medium px-4 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+            <i class="fa fa-trash" aria-hidden="true"></i> Borrar mi ficha
+          </a>
+        </div>
+        <p class="text-white/60 text-xs leading-relaxed mt-3">
+          Tu peso y tu estatura no van en la ficha: viven en tus medidas.
+        </p>
+      </section>
+
+      <section aria-labelledby="consents-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+        <h2 id="consents-title" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Consentimientos</h2>
+        <ul class="space-y-4">
+          {% for card in consent_cards %}
+          <li class="min-w-0 {% if not forloop.first %}border-t border-white/10 pt-4{% endif %}"
+              x-data="{ confirming: false, sending: false }" @keydown.escape="confirming = false">
+            <p class="text-white text-sm font-medium [overflow-wrap:anywhere]">{{ card.label }}</p>
+            {% if card.active %}
+            <p class="text-green-300 text-xs mt-1">
+              <i class="fa fa-circle-check mr-1" aria-hidden="true"></i>Vigente desde el {{ card.granted_at|date:"d/m/Y" }} (texto versión {{ card.version }})
+            </p>
+            {% elif card.outdated %}
+            <p class="text-yellow-200 text-xs mt-1">
+              <i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i>Se publicó un texto nuevo (versión {{ card.current_version }}): para seguir debes volver a autorizar.
+            </p>
+            {% else %}
+            <p class="text-white/60 text-xs mt-1">
+              <i class="fa fa-circle-minus mr-1" aria-hidden="true"></i>Sin autorización{% if card.purpose == 'ai_processing' %} (es opcional){% endif %}.
+            </p>
+            {% endif %}
+
+            {% if card.active %}
+            <button type="button" x-show="!confirming"
+                    @click="confirming = true; $nextTick(() => $refs.confirmRevoke.focus())"
+                    class="mt-3 inline-flex items-center justify-center gap-2 min-h-[44px] bg-white/10 hover:bg-red-600/80 text-white text-sm font-semibold px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <i class="fa fa-ban" aria-hidden="true"></i> Retirar autorización<span class="sr-only">: {{ card.label }}</span>
+            </button>
+            <form method="POST" action="{% url 'member_consent_revoke' card.purpose %}"
+                  x-show="confirming" style="display: none;" @submit="sending = true" class="mt-3 space-y-3">
+              {% csrf_token %}
+              <p class="text-white/90 text-sm">
+                ¿Seguro que quieres retirarla?
+                {% if card.purpose == 'health_data' %}Dejaremos de usar tus datos de salud y te preguntaremos si quieres borrar tu ficha.{% endif %}
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <button type="submit" x-ref="confirmRevoke" :disabled="sending"
+                        class="inline-flex items-center justify-center min-h-[44px] bg-red-600 hover:bg-red-500 text-white text-sm font-semibold px-4 rounded-xl transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                  Sí, retirar
+                </button>
+                <button type="button" @click="confirming = false"
+                        class="inline-flex items-center justify-center min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+            {% else %}
+            <a href="{% url 'member_consent' card.purpose %}"
+               class="mt-3 inline-flex items-center justify-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <i class="fa fa-pen-to-square" aria-hidden="true"></i> {% if card.outdated %}Revisar y autorizar{% else %}Dar mi autorización{% endif %}<span class="sr-only">: {{ card.label }}</span>
+            </a>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {% if versions|length > 1 %}
+      <section aria-labelledby="versions-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+        <h2 id="versions-title" class="text-white font-bold text-sm uppercase tracking-wider mb-3">Historial</h2>
+        <ul class="space-y-2">
+          {% for v in versions %}
+          <li class="flex items-start justify-between gap-3 text-sm">
+            <span class="text-white/80 min-w-0">
+              Versión {{ v.version }}{% if v.is_current %} <span class="text-primary text-xs font-semibold">(vigente)</span>{% endif %}
+              <span class="block text-white/60 text-xs">{{ v.created_at|date:"d/m/Y" }} · {% if v.created_by_role == 'trainer' %}por tu entrenador/a{% else %}por ti{% endif %}</span>
+            </span>
+            <span class="text-xs shrink-0 {% if v.confirmed_by_client_at %}text-green-300{% else %}text-yellow-200{% endif %}">
+              {% if v.confirmed_by_client_at %}Confirmada{% else %}Sin confirmar{% endif %}
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

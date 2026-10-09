@@ -1,0 +1,2 @@
+{# Error de un campo por nombre dinámico. Parámetro: name. Lee `errors` del contexto. #}
+{% for key, message in errors.items %}{% if key == name %}<p id="err_{{ name }}" class="text-red-400 text-sm mt-1.5 [overflow-wrap:anywhere]"><i class="fa fa-circle-exclamation mr-1" aria-hidden="true"></i><span class="sr-only">Error: </span>{{ message }}</p>{% endif %}{% endfor %}

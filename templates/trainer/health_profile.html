@@ -1,0 +1,202 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Ficha de salud — {{ client.get_full_name|default:client.username }}{% endblock %}
+
+{% block trainer_content %}
+<nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <span class="text-white/80" aria-current="page">Ficha de salud</span>
+</nav>
+
+<!-- Encabezado -->
+<div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+  <div class="min-w-0">
+    <h1 class="text-2xl font-black text-white [overflow-wrap:anywhere]">Ficha de salud de {{ client.get_full_name|default:client.username }}</h1>
+    {% if profile %}
+    <p class="text-white/60 text-sm mt-1">
+      Versión {{ profile.version }}, guardada el {{ profile.created_at|date:"d/m/Y" }}
+      por {% if profile.created_by_role == 'trainer' %}un entrenador/a{% else %}la clienta{% endif %}.
+      {% if needs_confirmation %}
+      <span class="inline-flex items-center gap-1 rounded-md bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-100"><i class="fa fa-hourglass-half" aria-hidden="true"></i> Sin confirmar por la clienta</span>
+      {% else %}
+      <span class="inline-flex items-center gap-1 rounded-md bg-green-500/20 px-2 py-0.5 text-xs font-bold text-green-100"><i class="fa fa-circle-check" aria-hidden="true"></i> Confirmada por la clienta</span>
+      {% endif %}
+    </p>
+    {% endif %}
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'trainer_client_detail' client.pk %}"
+       class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver a la clienta
+    </a>
+    {% if can_edit %}
+    <a href="{% url 'trainer_health_profile_edit' client.pk %}"
+       class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+      <i class="fa fa-pen" aria-hidden="true"></i> Corregir
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if has_profile and not content_visible %}
+<!-- Hay ficha pero no se puede mostrar -->
+<div role="status" class="rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-5 flex gap-3">
+  <i class="fa fa-lock text-yellow-300 mt-0.5 shrink-0" aria-hidden="true"></i>
+  <div class="min-w-0">
+    <p class="text-yellow-100 text-sm font-semibold">Sin autorización vigente</p>
+    <p class="text-yellow-100/90 text-sm leading-relaxed mt-1">
+      La clienta no tiene una autorización vigente para tratar sus datos de salud. Por eso no se muestra el contenido de su ficha.
+      Pídele que vuelva a autorizarla desde su panel.
+    </p>
+  </div>
+</div>
+
+{% elif not has_profile %}
+<!-- Sin ficha -->
+<div class="rounded-2xl border border-white/10 bg-zinc-900 p-6 mb-6 flex gap-3">
+  <i class="fa fa-clipboard-question text-primary mt-0.5 shrink-0" aria-hidden="true"></i>
+  <div class="min-w-0">
+    {% if is_minor %}
+    <p class="text-white text-sm font-semibold">Clienta menor de 18 años: gestión manual</p>
+    <p class="text-white/70 text-sm leading-relaxed mt-1">
+      La ficha en línea es solo para mayores de 18 años. Registra sus datos con su madre, padre o acudiente y arma su plan de forma manual.
+    </p>
+    {% else %}
+    <p class="text-white text-sm font-semibold">La clienta aún no ha llenado su ficha</p>
+    <p class="text-white/70 text-sm leading-relaxed mt-1">Pide a la clienta que llene su ficha desde «Mi ficha de salud» en su panel. Tú solo puedes corregir una ficha que ya exista.</p>
+    {% endif %}
+  </div>
+</div>
+{% if flags and flags.missing %}
+<div class="max-w-3xl">
+  {% include 'trainer/partials/health_flag_group.html' with kind='missing' title='Datos que faltan' hint='Sin estos datos no se puede evaluar la seguridad del plan.' flags=flags.missing %}
+</div>
+{% endif %}
+
+{% else %}
+<!-- Ficha visible -->
+{% if not feature_enabled %}
+<div role="status" class="mb-6 flex gap-3 rounded-2xl border border-white/10 bg-zinc-900 p-4">
+  <i class="fa fa-circle-info text-primary mt-0.5 shrink-0" aria-hidden="true"></i>
+  <p class="text-white/80 text-sm leading-relaxed">Las pantallas de salud de las clientas están apagadas por ahora: puedes revisar la ficha, pero no corregirla.</p>
+</div>
+{% endif %}
+{% if needs_confirmation %}
+<div role="status" class="mb-6 flex gap-3 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-4">
+  <i class="fa fa-hourglass-half text-yellow-300 mt-0.5 shrink-0" aria-hidden="true"></i>
+  <p class="text-yellow-100 text-sm leading-relaxed">La última versión se corrigió sin que la clienta la confirmara. Mientras no lo haga, trata estos datos como pendientes de confirmar.</p>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+  <div class="lg:col-span-2 min-w-0 space-y-6">
+
+    <!-- Banderas -->
+    {% if flags %}
+    <section aria-labelledby="flags-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
+      <h2 id="flags-title" class="text-white font-bold text-sm uppercase tracking-wider mb-1">Banderas de seguridad</h2>
+      <p class="text-white/70 text-sm mb-4">
+        Las banderas son una ayuda para el entrenador, no un diagnóstico. Se calculan cada vez; los umbrales están pendientes de validación por un profesional de la salud.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div class="rounded-xl bg-black/30 border border-white/10 p-3">
+          <p class="text-white/60 text-xs mb-1">Plan de ejercicio</p>
+          <p class="text-sm font-semibold">
+            {% if 'exercise' in flags.blocked_scopes %}<span class="text-red-200"><i class="fa fa-circle-xmark mr-1" aria-hidden="true"></i>Bloqueado: hay banderas rojas</span>
+            {% elif 'exercise' in flags.yellow_scopes %}<span class="text-yellow-200"><i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i>Revisión obligatoria</span>
+            {% else %}<span class="text-green-300"><i class="fa fa-circle-check mr-1" aria-hidden="true"></i>Sin restricciones</span>{% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl bg-black/30 border border-white/10 p-3">
+          <p class="text-white/60 text-xs mb-1">Plan de alimentación</p>
+          <p class="text-sm font-semibold">
+            {% if 'nutrition' in flags.blocked_scopes %}<span class="text-red-200"><i class="fa fa-circle-xmark mr-1" aria-hidden="true"></i>Bloqueado: hay banderas rojas</span>
+            {% elif 'nutrition' in flags.yellow_scopes %}<span class="text-yellow-200"><i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i>Revisión obligatoria</span>
+            {% else %}<span class="text-green-300"><i class="fa fa-circle-check mr-1" aria-hidden="true"></i>Sin restricciones</span>{% endif %}
+          </p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        {% include 'trainer/partials/health_flag_group.html' with kind='red' title='Banderas rojas' hint='Bloquean la generación automática del plan: gestiona esta clienta de forma manual.' flags=flags.red %}
+        {% include 'trainer/partials/health_flag_group.html' with kind='yellow' title='Banderas amarillas' hint='Revisión obligatoria antes de aprobar cualquier plan.' flags=flags.yellow %}
+        {% include 'trainer/partials/health_flag_group.html' with kind='info' title='Informativas' hint='Datos para tener en cuenta; no bloquean nada.' flags=flags.info %}
+        {% include 'trainer/partials/health_flag_group.html' with kind='missing' title='Datos que faltan' hint='Sin estos datos no se puede evaluar la seguridad del plan.' flags=flags.missing %}
+        {% if not flags.red and not flags.yellow and not flags.info and not flags.missing %}
+        <p class="text-green-300 text-sm"><i class="fa fa-circle-check mr-1" aria-hidden="true"></i>No hay banderas con los datos actuales.</p>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% include 'health/partials/profile_summary.html' with for_trainer=True %}
+  </div>
+
+  <div class="space-y-5 min-w-0">
+
+    <section aria-labelledby="anthro-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+      <h2 id="anthro-title" class="text-white font-bold text-sm uppercase tracking-wider mb-3">Última medida</h2>
+      {% if anthropometrics %}
+      <dl class="grid grid-cols-2 gap-3">
+        {% include 'health/partials/summary_item.html' with label='Peso' value=anthropometrics.weight suffix='kg' %}
+        {% include 'health/partials/summary_item.html' with label='Estatura' value=anthropometrics.height suffix='m' %}
+      </dl>
+      <p class="text-white/60 text-xs mt-3">
+        Medida el {{ anthropometrics.measured_on|date:"d/m/Y" }}
+        ({% if anthropometrics.days_old == 0 %}hoy{% elif anthropometrics.days_old == 1 %}hace 1 día{% else %}hace {{ anthropometrics.days_old }} días{% endif %}).
+      </p>
+      {% else %}
+      <p class="text-white/60 text-sm">La clienta aún no tiene medidas registradas.</p>
+      {% endif %}
+    </section>
+
+    <section aria-labelledby="consent-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+      <h2 id="consent-title" class="text-white font-bold text-sm uppercase tracking-wider mb-3">Autorizaciones de la clienta</h2>
+      <ul class="space-y-3 text-sm">
+        <li>
+          <p class="text-white">Datos de salud</p>
+          {% if consent_health %}
+          <p class="text-green-300 text-xs mt-0.5"><i class="fa fa-circle-check mr-1" aria-hidden="true"></i>Vigente desde el {{ consent_health.granted_at|date:"d/m/Y" }} (texto versión {{ consent_health.text_version.version }})</p>
+          {% else %}
+          <p class="text-yellow-200 text-xs mt-0.5"><i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i>Sin autorización vigente</p>
+          {% endif %}
+        </li>
+        <li>
+          <p class="text-white">Uso de inteligencia artificial <span class="text-white/60 text-xs">(opcional)</span></p>
+          {% if consent_ai %}
+          <p class="text-green-300 text-xs mt-0.5"><i class="fa fa-circle-check mr-1" aria-hidden="true"></i>Vigente desde el {{ consent_ai.granted_at|date:"d/m/Y" }} (texto versión {{ consent_ai.text_version.version }})</p>
+          {% else %}
+          <p class="text-white/60 text-xs mt-0.5"><i class="fa fa-circle-minus mr-1" aria-hidden="true"></i>Sin autorización</p>
+          {% endif %}
+        </li>
+      </ul>
+    </section>
+
+    {% if versions %}
+    <section aria-labelledby="versions-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
+      <h2 id="versions-title" class="text-white font-bold text-sm uppercase tracking-wider mb-3">Versiones</h2>
+      <ul class="space-y-2">
+        {% for v in versions %}
+        <li class="flex items-start justify-between gap-3 text-sm">
+          <span class="text-white/80 min-w-0">
+            Versión {{ v.version }}{% if v.is_current %} <span class="text-primary text-xs font-semibold">(vigente)</span>{% endif %}
+            <span class="block text-white/60 text-xs">{{ v.created_at|date:"d/m/Y" }} · {% if v.created_by_role == 'trainer' %}entrenador/a{% else %}clienta{% endif %}</span>
+          </span>
+          <span class="text-xs shrink-0 {% if v.confirmed_by_client_at %}text-green-300{% else %}text-yellow-200{% endif %}">
+            {% if v.confirmed_by_client_at %}Confirmada{% else %}Sin confirmar{% endif %}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="text-white/60 text-xs leading-relaxed mt-3">Solo se ve la ficha vigente. Cada vez que abres o corriges esta ficha queda un registro de quién y cuándo (sin el contenido).</p>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

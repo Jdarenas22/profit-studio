@@ -204,6 +204,15 @@ class ConsentFlowTests(HealthScenarioTestCase):
                                           'next': 'https://evil.example/robo'})
         self.assertRedirects(response, reverse('member_measurement_list'), fetch_redirect_response=False)
 
+    def test_page_forwards_next_as_hidden_field(self):
+        # Sin este campo oculto el navegador pierde el destino y la clienta cae en el historial.
+        url = reverse('member_consent', args=[PURPOSE_HEALTH_DATA])
+        target = reverse('member_health_profile')
+        html = self.client.get(url, {'next': target}).content.decode()
+        self.assertIn(f'<input type="hidden" name="next" value="{target}">', html)
+        html = self.client.get(url, {'next': 'https://evil.example/robo'}).content.decode()
+        self.assertNotIn('name="next"', html)
+
     @override_settings(PRIVACY_POLICY_URL='https://example.com/politica')
     def test_privacy_policy_url_is_passed_when_configured(self):
         response = self.client.get(reverse('member_consent', args=[PURPOSE_HEALTH_DATA]))

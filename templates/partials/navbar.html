@@ -29,6 +29,9 @@
           <a href="{% url 'member_measurement_list' %}" class="hidden lg:inline text-sm text-white/70 hover:text-white transition-colors font-medium">
             <i class="fa fa-weight-scale mr-1" aria-hidden="true"></i>Mis medidas
           </a>
+          <a href="{% url 'member_health_profile' %}" class="hidden lg:inline text-sm text-white/70 hover:text-white transition-colors font-medium">
+            <i class="fa fa-notes-medical mr-1" aria-hidden="true"></i>Mi ficha
+          </a>
           {% endif %}
           <a href="{% url 'dashboard' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
             <i class="fa fa-user-circle mr-1"></i>{{ user.first_name|default:user.username }}
@@ -73,6 +76,9 @@
         {% if not user.is_trainer and HEALTH_FEATURES_ENABLED %}
         <a href="{% url 'member_measurement_list' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">
           <i class="fa fa-weight-scale mr-2" aria-hidden="true"></i>Mis medidas
+        </a>
+        <a href="{% url 'member_health_profile' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">
+          <i class="fa fa-notes-medical mr-2" aria-hidden="true"></i>Mi ficha
         </a>
         {% endif %}
         <form method="post" action="{% url 'logout' %}"

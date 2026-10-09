@@ -35,7 +35,8 @@ python manage.py create_trainer --username yiseth --first-name Yiseth --last-nam
 | `exercises` | Banco de ejercicios con imagen/video YouTube |
 | `routines` | Rutinas multi-día asignadas a clientes |
 | `assessments` | Valoración inicial (IMC + Test Ruffier-Dickson) y mediciones corporales (las registran el entrenador o la propia clienta; `services.py` tiene los casos de uso) |
-| `health` | Datos de salud de la clienta: textos de consentimiento versionados (`ConsentTextVersion`, solo superusuaria en el admin) y registro de autorizaciones (`ConsentRecord`). La ficha de salud llega en la fase A2 (ver `docs/contracts/plan-ia.md`) |
+| `health` | Datos de salud de la clienta: textos de consentimiento versionados (`ConsentTextVersion`, solo superusuaria en el admin), registro de autorizaciones (`ConsentRecord`), ficha de salud y alimentación versionada (`HealthProfile`, fase A2) y registro de accesos a la ficha (`HealthAccessLog`). Ver `docs/contracts/plan-ia.md` |
+| `plans` (paquete, **sin registrar** en `INSTALLED_APPS`) | Solo `apps/plans/rules/flags.py`: banderas de seguridad de la ficha en Python puro (sin Django ni red). La fase B lo convierte en app (plan de ejercicio con IA) |
 | `payments` | Pagos online (Wompi) y manuales (efectivo/transferencia) |
 | `public` | Páginas públicas (home, nosotros, contacto, testimonios) |
 
@@ -135,6 +136,15 @@ Estructura jerárquica: `Routine` → `RoutineDay` (días) → `RoutineExercise`
 
 - La clienta registra sus propias medidas (`/assessments/me/measurements/`, rutas `member_measurement_*`) solo con membresía vigente, función encendida (`HEALTH_FEATURES_ENABLED`) y consentimiento `health_data` vigente. Siempre trabaja sobre `request.user`; ninguna ruta de clienta recibe el id de otra persona. Puede borrar solo sus mediciones del mismo día (`source='member'`); el entrenador edita/borra las de sus clientes (`trainer_measurement_edit/delete`, con `ensure_client_access`).
 - Un consentimiento solo vale si no está retirado y su texto sigue siendo el vigente; al publicar una versión nueva hay que aceptarla de nuevo. Los textos iniciales (v1) son un BORRADOR con marcadores `[RAZÓN SOCIAL]`, `[NIT]`, `[CORREO DE DERECHOS]` (migración `health` 0002). La fase B debe llamar `apps.health.services.ai_texts_ready()` antes de enviar nada a la IA: en producción devuelve falso mientras queden marcadores `[...]`.
-- Menores de 18 (por la edad de la última valoración inicial; la fecha de nacimiento llega con la ficha en A2): no registran medidas ni dan consentimiento propio.
+- Menores de 18: no registran medidas, ni dan consentimiento propio, ni llenan la ficha. `apps.health.services.is_minor` usa la `birth_date` de la ficha vigente y, si todavía no hay ficha, la edad de la última valoración inicial.
 - Las vistas de salud de la clienta responden `Cache-Control: no-store`, sin datos de salud en la URL ni en los logs.
 
+### Ficha de salud y alimentación (fase A2 de `docs/contracts/plan-ia.md`)
+
+- `HealthProfile`: una fila por versión (cada guardado crea una nueva; una sola `is_current` por clienta, restricción en la base). Listas cerradas en `apps/health/choices.py`; validación en `apps/health/forms.py` (`HealthProfileForm`, los 5 pasos del asistente); casos de uso en `apps/health/services.py` (`save_profile`, `confirm_profile`, `delete_profile`, `export_data`, `profile_flags`). Ni la ficha ni `HealthAccessLog` están en el admin.
+- Rutas (`apps/health/urls.py`): la clienta usa `member_health_profile` (`/health/profile/`, `?edit=1` para editar), `..._confirm`, `..._export` (JSON adjunto) y `..._delete`, siempre sobre `request.user` (membresía vigente + `HEALTH_FEATURES_ENABLED`; apagado = 404). El entrenador usa `trainer_health_profile` y `trainer_health_profile_edit` (`get_client_for_trainer`; la edición también depende del interruptor).
+- Guardar la ficha exige el consentimiento `health_data` vigente (no el de IA). El entrenador **solo corrige** una ficha existente (nunca la crea) y su versión queda sin confirmar hasta que la clienta la confirme. El entrenador solo ve el contenido con `health_data` vigente de la clienta.
+- `HealthAccessLog` (sin IP ni contenido): `view`/`edit` del entrenador o la superusuaria, y `export`/`delete` de la propia clienta. Retirar el consentimiento `health_data` ofrece borrar la ficha.
+- Comidas: `meal_slots` siempre incluye desayuno, almuerzo y cena; opcionalmente media mañana y/o merienda (3 a 5).
+- Banderas (`apps/plans/rules/flags.py`, R01-R15, Y01-Y13, I01, I02, M01-M09): solo para el entrenador, nunca se muestran a la clienta. Umbrales **[A VALIDAR]** por un profesional de la salud.
+- Las pantallas (`health/profile_*.html`, `trainer/health_profile*.html`) las construye el frontend contra el bloque "Contrato A2" de `docs/contracts/requests.md`; mientras no existan, las pruebas usan plantillas de reemplazo (`stub_missing_templates`).

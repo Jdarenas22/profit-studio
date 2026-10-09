@@ -1,0 +1,38 @@
+{% comment %} Grupo de banderas de seguridad de la ficha (solo entrenador). Parámetros: kind (red|yellow|info|missing), title, hint, flags.
+   El significado no depende solo del color: cada bandera lleva insignia con texto e icono. {% endcomment %}
+{% if flags %}
+<div class="rounded-xl border p-4
+            {% if kind == 'red' %}border-red-500/40 bg-red-500/10
+            {% elif kind == 'yellow' %}border-yellow-500/40 bg-yellow-500/10
+            {% elif kind == 'info' %}border-sky-500/40 bg-sky-500/10
+            {% else %}border-dashed border-white/25 bg-white/5{% endif %}">
+  <h3 class="text-sm font-bold flex items-center gap-2
+             {% if kind == 'red' %}text-red-200{% elif kind == 'yellow' %}text-yellow-200{% elif kind == 'info' %}text-sky-200{% else %}text-white/90{% endif %}">
+    <i class="fa {% if kind == 'red' %}fa-circle-xmark{% elif kind == 'yellow' %}fa-triangle-exclamation{% elif kind == 'info' %}fa-circle-info{% else %}fa-circle-question{% endif %}" aria-hidden="true"></i>
+    {{ title }} <span class="font-normal opacity-80">({{ flags|length }})</span>
+  </h3>
+  <p class="text-white/70 text-xs mt-1 mb-3">{{ hint }}</p>
+  <ul class="space-y-2">
+    {% for f in flags %}
+    <li class="rounded-lg bg-black/40 border-l-4 p-3 min-w-0
+               {% if kind == 'red' %}border-red-400{% elif kind == 'yellow' %}border-yellow-400{% elif kind == 'info' %}border-sky-400{% else %}border-white/40{% endif %}">
+      <div class="flex flex-wrap items-center gap-2 mb-1.5">
+        <span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold
+                     {% if kind == 'red' %}bg-red-500/25 text-red-100{% elif kind == 'yellow' %}bg-yellow-500/25 text-yellow-100{% elif kind == 'info' %}bg-sky-500/25 text-sky-100{% else %}bg-white/15 text-white{% endif %}">
+          {% if kind == 'red' %}Roja{% elif kind == 'yellow' %}Amarilla{% elif kind == 'info' %}Informativa{% else %}Falta un dato{% endif %}
+        </span>
+        <span class="text-white/60 text-xs font-mono">{{ f.code }}</span>
+        {% if f.scopes %}
+        <span class="text-white/60 text-xs">Afecta:
+          {% if 'exercise' in f.scopes %}<span class="inline-block rounded bg-white/10 px-1.5 py-0.5 text-white/90">Ejercicio</span>{% endif %}
+          {% if 'nutrition' in f.scopes %}<span class="inline-block rounded bg-white/10 px-1.5 py-0.5 text-white/90">Alimentación</span>{% endif %}
+        </span>
+        {% endif %}
+      </div>
+      <p class="text-white text-sm leading-snug [overflow-wrap:anywhere]">{{ f.text }}</p>
+      {% if f.action %}<p class="text-white/70 text-sm leading-snug mt-1 [overflow-wrap:anywhere]"><strong class="text-white/90">Qué hacer:</strong> {{ f.action }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

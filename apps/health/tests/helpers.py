@@ -1,4 +1,4 @@
-"""Datos comunes de las pruebas de salud (medidas + consentimiento).
+"""Datos comunes de las pruebas de salud (medidas, consentimiento y ficha).
 
 Sobre el escenario de apps/accounts/tests/helpers.py (boss, trainer_a/b, client_a/b/free) agrega
 membresías vigentes y utilidades para otorgar consentimiento.
@@ -16,11 +16,14 @@ from django.test import override_settings
 
 from apps.accounts.models import User
 from apps.accounts.tests.helpers import ScenarioTestCase, make_user
-from apps.health import services
+from apps.health import dates, services
+from apps.health.forms import HealthProfileForm
 from apps.health.models import PURPOSE_AI, PURPOSE_HEALTH_DATA, ConsentTextVersion
 from apps.memberships.models import Membership
 
-# Plantillas pendientes del frontend (docs/contracts/requests.md, "Contrato A1")
+# Plantillas pendientes del frontend (docs/contracts/requests.md, "Contrato A1" y "Contrato A2").
+# Mientras no existan se usa una plantilla mínima; cuando existe la real se usa la real, por eso
+# las pruebas comprueban el CONTEXTO (response.context) y no el HTML.
 _STUBS = {
     'health/minor_blocked.html': 'MINOR_BLOCKED',
     'trainer/body_measurement_edit.html':
@@ -50,6 +53,45 @@ def stub_missing_templates():
     return override_settings(TEMPLATES=[config])
 
 
+def adult_birth_date(years=30):
+    """Fecha de nacimiento de alguien con `years` años cumplidos hoy (más unos días de margen)."""
+    today = dates.today()
+    return today.replace(year=today.year - years, day=1) - timedelta(days=10)
+
+
+def valid_post(**overrides):
+    """POST completo y válido de la ficha (como lo enviaría el navegador). Con `clave=None` se
+    quita el campo; las listas van como listas."""
+    data = {
+        'birth_date': adult_birth_date(30).isoformat(),
+        'sex_for_calculation': 'F',
+        'training_goal': 'toning',
+        'target_weight_kg': '58,5',
+        'conditions': [], 'condition_controlled': '', 'medical_clearance': '', 'clearance_date': '',
+        'medications': [], 'injuries': [],
+        'recent_surgery': 'none', 'pregnancy_status': 'none', 'eating_disorder_history': 'no',
+        'other_condition_text': '', 'medications_text': '', 'injuries_text': '',
+        'diet_type': 'omnivore', 'allergies': [], 'allergy_severity': '', 'intolerances': [],
+        'meal_slots': ['breakfast', 'lunch', 'dinner'],
+        'meal_time_breakfast': '07:00', 'meal_time_lunch': '12:30', 'meal_time_dinner': '19:00',
+        'cooking_access': 'basic', 'budget_level': 'medium', 'eats_out_per_week': '2',
+        'disliked_foods_text': '', 'liked_foods_text': '',
+        'training_days_per_week': '3', 'session_minutes': '60', 'training_place': 'gym',
+        'equipment': [], 'experience_level': 'beginner', 'activity_level': 'light', 'sleep_hours': '7,5',
+    }
+    for number in range(1, 8):
+        data[f'parq_q{number}'] = 'no'
+    data.update(overrides)
+    return {key: value for key, value in data.items() if value is not None}
+
+
+def cleaned_profile(known_height=None, **overrides):
+    """`cleaned_data` de un POST válido (falla la prueba si el formulario lo rechaza)."""
+    form = HealthProfileForm(valid_post(**overrides), known_height=known_height)
+    assert form.is_valid(), form.errors.as_json()
+    return form.cleaned_data
+
+
 class HealthScenarioTestCase(ScenarioTestCase):
     @classmethod
     def setUpTestData(cls):
@@ -74,6 +116,12 @@ class HealthScenarioTestCase(ScenarioTestCase):
             purpose=purpose, version=last.version + 1, body=body, is_current=True,
         )
 
+    def make_profile(self, user, actor=None, grant=True, **overrides):
+        """Guarda una ficha (versión nueva) por el servicio, como lo haría la vista."""
+        if grant and not services.has_health_consent(user):
+            self.grant(user)
+        return services.save_profile(user, cleaned_profile(**overrides), actor=actor or user)
+
     @staticmethod
     def new_member(username, with_membership=True, plan=None):
         user = make_user(username, User.ROLE_MEMBER)
@@ -86,4 +134,5 @@ class HealthScenarioTestCase(ScenarioTestCase):
         return user
 
 
-__all__ = ['HealthScenarioTestCase', 'stub_missing_templates', 'PURPOSE_AI', 'PURPOSE_HEALTH_DATA']
+__all__ = ['HealthScenarioTestCase', 'stub_missing_templates', 'PURPOSE_AI', 'PURPOSE_HEALTH_DATA',
+           'valid_post', 'cleaned_profile', 'adult_birth_date']

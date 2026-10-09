@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if is_edit %}Corregir mi ficha de salud{% else %}Mi ficha de salud{% endif %} — ProFit Studio{% endblock %}
+
+{% block extra_head %}{% include 'health/partials/wizard_head.html' %}{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-3xl mx-auto">
+
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    {% if is_edit %}
+    <a href="{% url 'member_health_profile' %}" class="hover:text-primary transition-colors">Mi ficha de salud</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Corregir</span>
+    {% else %}
+    <span class="text-white/80" aria-current="page">Mi ficha de salud</span>
+    {% endif %}
+  </nav>
+
+  <h1 class="text-2xl font-black text-white mb-2">{% if is_edit %}Corregir mi ficha de salud{% else %}Mi ficha de salud y alimentación{% endif %}</h1>
+  <p class="text-white/60 text-sm mb-5 leading-relaxed">
+    Cuéntanos un poco sobre ti para que tu entrenamiento y tu alimentación se ajusten a lo que necesitas.
+    Tarda unos 5 minutos y puedes cambiarla cuando quieras.
+  </p>
+
+  <aside class="mb-6 flex gap-3 rounded-2xl border border-white/10 bg-zinc-900/60 p-4" aria-label="Aviso sobre tus respuestas">
+    <i class="fa fa-shield-halved text-primary mt-0.5 shrink-0" aria-hidden="true"></i>
+    <p class="text-white/70 text-sm leading-relaxed min-w-0">
+      Responder sobre salud es voluntario; sin esta información tu entrenador armará el plan manualmente.
+      Tus respuestas son datos de salud: las tratamos solo con tu autorización y puedes retirarla cuando quieras desde
+      <a href="{% url 'member_consent' 'health_data' %}"
+         class="text-primary underline underline-offset-2 hover:text-primary-light rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">tu autorización de datos de salud</a>.
+    </p>
+  </aside>
+
+  {% url 'member_health_profile' as action_url %}
+  {% if is_edit %}{% url 'member_health_profile' as cancel_url %}{% else %}{% url 'dashboard' as cancel_url %}{% endif %}
+  {% include 'health/partials/profile_wizard.html' %}
+</section>
+{% endblock %}
