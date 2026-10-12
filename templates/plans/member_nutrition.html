@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi alimentación — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-3xl mx-auto">
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6 print:hidden">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <a href="{% url 'member_plans' %}" class="hover:text-primary transition-colors">Mi plan</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Mi alimentación</span>
+  </nav>
+
+  <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+    <div>
+      <h1 class="text-2xl font-black text-white">Mi alimentación</h1>
+      <p class="text-white/60 text-sm mt-1">
+        Aprobada el {{ plan.approved_at|date:"d/m/Y" }}{% if plan.approved_by %} por {{ plan.approved_by.get_full_name|default:plan.approved_by.username }}{% endif %}{% if plan.reviewer_credential %} ({{ plan.reviewer_credential }}){% endif %}.
+        {% if plan.valid_until %}Vigente hasta el {{ plan.valid_until|date:"d/m/Y" }}.{% endif %}
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-2 print:hidden">
+      <a href="{% url 'member_exchanges' %}" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+        <i class="fa fa-arrows-rotate" aria-hidden="true"></i> Intercambios
+      </a>
+      <a href="{% url 'member_shopping_list' %}" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+        <i class="fa fa-basket-shopping" aria-hidden="true"></i> Lista de compras
+      </a>
+      <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+        <i class="fa fa-print" aria-hidden="true"></i> Imprimir
+      </button>
+    </div>
+  </div>
+
+  {% if plan.note_for_client %}
+  <blockquote class="mb-4 rounded-xl bg-black/40 border-l-4 border-primary p-3 text-white/90 text-sm [overflow-wrap:anywhere]">{{ plan.note_for_client }}</blockquote>
+  {% endif %}
+
+  {% if active_job %}
+  <p role="status" class="mb-4 rounded-xl border border-white/10 bg-zinc-900 p-3 text-sm text-white/80 print:hidden">
+    <i class="fa fa-spinner fa-spin text-primary mr-1" aria-hidden="true"></i> Estamos armando otra opción.
+    <a href="{% url 'member_plan_request_status' active_job.pk %}" class="text-primary underline underline-offset-2">Ver el estado</a>
+  </p>
+  {% endif %}
+
+  <!-- Objetivos del día -->
+  <div class="mb-6 rounded-2xl border border-white/10 bg-zinc-900 p-5">
+    <h2 class="text-white font-bold text-sm mb-3">Tu objetivo de cada día</h2>
+    <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+      <div class="rounded-xl bg-black/40 p-3"><dt class="text-white/50 text-xs">Energía</dt><dd class="text-white font-bold">{{ targets.kcal }} kcal</dd></div>
+      <div class="rounded-xl bg-black/40 p-3"><dt class="text-white/50 text-xs">Proteína</dt><dd class="text-white font-bold">{{ targets.protein }} g</dd></div>
+      <div class="rounded-xl bg-black/40 p-3"><dt class="text-white/50 text-xs">Carbohidratos</dt><dd class="text-white font-bold">{{ targets.carbs }} g</dd></div>
+      <div class="rounded-xl bg-black/40 p-3"><dt class="text-white/50 text-xs">Grasa</dt><dd class="text-white font-bold">{{ targets.fat }} g</dd></div>
+    </dl>
+    <p class="text-white/50 text-xs mt-3 leading-relaxed">Cada comida tiene 3 opciones con una energía parecida: elige la que prefieras y combínalas como quieras; el día queda en tu objetivo (con una diferencia pequeña).</p>
+  </div>
+
+  <!-- Día -->
+  <nav aria-label="Elegir el día" class="mb-6 flex gap-2 overflow-x-auto pb-1 print:hidden">
+    {% for pill in date_pills %}
+    <a href="{% url 'member_nutrition_plan' %}?date={{ pill.iso }}" {% if pill.selected %}aria-current="date"{% endif %}
+       class="shrink-0 min-h-[44px] inline-flex flex-col items-center justify-center px-4 rounded-xl text-sm transition-colors {% if pill.selected %}bg-primary text-black font-bold{% else %}bg-white/5 text-white/70 hover:bg-white/10{% endif %}">
+      <span>{% if pill.label %}{{ pill.label }}{% else %}{{ pill.date|date:"D" }}{% endif %}</span>
+      <span class="text-xs">{{ pill.date|date:"j/n" }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  {% if day_totals %}
+  <div class="mb-6 rounded-2xl border border-primary/30 bg-primary/5 p-4" role="status">
+    <p class="text-white text-sm font-semibold">Tu día ({{ chosen_count }} de {{ slot_count }} comidas elegidas): {{ day_totals.kcal }} de {{ targets.kcal }} kcal</p>
+    <p class="text-white/70 text-xs mt-1">Proteína {{ day_totals.protein }} g · Carbohidratos {{ day_totals.carbs }} g · Grasa {{ day_totals.fat }} g (estimado según tus elecciones)</p>
+  </div>
+  {% endif %}
+
+  {% for entry in slots %}
+  {% with slot=entry.slot %}
+  <div id="slot-{{ slot.id }}" class="mb-8 scroll-mt-20">
+    <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+      <h2 class="text-lg font-black text-white">{{ slot.name }}{% if slot.time_hint %} <span class="text-white/50 text-sm font-medium">· {{ slot.time_hint }}</span>{% endif %}</h2>
+      <p class="text-white/50 text-xs">≈ {{ slot.kcal_target }} kcal · {{ slot.protein_g }} g de proteína</p>
+    </div>
+    <div class="space-y-3">
+      {% for opt in entry.options %}
+      {% with option=opt.option %}
+      <article class="rounded-2xl border p-4 {% if entry.chosen_id == option.id %}border-primary bg-primary/5{% else %}border-white/10 bg-zinc-900{% endif %}">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <h3 class="text-white font-semibold [overflow-wrap:anywhere]"><span class="text-primary mr-1">{{ opt.letter }}.</span>{{ option.name }}</h3>
+          <p class="text-white/60 text-xs shrink-0">{{ option.kcal|floatformat:0 }} kcal</p>
+        </div>
+        {% if opt.conflict %}
+        <p role="alert" class="mt-2 rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-red-100 text-xs"><i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i> Esta opción incluye un alimento que ya no es compatible con tu ficha. No la elijas: pide otra opción o habla con tu entrenador.</p>
+        {% endif %}
+        {% if option.needs_review %}
+        <p class="mt-1 inline-flex items-center gap-1 rounded-md bg-sky-500/20 px-2 py-0.5 text-xs text-sky-100"><i class="fa fa-hourglass-half" aria-hidden="true"></i> Nueva propuesta, pendiente de revisión del entrenador</p>
+        {% endif %}
+        <ul class="mt-3 space-y-1">
+          {% for item in opt.items %}
+          <li class="text-sm text-white/90 [overflow-wrap:anywhere]">{{ item.food.name }} <span class="text-white/50">— {{ item.household }}</span></li>
+          {% endfor %}
+        </ul>
+        {% if option.preparation %}<p class="mt-3 text-white/60 text-sm leading-relaxed [overflow-wrap:anywhere]">{{ option.preparation }}</p>{% endif %}
+        <p class="mt-2 text-white/40 text-xs">Proteína {{ option.protein_g|floatformat:0 }} g · Carbohidratos {{ option.carbs_g|floatformat:0 }} g · Grasa {{ option.fat_g|floatformat:0 }} g</p>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2 print:hidden">
+          {% if not opt.conflict %}
+          <form method="POST" action="{% url 'member_meal_choice' %}" x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+            {% csrf_token %}
+            <input type="hidden" name="slot" value="{{ slot.id }}">
+            <input type="hidden" name="option" value="{{ option.id }}">
+            <input type="hidden" name="date" value="{{ date|date:'Y-m-d' }}">
+            <button type="submit" :disabled="sending" {% if entry.chosen_id == option.id %}aria-pressed="true"{% endif %}
+                    class="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-bold transition-colors disabled:opacity-60 {% if entry.chosen_id == option.id %}bg-primary text-black{% else %}bg-white/10 hover:bg-white/20 text-white{% endif %}">
+              <i class="fa {% if entry.chosen_id == option.id %}fa-circle-check{% else %}fa-circle{% endif %}" aria-hidden="true"></i>
+              {% if entry.chosen_id == option.id %}Elegida para este día{% else %}Elegir esta{% endif %}
+            </button>
+          </form>
+          {% endif %}
+          {% if entry.week_left > 0 and entry.day_left > 0 and not active_job %}
+          <form method="POST" action="{% url 'member_meal_alternative' slot.id %}" x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+            {% csrf_token %}
+            <input type="hidden" name="option" value="{{ option.id }}">
+            <input type="hidden" name="request_token" value="{{ request_token }}">
+            <button type="submit" :disabled="sending"
+                    class="inline-flex items-center gap-2 min-h-[44px] px-3 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-60">
+              <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-rotate'" aria-hidden="true"></i> Cambiar por otra opción
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </article>
+      {% endwith %}
+      {% endfor %}
+    </div>
+    <p class="mt-2 text-white/40 text-xs print:hidden">Cambios de opción disponibles para esta comida esta semana: {{ entry.week_left }}.</p>
+  </div>
+  {% endwith %}
+  {% endfor %}
+
+  {% include 'plans/partials/disclaimer.html' %}
+</section>
+{% endblock %}

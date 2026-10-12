@@ -1,0 +1,96 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Editar opción — {{ client.get_full_name|default:client.username }}{% endblock %}
+
+{% block trainer_content %}
+<nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+  <a href="{% url 'trainer_plan_inbox' %}" class="hover:text-primary transition-colors">Planes por revisar</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <a href="{% url 'trainer_plan_detail' plan.pk %}" class="hover:text-primary transition-colors">Plan v{{ plan.version }}</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <span class="text-white/80" aria-current="page">Editar opción</span>
+</nav>
+
+<div class="max-w-3xl">
+  <h1 class="text-2xl font-black text-white mb-1">Editar opción de {{ slot.name }}</h1>
+  <p class="text-white/60 text-sm mb-6">Objetivo de la comida ≈ {{ slot.kcal_target }} kcal y {{ slot.protein_g }} g de proteína. Al guardar se recalculan las kcal y los macros y se revisa contra la ficha de la clienta; solo puedes elegir alimentos compatibles con ella.</p>
+
+  {% if error_list %}
+  <div role="alert" class="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
+    <p class="font-semibold">No se pudo guardar:</p>
+    <ul class="mt-1 list-disc pl-5">{% for text in error_list %}<li>{{ text }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <form method="POST" class="rounded-2xl border border-white/10 bg-zinc-900 p-5 space-y-5"
+        x-data="{ rows: {{ rows|length }}, sending: false, add() { if (this.rows < 6) this.rows++ }, remove() { if (this.rows > 2) this.rows-- } }"
+        @submit="sending = true" @pageshow.window="sending = false">
+    {% csrf_token %}
+    <div>
+      <label for="name" class="block text-white/60 text-xs mb-1">Nombre del plato</label>
+      <input id="name" name="name" maxlength="100" value="{{ name }}" required
+             class="w-full bg-black/40 border {% if errors.name %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
+      {% if errors.name %}<p class="text-red-400 text-xs mt-1">{{ errors.name }}</p>{% endif %}
+    </div>
+
+    <fieldset>
+      <legend class="block text-white/60 text-xs mb-2">Alimentos (de 2 a 6) y gramos</legend>
+      <div class="space-y-2">
+        {% for row in rows %}
+        <div class="grid grid-cols-[1fr_6rem] gap-2" x-show="{{ forloop.counter }} <= rows">
+          <select name="food_id" aria-label="Alimento {{ forloop.counter }}"
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
+            <option value="">— Elige un alimento —</option>
+            {% for group in food_groups %}
+            <optgroup label="{{ group.label }}">
+              {% for food in group.foods %}
+              <option value="{{ food.id }}" {% if food.id == row.food_id %}selected{% endif %}>{{ food.name }}</option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+          <input type="number" name="grams" min="5" max="600" step="5" inputmode="numeric" value="{{ row.grams }}" placeholder="g" aria-label="Gramos del alimento {{ forloop.counter }}"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
+        </div>
+        {% endfor %}
+        {% for i in "123456" %}
+        {% if forloop.counter > rows|length %}
+        <div class="grid grid-cols-[1fr_6rem] gap-2" x-show="{{ forloop.counter }} <= rows" x-cloak>
+          <select name="food_id" aria-label="Alimento {{ forloop.counter }}"
+                  class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
+            <option value="">— Elige un alimento —</option>
+            {% for group in food_groups %}
+            <optgroup label="{{ group.label }}">{% for food in group.foods %}<option value="{{ food.id }}">{{ food.name }}</option>{% endfor %}</optgroup>
+            {% endfor %}
+          </select>
+          <input type="number" name="grams" min="5" max="600" step="5" inputmode="numeric" placeholder="g" aria-label="Gramos del alimento {{ forloop.counter }}"
+                 class="w-full bg-black/40 border border-white/10 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% if errors.items %}<p class="text-red-400 text-xs mt-1">{{ errors.items }}</p>{% endif %}
+      <div class="mt-3 flex gap-2">
+        <button type="button" @click="add()" x-show="rows < 6" class="min-h-[44px] px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm"><i class="fa fa-plus mr-1" aria-hidden="true"></i> Agregar alimento</button>
+        <button type="button" @click="remove()" x-show="rows > 2" class="min-h-[44px] px-4 rounded-xl text-white/60 hover:bg-white/10 text-sm"><i class="fa fa-minus mr-1" aria-hidden="true"></i> Quitar el último</button>
+      </div>
+    </fieldset>
+
+    <div>
+      <label for="preparation" class="block text-white/60 text-xs mb-1">Preparación (máx. 400 caracteres, sin cantidades)</label>
+      <textarea id="preparation" name="preparation" rows="3" maxlength="400" required
+                class="w-full bg-black/40 border {% if errors.preparation %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none resize-none">{{ preparation }}</textarea>
+      {% if errors.preparation %}<p class="text-red-400 text-xs mt-1">{{ errors.preparation }}</p>{% endif %}
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" :disabled="sending"
+              class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors disabled:opacity-60">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-floppy-disk'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Guardando...' : 'Guardar'">Guardar</span>
+      </button>
+      <a href="{% url 'trainer_plan_detail' plan.pk %}" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">Volver al plan</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

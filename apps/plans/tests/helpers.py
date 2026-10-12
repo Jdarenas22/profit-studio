@@ -16,7 +16,8 @@ from apps.exercises.models import Exercise
 from apps.health.tests.helpers import PURPOSE_AI, PURPOSE_HEALTH_DATA, HealthScenarioTestCase
 from apps.plans import jobs, services
 from apps.plans.ai.fake import FakeAIClient
-from apps.plans.models import KIND_EXERCISE
+from apps.plans.foods_data import food_rows
+from apps.plans.models import KIND_EXERCISE, KIND_NUTRITION, Food, Plan, TrainerCredential
 
 PLAN_SETTINGS = override_settings(
     HEALTH_FEATURES_ENABLED=True, AI_PLANS_MODE='simulated', AI_PLANS_RUN_INLINE=True,
@@ -67,3 +68,40 @@ class PlanScenarioTestCase(HealthScenarioTestCase):
                 client, KIND_EXERCISE, actor or client, services.new_request_token(), **kwargs)
         job.refresh_from_db()
         return job, fake
+
+
+class NutritionScenarioTestCase(PlanScenarioTestCase):
+    """Además del escenario de planes: catálogo de alimentos validado y la superusuaria con
+    credencial de nutrición (el entrenador asignado NO la tiene)."""
+
+    CREDENTIAL = 'Nutricionista-dietista, RETHUS N.º 12345'
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        for row in food_rows():
+            name = row.pop('name')
+            Food.objects.create(name=name, validated_by='Prueba, nutricionista', **row)
+        TrainerCredential.objects.create(user=cls.boss, can_validate_nutrition=True, registration_label=cls.CREDENTIAL)
+
+    def request_nutrition(self, client, actor=None, scenario='ok', **kwargs):
+        """Pide un plan de alimentación y lo ejecuta (en línea). Devuelve (job, fake)."""
+        with self.fake_ai(scenario) as fake, self.captureOnCommitCallbacks(execute=True):
+            job, _created = services.request_plan(
+                client, KIND_NUTRITION, actor or client, services.new_request_token(), **kwargs)
+        job.refresh_from_db()
+        return job, fake
+
+    def nutrition_draft(self, client, **profile_overrides):
+        """Clienta lista + borrador de alimentación generado (simulado)."""
+        self.ready(client, **profile_overrides)
+        job, _fake = self.request_nutrition(client)
+        assert job.status == job.STATUS_SUCCEEDED, job.error_code
+        return job.plan
+
+    def approved_nutrition(self, client, **profile_overrides):
+        """Plan de alimentación APROBADO (se marca como no simulado, como si viniera de Gemini)."""
+        plan = self.nutrition_draft(client, **profile_overrides)
+        Plan.objects.filter(pk=plan.pk).update(is_simulated=False)
+        plan.refresh_from_db()
+        return services.approve_plan(plan, self.boss, note_for_client='Buen provecho')

@@ -12,9 +12,17 @@
     <span class="text-white/80" aria-current="page">Pedir mi plan</span>
   </nav>
 
-  <h1 class="text-2xl font-black text-white mb-1">Pedir mi plan de ejercicio</h1>
+  <h1 class="text-2xl font-black text-white mb-3">Pedir mi plan</h1>
+  <nav aria-label="Tipo de plan" class="flex flex-wrap gap-2 mb-4">
+    {% for k in kinds %}
+    <a href="{{ k.url }}" {% if k.selected %}aria-current="page"{% endif %}
+       class="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl text-sm transition-colors {% if k.selected %}bg-primary text-black font-bold{% else %}bg-white/5 text-white/70 hover:bg-white/10{% endif %}">
+      <i class="fa {{ k.icon }}" aria-hidden="true"></i> {{ k.label }}
+    </a>
+    {% endfor %}
+  </nav>
   <p class="text-white/60 text-sm mb-6 leading-relaxed">
-    Armamos un borrador con apoyo de inteligencia artificial usando tu ficha y tus medidas (sin tu nombre ni tus datos de contacto).
+    Armamos un borrador {% if kind == 'nutrition' %}de guía de alimentación, con 3 opciones por comida,{% endif %} con apoyo de inteligencia artificial usando tu ficha y tus medidas (sin tu nombre ni tus datos de contacto).
     Tu entrenador lo revisa y lo aprueba antes de que lo veas.
   </p>
 
@@ -49,7 +57,7 @@
     </div>
     <form method="POST" class="mt-4 sm:pl-7" x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
       {% csrf_token %}
-      <input type="hidden" name="kind" value="exercise">
+      <input type="hidden" name="kind" value="{{ kind }}">
       <input type="hidden" name="request_token" value="{{ request_token }}">
       <button type="submit" :disabled="sending"
               class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors disabled:opacity-60">
@@ -63,16 +71,9 @@
         x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
     {% csrf_token %}
     <input type="hidden" name="request_token" value="{{ request_token }}">
-    <fieldset>
-      <legend class="text-white font-bold text-sm mb-3">¿Qué plan quieres?</legend>
-      {% for kind in kinds %}
-      <label class="flex items-center gap-3 text-white/90 text-sm cursor-pointer">
-        <input type="radio" name="kind" value="{{ kind.code }}" {% if forloop.first %}checked{% endif %} class="w-4 h-4 accent-orange-500">
-        {{ kind.label }}
-      </label>
-      {% endfor %}
-      <p class="text-white/50 text-xs mt-2">El plan de alimentación llegará pronto.</p>
-    </fieldset>
+    <input type="hidden" name="kind" value="{{ kind }}">
+    <p class="text-white font-bold text-sm">{% if kind == 'nutrition' %}Plan de alimentación{% else %}Plan de ejercicio{% endif %}</p>
+    <p class="text-white/60 text-xs mt-1">Estás a un paso: confirma y lo armamos.</p>
     <button type="submit" :disabled="sending"
             class="mt-5 inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
       <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'" aria-hidden="true"></i>

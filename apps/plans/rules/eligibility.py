@@ -21,6 +21,7 @@ D03_MEASURE = 'D03_MEASURE'
 D04_INCOHERENT = 'D04_INCOHERENT'
 D05_QUOTA = 'D05_QUOTA'
 D06_FEW_EXERCISES = 'D06_FEW_EXERCISES'
+D06_FEW_FOODS = 'D06_FEW_FOODS'
 
 # Textos para la clienta (sin diagnósticos)
 REQUIREMENT_TEXTS = {
@@ -33,6 +34,7 @@ REQUIREMENT_TEXTS = {
     D04_INCOHERENT: 'Revisa tus datos: el peso, la estatura o la fecha de nacimiento no parecen correctos.',
     D05_QUOTA: 'Ya pediste varios planes esta semana. Podrás pedir otro en unos días.',
     D06_FEW_EXERCISES: 'Por ahora no hay suficientes ejercicios compatibles contigo. Tu entrenador armará tu plan.',
+    D06_FEW_FOODS: 'Por ahora no hay suficientes alimentos compatibles contigo. Tu entrenador armará tu guía de alimentación.',
 }
 
 # Mensaje genérico ante una bandera roja (contrato 3.3): sin diagnósticos

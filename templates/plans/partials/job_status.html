@@ -1,6 +1,7 @@
 {% comment %} Estado de un pedido de plan (F-07). Mientras no termina, se vuelve a pedir cada 3 s;
 el servidor responde 286 al terminar y htmx deja de sondear. Nunca muestra contenido del plan.
-Parámetros: job, job_message, job_finished, job_blocked, poll_url; trainer_mode y flags (entrenador). {% endcomment %}
+Parámetros: job, job_message, job_finished, job_blocked, job_is_alternative, job_back_url, job_back_label, poll_url;
+trainer_mode y flags (entrenador). {% endcomment %}
 <div id="job-status" role="status" aria-live="polite"
      {% if not job_finished %}hx-get="{{ poll_url }}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}
      class="rounded-2xl border p-5
@@ -16,7 +17,7 @@ Parámetros: job, job_message, job_finished, job_blocked, poll_url; trainer_mode
               {% else %}fa-spinner fa-spin text-primary{% endif %}" aria-hidden="true"></i>
     <div class="min-w-0">
       <p class="text-white font-semibold text-sm">
-        {% if job.status == 'queued' %}En cola{% elif job.status == 'running' %}Generando el borrador{% elif job.status == 'succeeded' %}Borrador listo{% elif job_blocked %}Necesita valoración{% else %}No se pudo generar{% endif %}
+        {% if job.status == 'queued' %}En cola{% elif job.status == 'running' %}{% if job_is_alternative %}Armando otra opción{% else %}Generando el borrador{% endif %}{% elif job.status == 'succeeded' %}{% if job_is_alternative %}Opción lista{% else %}Borrador listo{% endif %}{% elif job_blocked %}Necesita valoración{% else %}No se pudo generar{% endif %}
       </p>
       {% if trainer_mode %}
         {% if job.status == 'succeeded' and job.plan_id %}
@@ -26,7 +27,7 @@ Parámetros: job, job_message, job_finished, job_blocked, poll_url; trainer_mode
           <i class="fa fa-magnifying-glass" aria-hidden="true"></i> Revisar el borrador
         </a>
         {% elif job_blocked %}
-        <p class="text-white/80 text-sm mt-1">No se llamó a la IA por seguridad. Arma el plan a mano en el constructor.</p>
+        <p class="text-white/80 text-sm mt-1">No se llamó a la IA por seguridad. {% if job.kind == 'exercise' %}Arma el plan a mano en el constructor.{% else %}Arma la guía de alimentación aparte (con un nutricionista, si hace falta).{% endif %}</p>
         {% if flags %}
         <ul class="mt-3 space-y-2">
           {% for f in flags %}
@@ -37,13 +38,15 @@ Parámetros: job, job_message, job_finished, job_blocked, poll_url; trainer_mode
         {% elif job.status == 'failed' %}
         <p class="text-white/80 text-sm mt-1">Código: <span class="font-mono">{{ job.error_code|default:'desconocido' }}</span>. Puedes intentarlo de nuevo o armar el plan a mano.</p>
         {% else %}
+        {% if job.status == 'running' and job.progress_total > 1 %}<p class="text-white/80 text-sm mt-1">Comida {{ job.progress_done|add:1 }} de {{ job.progress_total }}.</p>{% endif %}
         <p class="text-white/80 text-sm mt-1">Esto puede tardar uno o dos minutos. Puedes salir de esta página: el borrador llegará a "Planes por revisar".</p>
         {% endif %}
       {% else %}
         <p class="text-white/80 text-sm mt-1 leading-relaxed">{{ job_message }}</p>
+        {% if job.status == 'running' and job.progress_total > 1 %}<p class="text-white/60 text-xs mt-1">Comida {{ job.progress_done|add:1 }} de {{ job.progress_total }}.</p>{% endif %}
         {% if job_finished %}
-        <a href="{% url 'member_plans' %}" class="mt-3 inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
-          <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver a Mi plan
+        <a href="{{ job_back_url }}" class="mt-3 inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+          <i class="fa fa-arrow-left" aria-hidden="true"></i> {{ job_back_label }}
         </a>
         {% endif %}
       {% endif %}

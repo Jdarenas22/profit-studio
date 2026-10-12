@@ -33,7 +33,7 @@
 
     {% if active_job %}
     <p class="mt-4 text-sm text-white/80"><i class="fa fa-spinner fa-spin text-primary mr-1" aria-hidden="true"></i>
-      Estamos armando un borrador. <a href="{% url 'member_plan_request_status' active_job.pk %}" class="text-primary underline underline-offset-2">Ver el estado</a>
+      Estamos armando {% if active_job.kind == 'meal_alternative' %}otra opción de comida{% else %}un borrador{% endif %}. <a href="{% url 'member_plan_request_status' active_job.pk %}" class="text-primary underline underline-offset-2">Ver el estado</a>
     </p>
     {% elif pending %}
     <p class="mt-4 text-sm text-white/80"><i class="fa fa-hourglass-half text-primary mr-1" aria-hidden="true"></i>
@@ -46,10 +46,31 @@
     {% endif %}
   </div>
 
-  <!-- Alimentación (fase C) -->
-  <div class="mb-6 rounded-2xl border border-dashed border-white/15 bg-zinc-900/50 p-5">
-    <h2 class="text-white/80 font-bold mb-1"><i class="fa fa-utensils text-white/40 mr-2" aria-hidden="true"></i>Plan de alimentación</h2>
-    <p class="text-white/50 text-sm">Muy pronto.</p>
+  <!-- Alimentación -->
+  <div class="mb-6 rounded-2xl border border-white/10 bg-zinc-900 p-5">
+    <h2 class="text-white font-bold mb-3"><i class="fa fa-utensils text-primary mr-2" aria-hidden="true"></i>Plan de alimentación</h2>
+    {% if nutrition_plan %}
+      <p class="text-white/80 text-sm">
+        Aprobado el {{ nutrition_plan.approved_at|date:"d/m/Y" }}{% if nutrition_plan.approved_by %} por {{ nutrition_plan.approved_by.get_full_name|default:nutrition_plan.approved_by.username }}{% endif %}{% if nutrition_plan.reviewer_credential %} ({{ nutrition_plan.reviewer_credential }}){% endif %}.
+        {% if nutrition_valid_until %}Vigente hasta el {{ nutrition_valid_until|date:"d/m/Y" }}.{% endif %}
+      </p>
+      <a href="{% url 'member_nutrition_plan' %}"
+         class="mt-4 inline-flex items-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors">
+        <i class="fa fa-utensils" aria-hidden="true"></i> Ver mi alimentación
+      </a>
+    {% else %}
+      <p class="text-white/70 text-sm">Aún no tienes un plan de alimentación aprobado.</p>
+    {% endif %}
+
+    {% if pending_nutrition %}
+    <p class="mt-4 text-sm text-white/80"><i class="fa fa-hourglass-half text-primary mr-1" aria-hidden="true"></i>
+      Tienes un plan de alimentación en revisión por tu entrenador. Te avisaremos cuando esté aprobado.
+    </p>
+    {% elif can_request_more %}
+    <a href="{% url 'member_plan_request' %}?kind=nutrition" class="mt-4 inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+      <i class="fa fa-wand-magic-sparkles" aria-hidden="true"></i> {% if nutrition_plan %}Pedir un plan nuevo{% else %}Pedir mi plan de alimentación{% endif %}
+    </a>
+    {% endif %}
   </div>
 
   {% include 'plans/partials/disclaimer.html' %}

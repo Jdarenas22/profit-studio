@@ -163,5 +163,8 @@ AI_PLANS_MAX_ATTEMPTS = env.int('AI_PLANS_MAX_ATTEMPTS', default=3)
 AI_PLANS_DAILY_JOB_LIMIT = env.int('AI_PLANS_DAILY_JOB_LIMIT', default=100)
 AI_PLANS_CLIENT_WEEKLY_LIMIT = env.int('AI_PLANS_CLIENT_WEEKLY_LIMIT', default=3)
 AI_PLANS_TRAINER_DAILY_LIMIT = env.int('AI_PLANS_TRAINER_DAILY_LIMIT', default=10)
+# "Otra opción" de una comida (fase C): por comida y semana, y por clienta y día
+AI_PLANS_ALT_SLOT_WEEKLY_LIMIT = env.int('AI_PLANS_ALT_SLOT_WEEKLY_LIMIT', default=3)
+AI_PLANS_ALT_DAILY_LIMIT = env.int('AI_PLANS_ALT_DAILY_LIMIT', default=6)
 # Ejecutar el trabajo en la misma petición, sin hilo (pruebas y depuración)
 AI_PLANS_RUN_INLINE = env.bool('AI_PLANS_RUN_INLINE', default=False)

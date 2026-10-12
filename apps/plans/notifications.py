@@ -40,6 +40,12 @@ def trainer_draft_ready(plan):
     return _send('ProFit Studio: hay un borrador para revisar', body, _trainer_recipients(plan.client), 'draft')
 
 
+def trainer_alternative_ready(plan):
+    body = ('Una clienta pidió otra opción para una comida de su plan de alimentación y ya está activa.\n\n'
+            f'Revísala en el panel: Planes por revisar ({reverse("trainer_plan_inbox")}).')
+    return _send('ProFit Studio: una opción nueva para revisar', body, _trainer_recipients(plan.client), 'alternative')
+
+
 def trainer_job_blocked(job):
     body = ('Una clienta pidió un plan con IA y no se generó por seguridad (su ficha requiere '
             'valoración profesional o no hay ejercicios compatibles).\n\n'

@@ -51,7 +51,7 @@
 
     <!-- Advertencias -->
     {% if flags %}
-    {% include 'trainer/partials/health_flag_group.html' with kind='yellow' title='Advertencias' hint='El borrador ya las tuvo en cuenta (ejercicios filtrados y topes). Revísalas antes de aprobar.' flags=flags %}
+    {% include 'trainer/partials/health_flag_group.html' with kind='yellow' title='Advertencias' hint='El borrador ya las tuvo en cuenta (opciones filtradas y topes). Revísalas antes de aprobar.' flags=flags %}
     {% endif %}
 
     {% if stale %}
@@ -68,6 +68,9 @@
     </div>
     {% endif %}
 
+    {% if is_nutrition and nutrition_review %}
+    {% include 'trainer/partials/nutrition_review.html' %}
+    {% else %}
     <!-- Rutina -->
     <div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
       <h2 class="text-white font-bold mb-1 [overflow-wrap:anywhere]">{{ plan.routine.name|default:"Rutina" }}</h2>
@@ -91,6 +94,7 @@
       <p class="text-white/50 text-sm">La rutina no tiene días.</p>
       {% endfor %}
     </div>
+    {% endif %}
 
     <!-- Historial -->
     <div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
@@ -148,14 +152,14 @@
       </label>
       {% endif %}
       {% if plan.kind == 'nutrition' and not can_validate_nutrition %}
-      <p class="text-white/60 text-xs">Solo una persona con credencial de nutrición puede aprobar planes de alimentación.</p>
+      <p class="text-yellow-200 text-xs" role="note">Solo una persona con credencial de nutrición puede aprobar planes de alimentación. La superusuaria la asigna en el administrador (Credenciales de validación).</p>
       {% endif %}
       <button type="submit" :disabled="sending" {% if not can_approve %}disabled{% endif %}
               class="w-full inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
         <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
         <span x-text="sending ? 'Aprobando...' : 'Aprobar y publicar'">Aprobar y publicar</span>
       </button>
-      <p class="text-white/50 text-xs">Al aprobar, la clienta ve la rutina y el plan anterior se reemplaza.</p>
+      <p class="text-white/50 text-xs">Al aprobar, la clienta ve {% if is_nutrition %}su plan de alimentación{% else %}la rutina{% endif %} y el plan anterior se reemplaza.</p>
     </form>
 
     <!-- Regenerar -->
@@ -181,7 +185,7 @@
     {% if plan.is_pending or plan.is_approved %}
     <!-- Archivar -->
     <form method="POST" action="{% url 'trainer_plan_archive' plan.pk %}" class="rounded-2xl border border-white/10 bg-zinc-900 p-5 space-y-3"
-          x-data="{ sending: false }" @submit="if (!confirm('¿Archivar este plan?{% if plan.is_approved %} La clienta dejará de ver la rutina.{% endif %}')) { $event.preventDefault() } else { sending = true }">
+          x-data="{ sending: false }" @submit="if (!confirm('¿Archivar este plan?{% if plan.is_approved %} La clienta dejará de ver este plan.{% endif %}')) { $event.preventDefault() } else { sending = true }">
       {% csrf_token %}
       <h2 class="text-white font-bold text-sm">Archivar</h2>
       <div>

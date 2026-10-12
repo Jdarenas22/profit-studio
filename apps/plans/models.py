@@ -8,9 +8,14 @@
 - `PlanEvent`: historial de lo que pasó con un plan (quién, qué, cuándo).
 - `TrainerCredential`: quién puede validar planes de alimentación (fase C) y la frase de su
   credencial que se imprime en el plan.
+- Fase C (alimentación): `Food` (catálogo; la IA elige ids y gramos, Python calcula todo),
+  `NutritionPlan` (objetivos calculados) -> `MealSlot` (comidas del día) -> `MealOption` (3
+  opciones equivalentes por comida) -> `MealOptionItem`, y `MealChoice` (lo que la clienta elige
+  cada día).
 
 Ninguno guarda nombre, correo ni datos de la ficha: solo ids, códigos y lo que la IA devolvió
-ya validado (convertido en `Routine`). Solo `TrainerCredential` está en el admin.
+ya validado (convertido en `Routine` o en opciones de comida). Solo `TrainerCredential` y `Food`
+están en el admin (solo la superusuaria).
 """
 import uuid
 
@@ -18,12 +23,15 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from .rules import foods as foods_rules
+
 KIND_EXERCISE = 'exercise'
 KIND_NUTRITION = 'nutrition'
 KIND_CHOICES = [
     (KIND_EXERCISE, 'Ejercicio'),
     (KIND_NUTRITION, 'Alimentación'),
 ]
+GROUP_CHOICES = foods_rules.GROUPS
 
 
 class Plan(models.Model):
@@ -177,6 +185,15 @@ class PlanGenerationJob(models.Model):
     tokens_in = models.PositiveIntegerField(default=0)
     tokens_out = models.PositiveIntegerField(default=0)
     trainer_notes = models.CharField(max_length=500, blank=True, verbose_name='Notas del entrenador')
+    # "Otra opción" (fase C): la comida y la opción que la clienta no quiere
+    slot = models.ForeignKey(
+        'plans.MealSlot', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name='Comida',
+    )
+    replaces_option = models.ForeignKey(
+        'plans.MealOption', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name='Opción que se reemplaza',
+    )
 
     class Meta:
         verbose_name = 'Trabajo de generación'
@@ -259,3 +276,151 @@ class TrainerCredential(models.Model):
 
     def __str__(self):
         return f'Credencial de {self.user}'
+
+
+# ─── Fase C: plan de alimentación ─────────────────────────────────────────────
+
+class Food(models.Model):
+    """Alimento del catálogo (valores por 100 g). La IA solo elige ids de aquí y gramos; las kcal,
+    los macros y las medidas caseras los calcula Python. Sin `validated_by` el alimento solo se
+    usa en DEBUG: un profesional debe validar las cifras antes de usarlas con clientas reales."""
+    name = models.CharField(max_length=120, unique=True, verbose_name='Nombre')
+    group = models.CharField(max_length=20, choices=GROUP_CHOICES, verbose_name='Grupo')
+    kcal100 = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='kcal por 100 g')
+    protein100 = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Proteína (g) por 100 g')
+    carbs100 = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Carbohidratos (g) por 100 g')
+    fat100 = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Grasa (g) por 100 g')
+    fiber100 = models.DecimalField(max_digits=5, decimal_places=1, default=0, verbose_name='Fibra (g) por 100 g')
+    household_unit = models.CharField(
+        max_length=60, blank=True, verbose_name='Medida casera (singular)', help_text='Ej.: taza cocida')
+    household_unit_plural = models.CharField(
+        max_length=60, blank=True, verbose_name='Medida casera (plural)', help_text='Ej.: tazas cocidas')
+    household_grams = models.DecimalField(
+        max_digits=6, decimal_places=1, null=True, blank=True, verbose_name='Gramos de una medida casera')
+    allergen_tags = models.JSONField(default=list, blank=True, verbose_name='Alérgenos que contiene')
+    trace_tags = models.JSONField(default=list, blank=True, verbose_name='Alérgenos posibles por trazas')
+    diet_tags = models.JSONField(default=list, blank=True, verbose_name='Dietas en las que cabe')
+    condition_tags = models.JSONField(default=list, blank=True, verbose_name='Etiquetas de condición')
+    source = models.CharField(max_length=200, blank=True, verbose_name='Fuente de las cifras')
+    validated_by = models.CharField(
+        max_length=200, blank=True, verbose_name='Validado por',
+        help_text='Quién verificó las cifras (nombre y credencial). Vacío = sin validar.')
+    is_active = models.BooleanField(default=True, verbose_name='Activo')
+    is_common = models.BooleanField(default=True, verbose_name='Común y de fácil acceso')
+
+    class Meta:
+        verbose_name = 'Alimento'
+        verbose_name_plural = 'Alimentos'
+        ordering = ['group', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class NutritionPlan(models.Model):
+    """Objetivos diarios CALCULADOS (Mifflin-St Jeor) de un `Plan` de alimentación."""
+    plan = models.OneToOneField(Plan, on_delete=models.CASCADE, related_name='nutrition', verbose_name='Plan')
+    kcal_target = models.PositiveIntegerField(verbose_name='Energía objetivo (kcal)')
+    protein_g = models.PositiveSmallIntegerField(verbose_name='Proteína (g)')
+    carbs_g = models.PositiveSmallIntegerField(verbose_name='Carbohidratos (g)')
+    fat_g = models.PositiveSmallIntegerField(verbose_name='Grasa (g)')
+    fiber_g = models.PositiveSmallIntegerField(verbose_name='Fibra mínima (g)')
+    tmb = models.DecimalField(max_digits=7, decimal_places=1, verbose_name='Tasa metabólica basal')
+    get = models.PositiveIntegerField(verbose_name='Gasto energético total')
+    activity_factor = models.DecimalField(max_digits=4, decimal_places=3, verbose_name='Factor de actividad')
+    adjustment_pct = models.DecimalField(max_digits=5, decimal_places=1, default=0, verbose_name='Ajuste (% del gasto)')
+    weekly_change_kg = models.DecimalField(max_digits=4, decimal_places=2, default=0, verbose_name='Cambio semanal estimado (kg)')
+    floor_applied = models.BooleanField(default=False, verbose_name='Se aplicó el piso calórico')
+    warnings = models.JSONField(default=list, blank=True, verbose_name='Avisos del cálculo (códigos)')
+    meals_per_day = models.PositiveSmallIntegerField(verbose_name='Comidas al día')
+    formula = models.CharField(max_length=40, verbose_name='Fórmula')
+
+    class Meta:
+        verbose_name = 'Plan de alimentación'
+        verbose_name_plural = 'Planes de alimentación'
+
+    def __str__(self):
+        return f'Objetivos del plan {self.plan_id}: {self.kcal_target} kcal'
+
+
+class MealSlot(models.Model):
+    nutrition_plan = models.ForeignKey(NutritionPlan, on_delete=models.CASCADE, related_name='slots')
+    code = models.CharField(max_length=12, verbose_name='Código')
+    name = models.CharField(max_length=40, verbose_name='Comida')
+    time_hint = models.CharField(max_length=10, blank=True, verbose_name='Hora sugerida')
+    order = models.PositiveSmallIntegerField(verbose_name='Orden')
+    kcal_target = models.PositiveIntegerField(verbose_name='Energía objetivo (kcal)')
+    protein_g = models.PositiveSmallIntegerField(verbose_name='Proteína (g)')
+    carbs_g = models.PositiveSmallIntegerField(verbose_name='Carbohidratos (g)')
+    fat_g = models.PositiveSmallIntegerField(verbose_name='Grasa (g)')
+
+    class Meta:
+        ordering = ['order']
+        constraints = [models.UniqueConstraint(fields=['nutrition_plan', 'code'], name='plans_slot_unique_code')]
+
+    def __str__(self):
+        return f'{self.name} (plan {self.nutrition_plan.plan_id})'
+
+
+class MealOption(models.Model):
+    ORIGIN_AI = 'ai'
+    ORIGIN_TRAINER = 'trainer'
+    ORIGIN_CLIENT_REGEN = 'client_regen'
+    ORIGIN_CHOICES = [
+        (ORIGIN_AI, 'IA'), (ORIGIN_TRAINER, 'Editada por el entrenador'),
+        (ORIGIN_CLIENT_REGEN, 'Otra opción pedida por la clienta'),
+    ]
+
+    slot = models.ForeignKey(MealSlot, on_delete=models.CASCADE, related_name='options')
+    position = models.PositiveSmallIntegerField(verbose_name='Posición (1 a 3)')
+    name = models.CharField(max_length=120, verbose_name='Nombre')
+    preparation = models.CharField(max_length=500, blank=True, verbose_name='Preparación')
+    # Calculados por Python desde `Food` (nunca los escribe la IA)
+    kcal = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='kcal')
+    protein_g = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Proteína (g)')
+    carbs_g = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Carbohidratos (g)')
+    fat_g = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Grasa (g)')
+    origin = models.CharField(max_length=14, choices=ORIGIN_CHOICES, default=ORIGIN_AI, verbose_name='Origen')
+    needs_review = models.BooleanField(default=False, verbose_name='Pendiente de revisión del entrenador')
+    out_of_band = models.BooleanField(default=False, verbose_name='Fuera de la banda de energía')
+    is_active = models.BooleanField(default=True, verbose_name='Activa')
+    replaces = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replaced_by',
+        verbose_name='Reemplaza a',
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['slot', 'position', 'pk']
+        constraints = [
+            # Tres opciones activas como máximo por comida, una por posición
+            models.UniqueConstraint(
+                fields=['slot', 'position'], condition=models.Q(is_active=True), name='plans_option_one_per_position'),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.slot_id})'
+
+
+class MealOptionItem(models.Model):
+    option = models.ForeignKey(MealOption, on_delete=models.CASCADE, related_name='items')
+    food = models.ForeignKey(Food, on_delete=models.PROTECT, related_name='+', verbose_name='Alimento')
+    grams = models.PositiveSmallIntegerField(verbose_name='Gramos')
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'pk']
+
+
+class MealChoice(models.Model):
+    """La opción que la clienta eligió para una comida de un día (adherencia en la fase D)."""
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='meal_choices', verbose_name='Clienta')
+    slot = models.ForeignKey(MealSlot, on_delete=models.CASCADE, related_name='choices')
+    option = models.ForeignKey(MealOption, on_delete=models.CASCADE, related_name='choices')
+    date = models.DateField(verbose_name='Día')
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name='Marcada como comida')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['client', 'slot', 'date'], name='plans_choice_unique_day')]
+        indexes = [models.Index(fields=['client', 'date'], name='plans_choice_client_date')]

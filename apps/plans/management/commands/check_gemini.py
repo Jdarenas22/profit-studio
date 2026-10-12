@@ -17,8 +17,10 @@ from django.core.management.base import BaseCommand, CommandError
 
 from apps.plans.ai import AIError
 from apps.plans.ai.gemini import GeminiClient
-from apps.plans.ai.prompts import EXERCISE_SYSTEM, exercise_schema
-from apps.plans.rules import validate
+from apps.plans.ai.prompts import EXERCISE_SYSTEM, MEAL_SYSTEM, exercise_schema, meal_schema
+from apps.plans.foods_data import food_rows
+from apps.plans.rules import foods as rules_foods
+from apps.plans.rules import meal_validate, validate
 
 SAMPLE_EXERCISES = [
     (1, 'Sentadilla con peso corporal', 'Piernas'), (2, 'Zancadas', 'Piernas'),
@@ -42,6 +44,27 @@ def sample_payload():
                                'intensity': 'moderate'} for pk, name, cat in SAMPLE_EXERCISES],
         'trainer_notes': None, 'previous_errors': [],
     }
+
+
+def sample_meal_payload(foods):
+    return {
+        'task': 'meal_slot', 'schema_version': meal_validate.MEAL_SCHEMA_VERSION, 'job_ref': str(uuid.uuid4()),
+        'slot': {'code': 'lunch', 'target_kcal': 530, 'protein_g': 38, 'carbs_g': 58, 'fat_g': 16},
+        'options_requested': 3,
+        'client': {'age': 30, 'sex': 'F', 'goal': 'toning', 'diet': 'omnivore', 'cooking': 'basic',
+                   'budget': 'medium', 'conservative': False},
+        'allowed_foods': [{'id': f.id, 'name': f.name, 'group': f.group, 'kcal100': float(f.kcal100),
+                           'p100': float(f.protein100), 'c100': float(f.carbs100), 'f100': float(f.fat100),
+                           'common': f.is_common} for f in foods],
+        'existing_options': [], 'avoid_repeating_names': [], 'trainer_notes': None, 'previous_errors': [],
+    }
+
+
+def sample_foods():
+    return [rules_foods.FoodItem(
+        id=index + 1, name=row['name'], group=row['group'], kcal100=row['kcal100'], protein100=row['protein100'],
+        carbs100=row['carbs100'], fat100=row['fat100'], is_common=row['is_common'],
+    ) for index, row in enumerate(food_rows())]
 
 
 class Command(BaseCommand):
@@ -75,4 +98,34 @@ class Command(BaseCommand):
         check = validate.validate_exercise_plan(result.data, rules)
         if not check.ok:
             raise CommandError('La respuesta no pasó la validación: ' + ', '.join(check.codes))
-        self.stdout.write(self.style.SUCCESS('Gemini responde y el formato es válido.'))
+        self.stdout.write(self.style.SUCCESS('Plan de ejercicio: Gemini responde y el formato es válido.'))
+        self.check_meal(client)
+
+    def check_meal(self, client):
+        """Segunda prueba: una comida del plan de alimentación (esquema con lista de ids de alimentos)."""
+        foods = sample_foods()
+        payload = sample_meal_payload(foods)
+        rules = meal_validate.SlotRules(
+            slot_code='lunch', kcal=meal_validate.D(530), protein_g=meal_validate.D(38),
+            foods={f.id: f for f in foods})
+        started = time.monotonic()
+        try:
+            result = client.generate_json(
+                task='meal_slot', system=MEAL_SYSTEM, payload=payload,
+                schema=meal_schema(rules.foods.keys(), 'lunch', 3), job_ref=payload['job_ref'])
+        except AIError as exc:
+            raise CommandError(f'Gemini respondió con error en la comida: {exc.code}') from None
+        latency = int((time.monotonic() - started) * 1000)
+        self.stdout.write(f'Comida | modelo: {result.model} | fin: {result.finish_reason} | tokens entrada/salida: '
+                          f'{result.usage.tokens_in}/{result.usage.tokens_out} | {latency} ms')
+        if result.finish_reason != 'STOP':
+            raise CommandError('La respuesta de la comida no terminó normalmente.')
+        check = meal_validate.validate_meal_slot(result.data, rules)
+        if check.ok:
+            self.stdout.write(self.style.SUCCESS('Plan de alimentación: el formato y las reglas se cumplen.'))
+        elif set(check.codes) & {validate.V01_SCHEMA, validate.V02_IDS}:
+            raise CommandError('La comida no tiene el formato esperado: ' + ', '.join(check.codes))
+        else:
+            self.stdout.write(self.style.WARNING(
+                'El formato es válido, pero la propuesta no cumplió las reglas de nutrición ('
+                + ', '.join(check.codes) + '). En uso real se reintenta una vez; si ocurre seguido, prueba otro modelo.'))

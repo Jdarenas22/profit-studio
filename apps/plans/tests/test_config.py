@@ -15,6 +15,11 @@ from apps.public.management.commands import check_infra as ci
 KEY = 'AIzaClaveInventada-0123456789abcdef'
 
 
+def ci_user():
+    from apps.accounts.tests.helpers import make_user
+    return make_user('validadora', 'trainer')
+
+
 class ProductionAISettingsTests(SimpleTestCase):
     def test_default_is_off_and_loads(self):
         code, _data, err = load_production()
@@ -109,6 +114,21 @@ class CheckInfraAITests(TestCase):
         self.assertIn(('Etiquetas de ejercicios', ci.WARN),
                       self.run_check(AI_PLANS_MODE='simulated', HEALTH_FEATURES_ENABLED=True))
 
+    def test_food_catalog_and_validators_are_reported(self):
+        from apps.plans.models import Food, TrainerCredential
+        settings = dict(AI_PLANS_MODE='simulated', HEALTH_FEATURES_ENABLED=True)
+        checks = self.run_check(**settings)
+        self.assertIn(('Alimentos', ci.WARN), checks)                                   # catálogo vacío
+        self.assertIn(('Quién aprueba la alimentación', ci.WARN), checks)
+        Food.objects.create(name='Arroz', group='cereales', kcal100=130, protein100=2.7, carbs100=28, fat100=0.3)
+        self.assertIn(('Alimentos', ci.WARN), self.run_check(**settings))               # sin validar en producción
+        Food.objects.update(validated_by='Prueba')
+        user = ci_user()
+        TrainerCredential.objects.create(user=user, can_validate_nutrition=True)
+        checks = self.run_check(**settings)
+        self.assertIn(('Alimentos', ci.OK), checks)
+        self.assertNotIn(('Quién aprueba la alimentación', ci.WARN), checks)
+
     def test_gemini_key_is_redacted(self):
         with override_settings(GEMINI_API_KEY=KEY):
             from django.conf import settings as live
@@ -132,14 +152,46 @@ class CheckGeminiCommandTests(SimpleTestCase):
             call_command('check_gemini', stdout=out)
         return out.getvalue()
 
-    def test_valid_answer(self):
+    @staticmethod
+    def good_answer(payload, meal=None):
         from apps.plans.ai.base import AIResult, AIUsage
-        from apps.plans.ai.fake import sample_exercise_plan
-        out = self.run_command(result=lambda payload: AIResult(
-            data=sample_exercise_plan(payload), usage=AIUsage(10, 20), model='m'))
-        self.assertIn('formato es válido', out)
-        self.assertIn('10/20', out)
+        from apps.plans.ai.fake import sample_exercise_plan, sample_meal_slot
+        if payload['task'] == 'meal_slot':
+            data = sample_meal_slot(payload) if meal is None else meal(payload)
+        else:
+            data = sample_exercise_plan(payload)
+        return AIResult(data=data, usage=AIUsage(10, 20), model='m')
+
+    def test_valid_answer(self):
+        out = self.run_command(result=self.good_answer)
+        self.assertIn('Plan de ejercicio: Gemini responde y el formato es válido', out)
+        self.assertIn('Plan de alimentación: el formato y las reglas se cumplen', out)
+        self.assertEqual(out.count('10/20'), 2)                       # una línea por prueba
         self.assertNotIn(KEY, out)
+
+    def test_meal_answer_with_a_bad_format_fails(self):
+        from django.core.management.base import CommandError
+
+        def bad_ids(payload):
+            data = self.good_answer(payload).data
+            if payload['task'] == 'meal_slot':
+                data['options'][0]['items'][0]['food_id'] = 999999
+            return self.good_answer(payload, meal=lambda p: data)
+        with self.assertRaisesMessage(CommandError, 'V02_IDS'):
+            self.run_command(result=bad_ids)
+
+    def test_meal_answer_that_breaks_nutrition_rules_only_warns(self):
+        from apps.plans.ai.fake import sample_meal_slot
+
+        def too_big(payload):
+            data = sample_meal_slot(payload)
+            richest = max(payload['allowed_foods'], key=lambda row: row['kcal100'])
+            other = next(row for row in payload['allowed_foods'] if row['id'] != richest['id'])
+            data['options'][0]['items'] = [{'food_id': richest['id'], 'grams': 600}, {'food_id': other['id'], 'grams': 5}]
+            return data
+        out = self.run_command(result=lambda payload: self.good_answer(payload, meal=too_big))
+        self.assertIn('V04_KCAL', out)
+        self.assertNotIn('se cumplen', out)
 
     def test_errors_show_only_the_code(self):
         from django.core.management.base import CommandError

@@ -361,6 +361,7 @@ def trainer_client_detail(request, pk):
         'assessments': assessments,
         'routines': routines,
         'plan_request_token': uuid.uuid4(),   # botón "Generar borrador de rutina con IA"
+        'plan_request_token_nutrition': uuid.uuid4(),   # botón "Generar borrador de alimentación con IA"
     })
 
 

@@ -458,6 +458,14 @@ def untagged_exercise_count():
     return Exercise.objects.filter(is_active=True, intensity='').count()
 
 
+def nutrition_catalog_state():
+    """(alimentos activos, activos sin validar, personas con credencial de nutrición)."""
+    from apps.plans.models import Food, TrainerCredential
+    active = Food.objects.filter(is_active=True)
+    return (active.count(), active.filter(validated_by='').count(),
+            TrainerCredential.objects.filter(can_validate_nutrition=True, user__is_active=True).count())
+
+
 def check_ai_plans(ctx):
     area = 'IA'
     raw = (getattr(ctx.settings, 'AI_PLANS_MODE', '') or '').strip().lower()
@@ -500,6 +508,26 @@ def check_ai_plans(ctx):
                                  f'{untagged} ejercicio(s) activo(s) sin etiquetar: no se proponen a clientas con '
                                  'lesiones o advertencias, ni a quien entrena en casa.',
                                  'python manage.py list_untagged_exercises y etiquétalos en el panel.'))
+        try:
+            foods, unvalidated, validators = nutrition_catalog_state()
+        except DatabaseError:
+            foods = unvalidated = validators = None
+        if foods is not None:
+            if not foods:
+                results.append(Check(area, 'Alimentos', WARN,
+                                     'El catálogo de alimentos está vacío: no se pueden armar planes de alimentación.',
+                                     'python manage.py load_foods'))
+            elif unvalidated and ctx.is_production:
+                results.append(Check(area, 'Alimentos', WARN,
+                                     f'{unvalidated} de {foods} alimentos activos están sin validar: fuera de modo de '
+                                     'desarrollo no se usan hasta que un nutricionista los valide.',
+                                     'Admin > Alimentos > acción "Marcar como validados" (tras revisar las cifras).'))
+            else:
+                results.append(Check(area, 'Alimentos', OK, f'{foods} alimentos activos ({unvalidated} sin validar).'))
+            if not validators:
+                results.append(Check(area, 'Quién aprueba la alimentación', WARN,
+                                     'Nadie tiene la credencial de nutrición: ningún plan de alimentación se puede aprobar.',
+                                     'Admin > Credenciales de validación (solo para quien pueda validarlos).'))
     return results
 
 

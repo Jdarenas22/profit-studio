@@ -29,9 +29,11 @@ from django.utils import timezone
 
 from apps.health import dates as health_dates
 
-from . import ai, notifications, services
+from . import ai, notifications, nutrition, services
 from .ai import prompts
-from .models import KIND_EXERCISE, PlanGenerationJob
+from .models import KIND_EXERCISE, KIND_NUTRITION, PlanGenerationJob
+from .rules import energy as rules_energy
+from .rules import meal_validate as rules_meal
 from .rules import validate as rules_validate
 
 logger = logging.getLogger(__name__)
@@ -140,9 +142,10 @@ def run_job(job_id):
                                                    'requested_by').get(pk=job_id)
     started = time.monotonic()
     try:
-        if job.kind != KIND_EXERCISE:
+        runner = _RUNNERS.get(job.kind)
+        if runner is None:
             raise JobFailed('kind_not_available')
-        plan = _run_exercise(job, started)
+        plan = runner(job, started)
     except JobFailed as exc:
         status = PlanGenerationJob.STATUS_BLOCKED if exc.blocked else PlanGenerationJob.STATUS_FAILED
         _finish(job, status, exc.code)
@@ -156,7 +159,10 @@ def run_job(job_id):
         notifications.trainer_job_failed(job)
         return None
     _log(job, PlanGenerationJob.STATUS_SUCCEEDED, started)
-    notifications.trainer_draft_ready(plan)
+    if job.kind == nutrition.ALTERNATIVE:
+        notifications.trainer_alternative_ready(plan)
+    else:
+        notifications.trainer_draft_ready(plan)
     return plan
 
 
@@ -236,9 +242,36 @@ def _call_with_retries(client, job, started, **kwargs):
     raise JobFailed('ai_unknown')   # no se llega aquí
 
 
-def _run_exercise(job, started):
-    # Se vuelve a evaluar: la ficha, los consentimientos o el catálogo pudieron cambiar
-    assessment = services.assess(job.client, job.kind, job.requested_by or job.client, check_quota=False)
+def _generate_validated(job, started, ai_client, *, task, system, make_payload, make_schema, validate):
+    """Una llamada a la IA con validación: la primera respuesta y UN reintento enviando solo los
+    códigos del error. Devuelve `(validación_ok, resultado_de_la_IA)` o lanza `JobFailed`."""
+    previous_errors = ()
+    last_code = 'validation_failed'
+    for _try in range(VALIDATION_TRIES):
+        payload = make_payload(previous_errors)
+        try:
+            result = _call_with_retries(
+                ai_client, job, started, task=task, system=system, payload=payload,
+                schema=make_schema(payload), job_ref=str(job.job_ref))
+        except ai.AIInvalidOutput:
+            previous_errors, last_code = (rules_validate.V01_SCHEMA,), f'validation_failed:{rules_validate.V01_SCHEMA}'
+            continue
+        job.tokens_in += result.usage.tokens_in
+        job.tokens_out += result.usage.tokens_out
+        if result.finish_reason != ai.base.FINISH_NORMAL:
+            previous_errors, last_code = (rules_validate.V01_SCHEMA,), f'ai_finish_{result.finish_reason.lower()}'[:80]
+            continue
+        validation = validate(result.data)
+        if not validation.ok:
+            previous_errors, last_code = validation.codes, validation.error_code
+            continue
+        return validation, result
+    raise JobFailed(last_code)
+
+
+def _evaluate_for_run(job, kind):
+    """Se vuelve a evaluar al ejecutar: la ficha, los consentimientos o el catálogo pudieron cambiar."""
+    assessment = services.assess(job.client, kind, job.requested_by or job.client, check_quota=False)
     eligibility = assessment.eligibility
     if eligibility.missing:
         raise JobFailed(f'not_ready:{eligibility.missing[0]}')
@@ -250,46 +283,163 @@ def _run_exercise(job, started):
         job.health_profile = profile
         PlanGenerationJob.objects.filter(pk=job.pk).update(health_profile=profile)
     job.flags = list(eligibility.yellow_codes)
+    return assessment
+
+
+def _run_exercise(job, started):
+    assessment = _evaluate_for_run(job, job.kind)
+    profile, catalog = assessment.profile, assessment.catalog
     PlanGenerationJob.objects.filter(pk=job.pk).update(flags=job.flags, progress_total=1)
 
     client = ai.get_ai_client()
-    catalog = assessment.catalog
     rules = rules_validate.ExerciseRules(
         allowed_ids=catalog.allowed_ids, days=profile.training_days_per_week,
         session_minutes=profile.session_minutes, max_sets=catalog.limits.max_sets,
     )
-    previous_errors = ()
-    last_code = 'validation_failed'
-    for _try in range(VALIDATION_TRIES):
-        payload = build_exercise_payload(job, assessment, previous_errors)
-        schema = prompts.exercise_schema(
+    validation, result = _generate_validated(
+        job, started, client, task='exercise_plan', system=prompts.EXERCISE_SYSTEM,
+        make_payload=lambda errors: build_exercise_payload(job, assessment, errors),
+        make_schema=lambda payload: prompts.exercise_schema(
             catalog.allowed_ids, profile.training_days_per_week,
-            payload['limits']['exercises_per_day_max'], catalog.limits.max_sets)
-        try:
-            result = _call_with_retries(
-                client, job, started, task='exercise_plan', system=prompts.EXERCISE_SYSTEM,
-                payload=payload, schema=schema, job_ref=str(job.job_ref))
-        except ai.AIInvalidOutput:
-            previous_errors, last_code = (rules_validate.V01_SCHEMA,), f'validation_failed:{rules_validate.V01_SCHEMA}'
-            continue
-        job.tokens_in += result.usage.tokens_in
-        job.tokens_out += result.usage.tokens_out
-        if result.finish_reason != ai.base.FINISH_NORMAL:
-            previous_errors, last_code = (rules_validate.V01_SCHEMA,), f'ai_finish_{result.finish_reason.lower()}'[:80]
-            continue
-        validation = rules_validate.validate_exercise_plan(result.data, rules)
-        if not validation.ok:
-            previous_errors, last_code = validation.codes, validation.error_code
-            continue
+            payload['limits']['exercises_per_day_max'], catalog.limits.max_sets),
+        validate=lambda data: rules_validate.validate_exercise_plan(data, rules))
+    _check_budget(started)
+    with transaction.atomic():
+        locked = PlanGenerationJob.objects.select_for_update().get(pk=job.pk)
+        if locked.status != PlanGenerationJob.STATUS_RUNNING:
+            raise JobFailed('lost_lock')
+        plan = services.create_exercise_draft(
+            job, validation.data, model_name=result.model or client.model_name,
+            prompt_version=prompts.EXERCISE_PROMPT_VERSION, is_simulated=client.is_simulated)
+        job.progress_done = 1
+        _finish(job, PlanGenerationJob.STATUS_SUCCEEDED, plan=plan)
+    return plan
+
+
+# ─── Alimentación ─────────────────────────────────────────────────────────────
+
+def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_names, previous_errors=()):
+    """Lo ÚNICO que viaja a la IA para una comida (contrato, 4.4 y 4.5): sin nombre, correo,
+    teléfono, usuario, ids de usuario, fecha de nacimiento, entrenador, alergias, diagnósticos ni
+    texto libre de la ficha (las restricciones ya se aplicaron al filtrar los alimentos)."""
+    profile = assessment.profile
+    return {
+        'task': 'meal_slot',
+        'schema_version': rules_meal.MEAL_SCHEMA_VERSION,
+        'job_ref': str(job.job_ref),
+        'slot': {'code': slot.code, 'target_kcal': int(slot.kcal), 'protein_g': int(slot.protein_g),
+                 'carbs_g': int(slot.carbs_g), 'fat_g': int(slot.fat_g)},
+        'options_requested': n_options,
+        'client': {
+            'age': health_dates.age_today(profile.birth_date),
+            'sex': profile.sex_for_calculation,
+            'goal': job.client.training_goal or '',
+            'diet': profile.diet_type,
+            'cooking': profile.cooking_access,
+            'budget': profile.budget_level,
+            'conservative': assessment.eligibility.conservative,
+        },
+        'allowed_foods': [
+            {'id': food.id, 'name': food.name, 'group': food.group, 'kcal100': float(food.kcal100),
+             'p100': float(food.protein100), 'c100': float(food.carbs100), 'f100': float(food.fat100),
+             'common': food.is_common}
+            for food in assessment.foods.allowed
+        ],
+        'existing_options': [{'name': option.name, 'food_ids': sorted(option.food_ids)} for option in existing],
+        'avoid_repeating_names': list(avoid_names),
+        'trainer_notes': job.trainer_notes or None,
+        'previous_errors': list(previous_errors),
+    }
+
+
+class _SlotView:
+    """Objetivos de una comida con la misma forma para el plan nuevo y para "otra opción"."""
+
+    def __init__(self, code, kcal, protein_g, carbs_g, fat_g):
+        self.code, self.kcal, self.protein_g, self.carbs_g, self.fat_g = code, kcal, protein_g, carbs_g, fat_g
+
+
+def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_options, existing=(), avoid_names=()):
+    rules = nutrition.slot_rules(slot.code, slot.kcal, slot.protein_g, assessment, n_options=n_options,
+                                 existing=existing)
+    validation, result = _generate_validated(
+        job, started, ai_client, task='meal_slot', system=prompts.MEAL_SYSTEM,
+        make_payload=lambda errors: build_meal_payload(
+            job, assessment, slot, n_options=n_options, existing=existing, avoid_names=avoid_names,
+            previous_errors=errors),
+        make_schema=lambda payload: prompts.meal_schema(assessment.foods.allowed_ids, slot.code, n_options),
+        validate=lambda data: rules_meal.validate_meal_slot(data, rules))
+    return validation.data['options'], result
+
+
+def _run_nutrition(job, started):
+    assessment = _evaluate_for_run(job, KIND_NUTRITION)
+    slots = assessment.slots
+    PlanGenerationJob.objects.filter(pk=job.pk).update(flags=job.flags, progress_total=len(slots), progress_done=0)
+
+    client = ai.get_ai_client()
+    generated, names, model = [], [], ''
+    for index, target in enumerate(slots, start=1):
         _check_budget(started)
-        with transaction.atomic():
-            locked = PlanGenerationJob.objects.select_for_update().get(pk=job.pk)
-            if locked.status != PlanGenerationJob.STATUS_RUNNING:
-                raise JobFailed('lost_lock')
-            plan = services.create_exercise_draft(
-                job, validation.data, model_name=result.model or client.model_name,
-                prompt_version=prompts.EXERCISE_PROMPT_VERSION, is_simulated=client.is_simulated)
-            job.progress_done = 1
-            _finish(job, PlanGenerationJob.STATUS_SUCCEEDED, plan=plan)
-        return plan
-    raise JobFailed(last_code)
+        options, result = _generate_slot_options(job, started, client, assessment, target, n_options=3,
+                                                 avoid_names=names)
+        model = model or result.model
+        names.extend(option['name'] for option in options)
+        generated.append((target, options))
+        job.progress_done = index
+        PlanGenerationJob.objects.filter(pk=job.pk, status=PlanGenerationJob.STATUS_RUNNING).update(progress_done=index)
+
+    # Segunda comprobación sobre el día completo (toda combinación de opciones)
+    energy = assessment.energy
+    day_codes = rules_meal.check_day(
+        [[option['totals'] for option in options] for _target, options in generated],
+        energy.kcal, energy.protein_g, rules_energy.KCAL_FLOOR[assessment.profile.sex_for_calculation])
+    if day_codes:
+        raise JobFailed(f'validation_failed:{day_codes[0]}')
+    _check_budget(started)
+    with transaction.atomic():
+        locked = PlanGenerationJob.objects.select_for_update().get(pk=job.pk)
+        if locked.status != PlanGenerationJob.STATUS_RUNNING:
+            raise JobFailed('lost_lock')
+        plan = nutrition.create_nutrition_draft(
+            job, assessment, generated, model_name=model or client.model_name,
+            prompt_version=prompts.MEAL_PROMPT_VERSION, is_simulated=client.is_simulated)
+        _finish(job, PlanGenerationJob.STATUS_SUCCEEDED, plan=plan)
+    return plan
+
+
+def _run_alternative(job, started):
+    """"Otra opción": una sola opción nueva para una comida del plan aprobado."""
+    slot, replaced = job.slot, job.replaces_option
+    if slot is None or replaced is None:
+        raise JobFailed('slot_missing')
+    plan = slot.nutrition_plan.plan
+    if plan.status != plan.STATUS_APPROVED or plan.client_id != job.client_id:
+        raise JobFailed('plan_not_active')
+    assessment = _evaluate_for_run(job, KIND_NUTRITION)
+    PlanGenerationJob.objects.filter(pk=job.pk).update(flags=job.flags, progress_total=1)
+
+    others = list(slot.options.filter(is_active=True).prefetch_related('items'))
+    existing = [rules_meal.ExistingOption(name=o.name, food_ids=frozenset(i.food_id for i in o.items.all()))
+                for o in others]       # incluye la rechazada: la nueva no debe parecérsele
+    target = _SlotView(slot.code, slot.kcal_target, slot.protein_g, slot.carbs_g, slot.fat_g)
+    client = ai.get_ai_client()
+    options, result = _generate_slot_options(job, started, client, assessment, target, n_options=1,
+                                             existing=existing, avoid_names=[o.name for o in others])
+    _check_budget(started)
+    with transaction.atomic():
+        locked = PlanGenerationJob.objects.select_for_update().get(pk=job.pk)
+        if locked.status != PlanGenerationJob.STATUS_RUNNING:
+            raise JobFailed('lost_lock')
+        if nutrition.create_alternative(job, options[0], plan=plan, slot=slot, replaced=replaced) is None:
+            raise JobFailed('option_changed')
+        job.progress_done = 1
+        _finish(job, PlanGenerationJob.STATUS_SUCCEEDED, plan=plan)
+    return plan
+
+
+_RUNNERS = {
+    KIND_EXERCISE: _run_exercise,
+    KIND_NUTRITION: _run_nutrition,
+    nutrition.ALTERNATIVE: _run_alternative,
+}

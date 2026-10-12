@@ -5,7 +5,7 @@ Contrato de referencia: `docs/contracts/plan-ia.md` (propuesta pendiente de apro
 
 ## De arquitecto-backend para frontend-architect
 
-Estado: contrato aprobado. **Fases A1, A2 y B implementadas en el backend** (la B también con sus plantillas; ver "Fase B: entregada" más abajo) (ver "Contrato A1 para el frontend" y "Contrato A2 para el frontend" más abajo; si algo difiere de las filas F-01 a F-05 de las tablas, mandan esos bloques); las demás fases siguen **PENDIENTES** hasta que se construyan.
+Estado: contrato aprobado. **Fases A1, A2, B y C implementadas en el backend** (la B y la C también con sus plantillas; ver "Fase B: entregada" y "Fase C: entregada" más abajo) (ver "Contrato A1 para el frontend" y "Contrato A2 para el frontend" más abajo; si algo difiere de las filas F-01 a F-05 de las tablas, mandan esos bloques); las demás fases siguen **PENDIENTES** hasta que se construyan.
 
 ### Convenciones (igual que las vistas actuales)
 
@@ -234,6 +234,12 @@ Plantillas listas, contra el bloque "Contrato A2 para el frontend": `health/prof
 Plantillas: `plans/request.html` (F-06), `plans/request_status.html` + `plans/partials/job_status.html` (F-07, también para el entrenador con `trainer_mode`), `plans/member_plans.html` (F-08), `trainer/plan_inbox.html` (F-09), `trainer/plan_detail.html` (F-10), `trainer/plan_job.html` (estado de un pedido del entrenador) y `plans/partials/disclaimer.html`. Enlaces: "Planes por revisar" en `trainer/base.html`, "Mi plan" en `partials/navbar.html` y en el panel de la clienta (con `AI_PLANS_ENABLED`, del procesador de contexto `apps.plans.context_processors.plan_flags`), botón "Generar borrador de rutina con IA" en `trainer/client_detail.html` (contexto `plan_request_token`), aviso de borrador/plan aprobado en `trainer/routine_builder.html` y descargo + validador en `routines/member_routine.html` (contexto `plan_disclaimer`).
 
 Diferencias con la tabla F-06 a F-10: el menú del entrenador no lleva contador (se carga como fragmento en la fase D; la bandeja muestra `pending_count`); F-09 recibe `rows` (`{plan, flags, client_regenerated}`), `status`, `status_choices`, `active_jobs` y `attention_jobs`; F-10 recibe además `routine_days`, `conflicts`, `regen_job`, `request_token`, `can_approve`, `simulated_blocked` y los errores por formulario (`approve_errors`, `regenerate_errors`, `archive_errors`).
+
+### Fase C: entregada (backend y plantillas, 2026-10-12)
+
+Plantillas: `plans/member_nutrition.html` (F-11 y F-12: 3 opciones por comida, elegir, «Cambiar por otra opción», selector de 7 días, total del día contra el objetivo, imprimir), `plans/member_exchanges.html` y `plans/member_shopping_list.html` (F-13) y `trainer/meal_option_form.html` (F-14) con el parcial `trainer/partials/nutrition_review.html` (objetivos calculados, avisos, comidas y opciones en `trainer/plan_detail.html`). Ajustes: `plans/member_plans.html` (tarjeta de alimentación), `plans/request.html` (pestañas ejercicio/alimentación con `?kind=`), `plans/partials/job_status.html` (progreso «Comida 2 de 4» y mensajes de «otra opción»), `trainer/plan_inbox.html` (marca «Opción regenerada por la clienta») y `trainer/client_detail.html` (segundo botón con `plan_request_token_nutrition`).
+
+Diferencias con la tabla F-11 a F-14: F-11 recibe `slots` (cada uno con `slot`, `options` con `option`, `items` con `food`, `grams` y `household`, `letter`, `conflict`, y `chosen_id`, `week_left`, `day_left`), `date_pills`, `chosen_count`/`slot_count`/`day_totals` y `targets`; el cupo restante de «otra opción» es por comida (`week_left`) y por día (`day_left`). F-14 recibe `rows`, `food_groups` (solo alimentos permitidos a la clienta), `errors` y `error_list`. Rutas nuevas: `member_nutrition_plan`, `member_meal_choice`, `member_meal_alternative`, `member_exchanges`, `member_shopping_list`, `trainer_meal_option_edit`, `trainer_meal_option_review`.
 
 ## Resueltos
 

@@ -1,4 +1,5 @@
-"""Casos de uso de los planes con IA (lógica de negocio, sin HTTP). Fase B: plan de ejercicio.
+"""Casos de uso de los planes con IA (lógica de negocio, sin HTTP). Fase B: plan de ejercicio; la
+fase C (alimentación) vive en `nutrition.py` y reutiliza `assess`, el cupo y la aprobación de aquí.
 
 Reglas (docs/contracts/plan-ia.md, secciones 3, 5, 6 y 8):
 - La IA nunca decide si se puede generar: `assess` combina la ficha, las banderas, los
@@ -32,17 +33,19 @@ from apps.health.models import PURPOSE_HEALTH_DATA
 from apps.routines.models import Routine, RoutineDay, RoutineExercise
 
 from . import ai, notifications
-from .models import KIND_EXERCISE, KIND_NUTRITION, Plan, PlanEvent, PlanGenerationJob, TrainerCredential
+from .models import KIND_EXERCISE, KIND_NUTRITION, Food, Plan, PlanEvent, PlanGenerationJob, TrainerCredential
 from .rules import catalog as rules_catalog
 from .rules import eligibility as rules_eligibility
+from .rules import energy as rules_energy
 from .rules import flags as rules_flags
+from .rules import foods as rules_foods
 
 logger = logging.getLogger(__name__)
 
 PLAN_VALID_DAYS = 28                 # vigencia del plan aprobado (4 semanas)
 WEEK = timedelta(days=7)
 DAY = timedelta(days=1)
-AVAILABLE_KINDS = (KIND_EXERCISE,)   # la alimentación llega en la fase C
+AVAILABLE_KINDS = (KIND_EXERCISE, KIND_NUTRITION)
 TRAINER_NOTES_MAX = 500
 ARCHIVE_REASON_MAX = 300
 NOTE_FOR_CLIENT_MAX = 500
@@ -121,13 +124,17 @@ class Assessment:
     eligibility: rules_eligibility.Eligibility
     report: rules_flags.FlagReport
     profile: object = None                       # HealthProfile vigente o None
-    catalog: rules_catalog.CatalogResult | None = None
+    catalog: rules_catalog.CatalogResult | None = None          # ejercicios permitidos
+    foods: rules_foods.FoodCatalog | None = None                # alimentos permitidos
+    energy: rules_energy.EnergyPlan | None = None               # objetivos del día (alimentación)
+    slots: tuple = ()                                           # objetivos por comida
 
     @property
     def blocked_message(self):
         """Texto para la clienta cuando está bloqueado (sin diagnósticos)."""
-        if self.eligibility.red_codes == (rules_eligibility.D06_FEW_EXERCISES,):
-            return rules_eligibility.REQUIREMENT_TEXTS[rules_eligibility.D06_FEW_EXERCISES]
+        for code in (rules_eligibility.D06_FEW_EXERCISES, rules_eligibility.D06_FEW_FOODS):
+            if self.eligibility.red_codes == (code,):
+                return rules_eligibility.REQUIREMENT_TEXTS[code]
         return rules_eligibility.BLOCKED_MESSAGE
 
 
@@ -153,6 +160,48 @@ def training_profile(profile, yellow_codes):
     )
 
 
+def food_items():
+    """Catálogo de alimentos activo como datos simples para el motor. Fuera de DEBUG solo cuentan
+    los alimentos validados por un profesional (`validated_by`)."""
+    rows = Food.objects.filter(is_active=True)
+    if not settings.DEBUG:
+        rows = rows.exclude(validated_by='')
+    return [
+        rules_foods.FoodItem(
+            id=row.id, name=row.name, group=row.group, kcal100=row.kcal100, protein100=row.protein100,
+            carbs100=row.carbs100, fat100=row.fat100, fiber100=row.fiber100,
+            household_unit=row.household_unit, household_unit_plural=row.household_unit_plural,
+            household_grams=row.household_grams, allergen_tags=tuple(row.allergen_tags or ()),
+            trace_tags=tuple(row.trace_tags or ()), diet_tags=tuple(row.diet_tags or ()),
+            condition_tags=tuple(row.condition_tags or ()), is_common=row.is_common,
+        )
+        for row in rows
+    ]
+
+
+def nutrition_profile(profile, yellow_codes):
+    return rules_foods.NutritionProfile(
+        diet=profile.diet_type, allergies=tuple(profile.allergies or ()),
+        intolerances=tuple(profile.intolerances or ()), conditions=tuple(profile.conditions or ()),
+        yellow_codes=tuple(yellow_codes),
+    )
+
+
+def energy_and_slots(client, profile, yellow_codes):
+    """Objetivos del día y por comida (Python, `Decimal`). `ValueError` si los datos no alcanzan."""
+    anth = latest_anthropometrics(client)
+    if anth is None or anth.height is None:
+        raise ValueError('faltan peso o estatura')
+    data = rules_energy.EnergyInput(
+        age=health_dates.age_today(profile.birth_date), sex=profile.sex_for_calculation,
+        weight_kg=anth.weight, height_m=anth.height, activity_level=profile.activity_level,
+        goal=client.training_goal or '', diabetes_cap='Y02_DIABETES_T2' in yellow_codes,
+        target_weight_kg=profile.target_weight_kg,
+    )
+    energy = rules_energy.compute_energy(data)
+    return energy, tuple(rules_energy.split_meals(energy, profile.meal_slots))
+
+
 def assess(client, kind, actor, check_quota=True):
     """Evalúa si se puede generar un plan `kind` para `client` pedido por `actor`.
     `check_quota=False` lo usa el trabajo ya creado (su cupo ya se contó)."""
@@ -170,7 +219,20 @@ def assess(client, kind, actor, check_quota=True):
             exercise_items(), training_profile(profile, eligibility.yellow_codes))
         if not catalog_result.enough:
             eligibility = dataclasses.replace(eligibility, red_codes=(rules_eligibility.D06_FEW_EXERCISES,))
-    return Assessment(eligibility=eligibility, report=report, profile=profile, catalog=catalog_result)
+    foods = energy = None
+    slots = ()
+    if kind == KIND_NUTRITION and profile is not None and not eligibility.missing and not eligibility.red_codes:
+        foods = rules_foods.filter_foods(food_items(), nutrition_profile(profile, eligibility.yellow_codes))
+        if foods.enough:
+            try:
+                energy, slots = energy_and_slots(client, profile, eligibility.yellow_codes)
+            except ValueError:
+                # Datos que el motor no puede calcular: se corrige en la ficha o las medidas
+                eligibility = dataclasses.replace(eligibility, missing=(rules_eligibility.D04_INCOHERENT,))
+        else:
+            eligibility = dataclasses.replace(eligibility, red_codes=(rules_eligibility.D06_FEW_FOODS,))
+    return Assessment(eligibility=eligibility, report=report, profile=profile, catalog=catalog_result,
+                      foods=foods, energy=energy, slots=slots)
 
 
 # ─── Pedidos (crean trabajos) ─────────────────────────────────────────────────
@@ -304,7 +366,9 @@ def describe_codes(codes):
     rows = []
     for code in codes or ():
         if code in rules_eligibility.REQUIREMENT_TEXTS:
-            text, action = rules_eligibility.REQUIREMENT_TEXTS[code], 'Armar el plan a mano en el constructor.'
+            text = rules_eligibility.REQUIREMENT_TEXTS[code]
+            action = ('Armar la guía de alimentación aparte (con un nutricionista, si hace falta).'
+                      if code == rules_eligibility.D06_FEW_FOODS else 'Armar el plan a mano en el constructor.')
         else:
             text, action = rules_flags.describe(code)
         rows.append({'code': code, 'text': text, 'action': action})
@@ -429,8 +493,13 @@ def approve_plan(plan, actor, *, note_for_client='', warnings_ack=False, stale_a
         raise PlanStateError('Marca "Revisé las advertencias" para aprobar.')
     if is_stale(plan) and not stale_ack:
         raise PlanStateError('La ficha cambió después de generar este plan: confirma que lo revisaste con la ficha actual.')
-    if plan.kind == KIND_NUTRITION and not can_validate_nutrition(actor):
-        raise PlanNotAllowed('Solo una persona con credencial de nutrición puede aprobar planes de alimentación.')
+    if plan.kind == KIND_NUTRITION:
+        from . import nutrition   # evita el import circular (nutrition usa este módulo)
+        if not can_validate_nutrition(actor):
+            raise PlanNotAllowed('Solo una persona con credencial de nutrición puede aprobar planes de alimentación.')
+        problems = nutrition.approval_problems(plan)
+        if problems:
+            raise PlanStateError(problems[0])
     if plan.kind == KIND_EXERCISE:
         if plan.routine_id is None or not RoutineExercise.objects.filter(day__routine_id=plan.routine_id).exists():
             raise PlanStateError('La rutina no tiene ejercicios: agrégalos en el constructor antes de aprobar.')

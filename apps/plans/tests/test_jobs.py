@@ -132,7 +132,7 @@ class RequestAndGenerateTests(PlanScenarioTestCase):
         with self.assertRaises(services.PlanNotAllowed):
             services.request_plan(self.client_a, KIND_EXERCISE, self.client_b, services.new_request_token())
         with self.assertRaises(services.PlanNotAllowed):
-            services.request_plan(self.client_a, 'nutrition', self.client_a, services.new_request_token())
+            services.request_plan(self.client_a, 'cardio', self.client_a, services.new_request_token())
 
     @override_settings(AI_PLANS_CLIENT_WEEKLY_LIMIT=1)
     def test_client_weekly_quota_counts_failures_not_blocks(self):
