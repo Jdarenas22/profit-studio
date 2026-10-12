@@ -36,7 +36,7 @@ python manage.py create_trainer --username yiseth --first-name Yiseth --last-nam
 | `routines` | Rutinas multi-día asignadas a clientes |
 | `assessments` | Valoración inicial (IMC + Test Ruffier-Dickson) y mediciones corporales (las registran el entrenador o la propia clienta; `services.py` tiene los casos de uso) |
 | `health` | Datos de salud de la clienta: textos de consentimiento versionados (`ConsentTextVersion`, solo superusuaria en el admin), registro de autorizaciones (`ConsentRecord`), ficha de salud y alimentación versionada (`HealthProfile`, fase A2) y registro de accesos a la ficha (`HealthAccessLog`). Ver `docs/contracts/plan-ia.md` |
-| `plans` (paquete, **sin registrar** en `INSTALLED_APPS`) | Solo `apps/plans/rules/flags.py`: banderas de seguridad de la ficha en Python puro (sin Django ni red). La fase B lo convierte en app (plan de ejercicio con IA) |
+| `plans` | Planes con IA (fase B: borrador de rutina con Google Gemini). Motor de reglas en Python puro (`rules/`: banderas, elegibilidad, filtro del catálogo, validación de la salida), cliente de IA (`ai/`: simulado y Gemini), cola de trabajos (`jobs.py`), casos de uso (`services.py`). Ver "Planes con IA" abajo |
 | `payments` | Pagos online (Wompi) y manuales (efectivo/transferencia) |
 | `public` | Páginas públicas (home, nosotros, contacto, testimonios) |
 
@@ -88,6 +88,7 @@ Variables de entorno requeridas en Railway:
 - Wompi: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`
 - Email: `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
 - `WHATSAPP_NUMBER`, `WHATSAPP_LINK`, `INSTAGRAM_URL`
+- Planes con IA (opcionales): `AI_PLANS_MODE` (`off` por defecto en producción, `simulated` en desarrollo, `live` = Gemini). En `live`, `production.py` NO arranca sin `GEMINI_API_KEY`, `GEMINI_MODEL` y `GEMINI_BILLING_CONFIRMED=true` (la clave debe ser de un proyecto con facturación: el nivel gratuito permite que Google use los datos). Otras: `GEMINI_TIMEOUT_SECONDS`, `GEMINI_SCHEMA_FIELD` (`responseJsonSchema` o `none`), `AI_PLANS_CLIENT_WEEKLY_LIMIT`, `AI_PLANS_TRAINER_DAILY_LIMIT`, `AI_PLANS_DAILY_JOB_LIMIT`, `AI_PLANS_RUN_INLINE` (pruebas)
 - `HEALTH_FEATURES_ENABLED` (opcional): enciende las pantallas de salud de la clienta ("Mis medidas", consentimiento). **Apagada por defecto en producción** (las rutas responden 404) hasta que un abogado apruebe los textos de consentimiento y la superusuaria publique la versión definitiva (Admin > Textos de consentimiento); `development.py` la enciende. `PRIVACY_POLICY_URL` (opcional): enlace público a la política de tratamiento de datos que se muestra junto al consentimiento
 
 ### Almacenamiento de archivos media
@@ -148,3 +149,13 @@ Estructura jerárquica: `Routine` → `RoutineDay` (días) → `RoutineExercise`
 - Comidas: `meal_slots` siempre incluye desayuno, almuerzo y cena; opcionalmente media mañana y/o merienda (3 a 5).
 - Banderas (`apps/plans/rules/flags.py`, R01-R15, Y01-Y13, I01, I02, M01-M09): solo para el entrenador, nunca se muestran a la clienta. Umbrales **[A VALIDAR]** por un profesional de la salud.
 - Las pantallas (`health/profile_*.html`, `trainer/health_profile*.html`) las construye el frontend contra el bloque "Contrato A2" de `docs/contracts/requests.md`; mientras no existan, las pruebas usan plantillas de reemplazo (`stub_missing_templates`).
+
+### Planes con IA (fase B de `docs/contracts/plan-ia.md`: plan de ejercicio)
+
+- Flujo: la clienta (o su entrenador) pide un plan -> `services.request_plan` evalúa con `services.assess` (consentimientos `health_data` + `ai_processing`, ficha confirmada, medida de menos de 30 días, textos legales sin marcadores, cupo, banderas rojas, catálogo filtrado) -> crea un `PlanGenerationJob` -> `jobs.start_job` lo corre en un hilo (cola en la base + recuperación de huérfanos, sin Celery) -> la salida de la IA se valida (`rules/validate.py`, un reintento con los códigos) -> se crea una `Routine` **inactiva** + `Plan` `draft_ai` -> el entrenador lo revisa (`trainer_plan_inbox`, `trainer_plan_detail`), lo edita en el constructor y lo aprueba (la rutina se activa y reemplaza al plan aprobado anterior).
+- La IA **nunca decide**: con bandera roja o sin ejercicios compatibles (`D06`) no se llama; el trabajo queda `blocked` y se avisa al entrenador. A la IA solo van datos sin identificar (`jobs.build_exercise_payload`): sin nombre, correo, usuario, ids, fecha de nacimiento, diagnósticos ni texto libre de la ficha. Ni prompts ni respuestas se guardan en logs; la salida no validada no se guarda.
+- La clienta nunca ve borradores: sus vistas filtran `is_active=True` (incluido `mark_day_complete`) y `member_plans` solo muestra `approved`. Los planes simulados (`is_simulated`) no se aprueban fuera de `DEBUG`.
+- `Exercise` tiene etiquetas para el filtro (`intensity`, `equipment`, `risk_tags`); sin intensidad = "sin etiquetar" (no se propone a clientas con lesiones/advertencias ni en casa). `python manage.py list_untagged_exercises`.
+- Rutas: clienta `member_plans` (`/plans/`), `member_plan_request`, `member_plan_request_status`, `member_plan_request_poll` (HTMX, responde 286 al terminar); entrenador `trainer_plan_inbox`, `trainer_plan_detail`, `trainer_plan_take/approve/regenerate/archive`, `trainer_plan_generate` (desde el detalle de la clienta), `trainer_plan_job` (+ `_poll`). Todas: 404 con la función apagada (`HEALTH_FEATURES_ENABLED` y `AI_PLANS_MODE`), `no-store`, autorización con `clients_for_trainer`.
+- Comandos: `check_gemini` (prueba la clave con datos ficticios), `process_plan_jobs` (recupera trabajos huérfanos). `check_infra` revisa el modo de IA y los ejercicios sin etiquetar.
+- Gemini por REST con la biblioteca estándar (`apps/plans/ai/gemini.py`, sin dependencias nuevas): clave en la cabecera `x-goog-api-key`, errores solo como códigos (`ai_http_429`...). Las pruebas usan `FakeAIClient` (`apps/plans/tests/helpers.py`), nunca la red.

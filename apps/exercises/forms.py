@@ -4,7 +4,7 @@ from django.core.validators import MaxLengthValidator
 
 from apps.accounts.form_utils import SafeImageField, SafeVideoField
 
-from .models import Exercise, ExerciseCategory
+from .models import EQUIPMENT_CHOICES, INTENSITY_CHOICES, RISK_TAG_CHOICES, Exercise, ExerciseCategory
 from .validators import INVALID_MESSAGE, validate_youtube_url
 
 
@@ -15,6 +15,8 @@ class ExerciseForm(forms.ModelForm):
     - `image`: imagen real JPG/PNG/WEBP/GIF, máx. 5 MB (se abre con Pillow).
     - `video_file`: MP4/WEBM/MOV, máx. 100 MB, con content-type y firma de archivo coherentes.
     - `level` y `category` salen de las opciones/filas existentes (ModelForm).
+    - `equipment`, `risk_tags` e `intensity`: etiquetas opcionales para los planes automáticos
+      (solo códigos de las listas cerradas; vacío = sin etiquetar).
     """
 
     video_url = forms.CharField(
@@ -24,11 +26,23 @@ class ExerciseForm(forms.ModelForm):
     )
     video_file = SafeVideoField(label='Video (archivo)', required=False)
     image = SafeImageField(label='Imagen de portada', required=False)
+    equipment = forms.MultipleChoiceField(
+        label='Equipo necesario', required=False, choices=EQUIPMENT_CHOICES,
+        error_messages={'invalid_choice': 'Selecciona un equipo válido.'},
+    )
+    risk_tags = forms.MultipleChoiceField(
+        label='Zonas de riesgo', required=False, choices=RISK_TAG_CHOICES,
+        error_messages={'invalid_choice': 'Selecciona una zona de riesgo válida.'},
+    )
+    intensity = forms.ChoiceField(
+        label='Intensidad', required=False, choices=[('', '— Sin etiquetar —')] + INTENSITY_CHOICES,
+        error_messages={'invalid_choice': 'Selecciona una intensidad válida.'},
+    )
 
     class Meta:
         model = Exercise
         fields = ['name', 'category', 'level', 'description', 'muscles', 'recommendations',
-                  'video_url', 'video_file', 'image', 'is_public']
+                  'video_url', 'video_file', 'image', 'is_public', 'equipment', 'risk_tags', 'intensity']
         labels = {
             'name': 'Nombre', 'category': 'Categoría', 'level': 'Nivel',
             'description': 'Descripción', 'muscles': 'Músculos trabajados',
@@ -53,6 +67,14 @@ class ExerciseForm(forms.ModelForm):
 
     def clean_video_url(self):
         return self.cleaned_data.get('video_url', '').strip()
+
+    def clean(self):
+        cleaned = super().clean()
+        # Equipo o zonas sin intensidad = etiquetado a medias: el motor lo trataría como
+        # "sin etiquetar" sin que la entrenadora lo note.
+        if (cleaned.get('equipment') or cleaned.get('risk_tags')) and not cleaned.get('intensity'):
+            self.add_error('intensity', 'Indica la intensidad para que el ejercicio quede etiquetado.')
+        return cleaned
 
 
 class ExerciseFilterForm(forms.Form):

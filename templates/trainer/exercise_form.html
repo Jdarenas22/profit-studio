@@ -152,6 +152,52 @@
       </div>
     </div>
 
+    <!-- Etiquetas para los planes automáticos -->
+    <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-5">
+      <div>
+        <h2 class="text-white font-bold text-sm uppercase tracking-wider">Etiquetas para planes automáticos</h2>
+        <p class="text-white/30 text-xs mt-1">Opcional. Permiten que el borrador de plan con IA respete el equipo de la clienta y sus lesiones. Un ejercicio sin intensidad queda "sin etiquetar" y no se propone a clientas con lesiones o advertencias.</p>
+      </div>
+
+      <div>
+        <label class="block text-white/60 text-xs font-medium mb-2">Intensidad</label>
+        <select name="intensity"
+                class="w-full bg-black/40 border {% if errors.intensity %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+          <option value="">— Sin etiquetar —</option>
+          {% for value, label in intensity_choices %}
+          <option value="{{ value }}" {% if form %}{% if form.intensity == value %}selected{% endif %}{% elif exercise and exercise.intensity == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.intensity %}<p class="text-red-400 text-xs mt-1">{{ errors.intensity }}</p>{% endif %}
+      </div>
+
+      <fieldset>
+        <legend class="block text-white/60 text-xs font-medium mb-2">Equipo necesario <span class="text-white/30">(nada marcado = sin equipo)</span></legend>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {% for value, label in equipment_choices %}
+          <label class="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
+            <input type="checkbox" name="equipment" value="{{ value }}" {% if value in selected_equipment %}checked{% endif %} class="w-4 h-4 accent-orange-500">
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
+        {% if errors.equipment %}<p class="text-red-400 text-xs mt-1">{{ errors.equipment }}</p>{% endif %}
+      </fieldset>
+
+      <fieldset>
+        <legend class="block text-white/60 text-xs font-medium mb-2">Zonas de riesgo <span class="text-white/30">(qué lesiones o condiciones lo desaconsejan)</span></legend>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {% for value, label in risk_tag_choices %}
+          <label class="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
+            <input type="checkbox" name="risk_tags" value="{{ value }}" {% if value in selected_risk_tags %}checked{% endif %} class="w-4 h-4 accent-orange-500">
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
+        {% if errors.risk_tags %}<p class="text-red-400 text-xs mt-1">{{ errors.risk_tags }}</p>{% endif %}
+      </fieldset>
+    </div>
+
     <div class="flex items-center gap-3 pt-2">
       <button type="submit" :disabled="submitting"
               class="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm">

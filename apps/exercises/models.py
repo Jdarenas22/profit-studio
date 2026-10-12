@@ -2,6 +2,41 @@ from django.db import models
 
 from .validators import extract_youtube_id, validate_youtube_url
 
+# ─── Etiquetas para los planes automáticos (fase B de docs/contracts/plan-ia.md) ──
+# Equipo que necesita el ejercicio (mismos códigos que la ficha de salud, sin "none": una lista
+# vacía en un ejercicio etiquetado = no necesita equipo).
+EQUIPMENT_CHOICES = [
+    ('dumbbells', 'Mancuernas'),
+    ('bands', 'Bandas elásticas'),
+    ('bench', 'Banco'),
+    ('barbell', 'Barra'),
+    ('machines', 'Máquinas'),
+    ('cardio_machine', 'Máquina de cardio'),
+    ('mat', 'Colchoneta'),
+]
+# Zonas o rasgos de riesgo: el motor excluye el ejercicio si chocan con las lesiones o
+# banderas de la clienta. Las 7 zonas usan los mismos códigos que las lesiones de la ficha.
+RISK_TAG_CHOICES = [
+    ('knee', 'Rodilla'),
+    ('lower_back', 'Espalda baja'),
+    ('shoulder', 'Hombro'),
+    ('neck', 'Cuello'),
+    ('wrist_elbow', 'Muñeca o codo'),
+    ('hip', 'Cadera'),
+    ('ankle', 'Tobillo'),
+    ('high_impact', 'Alto impacto (saltos, carrera)'),
+    ('breath_hold', 'Retención de la respiración'),
+    ('heavy_axial', 'Carga axial pesada (columna)'),
+]
+INTENSITY_LOW = 'low'
+INTENSITY_MODERATE = 'moderate'
+INTENSITY_HIGH = 'high'
+INTENSITY_CHOICES = [
+    (INTENSITY_LOW, 'Baja'),
+    (INTENSITY_MODERATE, 'Moderada'),
+    (INTENSITY_HIGH, 'Alta'),
+]
+
 
 class ExerciseCategory(models.Model):
     name = models.CharField(max_length=100, verbose_name='Nombre')
@@ -61,6 +96,14 @@ class Exercise(models.Model):
         verbose_name='Imagen',
     )
 
+    # Etiquetas para los planes automáticos. Un ejercicio está "etiquetado" cuando tiene
+    # intensidad; sin ella, el motor lo trata con prudencia (ver apps/plans/rules/catalog.py).
+    equipment = models.JSONField(default=list, blank=True, verbose_name='Equipo necesario')
+    risk_tags = models.JSONField(default=list, blank=True, verbose_name='Zonas de riesgo')
+    intensity = models.CharField(
+        max_length=10, choices=INTENSITY_CHOICES, blank=True, default='', verbose_name='Intensidad',
+    )
+
     is_public = models.BooleanField(default=False, verbose_name='Público')
     is_active = models.BooleanField(default=True, verbose_name='Activo')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -95,3 +138,17 @@ class Exercise(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_tagged(self):
+        return bool(self.intensity)
+
+    @property
+    def equipment_labels(self):
+        labels = dict(EQUIPMENT_CHOICES)
+        return [labels.get(code, code) for code in self.equipment or ()]
+
+    @property
+    def risk_tag_labels(self):
+        labels = dict(RISK_TAG_CHOICES)
+        return [labels.get(code, code) for code in self.risk_tags or ()]

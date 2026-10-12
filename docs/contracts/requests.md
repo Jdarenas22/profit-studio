@@ -5,7 +5,7 @@ Contrato de referencia: `docs/contracts/plan-ia.md` (propuesta pendiente de apro
 
 ## De arquitecto-backend para frontend-architect
 
-Estado: contrato aprobado. **Fases A1 y A2 implementadas en el backend** (ver "Contrato A1 para el frontend" y "Contrato A2 para el frontend" más abajo; si algo difiere de las filas F-01 a F-05 de las tablas, mandan esos bloques); las demás fases siguen **PENDIENTES** hasta que se construyan.
+Estado: contrato aprobado. **Fases A1, A2 y B implementadas en el backend** (la B también con sus plantillas; ver "Fase B: entregada" más abajo) (ver "Contrato A1 para el frontend" y "Contrato A2 para el frontend" más abajo; si algo difiere de las filas F-01 a F-05 de las tablas, mandan esos bloques); las demás fases siguen **PENDIENTES** hasta que se construyan.
 
 ### Convenciones (igual que las vistas actuales)
 
@@ -228,6 +228,12 @@ Plantillas listas, contra el bloque "Contrato A2 para el frontend": `health/prof
 
 - Se renderizaron con el contexto real de las vistas (ver pruebas del backend: ahora usan las plantillas reales; `stub_missing_templates` solo cubre las que faltan). **Pedido (backend):** al integrar, quitar las 5 entradas A2 de `_STUBS` en `apps/health/tests/helpers.py`.
 - Sin pedidos nuevos de contrato. Observación: el dashboard de la clienta no sabe si ya tiene ficha (no se consulta desde la plantilla); la tarjeta dice "Abrir mi ficha" en ambos casos. Si se quiere "Completar mi ficha" / "Ver mi ficha", la vista del dashboard puede pasar un booleano `has_health_profile`.
+
+### Fase B: entregada (backend y plantillas, 2026-10-12)
+
+Plantillas: `plans/request.html` (F-06), `plans/request_status.html` + `plans/partials/job_status.html` (F-07, también para el entrenador con `trainer_mode`), `plans/member_plans.html` (F-08), `trainer/plan_inbox.html` (F-09), `trainer/plan_detail.html` (F-10), `trainer/plan_job.html` (estado de un pedido del entrenador) y `plans/partials/disclaimer.html`. Enlaces: "Planes por revisar" en `trainer/base.html`, "Mi plan" en `partials/navbar.html` y en el panel de la clienta (con `AI_PLANS_ENABLED`, del procesador de contexto `apps.plans.context_processors.plan_flags`), botón "Generar borrador de rutina con IA" en `trainer/client_detail.html` (contexto `plan_request_token`), aviso de borrador/plan aprobado en `trainer/routine_builder.html` y descargo + validador en `routines/member_routine.html` (contexto `plan_disclaimer`).
+
+Diferencias con la tabla F-06 a F-10: el menú del entrenador no lleva contador (se carga como fragmento en la fase D; la bandeja muestra `pending_count`); F-09 recibe `rows` (`{plan, flags, client_regenerated}`), `status`, `status_choices`, `active_jobs` y `attention_jobs`; F-10 recibe además `routine_days`, `conflicts`, `regen_job`, `request_token`, `can_approve`, `simulated_blocked` y los errores por formulario (`approve_errors`, `regenerate_errors`, `archive_errors`).
 
 ## Resueltos
 

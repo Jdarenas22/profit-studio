@@ -34,9 +34,9 @@ WOMPI_VARS = ('WOMPI_PUBLIC_KEY', 'WOMPI_PRIVATE_KEY', 'WOMPI_INTEGRITY_SECRET',
 SECRET_ENV_NAMES = (
     'SECRET_KEY', 'DATABASE_URL', 'REDIS_URL', 'TRAINER_INITIAL_PASSWORD', 'TRAINER_PASSWORD',
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT_URL', 'EMAIL_HOST_PASSWORD',
-    *WOMPI_VARS,
+    *WOMPI_VARS, 'GEMINI_API_KEY',
 )
-SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', *WOMPI_VARS)
+SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', *WOMPI_VARS, 'GEMINI_API_KEY')
 
 NETWORK_TIMEOUT_SECONDS = 10
 
@@ -453,6 +453,56 @@ def check_health_switches(ctx):
     return results
 
 
+def untagged_exercise_count():
+    from apps.exercises.models import Exercise
+    return Exercise.objects.filter(is_active=True, intensity='').count()
+
+
+def check_ai_plans(ctx):
+    area = 'IA'
+    raw = (getattr(ctx.settings, 'AI_PLANS_MODE', '') or '').strip().lower()
+    mode = raw or ('simulated' if getattr(ctx.settings, 'DEBUG', False) else 'off')
+    results = []
+    if mode not in ('off', 'simulated', 'live'):
+        return [Check(area, 'AI_PLANS_MODE', ERROR, f'Valor no válido: {raw}.', 'Usa off, simulated o live.')]
+    if mode == 'off':
+        return [Check(area, 'AI_PLANS_MODE', OK, 'Apagado: los planes con IA no se ofrecen.')]
+    if mode == 'simulated':
+        status = WARN if ctx.is_production else OK
+        results.append(Check(area, 'AI_PLANS_MODE', status,
+                             'Modo de prueba: los borradores salen de un generador de ejemplo (sin Gemini) '
+                             'y no se pueden aprobar en producción.',
+                             'Para usar Gemini: GEMINI_API_KEY, GEMINI_MODEL, GEMINI_BILLING_CONFIRMED=true y '
+                             'AI_PLANS_MODE=live.' if ctx.is_production else ''))
+    else:
+        missing = [name for name in ('GEMINI_API_KEY', 'GEMINI_MODEL')
+                   if not str(get_setting(ctx.settings, name) or '').strip()]
+        if not getattr(ctx.settings, 'GEMINI_BILLING_CONFIRMED', False):
+            missing.append('GEMINI_BILLING_CONFIRMED=true')
+        if missing:
+            results.append(Check(area, 'AI_PLANS_MODE', ERROR, 'live sin configuración completa: falta ' + ', '.join(missing) + '.',
+                                 'La clave debe ser de un proyecto de Google AI Studio con facturación habilitada.'))
+        else:
+            results.append(Check(area, 'AI_PLANS_MODE', OK,
+                                 f'live con el modelo {get_setting(ctx.settings, "GEMINI_MODEL")} (conexión sin probar).',
+                                 'Pruébala con: python manage.py check_gemini'))
+    if not getattr(ctx.settings, 'HEALTH_FEATURES_ENABLED', False):
+        results.append(Check(area, 'Planes con IA visibles', WARN,
+                             'HEALTH_FEATURES_ENABLED está apagado: los planes con IA no se muestran.',
+                             'Se encienden junto con las pantallas de salud.'))
+    if ctx.db_ok:
+        try:
+            untagged = untagged_exercise_count()
+        except DatabaseError:
+            untagged = 0
+        if untagged:
+            results.append(Check(area, 'Etiquetas de ejercicios', WARN,
+                                 f'{untagged} ejercicio(s) activo(s) sin etiquetar: no se proponen a clientas con '
+                                 'lesiones o advertencias, ni a quien entrena en casa.',
+                                 'python manage.py list_untagged_exercises y etiquétalos en el panel.'))
+    return results
+
+
 CHECKS = (
     check_settings,
     check_secret_key_and_hosts,
@@ -462,6 +512,7 @@ CHECKS = (
     check_email,
     check_superuser,
     check_health_switches,
+    check_ai_plans,
 )
 
 

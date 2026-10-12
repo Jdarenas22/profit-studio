@@ -687,3 +687,35 @@ Implementado: ficha de salud y alimentación (`HealthProfile`, versionada), conf
 - El texto legal v1 de `health_data` dice "medidas corporales y demás datos de salud que decida registrar": el abogado debe cubrir explícitamente la ficha (condiciones, medicamentos, alergias, embarazo, antecedentes alimentarios).
 - Con membresía vencida la clienta no puede exportar ni borrar su ficha (así lo dice el contrato): falta otro canal (p. ej. el correo de derechos).
 - Sin cifrado en reposo (riesgo 6). La función sigue apagada en producción (`HEALTH_FEATURES_ENABLED`).
+
+### Fase B (2026-10-12, rama `plan-ia-b-ejercicio`)
+
+Implementado: etiquetas de ejercicios, motor de elegibilidad y filtro del catálogo, cliente de IA (simulado y Gemini), cola de trabajos con recuperación, plan de ejercicio como `Routine` inactiva, bandeja mínima del entrenador y pantallas F-06 a F-10. Pruebas sin red (reglas, cliente de Gemini con servidor falso, flujo completo, vistas, configuración).
+
+**Qué se construyó**
+
+- `exercises` **0004**: `Exercise.equipment` (lista), `risk_tags` (lista) e `intensity` (`low`/`moderate`/`high`, vacío = sin etiquetar); campos en el formulario del entrenador (equipo o zonas sin intensidad = error) y comando `list_untagged_exercises`.
+- `plans` **0001** (`apps.plans` ya está en `INSTALLED_APPS`): `Plan`, `PlanGenerationJob`, `PlanEvent`, `TrainerCredential` (esta última en el admin, solo superusuaria).
+- `rules/eligibility.py` (D00-D06 + rojas del alcance), `rules/catalog.py` (filtro 3.5), `rules/validate.py` (V01, V02, V07, V08 para `exercise-plan/1`). Puros, sin Django.
+- `ai/` (`base`, `fake`, `gemini`, `prompts`): interfaz del contrato 4.3. `services.py` (evaluación, pedidos, aprobación, archivo, regeneración, cupos), `jobs.py` (hilo, reclamo atómico, latido, recuperación, reintentos), `notifications.py` (correos sin datos de salud).
+- Comandos `check_gemini` y `process_plan_jobs`; `check_infra` gana el área "IA". Arreglo de `mark_day_complete` (`routine__is_active=True`).
+
+**Decisiones y diferencias respecto al contrato**
+
+- **Sin dependencia nueva**: `GeminiClient` usa `urllib` de la biblioteca estándar en lugar de `requests` (pregunta 12: no hizo falta instalar nada). Tiempo de espera único (`GEMINI_TIMEOUT_SECONDS`) para conexión y lectura.
+- **Campo del esquema configurable** (`GEMINI_SCHEMA_FIELD`: `responseJsonSchema` por defecto, o `none`): al construir, la documentación de Google no se pudo consultar desde el entorno y las búsquedas indican que los nombres de los campos de salida estructurada cambiaron recientemente (`responseSchema`/`responseJsonSchema` marcados como obsoletos). La validación real la hace siempre `rules/validate.py`; `check_gemini` prueba la combinación clave + modelo + campo con datos ficticios antes de usar datos reales. **Pendiente: confirmarlo con `check_gemini` al tener la clave.**
+- `AI_PLANS_MODE` vacío = `simulated` con DEBUG y `off` sin él; los planes `is_simulated` no se aprueban fuera de DEBUG. Los planes requieren además `HEALTH_FEATURES_ENABLED` y `ai_texts_ready()`.
+- Sin ejercicios compatibles suficientes (menos de 6) = `D06_FEW_EXERCISES`: se trata como bloqueo (trabajo `blocked`, aviso al entrenador, sin IA).
+- Banderas -> etiquetas excluidas **[A VALIDAR]**: Y04/Y06/Y08/Y09/R08 excluyen `high_impact`; Y01 `breath_hold` y máximo 3 series; Y08 `heavy_axial` y máximo 3 series; Y03 intensidad máxima `moderate`; Y11 solo `low`; hernia discal excluye `lower_back` y `heavy_axial`; osteoporosis `heavy_axial`. Los ejercicios sin etiquetar se excluyen con lesiones, condiciones o advertencias, y siempre en casa.
+- Cupos: la clienta cuenta sus pedidos (3 por 7 días, también los fallidos, no los bloqueados); el entrenador tiene su propio cupo diario (10) y no consume el de la clienta; total diario 100.
+- Un trabajo `failed` o `blocked` no crea `Plan` ni `Routine` (solo códigos). El intento con modelo de IA apagado a mitad de camino termina `failed` con `not_ready:D00_NOT_AVAILABLE`.
+- Se agregó la ruta `trainer_plan_take` ("Tomar para revisión" / "Editar en el constructor") y `trainer_plan_job` (+ `_poll`) para que el entrenador siga un pedido; la bandeja también muestra los pedidos en curso y los bloqueados/fallidos de los últimos 14 días.
+- Archivar también sirve para retirar un plan **aprobado** (su rutina se desactiva). Editar en el constructor un plan aprobado lo cambia para la clienta de inmediato (el constructor lo avisa); "Clonar a borrador" queda para la fase D.
+- El texto del descargo vive en `apps/plans/texts.py`; se muestra al pedir, en "Mi plan" y en la rutina aprobada.
+
+**Pendiente / riesgos**
+
+- Confirmar con `check_gemini` el campo de salida estructurada y el modelo, y medir tokens reales (los costos de la sección 4.1 siguen siendo estimaciones).
+- Etiquetar los ejercicios activos antes de encender `live` (`list_untagged_exercises`, `check_infra`).
+- Contenido clínico de las equivalencias bandera -> etiqueta **[A VALIDAR]** por un profesional de la salud.
+- La fase C (alimentación) reutiliza `ai/`, `jobs.py` y la bandeja; el modelo `TrainerCredential` ya existe para exigir la credencial de nutrición.

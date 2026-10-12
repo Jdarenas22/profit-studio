@@ -92,6 +92,8 @@ Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprim
 | `HEALTH_FEATURES_ENABLED` | `true` enciende «Mis medidas» y la ficha de salud de la clienta. Ver sección 7 antes de activarla |
 | `PRIVACY_POLICY_URL` | Enlace a la política de tratamiento de datos que se muestra junto al consentimiento |
 | `REDIS_URL` | Caché compartida entre los 2 workers (límite de intentos de login). Sin ella se usa memoria local de cada proceso |
+| `AI_PLANS_MODE` | Planes con IA: `off` (por defecto), `simulated` (borradores de ejemplo, sin costo, no se aprueban) o `live` (Gemini). Ver sección 7b |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BILLING_CONFIRMED` | Obligatorias en `live` (el servidor no arranca sin ellas). La clave debe ser de un proyecto con facturación |
 
 ## 4. Cloudflare R2: comandos útiles
 
@@ -148,6 +150,18 @@ La función viene **apagada** a propósito. No la actives hasta que:
 4. Definas `PRIVACY_POLICY_URL` si ya publicaste la política de tratamiento de datos.
 
 Luego define `HEALTH_FEATURES_ENABLED=true` en Railway.
+
+## 7b. Planes con IA (Google Gemini)
+
+Requieren la función de salud encendida (sección 7). Pasos:
+
+1. **Etiqueta los ejercicios** (panel → Ejercicios → Editar → «Etiquetas para planes automáticos»: intensidad, equipo y zonas de riesgo). Los que no tienen intensidad no se proponen a clientas con lesiones o advertencias, ni a quien entrena en casa. `check_infra` avisa cuántos faltan.
+2. **Prueba sin costo** con `AI_PLANS_MODE=simulated`: el flujo completo funciona (pedido, bandeja, revisión), pero los borradores salen de un generador de ejemplo, quedan marcados «MODO DE PRUEBA» y no se pueden aprobar en producción.
+3. **Gemini de pago**: en Google AI Studio crea la clave en un proyecto con **facturación habilitada** (prepago mínimo USD 5). En el nivel gratuito Google puede usar y revisar los datos: no sirve para datos de salud.
+4. **Prueba la clave con datos ficticios** desde tu equipo (no toca la base ni datos de clientas): pon `GEMINI_API_KEY` y `GEMINI_MODEL` en tu `.env` local y ejecuta `python manage.py check_gemini`. Debe terminar con «Gemini responde y el formato es válido» y muestra los tokens usados. Si responde `ai_http_400`, prueba `GEMINI_SCHEMA_FIELD=none` y confirma el nombre del modelo. Después borra la clave de tu `.env`.
+5. Define en Railway `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BILLING_CONFIRMED=true` y `AI_PLANS_MODE=live`.
+
+Los borradores se generan en un hilo del mismo servidor (sin Redis ni Celery); si un despliegue corta uno a la mitad, se recupera solo al consultar su estado o con `python manage.py process_plan_jobs`.
 
 ## 8. Archivos de despliegue en el repositorio
 

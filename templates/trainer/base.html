@@ -30,6 +30,13 @@
               {% if '/routines/trainer' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-clipboard-list"></i> Rutinas
     </a>
+    {% if AI_PLANS_ENABLED %}
+    <a href="{% url 'trainer_plan_inbox' %}"
+       class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
+              {% if '/plans/trainer' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+      <i class="fa fa-wand-magic-sparkles"></i> Planes por revisar
+    </a>
+    {% endif %}
 
     {% if request.user.is_superuser %}
     <a href="{% url 'trainer_manual_payment_list' %}"

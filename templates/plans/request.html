@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Pedir mi plan — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-3xl mx-auto">
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <a href="{% url 'member_plans' %}" class="hover:text-primary transition-colors">Mi plan</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Pedir mi plan</span>
+  </nav>
+
+  <h1 class="text-2xl font-black text-white mb-1">Pedir mi plan de ejercicio</h1>
+  <p class="text-white/60 text-sm mb-6 leading-relaxed">
+    Armamos un borrador con apoyo de inteligencia artificial usando tu ficha y tus medidas (sin tu nombre ni tus datos de contacto).
+    Tu entrenador lo revisa y lo aprueba antes de que lo veas.
+  </p>
+
+  {% if is_simulated %}
+  <div role="note" class="mb-6 rounded-2xl border border-sky-500/40 bg-sky-500/10 p-4 text-sky-100 text-sm">
+    <i class="fa fa-flask mr-1" aria-hidden="true"></i> <strong>Modo de prueba:</strong> el borrador se arma con un generador de ejemplo, sin inteligencia artificial real.
+  </div>
+  {% endif %}
+
+  {% if eligibility.missing %}
+  <div class="mb-6 rounded-2xl border border-white/10 bg-zinc-900 p-5">
+    <h2 class="text-white font-bold text-sm mb-3">Antes de pedir tu plan te falta:</h2>
+    <ul class="space-y-2">
+      {% for item in eligibility.missing %}
+      <li class="flex items-start gap-3 rounded-xl bg-black/40 p-3">
+        <i class="fa fa-circle-dot text-primary mt-1 text-xs shrink-0" aria-hidden="true"></i>
+        <div class="min-w-0 flex-1">
+          <p class="text-white/90 text-sm">{{ item.text }}</p>
+          {% if item.url %}
+          <a href="{{ item.url }}" class="text-primary text-sm underline underline-offset-2 hover:text-primary-dark">Ir ahora</a>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% elif eligibility.blocked %}
+  <div role="status" class="mb-6 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-5">
+    <div class="flex gap-3">
+      <i class="fa fa-user-doctor text-yellow-300 mt-0.5 shrink-0" aria-hidden="true"></i>
+      <p class="text-yellow-100 text-sm leading-relaxed">{{ eligibility.blocked_message }}</p>
+    </div>
+    <form method="POST" class="mt-4 sm:pl-7" x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+      {% csrf_token %}
+      <input type="hidden" name="kind" value="exercise">
+      <input type="hidden" name="request_token" value="{{ request_token }}">
+      <button type="submit" :disabled="sending"
+              class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors disabled:opacity-60">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-bell'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Avisando...' : 'Avisar a mi entrenador'">Avisar a mi entrenador</span>
+      </button>
+    </form>
+  </div>
+  {% else %}
+  <form method="POST" class="mb-6 rounded-2xl border border-white/10 bg-zinc-900 p-5"
+        x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+    {% csrf_token %}
+    <input type="hidden" name="request_token" value="{{ request_token }}">
+    <fieldset>
+      <legend class="text-white font-bold text-sm mb-3">¿Qué plan quieres?</legend>
+      {% for kind in kinds %}
+      <label class="flex items-center gap-3 text-white/90 text-sm cursor-pointer">
+        <input type="radio" name="kind" value="{{ kind.code }}" {% if forloop.first %}checked{% endif %} class="w-4 h-4 accent-orange-500">
+        {{ kind.label }}
+      </label>
+      {% endfor %}
+      <p class="text-white/50 text-xs mt-2">El plan de alimentación llegará pronto.</p>
+    </fieldset>
+    <button type="submit" :disabled="sending"
+            class="mt-5 inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+      <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'" aria-hidden="true"></i>
+      <span x-text="sending ? 'Enviando...' : 'Pedir mi plan'">Pedir mi plan</span>
+    </button>
+  </form>
+  {% endif %}
+
+  {% include 'plans/partials/disclaimer.html' %}
+</section>
+{% endblock %}
