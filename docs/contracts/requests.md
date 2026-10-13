@@ -253,10 +253,6 @@ Pantalla `trainer/plan_detail.html` (vista `trainer_plan_detail`, solo entrenado
 
 Plantilla nueva `trainer/partials/adaptation_panel.html`, incluida desde `plan_detail.html`. Sin cambios de contrato en otras pantallas; la clienta nunca ve este panel.
 
-### Submenú de perfil en el banner (frontend, 2026-10-13)
-
-Solo plantillas: `partials/navbar.html` (botón con foto/inicial + nombre que abre el submenú; sección «Mi cuenta» en el menú móvil), `partials/account_menu_items.html` (contenido compartido) y `trainer/base.html` (se quitan «Mi perfil» y «Salir» de la fila de pestañas). Sin cambios de contrato ni de vistas. Usa lo que ya llega: `user.is_trainer`, `user.is_superuser`, `user.profile_photo`, `user.get_full_name`, `HEALTH_FEATURES_ENABLED` y `AI_PLANS_ENABLED` (procesadores de contexto existentes) y las rutas `dashboard`, `trainer_dashboard`, `member_profile_edit`, `member_measurement_list`, `member_health_profile`, `member_plans` y `logout`. Pedidos al backend: ninguno.
-
 ## Resueltos
 
 (ninguno)

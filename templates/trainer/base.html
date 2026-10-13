@@ -50,6 +50,30 @@
       <i class="fa fa-user-tie"></i> Entrenadores
     </a>
     {% endif %}
+
+    <div class="flex-1"></div>
+
+    <!-- Mi perfil -->
+    <a href="{% url 'member_profile_edit' %}"
+       class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors whitespace-nowrap
+              {% if 'profile/edit' in request.path %}bg-white/10 text-white{% else %}text-white/40 hover:text-white hover:bg-white/5{% endif %}">
+      {% if request.user.profile_photo %}
+      <img src="{{ request.user.profile_photo.url }}" class="w-6 h-6 rounded-lg object-cover shrink-0">
+      {% else %}
+      <div class="w-6 h-6 bg-primary/20 rounded-lg flex items-center justify-center shrink-0">
+        <span class="text-primary text-xs font-bold">{{ request.user.first_name|first|upper|default:request.user.username|first|upper }}</span>
+      </div>
+      {% endif %}
+      <span class="hidden sm:inline">Mi perfil</span>
+    </a>
+
+    <form method="post" action="{% url 'logout' %}" class="flex"
+          onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
+      {% csrf_token %}
+      <button type="submit" class="px-4 py-2 text-white/30 hover:text-white text-sm transition-colors whitespace-nowrap">
+        <i class="fa fa-sign-out-alt mr-1"></i>Salir
+      </button>
+    </form>
   </nav>
 
   {% block trainer_content %}{% endblock %}
