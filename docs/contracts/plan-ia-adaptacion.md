@@ -22,7 +22,7 @@ Reglas que no cambian:
 | Comidas elegidas | `MealChoice` con `completed_at` | `liked_food_ids`: alimentos presentes en ≥3 comidas completadas | Mide preferencia y también comodidad |
 | Opciones descartadas | `PlanEvent` `client_alternative` + `MealOption.replaces` | `avoid_food_ids`: alimentos de opciones descartadas ≥2 veces y nunca en una completada | No se sabe qué alimento molestó dentro de la opción |
 | Correcciones del entrenador | `MealOption.origin == 'trainer'`; para ejercicios, la diferencia contra `Plan.ai_draft` (campo nuevo, ver 5) | `trainer_removed_exercise_ids`, `trainer_removed_food_ids` (≥2 planes) | Los planes anteriores a este cambio no tienen borrador guardado |
-| Progreso | `BodyMeasurement` (peso) en 42 días | `progress`: `on_track`, `stalled`, `off_track`, `insufficient_data`, comparado con `training_goal` | Con menos de 2 mediciones separadas ≥14 días: `insufficient_data` |
+| Progreso | `BodyMeasurement` (peso) en 42 días | `progress`: `on_track`, `stalled`, `off_track`, `insufficient_data` o `not_applicable`, comparado con `training_goal` (pendiente por mínimos cuadrados en 42 días). Solo `weight_loss` y `muscle_gain` se juzgan con el peso; las demás metas dan `not_applicable` | Con menos de 2 mediciones separadas ≥14 días: `insufficient_data` |
 
 **Arranque en frío:** si la clienta lleva menos de 14 días con un plan aprobado, o la función está apagada, no se envía historial (`history: null`) y el borrador sale como hoy.
 
@@ -113,3 +113,13 @@ En el detalle del plan (`trainer/plan_detail.html`) aparece **"Qué se tuvo en c
 - Interpretación equivocada (saltarse un día puede ser enfermedad o viaje): el historial es suave y el entrenador lo ve y corrige.
 - Más complejidad en el prompt: se versiona y se compara con las pruebas.
 - Con la validación profesional suspendida, el entrenador es la única revisión humana: un panel claro de "qué se tuvo en cuenta" es parte de la seguridad.
+
+## 11. Registro de implementación
+
+### Paso 1 (2026-10-13): reglas puras
+- `apps/plans/rules/adaptation.py` (Python puro): `build_profile(AdaptationInput) -> AdaptationProfile`, con `as_payload()` (bloque `history`) y `summary()` (códigos para el panel). Incluye `exclude_foods` y `exclude_exercises` con resguardo (no quitan nada si el catálogo quedaría por debajo de `D06`).
+- Umbrales como constantes con nombre al inicio del módulo (todos **[A VALIDAR]**).
+- Detalles que el diseño no fijaba: `history_since` es el primer plan aprobado de la clienta (no el último), para que un plan nuevo no borre la memoria; la meta `not_applicable` evita juzgar con el peso metas como tonificación o cardio; perder más de 1 kg/semana o ganar más de 0,5 kg/semana cuenta como `off_track`.
+- `apps/plans/tests/test_adaptation_rules.py`: 37 pruebas sin base de datos.
+- Aún sin conexión con la base de datos, el payload ni la interfaz (pasos 2 a 4).
+
