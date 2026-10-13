@@ -1,4 +1,27 @@
-<nav x-data="{ open: false }" class="fixed top-0 left-0 right-0 z-40 bg-black/95 backdrop-blur-sm border-b border-white/10">
+<nav x-data="{
+       open: false,
+       menu: false,
+       account: false,
+       step(root, delta) {
+         const list = Array.from(root.querySelectorAll('[role=menuitem]'));
+         if (!list.length) return;
+         const at = list.indexOf(document.activeElement);
+         const next = at === -1 ? (delta > 0 ? 0 : list.length - 1) : (at + delta + list.length) % list.length;
+         list[next].focus();
+       },
+       edge(root, last) {
+         const list = Array.from(root.querySelectorAll('[role=menuitem]'));
+         if (list.length) list[last ? list.length - 1 : 0].focus();
+       },
+       closeMenu() {
+         if (!this.menu) return;
+         this.menu = false;
+         this.$refs.menuBtn.focus();
+       }
+     }"
+     :style="menu ? 'z-index: 60' : ''"
+     @keydown.escape.window="closeMenu(); account = false"
+     class="fixed top-0 left-0 right-0 z-40 bg-black/95 backdrop-blur-sm border-b border-white/10">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
 
@@ -25,29 +48,41 @@
       <!-- CTA desktop -->
       <div class="hidden md:flex items-center gap-3">
         {% if user.is_authenticated %}
-          {% if not user.is_trainer and HEALTH_FEATURES_ENABLED %}
-          <a href="{% url 'member_measurement_list' %}" class="hidden lg:inline text-sm text-white/70 hover:text-white transition-colors font-medium">
-            <i class="fa fa-weight-scale mr-1" aria-hidden="true"></i>Mis medidas
-          </a>
-          <a href="{% url 'member_health_profile' %}" class="hidden lg:inline text-sm text-white/70 hover:text-white transition-colors font-medium">
-            <i class="fa fa-notes-medical mr-1" aria-hidden="true"></i>Mi ficha
-          </a>
-          {% if AI_PLANS_ENABLED %}
-          <a href="{% url 'member_plans' %}" class="hidden lg:inline text-sm text-white/70 hover:text-white transition-colors font-medium">
-            <i class="fa fa-wand-magic-sparkles mr-1" aria-hidden="true"></i>Mi plan
-          </a>
-          {% endif %}
-          {% endif %}
-          <a href="{% url 'dashboard' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
-            <i class="fa fa-user-circle mr-1"></i>{{ user.first_name|default:user.username }}
-          </a>
-          <form method="post" action="{% url 'logout' %}" class="flex"
-                onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
-            {% csrf_token %}
-            <button type="submit" class="text-sm text-white/50 hover:text-white transition-colors">
-              Salir
+          <!-- Submenú de cuenta -->
+          <div class="relative" x-ref="menuWrap"
+               @click.outside="menu = false"
+               @focusin.window="if (menu && !$refs.menuWrap.contains($event.target)) menu = false">
+            <button type="button" x-ref="menuBtn" id="account-menu-button"
+                    @click="menu = !menu"
+                    @keydown.arrow-down.prevent="menu = true; $nextTick(() => edge($refs.menuPanel, false))"
+                    @keydown.arrow-up.prevent="menu = true; $nextTick(() => edge($refs.menuPanel, true))"
+                    :aria-expanded="menu.toString()" aria-expanded="false"
+                    aria-controls="account-menu" aria-haspopup="true"
+                    class="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-white/10 hover:border-white/30 hover:bg-white/5 text-sm font-medium text-white/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    :class="menu ? 'bg-white/10 text-white border-white/30' : ''">
+              {% if user.profile_photo %}
+              <img src="{{ user.profile_photo.url }}" alt="" width="28" height="28" class="w-7 h-7 rounded-full object-cover shrink-0">
+              {% else %}
+              <span class="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
+                <span class="text-primary text-xs font-bold">{{ user.first_name|default:user.username|slice:":1"|upper }}</span>
+              </span>
+              {% endif %}
+              <span class="max-w-[8rem] lg:max-w-[12rem] truncate">{{ user.first_name|default:user.username }}</span>
+              <span class="sr-only">(menú de mi cuenta)</span>
+              <i class="fa fa-chevron-down text-[10px] text-white/60 transition-transform duration-150 motion-reduce:transition-none" :class="menu ? 'rotate-180' : ''" aria-hidden="true"></i>
             </button>
-          </form>
+
+            <div id="account-menu" x-ref="menuPanel" x-show="menu" x-cloak
+                 x-transition.opacity.duration.100ms
+                 role="menu" aria-labelledby="account-menu-button"
+                 @keydown.arrow-down.prevent="step($refs.menuPanel, 1)"
+                 @keydown.arrow-up.prevent="step($refs.menuPanel, -1)"
+                 @keydown.home.prevent="edge($refs.menuPanel, false)"
+                 @keydown.end.prevent="edge($refs.menuPanel, true)"
+                 class="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/60 p-1.5">
+              {% include 'partials/account_menu_items.html' with variant='desktop' %}
+            </div>
+          </div>
         {% else %}
           <a href="{% url 'login' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
             Iniciar sesión
@@ -67,7 +102,7 @@
   </div>
 
   <!-- Mobile menu -->
-  <div x-show="open" x-transition class="md:hidden bg-black/98 border-t border-white/10 px-4 py-4 space-y-3">
+  <div x-show="open" x-transition class="md:hidden bg-black/98 border-t border-white/10 px-4 py-4 space-y-3 max-h-[calc(100dvh-4rem)] overflow-y-auto">
     <a href="{% url 'home' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Inicio</a>
     <a href="{% url 'exercises' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Ejercicios</a>
     <a href="{% url 'plans' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Planes</a>
@@ -75,27 +110,29 @@
     <a href="{% url 'contact' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Contacto</a>
     <div class="pt-3 border-t border-white/10 flex flex-col gap-2">
       {% if user.is_authenticated %}
-        <a href="{% url 'dashboard' %}" class="block text-white/70 py-2 font-medium">
-          <i class="fa fa-user-circle mr-2"></i>Mi perfil
-        </a>
-        {% if not user.is_trainer and HEALTH_FEATURES_ENABLED %}
-        <a href="{% url 'member_measurement_list' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">
-          <i class="fa fa-weight-scale mr-2" aria-hidden="true"></i>Mis medidas
-        </a>
-        <a href="{% url 'member_health_profile' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">
-          <i class="fa fa-notes-medical mr-2" aria-hidden="true"></i>Mi ficha
-        </a>
-        {% if AI_PLANS_ENABLED %}
-        <a href="{% url 'member_plans' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">
-          <i class="fa fa-wand-magic-sparkles mr-2" aria-hidden="true"></i>Mi plan
-        </a>
-        {% endif %}
-        {% endif %}
-        <form method="post" action="{% url 'logout' %}"
-              onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
-          {% csrf_token %}
-          <button type="submit" class="block w-full text-left text-white/50 py-2">Cerrar sesión</button>
-        </form>
+        <!-- Sección «Mi cuenta» -->
+        <div>
+          <button type="button" @click="account = !account"
+                  :aria-expanded="account.toString()" aria-expanded="false"
+                  aria-controls="account-mobile-panel"
+                  class="flex items-center gap-3 w-full min-h-[44px] py-2 px-2 -mx-2 rounded-lg text-left text-white/80 hover:text-white font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            {% if user.profile_photo %}
+            <img src="{{ user.profile_photo.url }}" alt="" width="32" height="32" class="w-8 h-8 rounded-full object-cover shrink-0">
+            {% else %}
+            <span class="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
+              <span class="text-primary text-sm font-bold">{{ user.first_name|default:user.username|slice:":1"|upper }}</span>
+            </span>
+            {% endif %}
+            <span class="flex-1 min-w-0">
+              <span class="block text-xs text-white/60 font-normal">Mi cuenta</span>
+              <span class="block truncate">{{ user.first_name|default:user.username }}</span>
+            </span>
+            <i class="fa fa-chevron-down text-xs text-white/60 transition-transform duration-150 motion-reduce:transition-none" :class="account ? 'rotate-180' : ''" aria-hidden="true"></i>
+          </button>
+          <div id="account-mobile-panel" x-show="account" x-cloak class="mt-2 bg-zinc-900 border border-white/10 rounded-2xl p-1.5">
+            {% include 'partials/account_menu_items.html' with variant='mobile' %}
+          </div>
+        </div>
       {% else %}
         <a href="{% url 'login' %}" class="block text-white/70 py-2 font-medium">Iniciar sesión</a>
         <a href="{% url 'register' %}"
