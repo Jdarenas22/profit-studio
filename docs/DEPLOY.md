@@ -167,7 +167,8 @@ Además de lo anterior:
 
 1. **Carga el catálogo de alimentos**: `python manage.py load_foods` (90 alimentos con cifras **aproximadas y sin validar**; es seguro repetirlo, no pisa los ya validados).
 2. **Un nutricionista-dietista debe revisar las cifras** (admin → Alimentos) y marcar los alimentos como validados (acción “Marcar como validados”). Fuera de modo de desarrollo, el sistema **ignora los alimentos sin validar**: sin este paso no se pueden generar planes de alimentación reales.
-3. **Credencial para aprobar**: en el admin → «Credenciales de validación», marca `can_validate_nutrition` y escribe la frase que se imprime en el plan (p. ej. «Nutricionista-dietista, RETHUS N.º …») para quien apruebe los planes de alimentación. Quién puede hacerlo es una decisión legal (Ley 1164 de 2007): consúltalo con tu abogado.
+3. **Validación profesional (hoy SUSPENDIDA)**: con `AI_PLANS_REQUIRE_PROFESSIONAL` sin definir (o `false`) cualquier entrenador aprueba planes de alimentación y se usan los alimentos aunque no estén validados; `check_infra` lo avisa. Para reactivarla define `AI_PLANS_REQUIRE_PROFESSIONAL=true` y sigue el punto siguiente.
+   **Credencial para aprobar** (solo si la validación está activa): en el admin → «Credenciales de validación», marca `can_validate_nutrition` y escribe la frase que se imprime en el plan (p. ej. «Nutricionista-dietista, RETHUS N.º …») para quien apruebe los planes de alimentación. Quién puede hacerlo es una decisión legal (Ley 1164 de 2007): consúltalo con tu abogado.
 4. `check_infra` informa si el catálogo está vacío, cuántos alimentos están sin validar y si nadie tiene la credencial. `check_gemini` prueba también una comida.
 5. Cupos opcionales de «otra opción»: `AI_PLANS_ALT_SLOT_WEEKLY_LIMIT` (por comida y semana, 3) y `AI_PLANS_ALT_DAILY_LIMIT` (por clienta y día, 6).
 

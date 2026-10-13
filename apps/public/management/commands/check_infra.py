@@ -508,6 +508,7 @@ def check_ai_plans(ctx):
                                  f'{untagged} ejercicio(s) activo(s) sin etiquetar: no se proponen a clientas con '
                                  'lesiones o advertencias, ni a quien entrena en casa.',
                                  'python manage.py list_untagged_exercises y etiquétalos en el panel.'))
+        professional_required = bool(getattr(ctx.settings, 'AI_PLANS_REQUIRE_PROFESSIONAL', False))
         try:
             foods, unvalidated, validators = nutrition_catalog_state()
         except DatabaseError:
@@ -517,14 +518,19 @@ def check_ai_plans(ctx):
                 results.append(Check(area, 'Alimentos', WARN,
                                      'El catálogo de alimentos está vacío: no se pueden armar planes de alimentación.',
                                      'python manage.py load_foods'))
-            elif unvalidated and ctx.is_production:
+            elif unvalidated and ctx.is_production and professional_required:
                 results.append(Check(area, 'Alimentos', WARN,
                                      f'{unvalidated} de {foods} alimentos activos están sin validar: fuera de modo de '
                                      'desarrollo no se usan hasta que un nutricionista los valide.',
                                      'Admin > Alimentos > acción "Marcar como validados" (tras revisar las cifras).'))
             else:
                 results.append(Check(area, 'Alimentos', OK, f'{foods} alimentos activos ({unvalidated} sin validar).'))
-            if not validators:
+            if not professional_required:
+                results.append(Check(area, 'Validación profesional', WARN,
+                                     'SUSPENDIDA: cualquier entrenador aprueba planes de alimentación y se usan '
+                                     'alimentos sin validar por un nutricionista.',
+                                     'Para reactivarla define AI_PLANS_REQUIRE_PROFESSIONAL=true.'))
+            elif not validators:
                 results.append(Check(area, 'Quién aprueba la alimentación', WARN,
                                      'Nadie tiene la credencial de nutrición: ningún plan de alimentación se puede aprobar.',
                                      'Admin > Credenciales de validación (solo para quien pueda validarlos).'))

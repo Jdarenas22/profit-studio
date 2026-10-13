@@ -67,6 +67,7 @@ class TrainerNutritionAuthTests(NutritionScenarioTestCase):
             self.assertContains(response, 'Objetivos del día')
             self.assertIn('no-store', response['Cache-Control'])
 
+    @override_settings(AI_PLANS_REQUIRE_PROFESSIONAL=True)
     def test_approve_button_follows_the_credential(self):
         Plan.objects.filter(pk=self.plan.pk).update(is_simulated=False)
         self.login(self.trainer_a)
@@ -81,6 +82,14 @@ class TrainerNutritionAuthTests(NutritionScenarioTestCase):
         response = self.client.post(reverse('trainer_plan_approve', args=[self.plan.pk]), {'note_for_client': 'Hola'})
         self.assertRedirects(response, reverse('trainer_plan_detail', args=[self.plan.pk]), fetch_redirect_response=False)
         self.assertEqual(Plan.objects.get(pk=self.plan.pk).status, Plan.STATUS_APPROVED)
+
+    @override_settings(AI_PLANS_REQUIRE_PROFESSIONAL=False)
+    def test_suspended_validation_enables_approve_for_the_assigned_trainer(self):
+        Plan.objects.filter(pk=self.plan.pk).update(is_simulated=False)
+        self.login(self.trainer_a)
+        response = self.client.get(reverse('trainer_plan_detail', args=[self.plan.pk]))
+        self.assertTrue(response.context['can_approve'])
+        self.assertNotContains(response, 'credencial de nutrición')
 
     def test_blockers_are_listed_and_disable_approval(self):
         Plan.objects.filter(pk=self.plan.pk).update(is_simulated=False)

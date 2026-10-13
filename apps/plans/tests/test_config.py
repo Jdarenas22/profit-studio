@@ -114,6 +114,7 @@ class CheckInfraAITests(TestCase):
         self.assertIn(('Etiquetas de ejercicios', ci.WARN),
                       self.run_check(AI_PLANS_MODE='simulated', HEALTH_FEATURES_ENABLED=True))
 
+    @override_settings(AI_PLANS_REQUIRE_PROFESSIONAL=True)
     def test_food_catalog_and_validators_are_reported(self):
         from apps.plans.models import Food, TrainerCredential
         settings = dict(AI_PLANS_MODE='simulated', HEALTH_FEATURES_ENABLED=True)
@@ -127,6 +128,12 @@ class CheckInfraAITests(TestCase):
         TrainerCredential.objects.create(user=user, can_validate_nutrition=True)
         checks = self.run_check(**settings)
         self.assertIn(('Alimentos', ci.OK), checks)
+        self.assertNotIn(('Quién aprueba la alimentación', ci.WARN), checks)
+
+    def test_suspended_professional_validation_is_reported(self):
+        checks = self.run_check(AI_PLANS_MODE='simulated', HEALTH_FEATURES_ENABLED=True,
+                                AI_PLANS_REQUIRE_PROFESSIONAL=False)
+        self.assertIn(('Validación profesional', ci.WARN), checks)
         self.assertNotIn(('Quién aprueba la alimentación', ci.WARN), checks)
 
     def test_gemini_key_is_redacted(self):

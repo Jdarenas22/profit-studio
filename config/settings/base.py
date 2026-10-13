@@ -166,5 +166,10 @@ AI_PLANS_TRAINER_DAILY_LIMIT = env.int('AI_PLANS_TRAINER_DAILY_LIMIT', default=1
 # "Otra opción" de una comida (fase C): por comida y semana, y por clienta y día
 AI_PLANS_ALT_SLOT_WEEKLY_LIMIT = env.int('AI_PLANS_ALT_SLOT_WEEKLY_LIMIT', default=3)
 AI_PLANS_ALT_DAILY_LIMIT = env.int('AI_PLANS_ALT_DAILY_LIMIT', default=6)
+# Validación profesional de los planes. SUSPENDIDA por decisión del negocio (False): cualquier entrenador
+# aprueba planes de alimentación y se usan todos los alimentos del catálogo aunque no estén validados.
+# True = se exige la credencial de nutrición (TrainerCredential.can_validate_nutrition) para aprobar
+# y fuera de DEBUG solo cuentan los alimentos con `validated_by`.
+AI_PLANS_REQUIRE_PROFESSIONAL = env.bool('AI_PLANS_REQUIRE_PROFESSIONAL', default=False)
 # Ejecutar el trabajo en la misma petición, sin hilo (pruebas y depuración)
 AI_PLANS_RUN_INLINE = env.bool('AI_PLANS_RUN_INLINE', default=False)

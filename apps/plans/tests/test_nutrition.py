@@ -179,6 +179,7 @@ class GenerationTests(NutritionScenarioTestCase):
         self.assertEqual(fake.calls, [])
         self.assertEqual(len(mail.outbox), 1)
 
+    @override_settings(AI_PLANS_REQUIRE_PROFESSIONAL=True)
     def test_unvalidated_foods_are_ignored_outside_debug(self):
         self.ready(self.client_a)
         Food.objects.update(validated_by='')
@@ -187,6 +188,13 @@ class GenerationTests(NutritionScenarioTestCase):
         with override_settings(DEBUG=True):
             PlanGenerationJob.objects.all().delete()
             job, _ = self.request_nutrition(self.client_a)
+        self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
+
+    @override_settings(AI_PLANS_REQUIRE_PROFESSIONAL=False)
+    def test_suspended_validation_uses_unvalidated_foods(self):
+        self.ready(self.client_a)
+        Food.objects.update(validated_by='')
+        job, _fake = self.request_nutrition(self.client_a)
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
 
     def test_missing_requirements_create_nothing(self):
@@ -232,6 +240,7 @@ class GenerationTests(NutritionScenarioTestCase):
 
 
 class ApprovalTests(NutritionScenarioTestCase):
+    @override_settings(AI_PLANS_REQUIRE_PROFESSIONAL=True)
     def test_only_someone_with_the_credential_can_approve(self):
         plan = self.nutrition_draft(self.client_a)
         Plan.objects.filter(pk=plan.pk).update(is_simulated=False)
@@ -245,6 +254,16 @@ class ApprovalTests(NutritionScenarioTestCase):
         self.assertEqual(approved.approved_by, self.boss)
         self.assertEqual(approved.valid_until, health.dates.today() + timedelta(days=28))
         self.assertEqual(services.approved_plan(self.client_a, 'nutrition'), approved)
+
+    @override_settings(AI_PLANS_REQUIRE_PROFESSIONAL=False)
+    def test_suspended_validation_lets_the_assigned_trainer_approve(self):
+        plan = self.nutrition_draft(self.client_a)
+        Plan.objects.filter(pk=plan.pk).update(is_simulated=False)
+        plan.refresh_from_db()
+        self.assertTrue(services.can_validate_nutrition(self.trainer_a))
+        approved = services.approve_plan(plan, self.trainer_a)
+        self.assertEqual(approved.status, Plan.STATUS_APPROVED)
+        self.assertEqual(approved.reviewer_credential, '')
 
     def test_a_trainer_with_the_credential_can_approve_their_clients(self):
         from apps.plans.models import TrainerCredential

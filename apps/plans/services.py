@@ -162,9 +162,9 @@ def training_profile(profile, yellow_codes):
 
 def food_items():
     """Catálogo de alimentos activo como datos simples para el motor. Fuera de DEBUG solo cuentan
-    los alimentos validados por un profesional (`validated_by`)."""
+    los alimentos validados por un profesional (`validated_by`), salvo que la validación esté suspendida."""
     rows = Food.objects.filter(is_active=True)
-    if not settings.DEBUG:
+    if not settings.DEBUG and professional_required():
         rows = rows.exclude(validated_by='')
     return [
         rules_foods.FoodItem(
@@ -397,7 +397,15 @@ def credential_for(user):
     return TrainerCredential.objects.filter(user=user).first()
 
 
+def professional_required():
+    """¿Se exige validación profesional (credencial de nutrición y alimentos validados)? Hoy suspendida
+    (`AI_PLANS_REQUIRE_PROFESSIONAL=False`): se reactiva sin cambiar código."""
+    return bool(getattr(settings, 'AI_PLANS_REQUIRE_PROFESSIONAL', False))
+
+
 def can_validate_nutrition(user):
+    if not professional_required():
+        return True
     credential = credential_for(user)
     return bool(credential and credential.can_validate_nutrition)
 
