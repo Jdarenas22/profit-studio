@@ -240,6 +240,11 @@ _TEXTS['M04_PROFILE_UNCONFIRMED'] = (
     'La clienta debe confirmar su ficha.')
 
 
+def describe(code):
+    """(texto, acción) de un código de bandera para el entrenador; el código mismo si no existe."""
+    return _TEXTS.get(code, (code, ''))
+
+
 def _flag(code, severity, scopes=(), text=None, action=None):
     default_text, default_action = _TEXTS[code]
     return Flag(code=code, severity=severity, text=text or default_text,
@@ -259,6 +264,7 @@ BOTH = (E, N)
 # Rojos de un solo alcance que dejan el otro alcance en amarillo (contrato 3.2)
 _YELLOW_COMPANION = {'R03_EATING_DISORDER': E, 'R04_PARQ_SYMPTOMS': N,
                      'R08_BMI_VERY_HIGH': E, 'R10_KIDNEY': E}
+YELLOW_COMPANION = _YELLOW_COMPANION   # lo usa el motor de elegibilidad (fase B)
 
 
 # ─── Evaluación ───────────────────────────────────────────────────────────────

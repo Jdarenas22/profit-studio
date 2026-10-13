@@ -1,0 +1,213 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Revisar plan — {{ client.get_full_name|default:client.username }}{% endblock %}
+
+{% block trainer_content %}
+<nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+  <a href="{% url 'trainer_plan_inbox' %}" class="hover:text-primary transition-colors">Planes por revisar</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <span class="text-white/80" aria-current="page">Plan v{{ plan.version }}</span>
+</nav>
+
+{% if plan.is_simulated %}
+<div role="note" class="mb-4 rounded-2xl border border-sky-500/40 bg-sky-500/10 p-4 text-sky-100 text-sm">
+  <i class="fa fa-flask mr-1" aria-hidden="true"></i> <strong>MODO DE PRUEBA:</strong> este borrador lo armó el generador de ejemplo, no la IA real.
+  {% if simulated_blocked %}No se puede aprobar en producción: genera uno real.{% endif %}
+</div>
+{% endif %}
+
+<div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+  <div class="min-w-0">
+    <h1 class="text-2xl font-black text-white [overflow-wrap:anywhere]">{{ plan.get_kind_display }}: {{ client.get_full_name|default:client.username }}</h1>
+    <p class="text-white/60 text-sm mt-1">
+      Versión {{ plan.version }} · generado el {{ plan.created_at|date:"d/m/Y H:i" }}
+      {% if plan.model_name %}· modelo {{ plan.model_name }}{% endif %}
+      <span class="ml-1 rounded-md px-2 py-0.5 text-xs font-bold
+                   {% if plan.status == 'draft_ai' %}bg-primary/20 text-primary{% elif plan.status == 'in_review' %}bg-yellow-500/20 text-yellow-100{% elif plan.status == 'approved' %}bg-green-500/20 text-green-100{% else %}bg-white/10 text-white/70{% endif %}">{{ plan.get_status_display }}</span>
+    </p>
+  </div>
+  {% if plan.routine_id and plan.is_pending %}
+  <form method="POST" action="{% url 'trainer_plan_take' plan.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="then" value="builder">
+    <button type="submit" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+      <i class="fa fa-pen-ruler" aria-hidden="true"></i> Editar en el constructor
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+{% if regen_job %}
+<div role="status" class="mb-6 rounded-2xl border border-white/10 bg-zinc-900 p-4 text-white/80 text-sm">
+  <i class="fa fa-spinner fa-spin text-primary mr-1" aria-hidden="true"></i> Se está generando una versión nueva con tus notas.
+  <a href="{% url 'trainer_plan_job' regen_job.pk %}" class="text-primary underline underline-offset-2">Ver el estado</a>
+</div>
+{% endif %}
+
+<div class="grid gap-6 lg:grid-cols-3">
+  <div class="lg:col-span-2 space-y-6">
+
+    <!-- Advertencias -->
+    {% if flags %}
+    {% include 'trainer/partials/health_flag_group.html' with kind='yellow' title='Advertencias' hint='El borrador ya las tuvo en cuenta (opciones filtradas y topes). Revísalas antes de aprobar.' flags=flags %}
+    {% endif %}
+
+    {% if stale %}
+    <div role="note" class="rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-yellow-100 text-sm">
+      <i class="fa fa-clock-rotate-left mr-1" aria-hidden="true"></i> La ficha de la clienta cambió (o se borró) después de generar este plan. Revísalo con la ficha actual o regenéralo.
+    </div>
+    {% endif %}
+
+    {% if conflicts %}
+    <div role="note" class="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm">
+      <p class="text-red-100 font-semibold"><i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i> Ejercicios que hoy no pasarían el filtro de seguridad:</p>
+      <p class="text-red-100/90 mt-1 [overflow-wrap:anywhere]">{{ conflicts|join:", " }}</p>
+      <p class="text-white/60 text-xs mt-1">Puede ser un ejercicio que agregaste o uno sin etiquetar. Tú decides: no bloquea la aprobación.</p>
+    </div>
+    {% endif %}
+
+    {% if is_nutrition and nutrition_review %}
+    {% include 'trainer/partials/nutrition_review.html' %}
+    {% else %}
+    <!-- Rutina -->
+    <div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+      <h2 class="text-white font-bold mb-1 [overflow-wrap:anywhere]">{{ plan.routine.name|default:"Rutina" }}</h2>
+      {% if plan.routine.notes %}<p class="text-white/60 text-sm mb-4 [overflow-wrap:anywhere]">{{ plan.routine.notes }}</p>{% endif %}
+      {% for day in routine_days %}
+      <div class="mt-4">
+        <h3 class="text-primary font-semibold text-sm mb-2 [overflow-wrap:anywhere]">{{ day.name }}</h3>
+        <ul class="space-y-1">
+          {% for item in day.exercises.all %}
+          <li class="rounded-lg bg-black/40 px-3 py-2 text-sm text-white/90">
+            <span class="font-medium">{{ item.exercise.name }}</span>
+            <span class="text-white/60">— {{ item.sets }} × {{ item.reps }}, descanso {{ item.rest_seconds }} s</span>
+            {% if item.observations %}<p class="text-white/50 text-xs mt-0.5 [overflow-wrap:anywhere]">{{ item.observations }}</p>{% endif %}
+          </li>
+          {% empty %}
+          <li class="text-white/50 text-sm">Sin ejercicios.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% empty %}
+      <p class="text-white/50 text-sm">La rutina no tiene días.</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Historial -->
+    <div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+      <h2 class="text-white font-bold text-sm mb-3">Historial</h2>
+      <ul class="space-y-1 text-sm">
+        {% for event in events %}
+        <li class="text-white/70">{{ event.at|date:"d/m/Y H:i" }} — {{ event.get_action_display }}{% if event.actor %} ({{ event.actor.get_full_name|default:event.actor.username }}){% endif %}{% if event.note %}: <span class="text-white/50 [overflow-wrap:anywhere]">{{ event.note }}</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <aside class="space-y-6">
+    {% if adaptation %}{% include 'trainer/partials/adaptation_panel.html' %}{% endif %}
+
+    <!-- Resumen de la ficha -->
+    <div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+      <h2 class="text-white font-bold text-sm mb-3">Ficha de la clienta</h2>
+      {% if profile_summary %}
+      <dl class="space-y-1 text-sm">
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Edad</dt><dd class="text-white/90">{{ profile_summary.age }} años</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Meta</dt><dd class="text-white/90 text-right">{{ profile_summary.goal|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Experiencia</dt><dd class="text-white/90 text-right">{{ profile_summary.experience }}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Entrena</dt><dd class="text-white/90 text-right">{{ profile_summary.days }} días × {{ profile_summary.minutes }} min, {{ profile_summary.place|lower }}</dd></div>
+        {% if profile_summary.equipment %}<div class="flex justify-between gap-2"><dt class="text-white/50">Equipo</dt><dd class="text-white/90 text-right">{{ profile_summary.equipment|join:", " }}</dd></div>{% endif %}
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Lesiones</dt><dd class="text-white/90 text-right">{{ profile_summary.injuries|join:", "|default:"Ninguna" }}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Condiciones</dt><dd class="text-white/90 text-right">{{ profile_summary.conditions|join:", "|default:"Ninguna" }}</dd></div>
+      </dl>
+      {% if profile_summary.needs_confirmation %}<p class="text-yellow-200 text-xs mt-2">La clienta aún no confirma la última corrección de su ficha.</p>{% endif %}
+      {% else %}
+      <p class="text-white/60 text-sm">No hay ficha visible (sin ficha o sin autorización vigente).</p>
+      {% endif %}
+      <a href="{% url 'trainer_health_profile' client.pk %}" class="mt-3 inline-block text-primary text-sm underline underline-offset-2">Ver la ficha completa</a>
+    </div>
+
+    {% if plan.is_pending %}
+    <!-- Aprobar -->
+    <form method="POST" action="{% url 'trainer_plan_approve' plan.pk %}" class="rounded-2xl border border-green-500/30 bg-zinc-900 p-5 space-y-3"
+          x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+      {% csrf_token %}
+      <h2 class="text-white font-bold text-sm">Aprobar</h2>
+      {% if approve_errors.general %}<p class="text-red-400 text-xs" role="alert">{{ approve_errors.general }}</p>{% endif %}
+      <div>
+        <label for="note_for_client" class="block text-white/60 text-xs mb-1">Nota para la clienta (opcional)</label>
+        <textarea id="note_for_client" name="note_for_client" rows="3" maxlength="500"
+                  class="w-full bg-black/40 border {% if approve_errors.note_for_client %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none resize-none">{{ form.note_for_client|default:'' }}</textarea>
+        {% if approve_errors.note_for_client %}<p class="text-red-400 text-xs mt-1">{{ approve_errors.note_for_client }}</p>{% endif %}
+      </div>
+      {% if flags %}
+      <label class="flex items-start gap-2 text-sm text-white/90 cursor-pointer">
+        <input type="checkbox" name="warnings_ack" required class="mt-0.5 w-4 h-4 accent-orange-500"> Revisé las advertencias
+      </label>
+      {% endif %}
+      {% if stale %}
+      <label class="flex items-start gap-2 text-sm text-white/90 cursor-pointer">
+        <input type="checkbox" name="stale_ack" required class="mt-0.5 w-4 h-4 accent-orange-500"> Lo revisé con la ficha actual
+      </label>
+      {% endif %}
+      {% if plan.kind == 'nutrition' and not can_validate_nutrition %}
+      <p class="text-yellow-200 text-xs" role="note">Solo una persona con credencial de nutrición puede aprobar planes de alimentación. La superusuaria la asigna en el administrador (Credenciales de validación).</p>
+      {% endif %}
+      <button type="submit" :disabled="sending" {% if not can_approve %}disabled{% endif %}
+              class="w-full inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Aprobando...' : 'Aprobar y publicar'">Aprobar y publicar</span>
+      </button>
+      <p class="text-white/50 text-xs">Al aprobar, la clienta ve {% if is_nutrition %}su plan de alimentación{% else %}la rutina{% endif %} y el plan anterior se reemplaza.</p>
+    </form>
+
+    <!-- Regenerar -->
+    <form method="POST" action="{% url 'trainer_plan_regenerate' plan.pk %}" class="rounded-2xl border border-white/10 bg-zinc-900 p-5 space-y-3"
+          x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+      {% csrf_token %}
+      <input type="hidden" name="request_token" value="{{ request_token }}">
+      <h2 class="text-white font-bold text-sm">Regenerar con notas</h2>
+      <div>
+        <label for="notes" class="block text-white/60 text-xs mb-1">Qué cambiar (máx. 500 caracteres; no escribas datos personales)</label>
+        <textarea id="notes" name="notes" rows="3" maxlength="500"
+                  class="w-full bg-black/40 border {% if regenerate_errors.notes %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none resize-none">{{ form.notes|default:'' }}</textarea>
+        {% if regenerate_errors.notes %}<p class="text-red-400 text-xs mt-1">{{ regenerate_errors.notes }}</p>{% endif %}
+      </div>
+      <button type="submit" :disabled="sending" {% if regen_job %}disabled{% endif %}
+              class="w-full inline-flex items-center justify-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors disabled:opacity-50">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-rotate'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Enviando...' : 'Regenerar'">Regenerar</span>
+      </button>
+    </form>
+    {% endif %}
+
+    {% if plan.is_pending or plan.is_approved %}
+    <!-- Archivar -->
+    <form method="POST" action="{% url 'trainer_plan_archive' plan.pk %}" class="rounded-2xl border border-white/10 bg-zinc-900 p-5 space-y-3"
+          x-data="{ sending: false }" @submit="if (!confirm('¿Archivar este plan?{% if plan.is_approved %} La clienta dejará de ver este plan.{% endif %}')) { $event.preventDefault() } else { sending = true }">
+      {% csrf_token %}
+      <h2 class="text-white font-bold text-sm">Archivar</h2>
+      <div>
+        <label for="reason" class="block text-white/60 text-xs mb-1">Motivo (opcional)</label>
+        <input id="reason" name="reason" maxlength="300" value="{{ form.reason|default:'' }}"
+               class="w-full bg-black/40 border {% if archive_errors.reason %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
+        {% if archive_errors.reason %}<p class="text-red-400 text-xs mt-1">{{ archive_errors.reason }}</p>{% endif %}
+      </div>
+      <button type="submit" :disabled="sending" class="w-full min-h-[44px] text-red-300 hover:bg-red-500/10 border border-red-500/30 text-sm font-medium rounded-xl transition-colors disabled:opacity-50">
+        <i class="fa fa-box-archive mr-1" aria-hidden="true"></i> Archivar
+      </button>
+    </form>
+    {% endif %}
+
+    {% if plan.is_approved %}
+    <div class="rounded-2xl border border-green-500/30 bg-green-500/5 p-5 text-sm text-white/80">
+      Aprobado el {{ plan.approved_at|date:"d/m/Y H:i" }}{% if plan.approved_by %} por {{ plan.approved_by.get_full_name|default:plan.approved_by.username }}{% endif %}.
+      {% if plan.valid_until %}Vigente hasta el {{ plan.valid_until|date:"d/m/Y" }}.{% endif %}
+    </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

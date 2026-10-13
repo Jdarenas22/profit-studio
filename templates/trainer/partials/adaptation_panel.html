@@ -1,0 +1,39 @@
+<!-- Panel «Qué se tuvo en cuenta» (solo entrenadores). Contexto: adaptation (dict). -->
+<section class="rounded-2xl border border-white/10 bg-zinc-900 p-5" aria-labelledby="adaptation-heading">
+  <h2 id="adaptation-heading" class="text-white font-bold text-sm mb-3">Qué se tuvo en cuenta</h2>
+
+  {% if not adaptation.ready %}
+  <p class="text-white/60 text-sm [overflow-wrap:anywhere]">Aún no hay historial suficiente para adaptar el plan (se necesitan al menos 14 días con un plan aprobado).</p>
+  {% else %}
+    {% if adaptation.items %}
+    <ul class="space-y-2 text-sm">
+      {% for item in adaptation.items %}
+      <li class="flex items-start gap-2">
+        {% if item.tone == 'good' %}
+        <i class="fa fa-circle-check text-green-400 mt-0.5 shrink-0" aria-hidden="true"></i>
+        <span class="min-w-0 text-white/80 [overflow-wrap:anywhere]"><span class="sr-only">Buena señal: </span>{{ item.text }}</span>
+        {% elif item.tone == 'warning' %}
+        <i class="fa fa-triangle-exclamation text-yellow-300 mt-0.5 shrink-0" aria-hidden="true"></i>
+        <span class="min-w-0 text-yellow-100 [overflow-wrap:anywhere]"><span class="sr-only">Atención: </span>{{ item.text }}</span>
+        {% else %}
+        <i class="fa fa-circle-info text-white/60 mt-0.5 shrink-0" aria-hidden="true"></i>
+        <span class="min-w-0 text-white/80 [overflow-wrap:anywhere]"><span class="sr-only">Dato: </span>{{ item.text }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-white/60 text-sm">No hay observaciones que mostrar por ahora.</p>
+    {% endif %}
+
+    {% if adaptation.calorie_review %}
+    <div role="note" class="mt-4 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
+      <p class="text-yellow-100 [overflow-wrap:anywhere]"><i class="fa fa-lightbulb mr-1" aria-hidden="true"></i> <strong class="font-semibold">Sugerencia: revisa el ajuste de calorías.</strong> Su peso lleva semanas sin cambios con buena constancia. El sistema no cambia las calorías por sí solo; tú decides.</p>
+    </div>
+    {% endif %}
+  {% endif %}
+
+  {% if adaptation.footnote %}
+  <p class="mt-4 text-white/50 text-xs [overflow-wrap:anywhere]">{{ adaptation.footnote }}</p>
+  {% endif %}
+</section>

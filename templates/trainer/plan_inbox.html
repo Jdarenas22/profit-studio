@@ -1,0 +1,90 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Planes por revisar — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-black text-white">Planes por revisar</h1>
+    <p class="text-white/60 text-sm mt-1">{{ pending_count }} pendiente{{ pending_count|pluralize }} de revisión. La clienta no ve nada hasta que apruebes.</p>
+  </div>
+  {% if ai_mode == 'simulated' %}
+  <span class="inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sky-100 text-xs font-bold"><i class="fa fa-flask" aria-hidden="true"></i> IA en MODO DE PRUEBA</span>
+  {% endif %}
+</div>
+
+<!-- Filtros -->
+<nav aria-label="Filtrar por estado" class="flex flex-wrap gap-2 mb-6">
+  {% for value, label in status_choices %}
+  <a href="{% url 'trainer_plan_inbox' %}{% if value %}?status={{ value }}{% endif %}"
+     class="px-3 py-1.5 rounded-xl text-sm transition-colors {% if status == value %}bg-primary text-black font-bold{% else %}bg-white/5 text-white/70 hover:bg-white/10{% endif %}">{{ label }}</a>
+  {% endfor %}
+</nav>
+
+{% if active_jobs %}
+<div class="mb-6 rounded-2xl border border-white/10 bg-zinc-900 p-4">
+  <h2 class="text-white font-bold text-sm mb-2"><i class="fa fa-spinner fa-spin text-primary mr-1" aria-hidden="true"></i> Generando ahora</h2>
+  <ul class="space-y-1 text-sm">
+    {% for job in active_jobs %}
+    <li><a href="{% url 'trainer_plan_job' job.pk %}" class="text-white/80 hover:text-primary">{{ job.client.get_full_name|default:job.client.username }} — {{ job.get_status_display }} ({{ job.created_at|date:"d/m H:i" }})</a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if rows %}
+<div class="space-y-3">
+  {% for row in rows %}
+  {% with plan=row.plan %}
+  <a href="{% url 'trainer_plan_detail' plan.pk %}" class="block rounded-2xl border border-white/10 bg-zinc-900 hover:border-primary/60 p-4 transition-colors">
+    {% if plan.is_simulated %}
+    <div class="-mx-4 -mt-4 mb-3 rounded-t-2xl bg-sky-500/20 px-4 py-1 text-sky-100 text-xs font-bold"><i class="fa fa-flask mr-1" aria-hidden="true"></i> MODO DE PRUEBA</div>
+    {% endif %}
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-white font-semibold [overflow-wrap:anywhere]">{{ plan.client.get_full_name|default:plan.client.username }}</p>
+        <p class="text-white/60 text-xs mt-0.5">{{ plan.get_kind_display }} · versión {{ plan.version }} · {{ plan.created_at|date:"d/m/Y H:i" }}</p>
+      </div>
+      <span class="rounded-md px-2 py-0.5 text-xs font-bold
+                   {% if plan.status == 'draft_ai' %}bg-primary/20 text-primary{% elif plan.status == 'in_review' %}bg-yellow-500/20 text-yellow-100{% elif plan.status == 'approved' %}bg-green-500/20 text-green-100{% else %}bg-white/10 text-white/70{% endif %}">{{ plan.get_status_display }}</span>
+    </div>
+    {% if row.flags %}
+    <ul class="mt-3 flex flex-wrap gap-2">
+      {% for f in row.flags %}
+      <li class="inline-flex items-center gap-1 rounded-md bg-yellow-500/20 px-2 py-0.5 text-xs text-yellow-100"><i class="fa fa-triangle-exclamation" aria-hidden="true"></i> {{ f.text }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if row.client_regenerated %}<p class="mt-2 text-xs text-primary">Opción regenerada por la clienta</p>{% endif %}
+  </a>
+  {% endwith %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="rounded-2xl border border-dashed border-white/15 p-8 text-center text-white/60">
+  <i class="fa fa-inbox text-3xl mb-2" aria-hidden="true"></i>
+  <p>No hay planes en esta vista.</p>
+</div>
+{% endif %}
+
+{% if attention_jobs %}
+<div class="mt-8">
+  <h2 class="text-white font-bold mb-3">Pedidos que necesitan tu atención</h2>
+  <div class="space-y-2">
+    {% for item in attention_jobs %}
+    <a href="{% url 'trainer_plan_job' item.job.pk %}" class="block rounded-xl border p-3 transition-colors {% if item.job.status == 'blocked' %}border-yellow-500/30 bg-yellow-500/5 hover:bg-yellow-500/10{% else %}border-red-500/30 bg-red-500/5 hover:bg-red-500/10{% endif %}">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-white text-sm font-semibold">{{ item.job.client.get_full_name|default:item.job.client.username }}</p>
+        <span class="text-xs text-white/60">{{ item.job.get_status_display }} · {{ item.job.created_at|date:"d/m/Y H:i" }}</span>
+      </div>
+      {% if item.job.status == 'blocked' %}
+      <p class="text-white/70 text-xs mt-1">{% for f in item.flags %}{{ f.text }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+      {% else %}
+      <p class="text-white/70 text-xs mt-1 font-mono">{{ item.job.error_code }}</p>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

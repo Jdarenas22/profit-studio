@@ -340,6 +340,7 @@ class EmailChecks(TestCase):
 
 @override_settings(
     SECRET_KEY=SECRETS['SECRET_KEY'],
+    WOMPI_PUBLIC_KEY='pub_test_inventada_0123456789',   # no depender del .env de quien corre las pruebas
     WOMPI_PRIVATE_KEY=SECRETS['WOMPI_PRIVATE_KEY'],
     WOMPI_INTEGRITY_SECRET=SECRETS['WOMPI_INTEGRITY_SECRET'],
     WOMPI_EVENTS_SECRET=SECRETS['WOMPI_EVENTS_SECRET'],

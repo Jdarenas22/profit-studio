@@ -34,6 +34,8 @@ CLEAN_ENV = {
     'R2_ACCESS_KEY_ID': '', 'R2_SECRET_ACCESS_KEY': '', 'R2_BUCKET_NAME': '',
     'R2_ENDPOINT_URL': '', 'R2_PUBLIC_URL': '', 'R2_RECEIPTS_BUCKET_NAME': '',
     'EMAIL_HOST_USER': '',
+    'AI_PLANS_MODE': '', 'GEMINI_API_KEY': '', 'GEMINI_MODEL': '', 'GEMINI_BILLING_CONFIRMED': 'false',
+    'GEMINI_SCHEMA_FIELD': 'responseJsonSchema',
 }
 
 PROBE = (

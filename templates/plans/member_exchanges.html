@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Intercambios — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-3xl mx-auto">
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6 print:hidden">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <a href="{% url 'member_nutrition_plan' %}" class="hover:text-primary transition-colors">Mi alimentación</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Intercambios</span>
+  </nav>
+
+  <h1 class="text-2xl font-black text-white mb-1">Intercambios</h1>
+  <p class="text-white/60 text-sm mb-6 leading-relaxed">Dentro de un mismo grupo puedes cambiar un alimento por otro de la lista: cada fila aporta aproximadamente la misma energía. Solo aparecen alimentos compatibles contigo.</p>
+
+  {% for group in groups %}
+  <div class="mb-6 rounded-2xl border border-white/10 bg-zinc-900 p-5">
+    <h2 class="text-white font-bold mb-1">{{ group.label }}</h2>
+    <p class="text-white/50 text-xs mb-3">1 porción ≈ {{ group.portion_kcal }} kcal</p>
+    <ul class="divide-y divide-white/5">
+      {% for row in group.rows %}
+      <li class="flex flex-wrap items-baseline justify-between gap-2 py-2 text-sm">
+        <span class="text-white/90 [overflow-wrap:anywhere]">{{ row.food.name }}</span>
+        <span class="text-white/60">{{ row.household }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% empty %}
+  <div class="rounded-2xl border border-dashed border-white/15 p-8 text-center text-white/60">
+    <p>Por ahora no hay equivalencias para mostrar. Tu entrenador puede ayudarte.</p>
+  </div>
+  {% endfor %}
+
+  {% include 'plans/partials/disclaimer.html' %}
+</section>
+{% endblock %}

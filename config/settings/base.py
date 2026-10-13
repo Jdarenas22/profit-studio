@@ -32,6 +32,7 @@ LOCAL_APPS = [
     'apps.memberships',
     'apps.assessments',
     'apps.health',
+    'apps.plans',
     'apps.exercises',
     'apps.routines',
     'apps.payments',
@@ -82,6 +83,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'apps.public.context_processors.site_settings',
                 'apps.health.context_processors.health_flags',
+                'apps.plans.context_processors.plan_flags',
             ],
         },
     },
@@ -144,3 +146,34 @@ WOMPI_EVENTS_SECRET = env('WOMPI_EVENTS_SECRET', default='')
 HEALTH_FEATURES_ENABLED = env.bool('HEALTH_FEATURES_ENABLED', default=False)
 # URL pública de la política de tratamiento de datos personales (vacía = no se muestra el enlace).
 PRIVACY_POLICY_URL = env('PRIVACY_POLICY_URL', default='')
+
+# ─── Planes con IA (fase B de docs/contracts/plan-ia.md) ──────────────────────
+# AI_PLANS_MODE: off | simulated | live. Vacío = simulated con DEBUG y off en producción.
+# live usa Google Gemini y EXIGE una clave de un proyecto CON FACTURACIÓN (el nivel gratuito permite
+# que Google use y revise los datos): production.py no arranca en live sin las tres variables.
+AI_PLANS_MODE = env('AI_PLANS_MODE', default='')
+GEMINI_API_KEY = env('GEMINI_API_KEY', default='')            # solo entorno; nunca en código ni logs
+GEMINI_MODEL = env('GEMINI_MODEL', default='')                # p. ej. un modelo "flash-lite" estable
+GEMINI_BILLING_CONFIRMED = env.bool('GEMINI_BILLING_CONFIRMED', default=False)
+GEMINI_TIMEOUT_SECONDS = env.int('GEMINI_TIMEOUT_SECONDS', default=60)
+# Campo del esquema de salida en generationConfig: responseJsonSchema | none (ver apps/plans/ai/gemini.py)
+GEMINI_SCHEMA_FIELD = env('GEMINI_SCHEMA_FIELD', default='responseJsonSchema')
+# Límites de uso (control de costos, contados en la base de datos)
+AI_PLANS_MAX_ATTEMPTS = env.int('AI_PLANS_MAX_ATTEMPTS', default=3)
+AI_PLANS_DAILY_JOB_LIMIT = env.int('AI_PLANS_DAILY_JOB_LIMIT', default=100)
+AI_PLANS_CLIENT_WEEKLY_LIMIT = env.int('AI_PLANS_CLIENT_WEEKLY_LIMIT', default=3)
+AI_PLANS_TRAINER_DAILY_LIMIT = env.int('AI_PLANS_TRAINER_DAILY_LIMIT', default=10)
+# "Otra opción" de una comida (fase C): por comida y semana, y por clienta y día
+AI_PLANS_ALT_SLOT_WEEKLY_LIMIT = env.int('AI_PLANS_ALT_SLOT_WEEKLY_LIMIT', default=3)
+AI_PLANS_ALT_DAILY_LIMIT = env.int('AI_PLANS_ALT_DAILY_LIMIT', default=6)
+# Validación profesional de los planes. SUSPENDIDA por decisión del negocio (False): cualquier entrenador
+# aprueba planes de alimentación y se usan todos los alimentos del catálogo aunque no estén validados.
+# True = se exige la credencial de nutrición (TrainerCredential.can_validate_nutrition) para aprobar
+# y fuera de DEBUG solo cuentan los alimentos con `validated_by`.
+AI_PLANS_REQUIRE_PROFESSIONAL = env.bool('AI_PLANS_REQUIRE_PROFESSIONAL', default=False)
+# Adaptación a la clienta (docs/contracts/plan-ia-adaptacion.md): agrega al pedido a la IA un resumen de su
+# historial. APAGADA por defecto. No la enciendas hasta tener el texto de consentimiento aprobado por el
+# abogado y los prompts de adaptación (paso 4): el interruptor solo mete el bloque `history` en el pedido.
+AI_PLANS_ADAPTATION = env.bool('AI_PLANS_ADAPTATION', default=False)
+# Ejecutar el trabajo en la misma petición, sin hilo (pruebas y depuración)
+AI_PLANS_RUN_INLINE = env.bool('AI_PLANS_RUN_INLINE', default=False)

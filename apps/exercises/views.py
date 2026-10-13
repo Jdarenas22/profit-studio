@@ -5,12 +5,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from apps.accounts.decorators import trainer_required
 from apps.accounts.form_utils import errors_dict, flash_errors
 from .forms import ExerciseFilterForm, ExerciseForm
-from .models import Exercise, ExerciseCategory
+from .models import EQUIPMENT_CHOICES, INTENSITY_CHOICES, RISK_TAG_CHOICES, Exercise, ExerciseCategory
 
 # Campos cuyo error ya pinta exercise_form.html junto al input (`errors.<campo>`).
 # `is_public` (casilla) no se pinta: si fallara, se avisa con `messages`.
 EXERCISE_RENDERED = ('name', 'category', 'level', 'description', 'muscles', 'recommendations',
-                     'video_url', 'video_file', 'image')
+                     'video_url', 'video_file', 'image', 'equipment', 'risk_tags', 'intensity')
 
 
 def public_exercises(request):
@@ -68,9 +68,30 @@ def trainer_exercise_list(request):
     })
 
 
+def _form_context(**extra):
+    """Contexto común del formulario de ejercicio (listas cerradas de las etiquetas)."""
+    return {
+        'categories': ExerciseCategory.objects.all(),
+        'level_choices': Exercise.LEVEL_CHOICES,
+        'equipment_choices': EQUIPMENT_CHOICES,
+        'risk_tag_choices': RISK_TAG_CHOICES,
+        'intensity_choices': INTENSITY_CHOICES,
+        **extra,
+    }
+
+
+def _posted_tags(post):
+    """Listas marcadas en el POST (un QueryDict solo entrega el último valor de cada clave)."""
+    return {'selected_equipment': post.getlist('equipment'), 'selected_risk_tags': post.getlist('risk_tags')}
+
+
+def _instance_tags(exercise):
+    return {'selected_equipment': list(exercise.equipment or ()),
+            'selected_risk_tags': list(exercise.risk_tags or ())}
+
+
 @trainer_required
 def trainer_exercise_create(request):
-    categories = ExerciseCategory.objects.all()
     if request.method == 'POST':
         form = ExerciseForm(request.POST, request.FILES)
         if form.is_valid():
@@ -79,22 +100,15 @@ def trainer_exercise_create(request):
             return redirect('trainer_exercise_list')
         errors = errors_dict(form)
         flash_errors(request, form, errors, skip=EXERCISE_RENDERED)
-        return render(request, 'trainer/exercise_form.html', {
-            'categories': categories,
-            'level_choices': Exercise.LEVEL_CHOICES,
-            'errors': errors,
-            'form': request.POST,
-        })
-    return render(request, 'trainer/exercise_form.html', {
-        'categories': categories,
-        'level_choices': Exercise.LEVEL_CHOICES,
-    })
+        return render(request, 'trainer/exercise_form.html', _form_context(
+            errors=errors, form=request.POST, **_posted_tags(request.POST)))
+    return render(request, 'trainer/exercise_form.html', _form_context(
+        selected_equipment=[], selected_risk_tags=[]))
 
 
 @trainer_required
 def trainer_exercise_edit(request, pk):
     exercise = get_object_or_404(Exercise, pk=pk)
-    categories = ExerciseCategory.objects.all()
     if request.method == 'POST':
         form = ExerciseForm(request.POST, request.FILES, instance=exercise)
         if form.is_valid():
@@ -103,19 +117,12 @@ def trainer_exercise_edit(request, pk):
             return redirect('trainer_exercise_list')
         errors = errors_dict(form)
         flash_errors(request, form, errors, skip=EXERCISE_RENDERED)
-        return render(request, 'trainer/exercise_form.html', {
+        return render(request, 'trainer/exercise_form.html', _form_context(
             # se relee: la instancia del formulario queda con los valores tecleados, aunque sean inválidos
-            'exercise': get_object_or_404(Exercise, pk=pk),
-            'categories': categories,
-            'level_choices': Exercise.LEVEL_CHOICES,
-            'errors': errors,
-            'form': request.POST,
-        })
-    return render(request, 'trainer/exercise_form.html', {
-        'exercise': exercise,
-        'categories': categories,
-        'level_choices': Exercise.LEVEL_CHOICES,
-    })
+            exercise=get_object_or_404(Exercise, pk=pk),
+            errors=errors, form=request.POST, **_posted_tags(request.POST)))
+    return render(request, 'trainer/exercise_form.html', _form_context(
+        exercise=exercise, **_instance_tags(exercise)))
 
 
 @trainer_required

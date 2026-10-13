@@ -32,6 +32,11 @@
           <a href="{% url 'member_health_profile' %}" class="hidden lg:inline text-sm text-white/70 hover:text-white transition-colors font-medium">
             <i class="fa fa-notes-medical mr-1" aria-hidden="true"></i>Mi ficha
           </a>
+          {% if AI_PLANS_ENABLED %}
+          <a href="{% url 'member_plans' %}" class="hidden lg:inline text-sm text-white/70 hover:text-white transition-colors font-medium">
+            <i class="fa fa-wand-magic-sparkles mr-1" aria-hidden="true"></i>Mi plan
+          </a>
+          {% endif %}
           {% endif %}
           <a href="{% url 'dashboard' %}" class="text-sm text-white/70 hover:text-white transition-colors font-medium">
             <i class="fa fa-user-circle mr-1"></i>{{ user.first_name|default:user.username }}
@@ -80,6 +85,11 @@
         <a href="{% url 'member_health_profile' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">
           <i class="fa fa-notes-medical mr-2" aria-hidden="true"></i>Mi ficha
         </a>
+        {% if AI_PLANS_ENABLED %}
+        <a href="{% url 'member_plans' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">
+          <i class="fa fa-wand-magic-sparkles mr-2" aria-hidden="true"></i>Mi plan
+        </a>
+        {% endif %}
         {% endif %}
         <form method="post" action="{% url 'logout' %}"
               onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">

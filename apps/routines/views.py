@@ -41,7 +41,8 @@ def member_routine(request):
         user=request.user, is_active=True
     ).prefetch_related('days__exercises__exercise')
 
-    return render(request, 'routines/member_routine.html', {'routines': routines})
+    from apps.plans.texts import DISCLAIMER
+    return render(request, 'routines/member_routine.html', {'routines': routines, 'plan_disclaimer': DISCLAIMER})
 
 
 # ─── Trainer — Routine management ─────────────────────────────────────────────
@@ -192,7 +193,8 @@ def mark_day_complete(request, day_pk):
     if request.method != 'POST':
         return HttpResponse(status=405)
 
-    day = get_object_or_404(RoutineDay, pk=day_pk, routine__user=request.user)
+    # Solo días de rutinas activas: un borrador de plan con IA es una rutina inactiva
+    day = get_object_or_404(RoutineDay, pk=day_pk, routine__user=request.user, routine__is_active=True)
 
     from django.utils import timezone
     today = timezone.localdate()

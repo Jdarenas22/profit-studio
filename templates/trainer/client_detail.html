@@ -165,6 +165,30 @@
           <i class="fa fa-notes-medical text-primary text-sm w-5 text-center" aria-hidden="true"></i>
           <span class="text-white/70 group-hover:text-white text-sm transition-colors">Ficha de salud</span>
         </a>
+        {% if AI_PLANS_ENABLED %}
+        <form method="POST" action="{% url 'trainer_plan_generate' client.pk %}"
+              x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+          {% csrf_token %}
+          <input type="hidden" name="kind" value="exercise">
+          <input type="hidden" name="request_token" value="{{ plan_request_token }}">
+          <button type="submit" :disabled="sending"
+                  class="w-full flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 min-h-[44px] transition-colors group text-left disabled:opacity-60">
+            <i class="fa text-primary text-sm w-5 text-center" :class="sending ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'" aria-hidden="true"></i>
+            <span class="text-white/70 group-hover:text-white text-sm transition-colors">Generar borrador de rutina con IA</span>
+          </button>
+        </form>
+        <form method="POST" action="{% url 'trainer_plan_generate' client.pk %}"
+              x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+          {% csrf_token %}
+          <input type="hidden" name="kind" value="nutrition">
+          <input type="hidden" name="request_token" value="{{ plan_request_token_nutrition }}">
+          <button type="submit" :disabled="sending"
+                  class="w-full flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 min-h-[44px] transition-colors group text-left disabled:opacity-60">
+            <i class="fa text-primary text-sm w-5 text-center" :class="sending ? 'fa-spinner fa-spin' : 'fa-utensils'" aria-hidden="true"></i>
+            <span class="text-white/70 group-hover:text-white text-sm transition-colors">Generar borrador de alimentación con IA</span>
+          </button>
+        </form>
+        {% endif %}
         <a href="{% url 'trainer_manual_payment_add' client.pk %}"
            class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 transition-colors group">
           <i class="fa fa-money-bill-wave text-primary text-sm w-5 text-center"></i>

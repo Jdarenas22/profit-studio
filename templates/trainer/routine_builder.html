@@ -11,6 +11,20 @@
   <span class="text-white/60">{{ routine.name }}</span>
 </nav>
 
+{% if routine.plan %}
+<div role="note" class="mb-6 rounded-2xl border p-4 text-sm {% if routine.plan.is_approved %}border-yellow-500/40 bg-yellow-500/10 text-yellow-100{% else %}border-primary/40 bg-primary/10 text-white/90{% endif %}">
+  <i class="fa fa-wand-magic-sparkles mr-1" aria-hidden="true"></i>
+  {% if routine.plan.is_pending %}
+  Este es un <strong>borrador de plan con IA</strong>: la clienta no lo ve hasta que lo apruebes.
+  {% elif routine.plan.is_approved %}
+  Esta rutina es un <strong>plan aprobado</strong>: lo que cambies aquí lo verá la clienta de inmediato.
+  {% else %}
+  Esta rutina pertenece a un plan {{ routine.plan.get_status_display|lower }}.
+  {% endif %}
+  <a href="{% url 'trainer_plan_detail' routine.plan.pk %}" class="underline underline-offset-2 font-semibold">Volver a la revisión del plan</a>
+</div>
+{% endif %}
+
 <!-- Header rutina -->
 <div class="flex items-start justify-between mb-8">
   <div>

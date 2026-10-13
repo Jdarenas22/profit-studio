@@ -687,3 +687,71 @@ Implementado: ficha de salud y alimentación (`HealthProfile`, versionada), conf
 - El texto legal v1 de `health_data` dice "medidas corporales y demás datos de salud que decida registrar": el abogado debe cubrir explícitamente la ficha (condiciones, medicamentos, alergias, embarazo, antecedentes alimentarios).
 - Con membresía vencida la clienta no puede exportar ni borrar su ficha (así lo dice el contrato): falta otro canal (p. ej. el correo de derechos).
 - Sin cifrado en reposo (riesgo 6). La función sigue apagada en producción (`HEALTH_FEATURES_ENABLED`).
+
+### Fase B (2026-10-12, rama `plan-ia-b-ejercicio`)
+
+Implementado: etiquetas de ejercicios, motor de elegibilidad y filtro del catálogo, cliente de IA (simulado y Gemini), cola de trabajos con recuperación, plan de ejercicio como `Routine` inactiva, bandeja mínima del entrenador y pantallas F-06 a F-10. Pruebas sin red (reglas, cliente de Gemini con servidor falso, flujo completo, vistas, configuración).
+
+**Qué se construyó**
+
+- `exercises` **0004**: `Exercise.equipment` (lista), `risk_tags` (lista) e `intensity` (`low`/`moderate`/`high`, vacío = sin etiquetar); campos en el formulario del entrenador (equipo o zonas sin intensidad = error) y comando `list_untagged_exercises`.
+- `plans` **0001** (`apps.plans` ya está en `INSTALLED_APPS`): `Plan`, `PlanGenerationJob`, `PlanEvent`, `TrainerCredential` (esta última en el admin, solo superusuaria).
+- `rules/eligibility.py` (D00-D06 + rojas del alcance), `rules/catalog.py` (filtro 3.5), `rules/validate.py` (V01, V02, V07, V08 para `exercise-plan/1`). Puros, sin Django.
+- `ai/` (`base`, `fake`, `gemini`, `prompts`): interfaz del contrato 4.3. `services.py` (evaluación, pedidos, aprobación, archivo, regeneración, cupos), `jobs.py` (hilo, reclamo atómico, latido, recuperación, reintentos), `notifications.py` (correos sin datos de salud).
+- Comandos `check_gemini` y `process_plan_jobs`; `check_infra` gana el área "IA". Arreglo de `mark_day_complete` (`routine__is_active=True`).
+
+**Decisiones y diferencias respecto al contrato**
+
+- **Sin dependencia nueva**: `GeminiClient` usa `urllib` de la biblioteca estándar en lugar de `requests` (pregunta 12: no hizo falta instalar nada). Tiempo de espera único (`GEMINI_TIMEOUT_SECONDS`) para conexión y lectura.
+- **Campo del esquema configurable** (`GEMINI_SCHEMA_FIELD`: `responseJsonSchema` por defecto, o `none`): al construir, la documentación de Google no se pudo consultar desde el entorno y las búsquedas indican que los nombres de los campos de salida estructurada cambiaron recientemente (`responseSchema`/`responseJsonSchema` marcados como obsoletos). La validación real la hace siempre `rules/validate.py`; `check_gemini` prueba la combinación clave + modelo + campo con datos ficticios antes de usar datos reales. **Pendiente: confirmarlo con `check_gemini` al tener la clave.**
+- `AI_PLANS_MODE` vacío = `simulated` con DEBUG y `off` sin él; los planes `is_simulated` no se aprueban fuera de DEBUG. Los planes requieren además `HEALTH_FEATURES_ENABLED` y `ai_texts_ready()`.
+- Sin ejercicios compatibles suficientes (menos de 6) = `D06_FEW_EXERCISES`: se trata como bloqueo (trabajo `blocked`, aviso al entrenador, sin IA).
+- Banderas -> etiquetas excluidas **[A VALIDAR]**: Y04/Y06/Y08/Y09/R08 excluyen `high_impact`; Y01 `breath_hold` y máximo 3 series; Y08 `heavy_axial` y máximo 3 series; Y03 intensidad máxima `moderate`; Y11 solo `low`; hernia discal excluye `lower_back` y `heavy_axial`; osteoporosis `heavy_axial`. Los ejercicios sin etiquetar se excluyen con lesiones, condiciones o advertencias, y siempre en casa.
+- Cupos: la clienta cuenta sus pedidos (3 por 7 días, también los fallidos, no los bloqueados); el entrenador tiene su propio cupo diario (10) y no consume el de la clienta; total diario 100.
+- Un trabajo `failed` o `blocked` no crea `Plan` ni `Routine` (solo códigos). El intento con modelo de IA apagado a mitad de camino termina `failed` con `not_ready:D00_NOT_AVAILABLE`.
+- Se agregó la ruta `trainer_plan_take` ("Tomar para revisión" / "Editar en el constructor") y `trainer_plan_job` (+ `_poll`) para que el entrenador siga un pedido; la bandeja también muestra los pedidos en curso y los bloqueados/fallidos de los últimos 14 días.
+- Archivar también sirve para retirar un plan **aprobado** (su rutina se desactiva). Editar en el constructor un plan aprobado lo cambia para la clienta de inmediato (el constructor lo avisa); "Clonar a borrador" queda para la fase D.
+- El texto del descargo vive en `apps/plans/texts.py`; se muestra al pedir, en "Mi plan" y en la rutina aprobada.
+
+**Pendiente / riesgos**
+
+- Confirmar con `check_gemini` el campo de salida estructurada y el modelo, y medir tokens reales (los costos de la sección 4.1 siguen siendo estimaciones).
+- Etiquetar los ejercicios activos antes de encender `live` (`list_untagged_exercises`, `check_infra`).
+- Contenido clínico de las equivalencias bandera -> etiqueta **[A VALIDAR]** por un profesional de la salud.
+- La fase C (alimentación) reutiliza `ai/`, `jobs.py` y la bandeja; el modelo `TrainerCredential` ya existe para exigir la credencial de nutrición.
+
+### Fase C (2026-10-12, rama `plan-ia-c-nutricion`, sobre la rama de la fase B)
+
+Implementado: catálogo de alimentos, cálculo de energía y macros, plan de alimentación con 3 opciones por comida, "otra opción", intercambios, lista de compras, revisión y edición por el entrenador y aprobación con credencial. Pruebas sin red (reglas puras, servicios, trabajos, vistas, administración) y un recorrido completo con gunicorn + PostgreSQL + hilo real (modo simulado).
+
+**Qué se construyó**
+
+- `plans` **0002**: `Food`, `NutritionPlan`, `MealSlot`, `MealOption`, `MealOptionItem`, `MealChoice`; `PlanGenerationJob.slot` y `.replaces_option` (para "otra opción"). `Food` y `TrainerCredential` en el admin (solo superusuaria; acción «Marcar como validados»).
+- Reglas puras (sin Django): `rules/energy.py` (Mifflin-St Jeor, déficit/superávit, pisos, proteína/grasa/carbohidratos/fibra, reparto por comida), `rules/foods.py` (filtro de alimentos, macros, medidas caseras, intercambios) y `rules/meal_validate.py` (`meal-slot/1`: V01-V06 y V08, ajuste automático de porciones, banda del día, edición del entrenador). `rules/eligibility.py` gana `D06_FEW_FOODS`.
+- IA: `MEAL_SYSTEM` y `meal_schema` (`prompts.py`), `FakeAIClient` con comidas válidas (busca combinaciones con las mismas reglas de validación), una llamada por comida (progreso «Comida 2 de 4») y un reintento con códigos. `jobs.py` ahora comparte `_generate_validated` entre ejercicio, alimentación y "otra opción".
+- `nutrition.py` (casos de uso): creación del borrador, revisión (`review_context`, `approval_problems`), edición (`edit_option`), revisión de opciones nuevas (`review_option`), elegir opción (`choose_option`), "otra opción" (`request_alternative`), intercambios y lista de compras.
+- Comandos: `load_foods` (catálogo inicial) y `check_gemini` (ahora prueba también una comida). `check_infra` informa alimentos sin validar, catálogo vacío y si alguien tiene la credencial de nutrición.
+- Pantallas F-11 a F-14: `plans/member_nutrition.html`, `member_exchanges.html`, `member_shopping_list.html`, `trainer/meal_option_form.html`, `trainer/partials/nutrition_review.html`; ajustes en `member_plans`, `request` (pestañas ejercicio/alimentación), `job_status`, `plan_detail`, `plan_inbox` y `client_detail` (botón «Generar borrador de alimentación con IA»).
+- Rutas: `member_nutrition_plan`, `member_meal_choice`, `member_meal_alternative`, `member_exchanges`, `member_shopping_list`, `trainer_meal_option_edit`, `trainer_meal_option_review`. Todas: 404 con la función apagada, `no-store`, clienta solo sobre su plan aprobado (comida u opción ajena = 404), entrenador con `clients_for_trainer`.
+
+**Decisiones y diferencias respecto al contrato**
+
+- **Catálogo**: 90 alimentos con cifras **aproximadas escritas a mano** (tipo USDA), no copiadas de ninguna tabla y **sin validar**. Fuera de `DEBUG` el sistema ignora los alimentos sin `validated_by`: hasta que un profesional los valide (admin > Alimentos > «Marcar como validados») no se puede generar un plan real (queda `D06_FEW_FOODS`). `load_foods` no pisa un alimento ya validado.
+- **Sin el M2M de «alimentos que le gustan/no le gustan»** (`health` 0002): los textos libres de la ficha siguen siendo solo para el entrenador y no viajan a la IA.
+- **V05 por opción** (más estricto que el contrato): cada opción debe traer al menos 90 % de la proteína de su comida y 20 % de su energía en grasa; así todas las combinaciones del día cumplen el contrato por construcción, y un fallo se reintenta comida por comida. Además `check_day` comprueba el día completo (todas las combinaciones) antes de guardar. Los umbrales son constantes en `meal_validate.py`; si Gemini real falla mucho aquí, es lo primero que se ajusta **[A VALIDAR con casos reales]**.
+- **V03 sobre texto libre**: lista de palabras con sinónimos colombianos para alérgenos y dietas; se borran antes de buscar los nombres de alimentos **ya permitidos** (p. ej. «mantequilla de maní» no cuenta como lácteo para quien es alérgica a la leche).
+- **Energía**: con déficit el redondeo a 10 kcal sube (nunca queda un déficit mayor al tope); si el piso supera el gasto, mantenimiento con aviso `NO_DEFICIT_APPLIED`; peso meta con IMC menor de 20 solo avisa (`TARGET_WEIGHT_LOW`). El peso meta no cambia el cálculo.
+- **Aprobar alimentación** exige credencial (`TrainerCredential.can_validate_nutrition`) y, además de lo general: exactamente 3 opciones activas por comida, que **hoy** no haya bandera roja de alimentación en la ficha y que ninguna opción tenga alimentos incompatibles con la ficha vigente (alérgenos, dieta, etiquetas de advertencia). Esto es más estricto que el ejercicio (allí los conflictos son solo aviso).
+- **Cambios de la ficha tras aprobar**: la clienta ve las opciones con un alimento que ya no le corresponde marcadas en rojo, sin botón de elegir (y `choose_option` las rechaza); el entrenador ve el aviso en el detalle del plan aprobado.
+- **"Otra opción"**: cupos `AI_PLANS_ALT_SLOT_WEEKLY_LIMIT=3` (por comida y semana) y `AI_PLANS_ALT_DAILY_LIMIT=6` (por clienta y día); no cuenta en el cupo semanal de planes. Cambia **una** opción (la rechazada queda `is_active=False` y `replaces` la enlaza), mantiene siempre 3 activas, la nueva queda `client_regen` + `needs_review` y llega al entrenador por correo (sin contenido) y a la bandeja, que ahora también lista planes **aprobados** con opciones por revisar. El entrenador puede **dejarla** o **recuperar la anterior**, o editarla (única edición permitida en un plan aprobado). Si la ficha tiene una bandera roja nueva, el pedido queda `blocked` sin llamar a la IA.
+- **Edición del entrenador**: bloquean los errores de forma, catálogo, texto y alérgenos; energía fuera de ±5 % y proteína baja solo avisan (queda la marca `out_of_band`). Solo ofrece alimentos permitidos para la clienta.
+- **Intercambios y lista de compras**: calculados por Python; la lista suma 7 días según lo elegido y, donde no hay elección, supone rotar A-B-C (y lo dice).
+- **Sin constructor manual de alimentación**: si un caso queda bloqueado (bandera roja o `D06_FEW_FOODS`), la guía se arma fuera de la plataforma; el aviso al entrenador lo dice.
+- `MealChoice.completed_at` existe pero «marcar comida hecha» (`member_meal_complete`) es de la fase D.
+
+**Pendiente / riesgos**
+
+- **Validación profesional**: cifras de los 90 alimentos, etiquetas (sodio, azúcar libre, FODMAP, purinas, reflujo), porciones de intercambio, reparto 25/10/35/30 y todos los umbrales de energía/macros **[A VALIDAR]** por un nutricionista-dietista.
+- **Quién aprueba**: el diseño exige credencial de nutrición; si el seguimiento lo hace un entrenador físico, la superusuaria tendría que otorgarle la credencial en el admin, y eso es una decisión legal (Ley 1164 de 2007) que debe confirmar un abogado.
+- **Gemini real sin probar**: `check_gemini` ahora prueba también una comida (esquema con la lista de ids de alimentos); falta correrlo con la clave y medir tokens y tasa de fallos de V04/V05.
+- **Entrega por correo/WhatsApp** de la dieta: no está en esta fase (hoy la clienta la ve en su cuenta y puede imprimirla).

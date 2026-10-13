@@ -1,5 +1,6 @@
 import logging
 import urllib.parse
+import uuid
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -359,6 +360,8 @@ def trainer_client_detail(request, pk):
         'membership': membership,
         'assessments': assessments,
         'routines': routines,
+        'plan_request_token': uuid.uuid4(),   # botón "Generar borrador de rutina con IA"
+        'plan_request_token_nutrition': uuid.uuid4(),   # botón "Generar borrador de alimentación con IA"
     })
 
 

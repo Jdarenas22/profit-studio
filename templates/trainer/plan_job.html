@@ -1,0 +1,23 @@
+{% extends 'trainer/base.html' %}
+
+{% block title %}Pedido de plan — {{ job.client.get_full_name|default:job.client.username }}{% endblock %}
+
+{% block trainer_content %}
+<nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+  <a href="{% url 'trainer_plan_inbox' %}" class="hover:text-primary transition-colors">Planes por revisar</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <span class="text-white/80" aria-current="page">Pedido de {{ job.client.get_full_name|default:job.client.username }}</span>
+</nav>
+<div class="max-w-3xl">
+  <h1 class="text-2xl font-black text-white mb-6">Borrador para {{ job.client.get_full_name|default:job.client.username }}</h1>
+  {% include 'plans/partials/job_status.html' with trainer_mode=True %}
+  <div class="mt-6 flex flex-wrap gap-2">
+    <a href="{% url 'trainer_client_detail' job.client.pk %}" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+      <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver a la clienta
+    </a>
+    <a href="{% url 'trainer_health_profile' job.client.pk %}" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+      <i class="fa fa-notes-medical" aria-hidden="true"></i> Ficha de salud
+    </a>
+  </div>
+</div>
+{% endblock %}

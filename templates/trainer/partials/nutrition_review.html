@@ -1,0 +1,96 @@
+{% comment %} Revisión de un plan de alimentación (entrenador): objetivos calculados, avisos del cálculo y
+las comidas con sus opciones. Parámetros: plan, nutrition_review, approval_problems. {% endcomment %}
+{% with n=nutrition_review.nutrition %}
+<div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+  <h2 class="text-white font-bold mb-3">Objetivos del día (calculados)</h2>
+  <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+    <div class="rounded-xl bg-black/40 p-3"><dt class="text-white/50 text-xs">Energía</dt><dd class="text-white font-bold">{{ n.kcal_target }} kcal</dd></div>
+    <div class="rounded-xl bg-black/40 p-3"><dt class="text-white/50 text-xs">Proteína</dt><dd class="text-white font-bold">{{ n.protein_g }} g</dd></div>
+    <div class="rounded-xl bg-black/40 p-3"><dt class="text-white/50 text-xs">Carbohidratos</dt><dd class="text-white font-bold">{{ n.carbs_g }} g</dd></div>
+    <div class="rounded-xl bg-black/40 p-3"><dt class="text-white/50 text-xs">Grasa</dt><dd class="text-white font-bold">{{ n.fat_g }} g</dd></div>
+  </dl>
+  <p class="text-white/50 text-xs mt-3 leading-relaxed">
+    Tasa metabólica basal {{ n.tmb }} kcal × actividad {{ n.activity_factor }} = gasto de {{ n.get }} kcal;
+    ajuste {{ n.adjustment_pct }} % {% if n.weekly_change_kg %}(≈ {{ n.weekly_change_kg }} kg por semana){% endif %} · fibra mínima {{ n.fiber_g }} g · fórmula {{ n.formula }}.
+    Cifras calculadas por el sistema <strong class="text-white/70">[a validar por un nutricionista]</strong>; la IA no inventa números.
+  </p>
+  {% for text in nutrition_review.warnings %}
+  <p class="mt-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 p-2 text-yellow-100 text-xs"><i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i>{{ text }}</p>
+  {% endfor %}
+</div>
+{% endwith %}
+
+{% if nutrition_review.unvalidated_foods %}
+<div role="note" class="rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-yellow-100 text-sm">
+  <i class="fa fa-flask mr-1" aria-hidden="true"></i> Hay alimentos del catálogo <strong>sin validar</strong> por un profesional. Las cifras de energía y macros dependen de ellos.
+</div>
+{% endif %}
+
+{% if nutrition_review.conflicts %}
+<div role="alert" class="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm">
+  <p class="text-red-100 font-semibold"><i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i> Opciones con alimentos que hoy no son compatibles con la clienta:</p>
+  <p class="text-red-100/90 mt-1 [overflow-wrap:anywhere]">{{ nutrition_review.conflicts|join:", " }}</p>
+  <p class="text-white/60 text-xs mt-1">Cambia esos alimentos antes de aprobar (no se puede aprobar así).</p>
+</div>
+{% endif %}
+
+{% if approval_problems %}
+<div role="alert" class="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm">
+  <p class="text-red-100 font-semibold">No se puede aprobar todavía:</p>
+  <ul class="mt-1 list-disc pl-5 text-red-100/90 [overflow-wrap:anywhere]">{% for text in approval_problems %}<li>{{ text }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% for entry in nutrition_review.slots %}
+{% with slot=entry.slot %}
+<div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+  <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+    <h3 class="text-white font-bold">{{ slot.name }}{% if slot.time_hint %} <span class="text-white/50 text-sm font-medium">· {{ slot.time_hint }}</span>{% endif %}</h3>
+    <p class="text-white/50 text-xs">Objetivo ≈ {{ slot.kcal_target }} kcal · {{ slot.protein_g }} g de proteína · {{ slot.carbs_g }} g de carbohidratos · {{ slot.fat_g }} g de grasa</p>
+  </div>
+  <div class="space-y-3">
+    {% for opt in entry.options %}
+    {% with option=opt.option %}
+    <article class="rounded-xl bg-black/40 p-4">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <h4 class="text-white font-semibold text-sm [overflow-wrap:anywhere]"><span class="text-primary mr-1">{{ opt.letter }}.</span>{{ option.name }}</h4>
+        <p class="text-white/60 text-xs shrink-0">{{ option.kcal|floatformat:0 }} kcal · P {{ option.protein_g|floatformat:0 }} · C {{ option.carbs_g|floatformat:0 }} · G {{ option.fat_g|floatformat:0 }}</p>
+      </div>
+      <div class="mt-1 flex flex-wrap gap-1">
+        {% if option.origin == 'client_regen' %}<span class="rounded-md bg-sky-500/20 px-2 py-0.5 text-xs text-sky-100">Pedida por la clienta</span>{% endif %}
+        {% if option.origin == 'trainer' %}<span class="rounded-md bg-white/10 px-2 py-0.5 text-xs text-white/70">Editada por el entrenador</span>{% endif %}
+        {% if option.needs_review %}<span class="rounded-md bg-yellow-500/20 px-2 py-0.5 text-xs text-yellow-100">Pendiente de tu revisión</span>{% endif %}
+        {% if option.out_of_band %}<span class="rounded-md bg-red-500/20 px-2 py-0.5 text-xs text-red-100">Energía fuera de ±5 %</span>{% endif %}
+      </div>
+      <ul class="mt-2 space-y-0.5">
+        {% for item in opt.items %}
+        <li class="text-sm text-white/90 [overflow-wrap:anywhere]">{{ item.food.name }} <span class="text-white/50">— {{ item.household }}</span></li>
+        {% endfor %}
+      </ul>
+      {% if option.preparation %}<p class="mt-2 text-white/50 text-xs [overflow-wrap:anywhere]">{{ option.preparation }}</p>{% endif %}
+      {% if plan.is_pending or option.needs_review %}
+      <div class="mt-3 flex flex-wrap gap-2">
+        <a href="{% url 'trainer_meal_option_edit' plan.pk option.pk %}" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors">
+          <i class="fa fa-pen" aria-hidden="true"></i> Editar alimentos
+        </a>
+        {% if option.needs_review %}
+        <form method="POST" action="{% url 'trainer_meal_option_review' plan.pk option.pk %}">{% csrf_token %}
+          <input type="hidden" name="action" value="keep">
+          <button type="submit" class="inline-flex items-center gap-2 min-h-[44px] bg-green-500/20 hover:bg-green-500/30 text-green-100 text-sm font-medium px-4 rounded-xl transition-colors"><i class="fa fa-check" aria-hidden="true"></i> Dejarla</button>
+        </form>
+        {% if option.replaces_id %}
+        <form method="POST" action="{% url 'trainer_meal_option_review' plan.pk option.pk %}" onsubmit="return confirm('¿Quitar esta opción y recuperar la anterior?')">{% csrf_token %}
+          <input type="hidden" name="action" value="revert">
+          <button type="submit" class="inline-flex items-center gap-2 min-h-[44px] text-red-300 hover:bg-red-500/10 border border-red-500/30 text-sm font-medium px-4 rounded-xl transition-colors"><i class="fa fa-rotate-left" aria-hidden="true"></i> Recuperar la anterior</button>
+        </form>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endif %}
+    </article>
+    {% endwith %}
+    {% endfor %}
+  </div>
+</div>
+{% endwith %}
+{% endfor %}

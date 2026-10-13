@@ -92,6 +92,8 @@ Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprim
 | `HEALTH_FEATURES_ENABLED` | `true` enciende «Mis medidas» y la ficha de salud de la clienta. Ver sección 7 antes de activarla |
 | `PRIVACY_POLICY_URL` | Enlace a la política de tratamiento de datos que se muestra junto al consentimiento |
 | `REDIS_URL` | Caché compartida entre los 2 workers (límite de intentos de login). Sin ella se usa memoria local de cada proceso |
+| `AI_PLANS_MODE` | Planes con IA: `off` (por defecto), `simulated` (borradores de ejemplo, sin costo, no se aprueban) o `live` (Gemini). Ver sección 7b |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BILLING_CONFIRMED` | Obligatorias en `live` (el servidor no arranca sin ellas). La clave debe ser de un proyecto con facturación |
 
 ## 4. Cloudflare R2: comandos útiles
 
@@ -148,6 +150,29 @@ La función viene **apagada** a propósito. No la actives hasta que:
 4. Definas `PRIVACY_POLICY_URL` si ya publicaste la política de tratamiento de datos.
 
 Luego define `HEALTH_FEATURES_ENABLED=true` en Railway.
+
+## 7b. Planes con IA (Google Gemini)
+
+Requieren la función de salud encendida (sección 7). Pasos:
+
+1. **Etiqueta los ejercicios** (panel → Ejercicios → Editar → «Etiquetas para planes automáticos»: intensidad, equipo y zonas de riesgo). Los que no tienen intensidad no se proponen a clientas con lesiones o advertencias, ni a quien entrena en casa. `check_infra` avisa cuántos faltan.
+2. **Prueba sin costo** con `AI_PLANS_MODE=simulated`: el flujo completo funciona (pedido, bandeja, revisión), pero los borradores salen de un generador de ejemplo, quedan marcados «MODO DE PRUEBA» y no se pueden aprobar en producción.
+3. **Gemini de pago**: en Google AI Studio crea la clave en un proyecto con **facturación habilitada** (prepago mínimo USD 5). En el nivel gratuito Google puede usar y revisar los datos: no sirve para datos de salud.
+4. **Prueba la clave con datos ficticios** desde tu equipo (no toca la base ni datos de clientas): pon `GEMINI_API_KEY` y `GEMINI_MODEL` en tu `.env` local y ejecuta `python manage.py check_gemini`. Debe terminar con «Gemini responde y el formato es válido» y muestra los tokens usados. Si responde `ai_http_400`, prueba `GEMINI_SCHEMA_FIELD=none` y confirma el nombre del modelo. Después borra la clave de tu `.env`.
+5. Define en Railway `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BILLING_CONFIRMED=true` y `AI_PLANS_MODE=live`.
+
+### Plan de alimentación (fase C)
+
+Además de lo anterior:
+
+1. **Carga el catálogo de alimentos**: `python manage.py load_foods` (90 alimentos con cifras **aproximadas y sin validar**; es seguro repetirlo, no pisa los ya validados).
+2. **Un nutricionista-dietista debe revisar las cifras** (admin → Alimentos) y marcar los alimentos como validados (acción “Marcar como validados”). Fuera de modo de desarrollo, el sistema **ignora los alimentos sin validar**: sin este paso no se pueden generar planes de alimentación reales.
+3. **Validación profesional (hoy SUSPENDIDA)**: con `AI_PLANS_REQUIRE_PROFESSIONAL` sin definir (o `false`) cualquier entrenador aprueba planes de alimentación y se usan los alimentos aunque no estén validados; `check_infra` lo avisa. Para reactivarla define `AI_PLANS_REQUIRE_PROFESSIONAL=true` y sigue el punto siguiente.
+   **Credencial para aprobar** (solo si la validación está activa): en el admin → «Credenciales de validación», marca `can_validate_nutrition` y escribe la frase que se imprime en el plan (p. ej. «Nutricionista-dietista, RETHUS N.º …») para quien apruebe los planes de alimentación. Quién puede hacerlo es una decisión legal (Ley 1164 de 2007): consúltalo con tu abogado.
+4. `check_infra` informa si el catálogo está vacío, cuántos alimentos están sin validar y si nadie tiene la credencial. `check_gemini` prueba también una comida.
+5. Cupos opcionales de «otra opción»: `AI_PLANS_ALT_SLOT_WEEKLY_LIMIT` (por comida y semana, 3) y `AI_PLANS_ALT_DAILY_LIMIT` (por clienta y día, 6).
+
+Los borradores se generan en un hilo del mismo servidor (sin Redis ni Celery); si un despliegue corta uno a la mitad, se recupera solo al consultar su estado o con `python manage.py process_plan_jobs`.
 
 ## 8. Archivos de despliegue en el repositorio
 

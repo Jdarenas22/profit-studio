@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Lista de compras — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-3xl mx-auto">
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6 print:hidden">
+    <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <a href="{% url 'member_nutrition_plan' %}" class="hover:text-primary transition-colors">Mi alimentación</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Lista de compras</span>
+  </nav>
+
+  <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+    <div>
+      <h1 class="text-2xl font-black text-white">Lista de compras</h1>
+      <p class="text-white/60 text-sm mt-1">Del {{ first_day|date:"j/n" }} al {{ last_day|date:"j/n" }}. Son cantidades aproximadas (en crudo o cocido, según cada alimento).</p>
+    </div>
+    <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors print:hidden">
+      <i class="fa fa-print" aria-hidden="true"></i> Imprimir
+    </button>
+  </div>
+
+  {% if assumed %}
+  <p class="mb-4 rounded-xl border border-white/10 bg-zinc-900 p-3 text-white/70 text-sm">En {{ assumed }} comida{{ assumed|pluralize:"s" }} todavía no elegiste una opción: la lista supone que rotas entre A, B y C.</p>
+  {% endif %}
+
+  {% if rows %}
+  <ul class="rounded-2xl border border-white/10 bg-zinc-900 divide-y divide-white/5">
+    {% for row in rows %}
+    <li class="flex flex-wrap items-baseline justify-between gap-2 px-5 py-3 text-sm">
+      <span class="text-white/90 [overflow-wrap:anywhere]">{{ row.food.name }}</span>
+      <span class="text-white/60">{{ row.household }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="rounded-2xl border border-dashed border-white/15 p-8 text-center text-white/60"><p>No hay nada para comprar todavía.</p></div>
+  {% endif %}
+
+  {% include 'plans/partials/disclaimer.html' %}
+</section>
+{% endblock %}
