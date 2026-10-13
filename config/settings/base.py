@@ -171,5 +171,9 @@ AI_PLANS_ALT_DAILY_LIMIT = env.int('AI_PLANS_ALT_DAILY_LIMIT', default=6)
 # True = se exige la credencial de nutrición (TrainerCredential.can_validate_nutrition) para aprobar
 # y fuera de DEBUG solo cuentan los alimentos con `validated_by`.
 AI_PLANS_REQUIRE_PROFESSIONAL = env.bool('AI_PLANS_REQUIRE_PROFESSIONAL', default=False)
+# Adaptación a la clienta (docs/contracts/plan-ia-adaptacion.md): agrega al pedido a la IA un resumen de su
+# historial. APAGADA por defecto. No la enciendas hasta tener el texto de consentimiento aprobado por el
+# abogado y los prompts de adaptación (paso 4): el interruptor solo mete el bloque `history` en el pedido.
+AI_PLANS_ADAPTATION = env.bool('AI_PLANS_ADAPTATION', default=False)
 # Ejecutar el trabajo en la misma petición, sin hilo (pruebas y depuración)
 AI_PLANS_RUN_INLINE = env.bool('AI_PLANS_RUN_INLINE', default=False)

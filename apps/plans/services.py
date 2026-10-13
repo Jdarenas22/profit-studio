@@ -442,6 +442,7 @@ def create_exercise_draft(job, cleaned, *, model_name, prompt_version, is_simula
         measurement=anth.measurement if anth else None, flags=list(job.flags or ()),
         is_simulated=is_simulated, model_name=model_name[:80], prompt_version=prompt_version,
         ruleset_version=rules_flags.RULESET_VERSION,
+        ai_item_ids=sorted({item['exercise_id'] for day in cleaned['days'] for item in day['exercises']}),
     )
     PlanEvent.objects.create(plan=plan, actor=job.requested_by, action=PlanEvent.ACTION_CREATED,
                              note='Borrador generado con IA' + (' (modo de prueba)' if is_simulated else ''))

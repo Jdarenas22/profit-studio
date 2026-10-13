@@ -83,6 +83,9 @@ class Plan(models.Model):
     model_name = models.CharField(max_length=80, blank=True, verbose_name='Modelo de IA')
     prompt_version = models.CharField(max_length=40, blank=True)
     ruleset_version = models.CharField(max_length=40, blank=True)
+    # Ids que propuso la IA (ejercicios o alimentos según `kind`): permiten saber después qué quitó el
+    # entrenador al revisar (adaptación, docs/contracts/plan-ia-adaptacion.md). Solo ids del catálogo.
+    ai_item_ids = models.JSONField(default=list, blank=True, verbose_name='Ids propuestos por la IA')
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='+', verbose_name='En revisión por',
@@ -185,6 +188,8 @@ class PlanGenerationJob(models.Model):
     tokens_in = models.PositiveIntegerField(default=0)
     tokens_out = models.PositiveIntegerField(default=0)
     trainer_notes = models.CharField(max_length=500, blank=True, verbose_name='Notas del entrenador')
+    # Qué se tuvo en cuenta de la clienta (códigos y conteos, sin datos personales; vacío = nada)
+    adaptation_summary = models.JSONField(default=dict, blank=True, verbose_name='Adaptación aplicada')
     # "Otra opción" (fase C): la comida y la opción que la clienta no quiere
     slot = models.ForeignKey(
         'plans.MealSlot', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',

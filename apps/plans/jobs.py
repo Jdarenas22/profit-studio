@@ -29,6 +29,7 @@ from django.utils import timezone
 
 from apps.health import dates as health_dates
 
+from . import adaptation as adaptation_service
 from . import ai, notifications, nutrition, services
 from .ai import prompts
 from .models import KIND_EXERCISE, KIND_NUTRITION, PlanGenerationJob
@@ -177,7 +178,7 @@ def _check_budget(started):
         raise JobFailed('timeout')
 
 
-def build_exercise_payload(job, assessment, previous_errors=()):
+def build_exercise_payload(job, assessment, previous_errors=(), adaptation=None):
     """Lo ÚNICO que viaja a la IA (contrato, sección 4.4): sin nombre, correo, teléfono, usuario,
     id de usuario, fecha de nacimiento, entrenador, diagnósticos ni texto libre de la ficha."""
     profile = assessment.profile
@@ -186,7 +187,8 @@ def build_exercise_payload(job, assessment, previous_errors=()):
     max_per_day = max(rules_validate.MIN_EXERCISES_PER_DAY,
                       min(rules_validate.MAX_EXERCISES_PER_DAY,
                           profile.session_minutes // rules_validate.MINUTES_PER_EXERCISE))
-    return {
+    offered = adaptation.exercises if adaptation is not None and adaptation.exercises is not None else catalog.allowed
+    payload = {
         'task': 'exercise_plan',
         'schema_version': rules_validate.EXERCISE_SCHEMA_VERSION,
         'job_ref': str(job.job_ref),
@@ -214,11 +216,14 @@ def build_exercise_payload(job, assessment, previous_errors=()):
         'allowed_exercises': [
             {'id': item.id, 'name': item.name, 'category': item.category, 'level': item.level,
              'intensity': item.intensity or 'sin_etiqueta'}
-            for item in catalog.allowed
+            for item in offered
         ],
         'trainer_notes': job.trainer_notes or None,
         'previous_errors': list(previous_errors),
     }
+    if adaptation is not None and adaptation.history:
+        payload['history'] = adaptation.history      # resumen codificado, sin texto libre (rules/adaptation.py)
+    return payload
 
 
 def _call_with_retries(client, job, started, **kwargs):
@@ -286,9 +291,23 @@ def _evaluate_for_run(job, kind):
     return assessment
 
 
+def _adaptation_for(job, assessment):
+    """Adaptación a la clienta (apagada por defecto). Guarda en el trabajo el resumen de qué se tuvo en
+    cuenta, solo con códigos y conteos."""
+    adaptation = adaptation_service.for_job(job, assessment)
+    if adaptation is not None:
+        summary = adaptation.summary()
+        job.adaptation_summary = summary
+        PlanGenerationJob.objects.filter(pk=job.pk).update(adaptation_summary=summary)
+    return adaptation
+
+
 def _run_exercise(job, started):
     assessment = _evaluate_for_run(job, job.kind)
     profile, catalog = assessment.profile, assessment.catalog
+    adaptation = _adaptation_for(job, assessment)
+    offered_ids = adaptation.exercise_ids if adaptation is not None and adaptation.exercises is not None \
+        else catalog.allowed_ids
     PlanGenerationJob.objects.filter(pk=job.pk).update(flags=job.flags, progress_total=1)
 
     client = ai.get_ai_client()
@@ -298,9 +317,9 @@ def _run_exercise(job, started):
     )
     validation, result = _generate_validated(
         job, started, client, task='exercise_plan', system=prompts.EXERCISE_SYSTEM,
-        make_payload=lambda errors: build_exercise_payload(job, assessment, errors),
+        make_payload=lambda errors: build_exercise_payload(job, assessment, errors, adaptation),
         make_schema=lambda payload: prompts.exercise_schema(
-            catalog.allowed_ids, profile.training_days_per_week,
+            offered_ids, profile.training_days_per_week,
             payload['limits']['exercises_per_day_max'], catalog.limits.max_sets),
         validate=lambda data: rules_validate.validate_exercise_plan(data, rules))
     _check_budget(started)
@@ -318,12 +337,15 @@ def _run_exercise(job, started):
 
 # ─── Alimentación ─────────────────────────────────────────────────────────────
 
-def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_names, previous_errors=()):
+def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_names, previous_errors=(),
+                       adaptation=None):
     """Lo ÚNICO que viaja a la IA para una comida (contrato, 4.4 y 4.5): sin nombre, correo,
     teléfono, usuario, ids de usuario, fecha de nacimiento, entrenador, alergias, diagnósticos ni
     texto libre de la ficha (las restricciones ya se aplicaron al filtrar los alimentos)."""
     profile = assessment.profile
-    return {
+    offered = adaptation.foods if adaptation is not None and adaptation.foods is not None \
+        else assessment.foods.allowed
+    payload = {
         'task': 'meal_slot',
         'schema_version': rules_meal.MEAL_SCHEMA_VERSION,
         'job_ref': str(job.job_ref),
@@ -343,13 +365,16 @@ def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_name
             {'id': food.id, 'name': food.name, 'group': food.group, 'kcal100': float(food.kcal100),
              'p100': float(food.protein100), 'c100': float(food.carbs100), 'f100': float(food.fat100),
              'common': food.is_common}
-            for food in assessment.foods.allowed
+            for food in offered
         ],
         'existing_options': [{'name': option.name, 'food_ids': sorted(option.food_ids)} for option in existing],
         'avoid_repeating_names': list(avoid_names),
         'trainer_notes': job.trainer_notes or None,
         'previous_errors': list(previous_errors),
     }
+    if adaptation is not None and adaptation.history:
+        payload['history'] = adaptation.history      # resumen codificado, sin texto libre (rules/adaptation.py)
+    return payload
 
 
 class _SlotView:
@@ -359,21 +384,25 @@ class _SlotView:
         self.code, self.kcal, self.protein_g, self.carbs_g, self.fat_g = code, kcal, protein_g, carbs_g, fat_g
 
 
-def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_options, existing=(), avoid_names=()):
+def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_options, existing=(), avoid_names=(),
+                           adaptation=None):
     rules = nutrition.slot_rules(slot.code, slot.kcal, slot.protein_g, assessment, n_options=n_options,
                                  existing=existing)
+    offered_ids = adaptation.food_ids if adaptation is not None and adaptation.foods is not None \
+        else assessment.foods.allowed_ids
     validation, result = _generate_validated(
         job, started, ai_client, task='meal_slot', system=prompts.MEAL_SYSTEM,
         make_payload=lambda errors: build_meal_payload(
             job, assessment, slot, n_options=n_options, existing=existing, avoid_names=avoid_names,
-            previous_errors=errors),
-        make_schema=lambda payload: prompts.meal_schema(assessment.foods.allowed_ids, slot.code, n_options),
+            previous_errors=errors, adaptation=adaptation),
+        make_schema=lambda payload: prompts.meal_schema(offered_ids, slot.code, n_options),
         validate=lambda data: rules_meal.validate_meal_slot(data, rules))
     return validation.data['options'], result
 
 
 def _run_nutrition(job, started):
     assessment = _evaluate_for_run(job, KIND_NUTRITION)
+    adaptation = _adaptation_for(job, assessment)
     slots = assessment.slots
     PlanGenerationJob.objects.filter(pk=job.pk).update(flags=job.flags, progress_total=len(slots), progress_done=0)
 
@@ -382,7 +411,7 @@ def _run_nutrition(job, started):
     for index, target in enumerate(slots, start=1):
         _check_budget(started)
         options, result = _generate_slot_options(job, started, client, assessment, target, n_options=3,
-                                                 avoid_names=names)
+                                                 avoid_names=names, adaptation=adaptation)
         model = model or result.model
         names.extend(option['name'] for option in options)
         generated.append((target, options))
@@ -417,6 +446,7 @@ def _run_alternative(job, started):
     if plan.status != plan.STATUS_APPROVED or plan.client_id != job.client_id:
         raise JobFailed('plan_not_active')
     assessment = _evaluate_for_run(job, KIND_NUTRITION)
+    adaptation = _adaptation_for(job, assessment)
     PlanGenerationJob.objects.filter(pk=job.pk).update(flags=job.flags, progress_total=1)
 
     others = list(slot.options.filter(is_active=True).prefetch_related('items'))
@@ -425,7 +455,8 @@ def _run_alternative(job, started):
     target = _SlotView(slot.code, slot.kcal_target, slot.protein_g, slot.carbs_g, slot.fat_g)
     client = ai.get_ai_client()
     options, result = _generate_slot_options(job, started, client, assessment, target, n_options=1,
-                                             existing=existing, avoid_names=[o.name for o in others])
+                                             existing=existing, avoid_names=[o.name for o in others],
+                                             adaptation=adaptation)
     _check_budget(started)
     with transaction.atomic():
         locked = PlanGenerationJob.objects.select_for_update().get(pk=job.pk)

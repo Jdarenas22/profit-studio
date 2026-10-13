@@ -96,6 +96,8 @@ def create_nutrition_draft(job, assessment, generated, *, model_name, prompt_ver
         profile_version=profile.version, measurement=anth.measurement if anth else None,
         flags=list(job.flags or ()), is_simulated=is_simulated, model_name=model_name[:80],
         prompt_version=prompt_version, ruleset_version=f'{rules_flags.RULESET_VERSION};{energy.formula}'[:40],
+        ai_item_ids=sorted({item['food_id'] for _target, options in generated for option in options
+                            for item in option['items']}),
     )
     nutrition = NutritionPlan.objects.create(
         plan=plan, kcal_target=int(energy.kcal), protein_g=int(energy.protein_g), carbs_g=int(energy.carbs_g),

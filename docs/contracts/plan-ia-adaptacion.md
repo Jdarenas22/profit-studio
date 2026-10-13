@@ -21,7 +21,7 @@ Reglas que no cambian:
 | Días que más se salta | `RoutineDayLog` por `RoutineDay` | `skipped_day_names` (hasta 2, solo si <40 % de cumplimiento y ≥3 semanas de datos) | Nombre del día lo escribió la IA o el entrenador |
 | Comidas elegidas | `MealChoice` con `completed_at` | `liked_food_ids`: alimentos presentes en ≥3 comidas completadas | Mide preferencia y también comodidad |
 | Opciones descartadas | `PlanEvent` `client_alternative` + `MealOption.replaces` | `avoid_food_ids`: alimentos de opciones descartadas ≥2 veces y nunca en una completada | No se sabe qué alimento molestó dentro de la opción |
-| Correcciones del entrenador | `MealOption.origin == 'trainer'`; para ejercicios, la diferencia contra `Plan.ai_draft` (campo nuevo, ver 5) | `trainer_removed_exercise_ids`, `trainer_removed_food_ids` (≥2 planes) | Los planes anteriores a este cambio no tienen borrador guardado |
+| Correcciones del entrenador | `MealOption.origin == 'trainer'`; para ejercicios, los ids propuestos por la IA (`Plan.ai_item_ids`, campo nuevo, ver 5) contra lo que quedó en el plan | `trainer_removed_exercise_ids`, `trainer_removed_food_ids` (≥2 planes) | Los planes anteriores a este cambio no tienen borrador guardado |
 | Progreso | `BodyMeasurement` (peso) en 42 días | `progress`: `on_track`, `stalled`, `off_track`, `insufficient_data` o `not_applicable`, comparado con `training_goal` (pendiente por mínimos cuadrados en 42 días). Solo `weight_loss` y `muscle_gain` se juzgan con el peso; las demás metas dan `not_applicable` | Con menos de 2 mediciones separadas ≥14 días: `insufficient_data` |
 
 **Arranque en frío:** si la clienta lleva menos de 14 días con un plan aprobado, o la función está apagada, no se envía historial (`history: null`) y el borrador sale como hoy.
@@ -71,7 +71,7 @@ En el detalle del plan (`trainer/plan_detail.html`) aparece **"Qué se tuvo en c
 | Integración | `jobs.build_exercise_payload` / `build_meal_payload` | Agregan `history` y aplican las exclusiones |
 | Prompts | `apps/plans/ai/prompts.py` | `exercise/2`, `meal/2` |
 | Simulado | `apps/plans/ai/fake.py` | El generador de ejemplo respeta `history` para poder probar el flujo sin Gemini |
-| Migración | `plans 0003` | `Plan.ai_draft` (JSON del borrador validado, para comparar con lo aprobado) y `PlanGenerationJob.adaptation_summary` |
+| Migración | `plans 0003` | `Plan.ai_item_ids` (solo los ids de ejercicios o alimentos que propuso la IA, para comparar con lo aprobado) y `PlanGenerationJob.adaptation_summary` |
 | Interruptor | `config/settings/base.py` | `AI_PLANS_ADAPTATION` (por defecto `False`) |
 | Interfaz | `plan_detail.html` | Panel "Qué se tuvo en cuenta" |
 
@@ -94,8 +94,8 @@ En el detalle del plan (`trainer/plan_detail.html`) aparece **"Qué se tuvo en c
 ## 8. Entrega por pasos (cada uno se despliega solo)
 
 1. Reglas puras + pruebas (sin tocar nada visible).
-2. Lectura de datos + `history` en el payload con el interruptor apagado.
-3. Migración + `adaptation_summary` + panel del entrenador.
+2. Lectura de datos + `history` en el payload con el interruptor apagado (+ migración 0003).
+3. Panel del entrenador "Qué se tuvo en cuenta" (la migración y `adaptation_summary` ya se hicieron en el paso 2).
 4. Prompts `/2` y simulado; prueba completa en modo simulado.
 5. Prueba con Gemini real y datos ficticios (`check_gemini` ampliado con un `history` de ejemplo).
 6. Texto de consentimiento aprobado → encender `AI_PLANS_ADAPTATION=true`.
@@ -122,4 +122,14 @@ En el detalle del plan (`trainer/plan_detail.html`) aparece **"Qué se tuvo en c
 - Detalles que el diseño no fijaba: `history_since` es el primer plan aprobado de la clienta (no el último), para que un plan nuevo no borre la memoria; la meta `not_applicable` evita juzgar con el peso metas como tonificación o cardio; perder más de 1 kg/semana o ganar más de 0,5 kg/semana cuenta como `off_track`.
 - `apps/plans/tests/test_adaptation_rules.py`: 37 pruebas sin base de datos.
 - Aún sin conexión con la base de datos, el payload ni la interfaz (pasos 2 a 4).
+
+### Paso 2 (2026-10-13): lectura de datos y `history` en el pedido
+- `apps/plans/adaptation.py`: consulta el historial (una consulta por señal, sin perfiles guardados) y llama a las reglas puras. `for_job(job, assessment)` devuelve `JobAdaptation` o `None`.
+- `AI_PLANS_ADAPTATION` (por defecto `False`). Apagada, el pedido es idéntico al de siempre (hay una prueba).
+- Requiere consentimiento vigente de salud y de IA. Si algo falla, se registra solo el tipo de error y el plan se genera sin adaptación.
+- **Las exclusiones solo recortan lo que se ofrece a la IA** (payload y esquema). La validación posterior usa el catálogo completo y seguro, y el historial nunca agrega ids.
+- Migración `plans 0003`: `Plan.ai_item_ids` (en lugar de `ai_draft`: solo ids, menos datos) y `PlanGenerationJob.adaptation_summary`. Se llenan al crear cada borrador y al ejecutar cada trabajo.
+- Limitación conocida: las correcciones del entrenador en alimentación se detectan por conjunto de alimentos del plan (un alimento quitado de una opción pero presente en otra no cuenta). Los descartes de la clienta se separan de las correcciones del entrenador. Los planes anteriores a esta migración no tienen `ai_item_ids` y se ignoran.
+- **No encender `AI_PLANS_ADAPTATION` todavía:** los prompts aún no explican el bloque `history` (paso 4) y falta el texto de consentimiento.
+- Pruebas: `test_adaptation_data.py` (21). Suite completa: 923 OK.
 
