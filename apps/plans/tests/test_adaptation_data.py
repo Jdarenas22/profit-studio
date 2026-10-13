@@ -289,3 +289,111 @@ class NutritionAdaptationTests(NutritionScenarioTestCase):
         foods = set(MealOptionItem.objects.filter(option__slot__nutrition_plan__plan=self.plan,
                                                    option__origin=MealOption.ORIGIN_AI).values_list('food_id', flat=True))
         self.assertEqual(set(self.plan.ai_item_ids), foods)
+
+
+@override_settings(AI_PLANS_ADAPTATION=True)
+class PanelTests(HistoryMixin, PlanScenarioTestCase):
+    """Panel "Qué se tuvo en cuenta" de la pantalla del plan (paso 3)."""
+
+    def set_summary(self, job, **summary):
+        PlanGenerationJob.objects.filter(pk=job.pk).update(adaptation_summary=summary)
+        job.plan.refresh_from_db()
+
+    def test_no_panel_when_the_job_did_not_use_the_adaptation(self):
+        self.ready(self.client_a)
+        with override_settings(AI_PLANS_ADAPTATION=False):
+            job, _fake = self.request(self.client_a)
+        self.assertIsNone(adaptation.panel_for_plan(job.plan))
+
+    def test_cold_start_says_there_is_not_enough_history(self):
+        self.ready(self.client_a)
+        job, _fake = self.request(self.client_a)
+        panel = adaptation.panel_for_plan(job.plan)
+        self.assertEqual((panel['ready'], panel['items']), (False, []))
+        self.assertTrue(panel['footnote'])
+
+    def test_real_history_becomes_plain_sentences(self):
+        plan = self.approve_exercise(self.client_a, days=30)
+        self.log_day(self.client_a, plan.routine.days.first(), 3)
+        job, _fake = self.request(self.client_a)
+        panel = adaptation.panel_for_plan(job.plan)
+        self.assertTrue(panel['ready'])
+        self.assertIn('Constancia baja', panel['items'][0]['text'])
+        self.assertEqual(panel['items'][0]['tone'], 'warning')
+        self.assertFalse(panel['calorie_review'])
+
+    def test_counts_use_singular_and_plural(self):
+        self.ready(self.client_a)
+        job, _fake = self.request(self.client_a)
+        self.set_summary(job, ready=True, weeks_of_data=4, skipped_days=1, excluded_exercises=2)
+        texts = [item['text'] for item in adaptation.panel_for_plan(job.plan)['items']]
+        self.assertIn('1 día de su rutina casi nunca se hace (menos del 40 %).', texts)
+        self.assertIn('2 ejercicios dejaron de ofrecerse a la IA por esas correcciones.', texts)
+
+    def test_calorie_review_is_only_for_nutrition_plans(self):
+        self.ready(self.client_a)
+        job, _fake = self.request(self.client_a)
+        self.set_summary(job, ready=True, weeks_of_data=4, suggest_calorie_review=True)
+        self.assertFalse(adaptation.panel_for_plan(job.plan)['calorie_review'])
+
+    def test_the_panel_has_no_personal_data(self):
+        plan = self.approve_exercise(self.client_a, days=30)
+        self.log_day(self.client_a, plan.routine.days.first(), 3)
+        job, _fake = self.request(self.client_a)
+        text = json.dumps(adaptation.panel_for_plan(job.plan), ensure_ascii=False)
+        for secret in (self.client_a.username, self.client_a.email, self.client_a.first_name,
+                       plan.routine.days.first().name):
+            self.assertNotIn(secret, text)
+
+    def test_the_trainer_screen_gets_the_panel_and_the_client_never_does(self):
+        from django.urls import reverse
+        plan = self.approve_exercise(self.client_a, days=30)
+        self.log_day(self.client_a, plan.routine.days.first(), 3)
+        job, _fake = self.request(self.client_a)
+        self.login(self.trainer_a)
+        response = self.client.get(reverse('trainer_plan_detail', args=[job.plan.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(response.context['adaptation'])
+        self.assertContains(response, 'Qué se tuvo en cuenta')
+        self.assertContains(response, 'Constancia baja')
+        self.assertNotContains(response, 'Sugerencia: revisa el ajuste de calorías')   # solo alimentación
+        self.login(self.client_a)
+        self.assertNotEqual(self.client.get(reverse('trainer_plan_detail', args=[job.plan.pk])).status_code, 200)
+
+
+    def test_the_screen_has_no_panel_when_the_adaptation_was_not_used(self):
+        from django.urls import reverse
+        self.ready(self.client_a)
+        with override_settings(AI_PLANS_ADAPTATION=False):
+            job, _fake = self.request(self.client_a)
+        self.login(self.trainer_a)
+        response = self.client.get(reverse('trainer_plan_detail', args=[job.plan.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context['adaptation'])
+        self.assertNotContains(response, 'Qué se tuvo en cuenta')
+
+    def test_the_cold_start_message_renders(self):
+        from django.urls import reverse
+        self.ready(self.client_a)
+        job, _fake = self.request(self.client_a)
+        self.login(self.trainer_a)
+        response = self.client.get(reverse('trainer_plan_detail', args=[job.plan.pk]))
+        self.assertContains(response, 'Aún no hay historial suficiente')
+
+
+@override_settings(AI_PLANS_ADAPTATION=True)
+class NutritionPanelTests(NutritionScenarioTestCase):
+    def test_the_calorie_suggestion_shows_on_a_nutrition_plan_and_changes_no_calories(self):
+        from django.urls import reverse
+        plan = self.nutrition_draft(self.client_a)
+        kcal = plan.nutrition.kcal_target
+        job = plan.jobs.get()
+        PlanGenerationJob.objects.filter(pk=job.pk).update(adaptation_summary={
+            'ready': True, 'weeks_of_data': 5, 'adherence': 'high', 'progress': 'stalled',
+            'suggest_calorie_review': True})
+        self.login(self.boss)
+        response = self.client.get(reverse('trainer_plan_detail', args=[plan.pk]))
+        self.assertContains(response, 'Sugerencia: revisa el ajuste de calorías')
+        self.assertContains(response, 'Constancia alta')
+        plan.nutrition.refresh_from_db()
+        self.assertEqual(plan.nutrition.kcal_target, kcal)

@@ -133,3 +133,10 @@ En el detalle del plan (`trainer/plan_detail.html`) aparece **"Qué se tuvo en c
 - **No encender `AI_PLANS_ADAPTATION` todavía:** los prompts aún no explican el bloque `history` (paso 4) y falta el texto de consentimiento.
 - Pruebas: `test_adaptation_data.py` (21). Suite completa: 923 OK.
 
+### Paso 3 (2026-10-13): panel «Qué se tuvo en cuenta»
+- `adaptation.panel_for_plan(plan)` convierte el `adaptation_summary` del trabajo que creó el plan en frases fijas con tono (`good`/`info`/`warning`), sin nombres ni datos personales. `None` si el plan no usó la adaptación.
+- Se entrega en el contexto de `trainer_plan_detail` como `adaptation`; solo lo ven los entrenadores. Plantilla: `trainer/partials/adaptation_panel.html` (hecha por frontend-architect contra el contrato de `requests.md`), en la columna lateral antes de «Ficha de la clienta».
+- La sugerencia de revisar calorías solo aparece en planes de alimentación y no cambia ninguna cifra.
+- Los nombres de los días saltados no se muestran (el resumen guarda solo conteos, a propósito).
+- Pruebas: 10 nuevas (panel y pantalla completa). Suite completa: 933 OK.
+

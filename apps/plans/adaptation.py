@@ -203,3 +203,65 @@ def for_job(job, assessment):
     except Exception as exc:   # noqa: BLE001 - opcional: se registra solo el tipo, nunca datos
         logger.warning('adaptation skipped job_id=%s error=%s', job.pk, type(exc).__name__)
         return None
+
+
+# ─── Panel "Qué se tuvo en cuenta" (pantalla del plan del entrenador) ─────────
+
+PANEL_FOOTNOTE = ('Es una guía suave: las reglas de seguridad no cambian y tú decides qué se aprueba.')
+_ADHERENCE_TEXT = {
+    'low': ('Constancia baja: completó menos de la mitad de los días de entrenamiento del último mes.', 'warning'),
+    'medium': ('Constancia media: completó entre la mitad y cuatro de cada cinco días de entrenamiento.', 'info'),
+    'high': ('Constancia alta: completó al menos cuatro de cada cinco días de entrenamiento.', 'good'),
+}
+_PROGRESS_TEXT = {
+    'on_track': ('Su peso va en la dirección de su meta.', 'good'),
+    'stalled': ('Su peso lleva semanas sin cambios.', 'warning'),
+    'off_track': ('Su peso se mueve en dirección contraria a su meta o a un ritmo demasiado rápido.', 'warning'),
+}
+
+
+def _plural(count, one, many):
+    return f'{count} {one if count == 1 else many}'
+
+
+def panel_for_plan(plan):
+    """Frases listas para mostrar al entrenador sobre qué se tuvo en cuenta al generar este plan, o
+    `None` si el trabajo que lo creó no usó la adaptación (apagada o plan antiguo). Solo contiene
+    textos fijos y conteos: sin nombres ni datos de la clienta."""
+    job = plan.jobs.filter(kind__in=(KIND_EXERCISE, KIND_NUTRITION)).order_by('-created_at').first()
+    summary = job.adaptation_summary if job is not None else None
+    if not summary:
+        return None
+    panel = {'ready': bool(summary.get('ready')), 'weeks_of_data': summary.get('weeks_of_data', 0),
+             'items': [], 'calorie_review': False, 'footnote': PANEL_FOOTNOTE}
+    if not panel['ready']:
+        return panel
+    items = panel['items']
+    if summary.get('adherence') in _ADHERENCE_TEXT:
+        text, tone = _ADHERENCE_TEXT[summary['adherence']]
+        items.append({'text': text, 'tone': tone})
+    if summary.get('skipped_days'):
+        items.append({'text': _plural(summary['skipped_days'], 'día de su rutina casi nunca se hace',
+                                      'días de su rutina casi nunca se hacen') + ' (menos del 40 %).',
+                      'tone': 'warning'})
+    if summary.get('liked_foods'):
+        items.append({'text': _plural(summary['liked_foods'], 'alimento que elige con frecuencia',
+                                      'alimentos que elige con frecuencia') + ' se favorecieron.', 'tone': 'info'})
+    if summary.get('avoided_foods'):
+        items.append({'text': _plural(summary['avoided_foods'], 'alimento que descarta con frecuencia',
+                                      'alimentos que descarta con frecuencia') + ' se evitaron.', 'tone': 'info'})
+    if summary.get('removed_exercises') or summary.get('removed_foods'):
+        items.append({'text': 'Se tuvieron en cuenta correcciones repetidas de revisiones anteriores '
+                              '(ejercicios o alimentos que se quitaron en 2 o más planes).', 'tone': 'info'})
+    if summary.get('excluded_exercises'):
+        items.append({'text': _plural(summary['excluded_exercises'], 'ejercicio dejó de ofrecerse',
+                                      'ejercicios dejaron de ofrecerse') + ' a la IA por esas correcciones.',
+                      'tone': 'info'})
+    if summary.get('excluded_foods'):
+        items.append({'text': _plural(summary['excluded_foods'], 'alimento dejó de ofrecerse',
+                                      'alimentos dejaron de ofrecerse') + ' a la IA.', 'tone': 'info'})
+    if summary.get('progress') in _PROGRESS_TEXT:
+        text, tone = _PROGRESS_TEXT[summary['progress']]
+        items.append({'text': text, 'tone': tone})
+    panel['calorie_review'] = bool(summary.get('suggest_calorie_review')) and plan.kind == KIND_NUTRITION
+    return panel

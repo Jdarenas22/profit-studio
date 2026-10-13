@@ -24,6 +24,7 @@ from apps.health import services as health
 from apps.health.choices import EQUIPMENT_CHOICES, labels_for
 from apps.health.models import PURPOSE_AI, PURPOSE_HEALTH_DATA, HealthAccessLog
 
+from . import adaptation as adaptation_service
 from . import ai, jobs, nutrition, services
 from .forms import (
     AlternativeForm, ApproveForm, ArchiveForm, GenerateForm, MealChoiceForm, PlanRequestForm, RegenerateForm,
@@ -307,6 +308,7 @@ def _plan_detail_context(request, plan, approve_errors=None, regenerate_errors=N
         'archive_errors': archive_errors or {},
         'form': request.POST if request.method == 'POST' else {},
         'disclaimer': DISCLAIMER,
+        'adaptation': adaptation_service.panel_for_plan(plan),
     }
 
 

@@ -241,6 +241,18 @@ Plantillas: `plans/member_nutrition.html` (F-11 y F-12: 3 opciones por comida, e
 
 Diferencias con la tabla F-11 a F-14: F-11 recibe `slots` (cada uno con `slot`, `options` con `option`, `items` con `food`, `grams` y `household`, `letter`, `conflict`, y `chosen_id`, `week_left`, `day_left`), `date_pills`, `chosen_count`/`slot_count`/`day_totals` y `targets`; el cupo restante de «otra opción» es por comida (`week_left`) y por día (`day_left`). F-14 recibe `rows`, `food_groups` (solo alimentos permitidos a la clienta), `errors` y `error_list`. Rutas nuevas: `member_nutrition_plan`, `member_meal_choice`, `member_meal_alternative`, `member_exchanges`, `member_shopping_list`, `trainer_meal_option_edit`, `trainer_meal_option_review`.
 
+### Adaptación, paso 3: panel «Qué se tuvo en cuenta» (pedido al frontend, 2026-10-13)
+
+Pantalla `trainer/plan_detail.html` (vista `trainer_plan_detail`, solo entrenadores). Nueva variable de contexto `adaptation`: `None` (la adaptación no se usó para este plan: **no se dibuja nada**) o un diccionario:
+
+- `ready` (bool): `False` = la clienta aún no tiene historial suficiente (menos de 14 días con plan aprobado); `items` viene vacío.
+- `weeks_of_data` (int).
+- `items`: lista de `{text, tone}` con `tone` en `good` / `info` / `warning`. Frases ya redactadas en español; solo se muestran.
+- `calorie_review` (bool): solo en planes de alimentación. Si es `True`, destacar la sugerencia «Revisa el ajuste de calorías: su peso lleva semanas sin cambios con buena constancia». El sistema NO cambia las calorías; el entrenador decide.
+- `footnote` (str): nota fija al pie del panel.
+
+Plantilla nueva `trainer/partials/adaptation_panel.html`, incluida desde `plan_detail.html`. Sin cambios de contrato en otras pantallas; la clienta nunca ve este panel.
+
 ## Resueltos
 
 (ninguno)
