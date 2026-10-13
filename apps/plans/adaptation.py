@@ -237,27 +237,33 @@ def panel_for_plan(plan):
     if not panel['ready']:
         return panel
     items = panel['items']
-    if summary.get('adherence') in _ADHERENCE_TEXT:
+    is_exercise = plan.kind == KIND_EXERCISE
+    # Cada plan muestra solo lo que le corresponde: el resumen del trabajo es único, pero la constancia y los
+    # días de rutina no dicen nada de un plan de alimentación (ni los alimentos de uno de ejercicio).
+    if is_exercise and summary.get('adherence') in _ADHERENCE_TEXT:
         text, tone = _ADHERENCE_TEXT[summary['adherence']]
         items.append({'text': text, 'tone': tone})
-    if summary.get('skipped_days'):
+    if is_exercise and summary.get('skipped_days'):
         items.append({'text': _plural(summary['skipped_days'], 'día de su rutina casi nunca se hace',
                                       'días de su rutina casi nunca se hacen') + ' (menos del 40 %).',
                       'tone': 'warning'})
-    if summary.get('liked_foods'):
+    if not is_exercise and summary.get('liked_foods'):
         items.append({'text': _plural(summary['liked_foods'], 'alimento que elige con frecuencia',
                                       'alimentos que elige con frecuencia') + ' se favorecieron.', 'tone': 'info'})
-    if summary.get('avoided_foods'):
+    if not is_exercise and summary.get('avoided_foods'):
         items.append({'text': _plural(summary['avoided_foods'], 'alimento que descarta con frecuencia',
                                       'alimentos que descarta con frecuencia') + ' se evitaron.', 'tone': 'info'})
-    if summary.get('removed_exercises') or summary.get('removed_foods'):
-        items.append({'text': 'Se tuvieron en cuenta correcciones repetidas de revisiones anteriores '
-                              '(ejercicios o alimentos que se quitaron en 2 o más planes).', 'tone': 'info'})
-    if summary.get('excluded_exercises'):
+    if is_exercise and summary.get('removed_exercises'):
+        items.append({'text': 'Se tuvieron en cuenta ejercicios que se quitaron en 2 o más planes anteriores.',
+                      'tone': 'info'})
+    if not is_exercise and summary.get('removed_foods'):
+        items.append({'text': 'Se tuvieron en cuenta alimentos que se quitaron en 2 o más planes anteriores.',
+                      'tone': 'info'})
+    if is_exercise and summary.get('excluded_exercises'):
         items.append({'text': _plural(summary['excluded_exercises'], 'ejercicio dejó de ofrecerse',
                                       'ejercicios dejaron de ofrecerse') + ' a la IA por esas correcciones.',
                       'tone': 'info'})
-    if summary.get('excluded_foods'):
+    if not is_exercise and summary.get('excluded_foods'):
         items.append({'text': _plural(summary['excluded_foods'], 'alimento dejó de ofrecerse',
                                       'alimentos dejaron de ofrecerse') + ' a la IA.', 'tone': 'info'})
     if summary.get('progress') in _PROGRESS_TEXT:

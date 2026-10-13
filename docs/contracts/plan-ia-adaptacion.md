@@ -137,6 +137,7 @@ En el detalle del plan (`trainer/plan_detail.html`) aparece **"Qué se tuvo en c
 - `adaptation.panel_for_plan(plan)` convierte el `adaptation_summary` del trabajo que creó el plan en frases fijas con tono (`good`/`info`/`warning`), sin nombres ni datos personales. `None` si el plan no usó la adaptación.
 - Se entrega en el contexto de `trainer_plan_detail` como `adaptation`; solo lo ven los entrenadores. Plantilla: `trainer/partials/adaptation_panel.html` (hecha por frontend-architect contra el contrato de `requests.md`), en la columna lateral antes de «Ficha de la clienta».
 - La sugerencia de revisar calorías solo aparece en planes de alimentación y no cambia ninguna cifra.
+- **Frases por tipo de plan:** el resumen del trabajo es único, pero el panel del plan de ejercicio solo muestra constancia, días saltados y ejercicios quitados o excluidos; el de alimentación solo alimentos favorecidos, evitados, quitados o excluidos. El progreso del peso se muestra en ambos. (Corregido tras la prueba local del 2026-10-13: el panel de alimentación mostraba frases de entrenamiento.)
 - Los nombres de los días saltados no se muestran (el resumen guarda solo conteos, a propósito).
 - Pruebas: 10 nuevas (panel y pantalla completa). Suite completa: 933 OK.
 

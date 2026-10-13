@@ -175,6 +175,7 @@ class ExerciseAdaptationTests(HistoryMixin, PlanScenarioTestCase):
         self.assertEqual(job.plan.ai_item_ids, sorted(job.plan.ai_item_ids))
 
 
+@override_settings(AI_PLANS_ADAPTATION=False)
 class AdaptationOffTests(HistoryMixin, PlanScenarioTestCase):
     """Con el interruptor apagado (valor por defecto) el pedido es idéntico al de siempre."""
 
@@ -394,6 +395,38 @@ class NutritionPanelTests(NutritionScenarioTestCase):
         self.login(self.boss)
         response = self.client.get(reverse('trainer_plan_detail', args=[plan.pk]))
         self.assertContains(response, 'Sugerencia: revisa el ajuste de calorías')
-        self.assertContains(response, 'Constancia alta')
+        self.assertNotContains(response, 'Constancia alta')       # la constancia es del plan de ejercicio
         plan.nutrition.refresh_from_db()
         self.assertEqual(plan.nutrition.kcal_target, kcal)
+
+
+class PanelByKindTests(HistoryMixin, PlanScenarioTestCase):
+    """Cada tipo de plan muestra solo las frases que le corresponden."""
+    SUMMARY = dict(ready=True, weeks_of_data=4, adherence='low', skipped_days=2, liked_foods=3, avoided_foods=1,
+                   removed_exercises=1, removed_foods=2, excluded_exercises=1, excluded_foods=2, progress='stalled')
+
+    def texts(self, kind):
+        from apps.plans.models import KIND_NUTRITION
+        self.ready(self.client_a)
+        job, _fake = self.request(self.client_a)
+        plan = job.plan
+        Plan.objects.filter(pk=plan.pk).update(kind=kind)
+        plan.refresh_from_db()
+        PlanGenerationJob.objects.filter(pk=job.pk).update(kind=kind, adaptation_summary=self.SUMMARY)
+        return ' | '.join(item['text'] for item in adaptation.panel_for_plan(plan)['items'])
+
+    def test_the_exercise_panel_has_no_food_lines(self):
+        text = self.texts('exercise')
+        for expected in ('Constancia baja', 'días de su rutina', 'ejercicios que se quitaron', 'ejercicio dejó de ofrecerse',
+                         'Su peso lleva semanas'):
+            self.assertIn(expected, text)
+        for unexpected in ('alimento', 'Alimento'):
+            self.assertNotIn(unexpected, text)
+
+    def test_the_nutrition_panel_has_no_training_lines(self):
+        text = self.texts('nutrition')
+        for expected in ('alimentos que elige', 'alimento que descarta', 'alimentos que se quitaron',
+                         'alimentos dejaron de ofrecerse', 'Su peso lleva semanas'):
+            self.assertIn(expected, text)
+        for unexpected in ('Constancia', 'rutina', 'ejercicio'):
+            self.assertNotIn(unexpected, text)
