@@ -308,6 +308,7 @@ def _run_exercise(job, started):
     adaptation = _adaptation_for(job, assessment)
     offered_ids = adaptation.exercise_ids if adaptation is not None and adaptation.exercises is not None \
         else catalog.allowed_ids
+    system, prompt_version = prompts.exercise_prompt(adaptation is not None and bool(adaptation.history))
     PlanGenerationJob.objects.filter(pk=job.pk).update(flags=job.flags, progress_total=1)
 
     client = ai.get_ai_client()
@@ -316,7 +317,7 @@ def _run_exercise(job, started):
         session_minutes=profile.session_minutes, max_sets=catalog.limits.max_sets,
     )
     validation, result = _generate_validated(
-        job, started, client, task='exercise_plan', system=prompts.EXERCISE_SYSTEM,
+        job, started, client, task='exercise_plan', system=system,
         make_payload=lambda errors: build_exercise_payload(job, assessment, errors, adaptation),
         make_schema=lambda payload: prompts.exercise_schema(
             offered_ids, profile.training_days_per_week,
@@ -329,7 +330,7 @@ def _run_exercise(job, started):
             raise JobFailed('lost_lock')
         plan = services.create_exercise_draft(
             job, validation.data, model_name=result.model or client.model_name,
-            prompt_version=prompts.EXERCISE_PROMPT_VERSION, is_simulated=client.is_simulated)
+            prompt_version=prompt_version, is_simulated=client.is_simulated)
         job.progress_done = 1
         _finish(job, PlanGenerationJob.STATUS_SUCCEEDED, plan=plan)
     return plan
@@ -390,8 +391,9 @@ def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_optio
                                  existing=existing)
     offered_ids = adaptation.food_ids if adaptation is not None and adaptation.foods is not None \
         else assessment.foods.allowed_ids
+    system = prompts.meal_prompt(adaptation is not None and bool(adaptation.history))[0]
     validation, result = _generate_validated(
-        job, started, ai_client, task='meal_slot', system=prompts.MEAL_SYSTEM,
+        job, started, ai_client, task='meal_slot', system=system,
         make_payload=lambda errors: build_meal_payload(
             job, assessment, slot, n_options=n_options, existing=existing, avoid_names=avoid_names,
             previous_errors=errors, adaptation=adaptation),
@@ -432,7 +434,8 @@ def _run_nutrition(job, started):
             raise JobFailed('lost_lock')
         plan = nutrition.create_nutrition_draft(
             job, assessment, generated, model_name=model or client.model_name,
-            prompt_version=prompts.MEAL_PROMPT_VERSION, is_simulated=client.is_simulated)
+            prompt_version=prompts.meal_prompt(adaptation is not None and bool(adaptation.history))[1],
+            is_simulated=client.is_simulated)
         _finish(job, PlanGenerationJob.STATUS_SUCCEEDED, plan=plan)
     return plan
 

@@ -27,12 +27,21 @@ def sample_exercise_plan(payload):
     allowed = [item['id'] for item in payload['allowed_exercises']]
     limits = payload['limits']
     days = payload['training']['days_per_week']
+    # Con `history` (adaptación): evita lo que el entrenador suele quitar y ajusta el volumen
+    history = payload.get('history') or {}
+    training = history.get('training') or {}
+    removed = set((history.get('trainer_edits') or {}).get('removed_exercise_ids') or [])
+    allowed = [exercise_id for exercise_id in allowed if exercise_id not in removed] or allowed
+    low_adherence = training.get('adherence') == 'low'
+    vary = training.get('adherence') == 'high' and history.get('progress') == 'stalled'
     per_day = max(limits['exercises_per_day_min'], min(4, limits['exercises_per_day_max']))
+    if low_adherence:
+        per_day = limits['exercises_per_day_min']
     per_day = min(per_day, len(allowed))
     sets = min(3, limits['sets_max'])
     plan_days = []
     for index in range(days):
-        start = (index * per_day) % len(allowed)
+        start = (index * per_day + (1 if vary else 0)) % len(allowed)
         chosen = [allowed[(start + offset) % len(allowed)] for offset in range(per_day)]
         plan_days.append({
             'name': f'Día {index + 1}: cuerpo completo',
@@ -40,10 +49,15 @@ def sample_exercise_plan(payload):
                            'rest_seconds': 60, 'observations': 'Controla el movimiento.'}
                           for exercise_id in chosen],
         })
+    notes = 'Calienta 5 minutos antes de cada sesión.'
+    if low_adherence:
+        notes += ' Sesiones cortas y simples para retomar la constancia.'
+    elif vary:
+        notes += ' Variamos los ejercicios para renovar el estímulo.'
     return {
         'schema_version': 'exercise-plan/1',
         'routine_name': f'Plan de {days} días (borrador de prueba)',
-        'general_notes': 'Calienta 5 minutos antes de cada sesión.',
+        'general_notes': notes,
         'days': plan_days,
     }
 
@@ -75,22 +89,38 @@ def sample_meal_slot(payload):
     def common_first(items):
         return [f for f in items if f.is_common] or items
 
-    proteins = common_first([f for f in foods if f.protein100 >= 10])
-    carbs = common_first([f for f in foods if f.carbs100 >= 15 and f.protein100 < 10])
-    sides = common_first([f for f in foods if f.group in ('verduras', 'frutas')])
-    fats = common_first([f for f in foods if f.group == 'grasas' and f.fat100 >= 50])
+    def pools(items):
+        return (common_first([f for f in items if f.protein100 >= 10]),
+                common_first([f for f in items if f.carbs100 >= 15 and f.protein100 < 10]),
+                common_first([f for f in items if f.group in ('verduras', 'frutas')]),
+                common_first([f for f in items if f.group == 'grasas' and f.fat100 >= 50]))
+
+    # Con `history` (adaptación): no usa lo que descarta o el entrenador quita y favorece lo que le gusta
+    history = payload.get('history') or {}
+    nutrition = history.get('nutrition') or {}
+    liked = set(nutrition.get('liked_food_ids') or [])
+    avoid_ids = set(nutrition.get('avoid_food_ids') or []) | set(
+        (history.get('trainer_edits') or {}).get('removed_food_ids') or [])
+    proteins, carbs, sides, fats = pools([f for f in foods if f.id not in avoid_ids])
+    if not (proteins and carbs and sides):
+        proteins, carbs, sides, fats = pools(foods)
     rng = random.Random(payload['job_ref'])
     existing = payload.get('existing_options', [])
     avoid = {name.lower() for name in payload.get('avoid_repeating_names', [])}
     avoid |= {option['name'].lower() for option in existing}
     picked, used_sets = [], [frozenset(option['food_ids']) for option in existing]
+
+    def pick(pool):
+        favorites = [f for f in pool if f.id in liked]
+        return rng.choice(favorites) if favorites and rng.random() < 0.7 else rng.choice(pool)
+
     for _attempt in range(6000):
         if len(picked) == wanted:
             break
         if not (proteins and carbs and sides):
             break
-        rows = [(rng.choice(proteins), rng.choice((60, 100, 150))), (rng.choice(carbs), rng.choice((60, 100, 150))),
-                (rng.choice(sides), rng.choice((60, 100)))]
+        rows = [(pick(proteins), rng.choice((60, 100, 150))), (pick(carbs), rng.choice((60, 100, 150))),
+                (pick(sides), rng.choice((60, 100)))]
         if fats and rng.random() < 0.7:
             rows.append((rng.choice(fats), rng.choice((5, 10, 15))))
         if len({food.id for food, _grams in rows}) != len(rows):
