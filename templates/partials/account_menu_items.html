@@ -1,0 +1,62 @@
+{# Contenido del submenú de cuenta del banner. Se incluye en escritorio (variant='desktop', con roles de menú) y en el menú móvil (variant='mobile'). El cierre de sesión es solo POST con csrf_token y limpia el almacenamiento local, igual que antes. #}
+{% url 'dashboard' as url_member_panel %}
+{% url 'trainer_dashboard' as url_trainer_panel %}
+{% url 'member_profile_edit' as url_profile_edit %}
+{% url 'member_measurement_list' as url_measurements %}
+{% url 'member_health_profile' as url_health_profile %}
+{% url 'member_plans' as url_member_plans %}
+{% with item_cls="flex items-center gap-3 min-h-[44px] px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors focus-visible:outline-none focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-primary" %}
+
+<div class="px-3 py-2 mb-1 border-b border-white/10">
+  <p class="text-sm font-semibold text-white truncate">{{ user.get_full_name|default:user.username }}</p>
+  {% if user.is_superuser %}
+  <span class="inline-block mt-1 px-2 py-0.5 rounded-full bg-primary/15 border border-primary/40 text-primary text-[11px] font-semibold tracking-wide">Administradora</span>
+  {% endif %}
+</div>
+
+{% if user.is_trainer %}
+  <a href="{{ url_trainer_panel }}" {% if variant == 'desktop' %}role="menuitem"{% endif %}{% if request.path == url_trainer_panel %} aria-current="page"{% endif %} class="{{ item_cls }}">
+    <i class="fa fa-gauge w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Mi panel</span>
+    {% if request.path == url_trainer_panel %}<i class="fa fa-check text-xs text-primary" aria-hidden="true"></i><span class="sr-only">(página actual)</span>{% endif %}
+  </a>
+  <a href="{{ url_profile_edit }}" {% if variant == 'desktop' %}role="menuitem"{% endif %}{% if request.path == url_profile_edit %} aria-current="page"{% endif %} class="{{ item_cls }}">
+    <i class="fa fa-user-circle w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Mi perfil</span>
+    {% if request.path == url_profile_edit %}<i class="fa fa-check text-xs text-primary" aria-hidden="true"></i><span class="sr-only">(página actual)</span>{% endif %}
+  </a>
+{% else %}
+  <a href="{{ url_member_panel }}" {% if variant == 'desktop' %}role="menuitem"{% endif %}{% if request.path == url_member_panel %} aria-current="page"{% endif %} class="{{ item_cls }}">
+    <i class="fa fa-gauge w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Mi panel</span>
+    {% if request.path == url_member_panel %}<i class="fa fa-check text-xs text-primary" aria-hidden="true"></i><span class="sr-only">(página actual)</span>{% endif %}
+  </a>
+  <a href="{{ url_profile_edit }}" {% if variant == 'desktop' %}role="menuitem"{% endif %}{% if request.path == url_profile_edit %} aria-current="page"{% endif %} class="{{ item_cls }}">
+    <i class="fa fa-user-circle w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Editar mi perfil</span>
+    {% if request.path == url_profile_edit %}<i class="fa fa-check text-xs text-primary" aria-hidden="true"></i><span class="sr-only">(página actual)</span>{% endif %}
+  </a>
+  {% if HEALTH_FEATURES_ENABLED %}
+  <a href="{{ url_measurements }}" {% if variant == 'desktop' %}role="menuitem"{% endif %}{% if request.path == url_measurements %} aria-current="page"{% endif %} class="{{ item_cls }}">
+    <i class="fa fa-weight-scale w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Mis medidas</span>
+    {% if request.path == url_measurements %}<i class="fa fa-check text-xs text-primary" aria-hidden="true"></i><span class="sr-only">(página actual)</span>{% endif %}
+  </a>
+  <a href="{{ url_health_profile }}" {% if variant == 'desktop' %}role="menuitem"{% endif %}{% if request.path == url_health_profile %} aria-current="page"{% endif %} class="{{ item_cls }}">
+    <i class="fa fa-notes-medical w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Mi ficha</span>
+    {% if request.path == url_health_profile %}<i class="fa fa-check text-xs text-primary" aria-hidden="true"></i><span class="sr-only">(página actual)</span>{% endif %}
+  </a>
+  {% if AI_PLANS_ENABLED %}
+  <a href="{{ url_member_plans }}" {% if variant == 'desktop' %}role="menuitem"{% endif %}{% if request.path == url_member_plans %} aria-current="page"{% endif %} class="{{ item_cls }}">
+    <i class="fa fa-wand-magic-sparkles w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Mi plan</span>
+    {% if request.path == url_member_plans %}<i class="fa fa-check text-xs text-primary" aria-hidden="true"></i><span class="sr-only">(página actual)</span>{% endif %}
+  </a>
+  {% endif %}
+  {% endif %}
+{% endif %}
+
+<div class="my-1 border-t border-white/10" role="separator"></div>
+
+<form method="post" action="{% url 'logout' %}" {% if variant == 'desktop' %}role="none"{% endif %}
+      onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
+  {% csrf_token %}
+  <button type="submit" {% if variant == 'desktop' %}role="menuitem"{% endif %} class="{{ item_cls }} w-full text-left">
+    <i class="fa fa-sign-out-alt w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Cerrar sesión</span>
+  </button>
+</form>
+{% endwith %}
