@@ -24,6 +24,7 @@
 16. [Cómo pasar a producción en Railway](#16-cómo-pasar-a-producción-en-railway)
 17. [Variables de entorno — referencia completa](#17-variables-de-entorno--referencia-completa)
 18. [Comandos útiles del día a día](#18-comandos-útiles-del-día-a-día)
+19. [Apps: health y plans — Salud y planes con IA](#19-apps-health-y-plans--salud-y-planes-con-ia)
 
 ---
 
@@ -38,6 +39,8 @@
 - **Membresías** mensuales, trimestrales o semestrales con control de vencimiento
 - **Pagos en línea** integrados con Wompi (pasarela colombiana)
 - **Panel de administración** web para gestionar todo sin tocar código
+- **Ficha de salud y consentimiento** de la clienta, con textos legales versionados (apagada por defecto en producción)
+- **Planes con IA** (rutina y alimentación): la IA propone un borrador y la entrenadora lo revisa y aprueba antes de que la clienta lo vea
 
 El sistema tiene dos tipos de usuarios:
 - **Entrenadora**: puede agregar clientes, crear valoraciones, construir rutinas, gestionar membresías
@@ -76,6 +79,7 @@ El sistema tiene dos tipos de usuarios:
 | **Railway.app** | Hosting del servidor Django y PostgreSQL |
 | **Cloudflare R2** | Almacenamiento de archivos: videos, fotos, imágenes |
 | **Wompi** | Pasarela de pagos colombiana (tarjeta crédito/débito, PSE, etc.) |
+| **Google Gemini** | Genera los borradores de planes con IA (solo en modo `live`; reciben datos sin identificar) |
 
 ---
 
@@ -109,6 +113,8 @@ profit-studio/                   ← Carpeta raíz del proyecto
 │   ├── exercises/               ← Biblioteca de ejercicios con videos
 │   ├── routines/                ← Rutinas de entrenamiento personalizadas
 │   ├── memberships/             ← Planes y membresías activas
+│   ├── health/                  ← Ficha de salud, medidas de la clienta y consentimiento
+│   ├── plans/                   ← Planes de ejercicio y alimentación con IA
 │   ├── payments/                ← Integración con Wompi
 │   └── public/                  ← Páginas públicas (inicio, servicios, contacto)
 │
@@ -120,12 +126,16 @@ profit-studio/                   ← Carpeta raíz del proyecto
 │   ├── exercises/               ← Detalle de ejercicio
 │   ├── routines/                ← Vista de rutina para el miembro
 │   ├── payments/                ← Checkout y confirmación de pago
+│   ├── health/                  ← Ficha de salud y consentimiento de la clienta
+│   ├── plans/                   ← Planes con IA (clienta y entrenadora)
 │   └── partials/                ← Fragmentos reutilizables (navbar, footer)
 │
-├── static/                      ← Archivos estáticos propios (CSS/JS/imágenes fijas)
-│   ├── css/
-│   ├── js/
-│   └── img/
+├── static/                      ← Archivos estáticos propios
+│   ├── images/                  ← Fotos fijas del sitio
+│   ├── manifest.json            ← Datos de la app instalable (PWA)
+│   └── sw.js                    ← Service worker de la app instalable
+│
+├── docs/                        ← Contratos de diseño, guía de despliegue y documentación del producto
 │
 └── .venv/                       ← Entorno virtual Python (no subir a git)
 ```
@@ -837,6 +847,15 @@ El archivo `.env` en la raíz del proyecto controla el comportamiento del sistem
 | `WOMPI_PRIVATE_KEY` | ❌ | Clave privada de Wompi (nunca exponer al cliente) |
 | `WOMPI_INTEGRITY_SECRET` | ❌ | Secreto para generar firmas de integridad |
 | `WOMPI_EVENTS_SECRET` | ❌ | Secreto para verificar webhooks de eventos |
+| `TRAINER_INITIAL_PASSWORD` | Opcional | Si existe, el arranque crea la cuenta de la entrenadora principal (`yiseth`); sin ella no se crea. Nunca hay contraseña por defecto |
+| `HEALTH_FEATURES_ENABLED` | Opcional | Enciende las pantallas de salud de la clienta. **Apagada por defecto en producción** (las rutas dan 404) hasta aprobar los textos legales |
+| `PRIVACY_POLICY_URL` | Opcional | Enlace público a la política de tratamiento de datos que se muestra junto al consentimiento |
+| `AI_PLANS_MODE` | Opcional | `off` (por defecto en producción), `simulated` (desarrollo) o `live` (Gemini) |
+| `GEMINI_API_KEY` | Solo en `live` | Clave de Google Gemini, de un proyecto con facturación habilitada |
+| `GEMINI_MODEL` | Solo en `live` | Nombre exacto del modelo, con versión (no un alias `-latest`, que cambia sin aviso) |
+| `GEMINI_BILLING_CONFIRMED` | Solo en `live` | `true` confirma que la clave es de un proyecto con facturación (el nivel gratuito permite que Google use los datos). En `live`, el servidor no arranca sin las tres variables de Gemini |
+| `AI_PLANS_ADAPTATION` | Opcional | Adaptación de los planes al historial de la clienta (apagada por defecto) |
+| `AI_PLANS_REQUIRE_PROFESSIONAL` | Opcional | Si es `true`, aprobar planes de alimentación exige credencial de nutrición (hoy `False`) |
 
 > Las variables marcadas ❌ en "Requerida" tienen valores por defecto en `settings/base.py` y son opcionales en desarrollo.
 
@@ -896,6 +915,25 @@ python manage.py load_initial_data
 python manage.py collectstatic
 ```
 
+### Salud y planes con IA
+
+```bash
+# Cargar el catálogo inicial de alimentos (cifras aproximadas; un profesional debe validarlas)
+python manage.py load_foods
+
+# Ver qué ejercicios activos aún no tienen etiquetas de equipo, riesgo e intensidad
+python manage.py list_untagged_exercises
+
+# Probar la clave de Gemini con datos ficticios (no usa datos de clientas)
+python manage.py check_gemini
+
+# Recuperar trabajos de IA que quedaron huérfanos tras un reinicio
+python manage.py process_plan_jobs
+
+# Revisar la configuración de producción (base de datos, almacenamiento, correo, IA)
+python manage.py check_infra
+```
+
 ### Abrir la consola de Django (para explorar datos)
 
 ```bash
@@ -922,6 +960,34 @@ git commit -m "Descripción del cambio"
 # Ver historial de cambios
 git log --oneline
 ```
+
+---
+
+## 19. Apps: health y plans — Salud y planes con IA
+
+Estas dos apps agregan la **ficha de salud** de la clienta y los **planes de ejercicio y de alimentación** hechos con ayuda de inteligencia artificial. Están **apagadas por defecto en producción**: se encienden cuando un abogado aprueba los textos de consentimiento y se configura Gemini (ver las variables en la sección 17). El diseño completo y las decisiones de cada fase están en `docs/contracts/plan-ia.md` y `docs/contracts/plan-ia-adaptacion.md`.
+
+### App: health — Ficha de salud y consentimiento (`apps/health/`)
+
+| Pieza | Qué hace |
+|-------|----------|
+| **Consentimiento** (`ConsentTextVersion`, `ConsentRecord`) | La clienta autoriza por separado el uso de sus datos de salud y el envío de datos sin identificar a la IA. El texto de cada versión queda guardado; si se publica uno nuevo, hay que aceptarlo de nuevo |
+| **Ficha de salud y alimentación** (`HealthProfile`) | Condiciones, medicamentos, lesiones, alergias, dieta y datos de entrenamiento. Cada guardado crea una versión nueva; la entrenadora solo puede corregirla y la clienta debe confirmar los cambios |
+| **Medidas de la clienta** | La clienta registra su propio peso, cintura, cadera y porcentaje de grasa en `/assessments/me/measurements/` |
+| **Registro de accesos** (`HealthAccessLog`) | Queda anotado quién abrió o editó una ficha |
+
+Reglas importantes: las menores de 18 años no llenan la ficha en línea; las pantallas de salud no ponen datos en la URL ni se guardan en la caché del navegador; la clienta puede descargar sus datos o borrar su ficha.
+
+### App: plans — Planes con IA (`apps/plans/`)
+
+**Cómo fluye un plan:** la clienta (o su entrenadora) pide un plan → el sistema comprueba que haya consentimientos, ficha confirmada y medidas recientes, y calcula banderas de riesgo → si no hay bandera roja, la IA propone un **borrador** → la entrenadora lo revisa, lo edita y lo **aprueba** → solo entonces la clienta lo ve.
+
+- **La IA no decide.** Con una bandera roja no se llama a la IA y se avisa a la entrenadora. A la IA solo viajan datos sin identificar (sin nombre, correo ni diagnósticos).
+- **Reglas en Python puro** (`apps/plans/rules/`): banderas de riesgo, calorías y macros, filtro de ejercicios y alimentos, y validación de lo que devuelve la IA. Si la respuesta no pasa la validación, no se guarda.
+- **Plan de alimentación:** 3 opciones por comida. La IA solo elige alimentos y gramos del catálogo `Food`; Python calcula calorías y macros. La clienta elige una opción por comida y día, puede pedir «otra opción» (con tope), marcar «Cumplí esta comida» y ver intercambios y lista de compras.
+- **Trabajos en segundo plano:** la generación corre en un hilo con una cola en la base de datos (sin Celery ni Redis); los trabajos que quedan huérfanos tras un reinicio se recuperan solos.
+- **Adaptación al historial** (`AI_PLANS_ADAPTATION`, apagada por defecto): tiene en cuenta cómo le fue a la clienta con sus planes anteriores.
+- **Probar sin gastar:** con `AI_PLANS_MODE=simulated` (el valor en desarrollo) se usa una IA de mentira que no sale a internet.
 
 ---
 

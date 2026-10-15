@@ -464,7 +464,6 @@ class PanelByKindTests(HistoryMixin, PlanScenarioTestCase):
                    removed_exercises=1, removed_foods=2, excluded_exercises=1, excluded_foods=2, progress='stalled')
 
     def texts(self, kind):
-        from apps.plans.models import KIND_NUTRITION
         self.ready(self.client_a)
         job, _fake = self.request(self.client_a)
         plan = job.plan
