@@ -105,8 +105,13 @@ def _group(rows):
 
 
 def _completed_meals(client, today):
+    """Comidas marcadas como hechas, con los alimentos de la opción elegida. Solo cuentan las marcadas sobre
+    una opción ACTIVA: si la clienta pidió «otra opción», la rechazada deja de verse y de poder corregirse
+    (`nutrition.day_view` / `complete_choice`), y ya la trata `_discarded_options` como descartada. Si el
+    entrenador recupera la anterior, vuelve a estar activa y sus comidas vuelven a contar."""
     rows = MealChoice.objects.filter(
-        client=client, completed_at__isnull=False, date__gte=today - timedelta(days=PREFERENCE_DAYS),
+        client=client, completed_at__isnull=False, option__is_active=True,
+        date__gte=today - timedelta(days=PREFERENCE_DAYS),
     ).values_list('pk', 'option__items__food_id')
     return tuple(frozenset(i for i in ids if i is not None) for ids in _group(rows).values())
 

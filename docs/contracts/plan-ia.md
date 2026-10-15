@@ -772,6 +772,8 @@ Implementado: la ruta `member_meal_complete` («Cumplí esta comida», sección 
 
 La señal `liked_food_ids` (`apps/plans/adaptation.py::_completed_meals`, umbral `LIKED_MIN_MEALS = 3` de `rules/adaptation.py`) lee `MealChoice.completed_at`. Hasta hoy nada lo escribía y la señal salía siempre vacía; con esta ruta, un alimento presente en 3 o más comidas marcadas aparece en `history.nutrition.liked_food_ids` del siguiente pedido a la IA (con `AI_PLANS_ADAPTATION` encendida, que sigue apagada por defecto). Las reglas y umbrales de la adaptación no cambiaron.
 
+- **Solo cuentan las comidas marcadas sobre opciones activas** (2026-10-15, rama `fix-adaptacion-comida-reemplazada`): `_completed_meals` filtra `option__is_active=True`. Al pedir «otra opción», la rechazada queda inactiva y la clienta ya no la ve ni puede desmarcarla (`day_view` y `complete_choice` solo trabajan con opciones activas), además de contar como descartada en `_discarded_options`; que su marca siguiera sumando a «le gusta» (o protegiendo al alimento de `avoid_food_ids`) era una preferencia que ella no puede ver ni corregir. Criterio: lo que la clienta ve es lo que cuenta. Si el entrenador recupera la opción anterior (`review_option` → revertir), esa opción vuelve a estar activa y sus comidas marcadas vuelven a contar. Sin migración ni cambios en `rules/adaptation.py`.
+
 **Pendiente / observaciones**
 
 - La plantilla `plans/member_nutrition.html` (botón «Cumplí esta comida») es del frontend.
