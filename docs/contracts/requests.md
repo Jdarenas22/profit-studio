@@ -225,6 +225,18 @@ Primera pieza de la fase D (el resto sigue pendiente). Sin migración: `MealChoi
   5. Ocultarlo en la impresión.
 - **Para saber**: las pastillas de día de la pantalla van de hoy a hoy + 6, así que desde la interfaz solo se marcan comidas de **hoy** (el servicio acepta también días anteriores, pero la pantalla no navega hacia atrás). La hora de la marca no se muestra en ninguna parte.
 
+### Fase D1: contador del menú (`trainer_plan_badge`) (IMPLEMENTADO por el backend, 2026-10-15)
+
+Segunda pieza de la fase D (la parte de contador de F-17). Sin migración. Pedido a `templates/trainer/base.html` y a un fragmento nuevo.
+
+- **Ruta**: `GET {% url 'trainer_plan_badge' %}` (`/plans/trainer/inbox/badge/`). Solo entrenadores (la clienta recibe 403 y quien no inició sesión va al inicio de sesión), solo GET (otro método = 405), función apagada = 404, `Cache-Control: no-store`.
+- **Respuesta**: siempre 200 con el fragmento `trainer/partials/plan_badge.html` y un único dato de contexto, `count` (int; puede ser 0 o mayor que 99: el backend no lo recorta). Responde 200 también con `count == 0`, porque el sondeo del menú es permanente (no usa el 286 de htmx).
+- **Qué cuenta**: exactamente los mismos «Planes por revisar» que muestra la bandeja (`trainer_plan_inbox`, `pending_count`): borradores de la IA, planes en revisión y planes aprobados con una opción nueva pedida por la clienta, solo de SUS clientas (la superusuaria, de todas). Los dos salen de la misma función (`services.pending_review_count`), así que nunca difieren.
+- **Lo que se pide**:
+  1. En `templates/trainer/base.html`, dentro del enlace «Planes por revisar» (bloque `{% if AI_PLANS_ENABLED %}`), un contenedor con `hx-get="{% url 'trainer_plan_badge' %}"`, `hx-trigger="load, every 60s"` y `hx-swap="innerHTML"`.
+  2. El fragmento pinta una píldora con el número (`99+` si `count > 99`) solo si `count > 0`; si es 0 no pinta nada.
+  3. Accesible: `aria-label` «N planes por revisar» (en singular, «1 plan por revisar») y sin romper la fila de pestañas en móvil.
+
 ## De frontend-architect para arquitecto-backend
 
 ### Fase A1: plantillas entregadas (F-01, F-02, F-03) y lo que asumen de las vistas

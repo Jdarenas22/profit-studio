@@ -16,6 +16,7 @@ urlpatterns = [
     path('nutrition/shopping-list/', views.member_shopping_list, name='member_shopping_list'),
     # Entrenador (solo clientas a las que tiene acceso)
     path('trainer/inbox/', views.trainer_plan_inbox, name='trainer_plan_inbox'),
+    path('trainer/inbox/badge/', views.trainer_plan_badge, name='trainer_plan_badge'),
     path('trainer/<int:pk>/', views.trainer_plan_detail, name='trainer_plan_detail'),
     path('trainer/<int:pk>/take/', views.trainer_plan_take, name='trainer_plan_take'),
     path('trainer/<int:pk>/approve/', views.trainer_plan_approve, name='trainer_plan_approve'),

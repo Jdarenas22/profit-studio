@@ -31,10 +31,27 @@
       <i class="fa fa-clipboard-list"></i> Rutinas
     </a>
     {% if AI_PLANS_ENABLED %}
+    {% comment %}
+      Contador de planes por revisar. El texto y la píldora van juntos en un solo elemento flex para que
+      la separación (ml-2) viva en la píldora: con el contador en 0 no queda ningún hueco ni cambia el alto.
+      El contenedor es "contents" (no genera caja) y su contenido interno se reemplaza (innerHTML), así el
+      sondeo sigue vivo. Se consulta al cargar, cada 60 s con la pestaña visible y al volver a ella.
+      hx-select deja pasar solo la píldora: si la sesión venció y la respuesta es la página de acceso,
+      el contador queda vacío en vez de pintar esa página dentro del menú.
+    {% endcomment %}
     <a href="{% url 'trainer_plan_inbox' %}"
-       class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
+       data-active="{% if '/plans/trainer' in request.path %}true{% else %}false{% endif %}"
+       class="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
               {% if '/plans/trainer' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
-      <i class="fa fa-wand-magic-sparkles"></i> Planes por revisar
+      <i class="fa fa-wand-magic-sparkles"></i>
+      <span class="flex items-center">
+        Planes por revisar
+        <span class="contents"
+              hx-get="{% url 'trainer_plan_badge' %}"
+              hx-trigger="load, every 60s [document.visibilityState === 'visible'], visibilitychange[document.visibilityState === 'visible'] from:document"
+              hx-swap="innerHTML"
+              hx-select="[data-plan-badge]"></span>
+      </span>
     </a>
     {% endif %}
 
