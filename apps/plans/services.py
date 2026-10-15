@@ -264,6 +264,17 @@ def active_job(client, kind):
         client=client, kind=kind, status__in=PlanGenerationJob.ACTIVE_STATUSES).first()
 
 
+def recent_blocked_job(client, kind, red_codes):
+    """El trabajo `blocked` de las últimas 24 h de la misma clienta, tipo y banderas rojas (o `None`).
+
+    Un solo aviso al día por el mismo bloqueo: los bloqueados no consumen cupo, así que sin esto
+    cada clic (o cada formulario reenviado, con su propio token) crearía otro trabajo y otro correo
+    al entrenador. Lo usan `request_plan` y `nutrition.request_alternative`."""
+    return PlanGenerationJob.objects.filter(
+        client=client, kind=kind, status=PlanGenerationJob.STATUS_BLOCKED,
+        flags=list(red_codes), created_at__gte=_since(DAY)).first()
+
+
 def request_plan(client, kind, actor, request_token, trainer_notes='', parent_plan=None):
     """Crea el trabajo de generación (o devuelve el existente). Devuelve `(job, created)`.
 
@@ -301,11 +312,8 @@ def request_plan(client, kind, actor, request_token, trainer_notes='', parent_pl
         max_attempts=settings.AI_PLANS_MAX_ATTEMPTS,
     )
     if eligibility.blocked:
-        # Un solo aviso al día por el mismo bloqueo (los bloqueados no consumen cupo: sin esto,
-        # cada clic enviaría otro correo al entrenador)
-        recent = PlanGenerationJob.objects.filter(
-            client=client, kind=kind, status=PlanGenerationJob.STATUS_BLOCKED,
-            flags=list(eligibility.red_codes), created_at__gte=_since(DAY)).first()
+        # Un solo aviso al día por el mismo bloqueo (ver `recent_blocked_job`)
+        recent = recent_blocked_job(client, kind, eligibility.red_codes)
         if recent is not None:
             return recent, False
         job = PlanGenerationJob.objects.create(

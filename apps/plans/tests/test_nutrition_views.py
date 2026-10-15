@@ -291,6 +291,25 @@ class MemberNutritionViewsTests(NutritionScenarioTestCase):
         self.login(self.client_b)
         self.assertEqual(self.client.get(reverse('member_plan_request_status', args=[job.pk])).status_code, 404)
 
+    def test_other_option_blocked_twice_goes_to_the_same_job_and_notifies_once(self):
+        self.make_profile(self.client_a, pregnancy_status='pregnant')
+        mail.outbox.clear()
+        url = reverse('member_meal_alternative', args=[self.slot.pk])
+        with self.fake_ai(), self.captureOnCommitCallbacks(execute=True):
+            first = self.client.post(url,{'option': self.option.pk, 'request_token': services.new_request_token()})
+        job = PlanGenerationJob.objects.get(kind='meal_alternative')
+        self.assertEqual(job.status, PlanGenerationJob.STATUS_BLOCKED)
+        self.assertRedirects(first, reverse('member_plan_request_status', args=[job.pk]), fetch_redirect_response=False)
+        with self.fake_ai() as fake, self.captureOnCommitCallbacks(execute=True):
+            second = self.client.post(url, {'option': self.option.pk, 'request_token': services.new_request_token()})
+        self.assertEqual((PlanGenerationJob.objects.filter(kind='meal_alternative').count(), len(mail.outbox)), (1, 1))
+        self.assertRedirects(second, reverse('member_plan_request_status', args=[job.pk]), fetch_redirect_response=False)
+        self.assertEqual(fake.calls, [])
+        # La pantalla de estado del trabajo repetido responde y no revela la bandera
+        status = self.client.get(reverse('member_plan_request_status', args=[job.pk]))
+        self.assertEqual(status.status_code, 200)
+        self.assertNotContains(status, 'R02_PREGNANCY')
+
     @override_settings(AI_PLANS_ALT_SLOT_WEEKLY_LIMIT=0)
     def test_other_option_quota_shows_a_message(self):
         response = self.client.post(reverse('member_meal_alternative', args=[self.slot.pk]), {

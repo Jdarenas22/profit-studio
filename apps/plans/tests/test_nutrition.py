@@ -541,6 +541,81 @@ class AlternativeTests(NutritionScenarioTestCase):
         self.option.refresh_from_db()
         self.assertTrue(self.option.is_active)
 
+    def ask_blocked(self, client=None, slot=None, option=None):
+        """Pide "otra opción" con un token NUEVO (como un reenvío del formulario). Ejecuta los
+        `on_commit` (el aviso por correo). Devuelve `(job, created, fake)`."""
+        slot, option = slot or self.slot, option or self.option
+        with self.fake_ai() as fake, self.captureOnCommitCallbacks(execute=True):
+            job, created = nutrition.request_alternative(
+                client or self.client_a, slot.pk, option.pk, services.new_request_token())
+        return job, created, fake
+
+    def blocked_alternatives(self, client=None):
+        return PlanGenerationJob.objects.filter(
+            kind='meal_alternative', client=client or self.client_a, status=PlanGenerationJob.STATUS_BLOCKED)
+
+    def test_repeated_blocked_request_creates_one_job_and_one_notice_a_day(self):
+        self.make_profile(self.client_a, pregnancy_status='pregnant')
+        first, created, fake = self.ask_blocked()
+        again, created_again, _ = self.ask_blocked()          # otro token, misma bandera roja
+        self.assertEqual((self.blocked_alternatives().count(), len(mail.outbox)), (1, 1))
+        self.assertEqual((first.pk, created, created_again), (again.pk, True, False))
+        self.assertEqual((first.status, first.flags), (PlanGenerationJob.STATUS_BLOCKED, ['R02_PREGNANCY']))
+        self.assertEqual(fake.calls, [])
+        self.assertEqual(PlanGenerationJob.objects.filter(kind='meal_alternative').count(), 1)   # ni otros estados
+
+    def test_blocked_request_with_other_red_flags_creates_a_new_job_and_notice(self):
+        self.make_profile(self.client_a, pregnancy_status='pregnant')
+        first, _, _ = self.ask_blocked()
+        self.make_profile(self.client_a, eating_disorder_history='yes')          # otra bandera roja
+        second, created, _ = self.ask_blocked()
+        self.assertTrue(created)
+        self.assertNotEqual(first.pk, second.pk)
+        self.assertNotEqual(first.flags, second.flags)
+        self.assertEqual(second.flags, ['R03_EATING_DISORDER'])
+        self.assertEqual((self.blocked_alternatives().count(), len(mail.outbox)), (2, 2))
+
+    def test_blocked_request_after_a_day_creates_a_new_job_and_notice(self):
+        self.make_profile(self.client_a, pregnancy_status='pregnant')
+        first, _, _ = self.ask_blocked()
+        PlanGenerationJob.objects.filter(pk=first.pk).update(created_at=timezone.now() - timedelta(days=2))
+        later, created, _ = self.ask_blocked()
+        self.assertTrue(created)
+        self.assertNotEqual(first.pk, later.pk)
+        self.assertEqual((self.blocked_alternatives().count(), len(mail.outbox)), (2, 2))
+        again, created_again, _ = self.ask_blocked()                              # el de hoy sí deduplica
+        self.assertEqual((again.pk, created_again), (later.pk, False))
+        self.assertEqual((self.blocked_alternatives().count(), len(mail.outbox)), (2, 2))
+
+    def test_blocked_dedup_is_per_client(self):
+        other = self.approved_nutrition(self.client_b)
+        other_slot = other.nutrition.slots.get(code='lunch')
+        other_option = other_slot.options.get(position=2)
+        self.make_profile(self.client_a, pregnancy_status='pregnant')
+        self.make_profile(self.client_b, pregnancy_status='pregnant')             # mismo bloqueo
+        mail.outbox.clear()
+        mine, created_mine, _ = self.ask_blocked()
+        theirs, created_theirs, _ = self.ask_blocked(self.client_b, other_slot, other_option)
+        self.assertEqual((created_mine, created_theirs), (True, True))
+        self.assertNotEqual(mine.pk, theirs.pk)
+        self.assertEqual((mine.client, theirs.client), (self.client_a, self.client_b))
+        self.assertEqual(len(mail.outbox), 2)
+        # Cada una deduplica solo con lo suyo
+        again, created_again, _ = self.ask_blocked(self.client_b, other_slot, other_option)
+        self.assertEqual((again.pk, created_again), (theirs.pk, False))
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_blocked_dedup_ignores_blocked_jobs_of_another_kind(self):
+        self.make_profile(self.client_a, pregnancy_status='pregnant')
+        plan_job, _ = self.request_nutrition(self.client_a)                      # plan completo: bloqueado, con su aviso
+        self.assertEqual(plan_job.status, PlanGenerationJob.STATUS_BLOCKED)
+        self.assertEqual(len(mail.outbox), 1)
+        job, created, _ = self.ask_blocked()
+        self.assertTrue(created)
+        self.assertNotEqual(job.pk, plan_job.pk)
+        self.assertEqual(job.kind, 'meal_alternative')
+        self.assertEqual(len(mail.outbox), 2)
+
     def test_consent_revoked_means_not_ready(self):
         from apps.health.models import PURPOSE_AI
         health.revoke_consent(self.client_a, PURPOSE_AI)
