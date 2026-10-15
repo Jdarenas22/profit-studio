@@ -11,10 +11,12 @@ from django.utils import timezone
 
 from apps.assessments.models import BodyMeasurement
 from apps.health import dates as health_dates
+from apps.health import services as health_services
 from apps.plans import adaptation, nutrition, services
 from apps.plans.models import (
     KIND_EXERCISE, Food, MealChoice, MealOption, MealOptionItem, Plan, PlanGenerationJob,
 )
+from apps.plans.rules import adaptation as rules_adaptation
 from apps.routines.models import Routine, RoutineDay, RoutineDayLog, RoutineExercise
 
 from .helpers import NutritionScenarioTestCase, PlanScenarioTestCase
@@ -238,13 +240,32 @@ class NutritionAdaptationTests(NutritionScenarioTestCase):
         self.food = Food.objects.exclude(
             pk__in=MealOptionItem.objects.filter(option__slot__nutrition_plan__plan=self.plan).values('food_id')).first()
 
-    def discard_with_food(self, option):
-        MealOptionItem.objects.create(option=option, food=self.food, grams=60, order=9)
+    def replace_option(self, option):
+        """La clienta pide «otra opción» para `option`: queda inactiva y entra una nueva."""
         with self.fake_ai() as fake, self.captureOnCommitCallbacks(execute=True):
             job, _ = nutrition.request_alternative(self.client_a, self.slot.pk, option.pk, services.new_request_token())
         job.refresh_from_db()
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
         return job, fake
+
+    def discard_with_food(self, option):
+        MealOptionItem.objects.create(option=option, food=self.food, grams=60, order=9)
+        return self.replace_option(option)
+
+    def complete_on(self, option, ago):
+        """Comida marcada como hecha, hace `ago` días, con la opción `option`."""
+        return MealChoice.objects.create(client=self.client_a, slot=self.slot, option=option,
+                                         date=health_dates.today() - timedelta(days=ago), completed_at=timezone.now())
+
+    def profile(self):
+        return rules_adaptation.build_profile(
+            adaptation.collect(self.client_a, health_services.current_profile(self.client_a)))
+
+    def liked(self):
+        return set(self.profile().liked_food_ids)
+
+    def avoid(self):
+        return set(self.profile().avoid_food_ids)
 
     def test_a_food_the_client_keeps_discarding_stops_being_offered(self):
         first, second = self.slot.options.get(position=1), self.slot.options.get(position=2)
@@ -278,6 +299,43 @@ class NutritionAdaptationTests(NutritionScenarioTestCase):
         meals = adaptation._completed_meals(self.client_a, health_dates.today())
         self.assertEqual(len(meals), 3)
         self.assertEqual(set(meals[0]), set(option.items.values_list('food_id', flat=True)))
+
+    def test_a_meal_marked_on_a_replaced_option_stops_counting_until_the_trainer_reverts(self):
+        """Lo que la clienta ve es lo que cuenta: al pedir «otra opción» la rechazada deja de verse (y de poder
+        desmarcarse), así que sus comidas marcadas dejan de ser señal; si el entrenador la recupera, vuelven."""
+        options = list(self.slot.options.filter(is_active=True).order_by('position'))
+        self.assertEqual(len(options), 3)
+        for ago, option in enumerate(options, start=1):          # el mismo alimento en 3 opciones distintas
+            MealOptionItem.objects.create(option=option, food=self.food, grams=60, order=9)
+            self.complete_on(option, ago)
+        self.assertIn(self.food.pk, self.liked())                 # 3 comidas con ese alimento: le gusta
+
+        self.replace_option(options[0])
+        new = self.slot.options.get(position=1, is_active=True)
+        self.assertNotEqual(new.pk, options[0].pk)
+        self.assertEqual(len(adaptation._completed_meals(self.client_a, health_dates.today())), 2)
+        self.assertNotIn(self.food.pk, self.liked())              # bajó del mínimo: ya no cuenta
+
+        nutrition.review_option(self.plan, new, self.boss, 'revert')
+        self.assertTrue(MealOption.objects.get(pk=options[0].pk).is_active)
+        self.assertEqual(len(adaptation._completed_meals(self.client_a, health_dates.today())), 3)
+        self.assertIn(self.food.pk, self.liked())                 # vuelve a verse y a contar
+
+    def test_a_meal_marked_on_a_replaced_option_does_not_shield_its_food_from_the_avoid_list(self):
+        first, second = (self.slot.options.get(position=p) for p in (1, 2))
+        self.complete_on(first, 1)                                # la marcó y después pidió «otra opción»
+        self.discard_with_food(first)
+        self.discard_with_food(second)                            # 2.º descarte con ese alimento
+        self.assertIn(self.food.pk, self.avoid())
+
+    def test_a_meal_marked_on_an_active_option_still_shields_its_food_from_the_avoid_list(self):
+        first, second, third = (self.slot.options.get(position=p) for p in (1, 2, 3))
+        self.discard_with_food(first)
+        self.discard_with_food(second)
+        self.assertIn(self.food.pk, self.avoid())                 # sin comidas marcadas: se evita
+        MealOptionItem.objects.create(option=third, food=self.food, grams=60, order=9)
+        self.complete_on(third, 1)                                # y la opción activa sí la ve ella
+        self.assertNotIn(self.food.pk, self.avoid())
 
     def test_the_client_discard_is_not_counted_as_a_trainer_correction(self):
         option = self.slot.options.get(position=1)
