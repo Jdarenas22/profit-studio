@@ -1,8 +1,8 @@
 # Contrato: ficha de salud, medidas de la clienta y planes con IA (ejercicio + alimentación)
 
-- Estado: **PROPUESTA para aprobación. No hay código construido.**
+- Estado: **APROBADO e implementado** (fases A1, A2, B y C; la fase D está en curso). Este documento conserva el diseño original; la sección 18 («Registro de implementación») lista lo construido y manda sobre cualquier diferencia.
 - Fecha: 2026-10-08. Rama: `plan-ia-nutricion`. Autor: arquitecto-backend.
-- Alcance de esta ronda: solo diseño. Nada de lo que sigue está implementado.
+- Alcance original: diseño de las fases A a D. Las secciones 1 a 17 son el diseño propuesto; las decisiones y diferencias reales están en la sección 18.
 - Aviso: las reglas de salud de este documento (umbrales, banderas, pisos calóricos) son una propuesta técnica y están marcadas **[A VALIDAR]**: deben revisarlas un profesional de la salud/nutrición (y un abogado, en lo legal) antes de producción. No es asesoría médica ni legal.
 
 ---
