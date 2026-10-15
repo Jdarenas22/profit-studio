@@ -779,3 +779,7 @@ La señal `liked_food_ids` (`apps/plans/adaptation.py::_completed_meals`, umbral
 - La plantilla `plans/member_nutrition.html` (botón «Cumplí esta comida») es del frontend.
 - La pantalla solo navega de hoy a hoy + 6 (`meal_dates`), así que desde la interfaz únicamente se marcan comidas de hoy, aunque el servicio acepta días anteriores. Si se quiere dejar marcar «ayer», es una decisión de producto aparte.
 - La adherencia de comidas para el entrenador (F-16, sección 8.2) todavía no se muestra: el dato ya se guarda, falta la pantalla.
+
+**Corrección posterior**
+
+- **«Otra opción» bloqueada se deduplica por día** (2026-10-15, rama `fix-alternativa-bloqueada-duplicada`): `nutrition.request_alternative` creaba un trabajo `blocked` y un correo al entrenador por cada pedido con bandera roja (cada reenvío del formulario trae su propio `request_token` y los bloqueados no consumen cupo). Ahora, igual que `request_plan`, devuelve el trabajo bloqueado de las últimas 24 h de la misma clienta, tipo y banderas rojas (`created=False`, sin trabajo ni aviso nuevos); con banderas distintas, otra clienta o pasado el día, se crea uno nuevo y se avisa. Ambos usan la función `services.recent_blocked_job`. Sin migración; cupos, límites y mensajes no cambiaron.

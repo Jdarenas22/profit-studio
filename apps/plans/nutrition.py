@@ -448,6 +448,11 @@ def request_alternative(client, slot_pk, option_pk, request_token):
         max_attempts=settings.AI_PLANS_MAX_ATTEMPTS,
     )
     if result.eligibility.blocked:
+        # Un solo aviso al día por el mismo bloqueo, igual que `request_plan` (los bloqueados no
+        # consumen cupo y cada reenvío del formulario trae su propio token)
+        recent = services.recent_blocked_job(client, ALTERNATIVE, result.eligibility.red_codes)
+        if recent is not None:
+            return recent, False
         job = PlanGenerationJob.objects.create(
             status=PlanGenerationJob.STATUS_BLOCKED, flags=list(result.eligibility.red_codes),
             error_code='blocked', finished_at=timezone.now(), **common)
