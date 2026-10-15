@@ -165,7 +165,7 @@ Requieren la función de salud encendida (sección 7). Pasos:
 
 Además de lo anterior:
 
-1. **Carga el catálogo de alimentos**: `python manage.py load_foods` (90 alimentos con cifras **aproximadas y sin validar**; es seguro repetirlo, no pisa los ya validados).
+1. **Catálogo de alimentos**: `start.sh` ejecuta `python manage.py load_foods` en cada despliegue (90 alimentos con cifras **aproximadas y sin validar**; es repetible, no pisa los ya validados, y si falla el arranque continúa). También puedes correrlo a mano.
 2. **Un nutricionista-dietista debe revisar las cifras** (admin → Alimentos) y marcar los alimentos como validados (acción “Marcar como validados”). Fuera de modo de desarrollo, el sistema **ignora los alimentos sin validar**: sin este paso no se pueden generar planes de alimentación reales.
 3. **Validación profesional (hoy SUSPENDIDA)**: con `AI_PLANS_REQUIRE_PROFESSIONAL` sin definir (o `false`) cualquier entrenador aprueba planes de alimentación y se usan los alimentos aunque no estén validados; `check_infra` lo avisa. Para reactivarla define `AI_PLANS_REQUIRE_PROFESSIONAL=true` y sigue el punto siguiente.
    **Credencial para aprobar** (solo si la validación está activa): en el admin → «Credenciales de validación», marca `can_validate_nutrition` y escribe la frase que se imprime en el plan (p. ej. «Nutricionista-dietista, RETHUS N.º …») para quien apruebe los planes de alimentación. Quién puede hacerlo es una decisión legal (Ley 1164 de 2007): consúltalo con tu abogado.

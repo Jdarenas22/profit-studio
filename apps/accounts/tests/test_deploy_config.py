@@ -252,6 +252,16 @@ class StartScriptTests(SimpleTestCase):
         self.assertIn('TRAINER_INITIAL_PASSWORD', self.text)
         self.assertRegex(self.text, r'if \[ -n "\$\{TRAINER_INITIAL_PASSWORD:-\}" \]')
 
+    def test_loads_the_food_catalog_after_the_initial_data_and_never_blocks_boot(self):
+        initial = self.text.index('python manage.py load_initial_data')
+        foods = self.text.index('python manage.py load_foods')
+        server = self.text.index('exec gunicorn')
+        self.assertLess(initial, foods)
+        self.assertLess(foods, server)
+        line = next(l for l in self.text.splitlines() if 'python manage.py load_foods' in l)
+        self.assertIn('||', line)                                    # si falla, el arranque continúa
+        self.assertNotIn('exit', line)
+
     def test_keeps_media_directories(self):
         self.assertIn('mkdir -p', self.text)
         self.assertIn('media/profiles', self.text)

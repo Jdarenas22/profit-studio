@@ -161,6 +161,11 @@ fi
 echo ">>> Cargando datos iniciales..."
 python manage.py load_initial_data 2>&1 && echo ">>> load_initial_data OK" || echo ">>> load_initial_data FALLO (continuando)"
 
+# 6b. Catálogo de alimentos de los planes de alimentación (continúa aunque falle).
+#     Es repetible y nunca pisa un alimento ya validado por un profesional.
+echo ">>> Cargando catálogo de alimentos..."
+python manage.py load_foods 2>&1 && echo ">>> load_foods OK" || echo ">>> load_foods FALLO (continuando)"
+
 # 7. Gunicorn — siempre arranca (si llegamos aquí, la base está migrada)
 echo ">>> Iniciando Gunicorn en 0.0.0.0:$PORT..."
 exec gunicorn config.wsgi:application \
