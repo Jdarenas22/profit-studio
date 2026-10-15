@@ -10,7 +10,6 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import messages
-from django.db.models import Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -223,16 +222,15 @@ def trainer_plan_inbox(request):
     atención (bloqueados o fallidos de los últimos días)."""
     status = request.GET.get('status', '')
     all_plans = services.plans_for_trainer(request.user)
-    # Planes aprobados con una opción nueva pedida por la clienta: esperan revisión
-    regenerated_ids = set(MealOption.objects.filter(
-        slot__nutrition_plan__plan__in=all_plans, is_active=True, needs_review=True,
-        slot__nutrition_plan__plan__status=Plan.STATUS_APPROVED,
-    ).values_list('slot__nutrition_plan__plan_id', flat=True))
+    # Planes aprobados con una opción nueva pedida por la clienta: esperan revisión. La cuenta de
+    # «por revisar» sale de `services` (la comparte con el contador del menú).
+    regenerated_ids = services.regenerated_plan_ids(request.user)
+    pending_review = services.pending_review_plans(request.user, regenerated_ids)
     if status in (Plan.STATUS_DRAFT_AI, Plan.STATUS_IN_REVIEW, Plan.STATUS_APPROVED):
         plans = all_plans.filter(status=status)
     else:
         status = ''
-        plans = all_plans.filter(Q(status__in=Plan.PENDING_STATUSES) | Q(pk__in=regenerated_ids))
+        plans = pending_review
     rows = [{'plan': plan, 'flags': services.describe_codes(plan.flags),
              'client_regenerated': plan.pk in regenerated_ids}
             for plan in plans.order_by('-created_at')[:200]]
@@ -246,11 +244,22 @@ def trainer_plan_inbox(request):
         'status': status,
         'status_choices': [('', 'Por revisar'), (Plan.STATUS_DRAFT_AI, 'Borradores de la IA'),
                            (Plan.STATUS_IN_REVIEW, 'En revisión'), (Plan.STATUS_APPROVED, 'Aprobados')],
-        'pending_count': all_plans.filter(Q(status__in=Plan.PENDING_STATUSES) | Q(pk__in=regenerated_ids)).count(),
+        'pending_count': services.pending_review_count(request.user, regenerated_ids),
         'active_jobs': job_qs.filter(status__in=PlanGenerationJob.ACTIVE_STATUSES).order_by('-created_at'),
         'attention_jobs': [{'job': job, 'flags': services.describe_codes(job.flags)} for job in attention],
         'ai_mode': ai.ai_mode(),
     })
+
+
+@plans_feature_required
+@trainer_required
+@require_GET
+def trainer_plan_badge(request):
+    """Fragmento HTMX del contador «Planes por revisar» del menú del entrenador. Cuenta con la
+    misma función que la bandeja (`services.pending_review_count`). Responde siempre 200: el
+    sondeo del menú es permanente (no usa el 286)."""
+    count = services.pending_review_count(request.user)
+    return render(request, 'trainer/partials/plan_badge.html', {'count': count})
 
 
 def _profile_summary(request, client, profile):
