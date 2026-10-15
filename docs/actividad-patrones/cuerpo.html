@@ -1,0 +1,318 @@
+<h1>Resumen</h1>
+<p>Este informe documenta un experimento sobre el código que Claude Code generó para ProFit Studio, una aplicación Django de gestión de un gimnasio. Un asistente de IA, consultado en una conversación nueva y sin el historial de la generación, identificó 14 patrones GoF y 9 patrones GRASP en las apps <code>plans</code> y <code>health</code>, y señaló 15 patrones que pudieron aplicarse y no se aplicaron. Se verificó contra el código la mayoría de las cifras que sustentan los hallazgos. Después se regeneró un módulo acotado (el ciclo de vida del plan) en tres versiones y se midió cuánto cuesta ampliarlo.</p>
+<p>Hallazgos principales: (1) la IA aplicó por sí sola patrones ligeros y funcionales y asignó responsabilidades con criterio GRASP, y siguió con fidelidad las interfaces que el contrato de diseño pedía; (2) omitió unificar código duplicado que ya empezó a divergir, y no aplicó State, Null Object ni Specification; (3) al pedirle State de forma explícita lo incorporó, pero con más código y mayor costo de ampliación y sin un beneficio claro para este módulo; (4) por eso se recomienda pedir principios con su límite y una auditoría final, no nombres de patrones.</p>
+<p><strong>Nota sobre la elaboración.</strong> El experimento y este informe los ejecutó Claude Code (modelo Claude Sonnet 5.5) a pedido del equipo. Lo marcado como <span class="pend">[COMPLETAR]</span> son datos que solo el equipo conoce, y las valoraciones de relevancia de la Sección 4 son propuestas que el equipo debe revisar y confirmar. El registro completo del uso de IA está en la Sección 8.</p>
+
+<h1>1. Prompt de generación</h1>
+<h2>1.1 Herramienta y modelos utilizados</h2>
+<p>El código se generó con Claude Code (interfaz de línea de comandos de Anthropic) en sesiones sucesivas entre el 6 de mayo y el 15 de octubre de 2026. El repositorio tiene 78 commits; 55 llevan una firma de coautoría que identifica el modelo (Tabla 1). Los otros 23 no indican modelo.</p>
+<table>
+<caption>Tabla 1. Modelos que firman los commits del repositorio (a 15 de octubre de 2026)</caption>
+<thead><tr><th>Modelo</th><th>Commits firmados</th><th>Relación con las apps analizadas</th></tr></thead>
+<tbody>
+<tr><td>Claude Sonnet 4.6</td><td>23</td><td>Ninguno toca <code>apps/plans</code> ni <code>apps/health</code></td></tr>
+<tr><td>Claude Sonnet 5.5</td><td>31</td><td>11 tocan <code>apps/plans</code> y 2 tocan <code>apps/health</code></td></tr>
+<tr><td>Claude Opus 5.5</td><td>1</td><td>Fase B (commit <code>42ed7e0</code>): ejercicio con IA, motor de reglas y cliente de IA</td></tr>
+</tbody>
+</table>
+<p>Fuente: <code>git log</code> sobre <code>main</code>. El tamaño del código de producción de las dos apps analizadas es de 8 245 líneas (6 344 en <code>plans</code> y 1 901 en <code>health</code>, sin pruebas ni migraciones).</p>
+
+<h2>1.2 El texto del prompt de generación</h2>
+<p><strong>El texto íntegro de los prompts con los que se generó el código no se conserva en el repositorio</strong>: se dieron en conversaciones de Claude Code que no se guardaron como documentos. Lo que sí quedó escrito y guió la generación son tres fuentes (Tabla 2).</p>
+<table>
+<caption>Tabla 2. Fuentes escritas que guiaron la generación</caption>
+<thead><tr><th>Fuente</th><th>Qué pide (citas textuales)</th></tr></thead>
+<tbody>
+<tr><td>Instrucciones del agente <code>arquitecto-backend</code> (archivo de configuración de Claude Code del equipo)</td><td>«Todo backend que diseñes, construyas o revises sigue estrictamente Clean Architecture, OWASP y The Twelve-Factor App.» «Separa claramente las rutas/controladores (gestión HTTP), los servicios (lógica de negocio abstracta) y los repositorios (acceso a datos).»</td></tr>
+<tr><td>Contrato <code>docs/contracts/plan-ia.md</code> (escrito por el agente y aprobado por la persona antes de construir)</td><td>«Vistas (HTTP) -&gt; <code>services.py</code> (casos de uso) -&gt; modelos/consultas. Reglas puras en <code>plans/rules/</code> (sin Django ni red). IA detrás de una interfaz en <code>plans/ai/</code>» (§1). Interfaz <code>AIClient.generate_json(…)</code> «se inyecta con <code>get_ai_client()</code>» (§4.3). Cola en base de datos con <code>transaction.on_commit</code> (§6.1). Estados del plan descritos en prosa (§8.1).</td></tr>
+<tr><td><code>CLAUDE.md</code> del proyecto</td><td>Estructura de apps, modelo de roles, convenciones de seguridad y de pruebas.</td></tr>
+</tbody>
+</table>
+<p><span class="pend">[COMPLETAR por el equipo: pegar aquí el texto íntegro de los mensajes con los que se pidió cada fase, si se conservan en el historial de Claude Code.]</span></p>
+
+<h2>1.3 ¿El prompt pedía patrones, principios o una arquitectura?</h2>
+<p>Pedía <strong>arquitectura y principios generales</strong>: Clean Architecture, separación entre controladores, servicios y repositorios, Twelve-Factor y OWASP. <strong>No pedía ningún patrón de diseño por su nombre.</strong> Se comprobó con <code>git grep</code> sobre todos los archivos versionados: ninguno menciona <em>strategy</em>, <em>factory method</em>, <em>abstract factory</em>, <em>singleton</em>, <em>observer pattern</em>, <em>template method</em>, <em>state pattern</em>, <em>repository pattern</em>, <em>clean architecture</em>, <em>SOLID</em>, <em>GRASP</em> ni «design pattern» (la búsqueda no distingue mayúsculas). Esa ausencia es el punto de partida del experimento: cualquier patrón GoF o GRASP presente en el código lo eligió el asistente, salvo los que el contrato describe como decisión estructural (Sección 5).</p>
+
+<h2>1.4 Prompt usado en el experimento de reformulación</h2>
+<p>Como el prompt original no existe, el experimento de la Sección 6 parte de una <strong>reconstrucción</strong>: la especificación funcional del ciclo de vida del plan (tomada del comportamiento del código y de la sección 8 del contrato) más las pautas generales de arquitectura del agente. No nombra patrones. Está íntegro en el Anexo C.</p>
+
+<h1>2. Consulta al asistente</h1>
+<h2>2.1 Diseño de la consulta</h2>
+<p>Siguiendo el paso 2 de la actividad, la consulta se hizo en una <strong>conversación nueva</strong>, sin el historial de la generación: un agente de Claude Code que arranca sin contexto previo (modelo <code>claude-sonnet-5-5</code>, según el propio agente). Se le pidió analizar solo el código de producción de <code>apps/plans</code> y <code>apps/health</code> (46 archivos), en modo de solo lectura, sin leer <code>CLAUDE.md</code>, la carpeta <code>docs/</code> ni el historial de git, y sin forzar patrones: solo listar uno si podía señalar su lugar concreto. Las preguntas fueron dos: qué patrones GoF y GRASP contiene el código (con descripción, ubicación, evidencia y grado de certeza) y cuáles pudo o debió aplicar y no aplicó (con el problema que resolvería, el beneficio y el costo). El prompt exacto está en el Anexo A y la respuesta íntegra en el Anexo B.</p>
+<h2>2.2 Verificación de la respuesta</h2>
+<p>Una IA puede inventar ubicaciones o cifras, así que antes de usar la respuesta el equipo contrastó con el código las afirmaciones que sustentan los hallazgos (Tabla 3). Las demás se toman de la consulta y se marcan «No» en la columna <em>Verificado</em> de las tablas 4 a 6.</p>
+<table>
+<caption>Tabla 3. Afirmaciones de la consulta contrastadas con el código</caption>
+<thead><tr><th>Afirmación del asistente</th><th>Resultado de la verificación</th></tr></thead>
+<tbody>
+<tr><td>Tamaño de <code>services.py</code> 559 líneas, <code>nutrition.py</code> 520, <code>jobs.py</code> 479, <code>views.py</code> 670</td><td>Coincide exactamente</td></tr>
+<tr><td>10 creaciones manuales de <code>PlanEvent</code> (6 en <code>services.py</code> y 4 en <code>nutrition.py</code>)</td><td>Coincide exactamente</td></tr>
+<tr><td>10 comprobaciones de «adaptación nula» en <code>jobs.py</code></td><td>Coincide (10)</td></tr>
+<tr><td>13 consultas <code>PlanGenerationJob.objects.filter(pk=…)</code> en <code>jobs.py</code></td><td>Coincide exactamente</td></tr>
+<tr><td>El bloque de cierre con <code>lost_lock</code> está repetido en los tres ejecutores</td><td>Coincide: <code>jobs.py</code> líneas 330, 434 y 467</td></tr>
+<tr><td><code>jobs.py</code> usa <code>client.is_simulated</code> y <code>client.model_name</code> sin preguntar el tipo de cliente</td><td>Coincide: líneas 332-333 y 436-438</td></tr>
+<tr><td>Tabla de despacho <code>_RUNNERS</code> en <code>jobs.py</code></td><td>Coincide: línea 475</td></tr>
+<tr><td>Imports locales con el comentario «evita el import circular»</td><td>Coincide parcialmente: dos de las tres ubicaciones citadas (<code>services.py</code> líneas 288 y 506)</td></tr>
+<tr><td><code>request_plan</code> evita repetir el aviso de bloqueo en el día y <code>request_alternative</code> no lo hace (divergencia)</td><td>Coincide: <code>services.py</code> líneas 303-310 y la rama de bloqueo de <code>nutrition.request_alternative</code></td></tr>
+<tr><td>La regla «¿se puede aprobar?» se evalúa en la vista y en el servicio</td><td>Coincide: <code>views.py</code> líneas 301-303 y <code>services.approve_plan</code></td></tr>
+<tr><td>«Unas 30 comparaciones por tipo de plan»</td><td><strong>No reproducible</strong>: 56 líneas mencionan las constantes de tipo (incluidos imports y definiciones). La cifra es imprecisa; la tendencia (comparaciones repartidas en cinco módulos) es cierta</td></tr>
+</tbody>
+</table>
+
+<h1>3. Inventario de patrones aplicados</h1>
+<p>Las tablas 4 y 5 reúnen los patrones que el asistente informa. Los patrones GoF son los del catálogo de Gamma et al. (1994) y los GRASP son los nueve de Larman (2004). El asistente también descartó, con su razón, once patrones GoF «buscados y no encontrados» (Singleton, Abstract Factory, Builder, Prototype, Composite, Bridge, Proxy, Flyweight, Mediator, Chain of Responsibility y Iterator/Visitor/Interpreter; Anexo B, sección 1.3) y señaló nueve idiomas que no son GoF ni GRASP, como la capa de servicios, el núcleo funcional con cáscara imperativa, los objetos de valor inmutables y las reglas guiadas por tablas (Anexo B, sección 1.4).</p>
+<table>
+<caption>Tabla 4. Patrones GoF que el asistente ubica en el código (<code>claro</code> = el patrón está bien definido; <code>parcial</code> = cumple en parte; <code>discutible</code> = se parece pero no lo es en rigor)</caption>
+<thead><tr><th>Nº</th><th>Patrón</th><th>Descripción u objetivo</th><th>Dónde</th><th>Certeza</th><th>Verificado</th></tr></thead>
+<tbody>
+<tr><td>C1</td><td>Simple Factory (variante)</td><td>Centraliza qué cliente de IA se crea según la configuración</td><td><code>ai/__init__.py</code>, <code>get_ai_client()</code></td><td>Parcial</td><td>Sí</td></tr>
+<tr><td>C2</td><td>Simple Factory (banderas)</td><td>Construye objetos <code>Flag</code> inmutables desde una tabla de textos</td><td><code>rules/flags.py</code>, <code>_flag</code></td><td>Discutible</td><td>No</td></tr>
+<tr><td>C3</td><td>Adapter</td><td>Traduce la API REST de Gemini a <code>AIResult</code> y a una jerarquía de errores propia</td><td><code>ai/gemini.py</code>, <code>GeminiClient</code></td><td>Claro</td><td>No</td></tr>
+<tr><td>C4</td><td>Adapter (datos)</td><td>Convierte modelos del ORM en dataclasses congeladas para el motor de reglas</td><td><code>services.py</code>, <code>exercise_items</code>, <code>food_items</code>; <code>health/services.py</code>, <code>build_facts</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C5</td><td>Facade</td><td>Una llamada coordina ficha, banderas, elegibilidad y filtros de catálogo</td><td><code>services.py</code>, <code>assess()</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C6</td><td>Decorator (funcional)</td><td>Añade control de acceso y desactivación por interruptor a las vistas</td><td><code>plans_feature_required</code>, <code>health_feature_required</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C7</td><td>Strategy</td><td>Cliente de IA intercambiable (simulado o real) detrás de <code>AIClient</code></td><td><code>ai/base.py</code>, <code>ai/fake.py</code>, <code>ai/gemini.py</code></td><td>Claro</td><td>Sí</td></tr>
+<tr><td>C8</td><td>Strategy (tabla de despacho)</td><td>Elige el ejecutor del trabajo por tipo, sin <code>if/elif</code></td><td><code>jobs.py</code>, <code>_RUNNERS</code></td><td>Parcial</td><td>Sí</td></tr>
+<tr><td>C9</td><td>Template Method (funcional)</td><td>Esqueleto fijo de generar, validar y reintentar; los pasos variables llegan como parámetros</td><td><code>jobs.py</code>, <code>_generate_validated</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C10</td><td>Template Method (ganchos de Django)</td><td>Formularios, administración y comandos rellenan ganchos que define el framework</td><td><code>admin.py</code>, <code>health/forms.py</code>, <code>management/commands/</code></td><td>Claro (lo aporta Django)</td><td>No</td></tr>
+<tr><td>C11</td><td>Command</td><td>El pedido de plan es un registro persistente que se encola, se ejecuta después y se reintenta</td><td><code>models.py</code>, <code>PlanGenerationJob</code>; <code>jobs.py</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C12</td><td>Observer (vía <code>on_commit</code>)</td><td>Callbacks que corren al confirmar la transacción (lanzar el hilo, enviar correo)</td><td><code>services.py</code>, <code>nutrition.py</code></td><td>Discutible</td><td>No</td></tr>
+<tr><td>C13</td><td>State (implícito)</td><td>Ciclo de vida por estados con transiciones repartidas en condiciones</td><td><code>Plan.status</code>, <code>PlanGenerationJob.status</code></td><td>Discutible</td><td>Sí</td></tr>
+<tr><td>C14</td><td>Memento (variante)</td><td>Versionado de la ficha y de las opciones de comida, con «deshacer» en estas últimas</td><td><code>health/models.py</code>, <code>HealthProfile</code>; <code>MealOption.replaces</code></td><td>Discutible</td><td>No</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Tabla 5. Patrones GRASP que el asistente ubica en el código</caption>
+<thead><tr><th>Nº</th><th>Patrón</th><th>Descripción u objetivo</th><th>Dónde</th><th>Certeza</th><th>Verificado</th></tr></thead>
+<tbody>
+<tr><td>G1</td><td>Information Expert</td><td>Los valores derivados los calcula el objeto que tiene los datos</td><td><code>rules/eligibility.py</code>, <code>Eligibility</code>; <code>rules/flags.py</code>, <code>FlagReport</code>; modelos de <code>health</code></td><td>Claro, con excepciones en las vistas</td><td>Sí (la regla de aprobación se repite en la vista)</td></tr>
+<tr><td>G2</td><td>Creator</td><td>La función que recibe la salida validada crea rutina, plan, comidas y eventos</td><td><code>services.create_exercise_draft</code>, <code>nutrition.create_nutrition_draft</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>G3</td><td>Controller</td><td>Vistas delgadas que delegan en servicios y traducen excepciones a mensajes</td><td><code>views.trainer_plan_approve</code>, <code>services.request_plan</code></td><td>Claro (tres vistas son gruesas)</td><td>No</td></tr>
+<tr><td>G4</td><td>Low Coupling</td><td>Núcleo <code>rules/</code> sin Django; pero dependencia mutua entre <code>health</code> y <code>plans</code> e imports locales para evitar ciclos</td><td><code>rules/*</code>; <code>services.py</code> líneas 288 y 506</td><td>Parcial</td><td>Parcial</td></tr>
+<tr><td>G5</td><td>High Cohesion</td><td><code>rules/</code> y <code>ai/</code> enfocados; los módulos de casos de uso agrupan varios temas</td><td><code>services.py</code> (559 líneas), <code>nutrition.py</code> (520), <code>jobs.py</code> (479), <code>views.py</code> (670)</td><td>Parcial</td><td>Sí</td></tr>
+<tr><td>G6</td><td>Polymorphism</td><td>El código trata igual a cualquier <code>AIClient</code>, sin condicionales por tipo</td><td><code>jobs.py</code> líneas 332-333 y 436-438</td><td>Claro</td><td>Sí</td></tr>
+<tr><td>G7</td><td>Pure Fabrication</td><td>Elementos artificiales que no son del negocio, creados para lograr cohesión</td><td><code>jobs.py</code>, <code>notifications.py</code>, <code>rules/*</code>, <code>_SlotView</code>, <code>health/dates.py</code></td><td>Claro</td><td>No</td></tr>
+<tr><td>G8</td><td>Indirection</td><td>Intermediarios que permiten cambiar o simular lo que hay detrás</td><td><code>get_ai_client()</code>, <code>dates.today()</code>, <code>adaptation.for_job</code></td><td>Claro</td><td>No</td></tr>
+<tr><td>G9</td><td>Protected Variations</td><td>Fronteras estables frente a lo que cambia: proveedor de IA, salida de la IA, reglas legales, modelo de datos</td><td><code>AIClient</code>, <code>rules/validate.py</code>, <code>professional_required()</code>, <code>ExerciseItem</code></td><td>Claro</td><td>No</td></tr>
+</tbody>
+</table>
+
+<h1>4. Inventario de patrones omitidos</h1>
+<p>La Tabla 6 lista los patrones que el asistente dice que pudieron o debieron aplicarse. La columna <em>Valoración propuesta</em> es del equipo de trabajo asistido por IA: pondera el efecto de la ausencia sobre la facilidad de ampliar, de probar y de mantener, y <strong>debe ser confirmada por el equipo</strong>.</p>
+<table>
+<caption>Tabla 6. Patrones omitidos, problema que resolverían y valoración de su relevancia</caption>
+<thead><tr><th>Nº</th><th>Patrón</th><th>Problema de diseño que resolvería</th><th>Valoración propuesta</th><th>Verificado</th></tr></thead>
+<tbody>
+<tr><td>M1</td><td>State o tabla de transiciones</td><td>Las reglas de transición del plan están en 4 condiciones <code>status not in …</code> y en 10 creaciones manuales de <code>PlanEvent</code>; añadir un estado obliga a revisar varios sitios</td><td><strong>Media.</strong> Una tabla de transiciones sí; clases State, no (Sección 6)</td><td>Sí</td></tr>
+<tr><td>M2</td><td>Template Method o cierre común de los ejecutores</td><td>El bloque de cierre (bloqueo de fila, <code>lost_lock</code>, creación, cierre del trabajo) está copiado tres veces en <code>jobs.py</code></td><td><strong>Alta.</strong> Código de concurrencia duplicado: un arreglo debe hacerse en tres sitios</td><td>Sí</td></tr>
+<tr><td>M3</td><td>Template Method o fábrica común para crear trabajos</td><td><code>request_plan</code> y <code>request_alternative</code> repiten el flujo y ya divergieron: solo la primera evita repetir el aviso de bloqueo</td><td><strong>Alta.</strong> Posible defecto latente, según la lectura del código (no se ejecutó): cada nuevo pedido de un caso bloqueado crea otro trabajo y otro correo</td><td>Sí</td></tr>
+<tr><td>M4</td><td>Null Object (adaptación)</td><td><code>adaptation</code> puede ser <code>None</code> y 10 líneas de <code>jobs.py</code> lo comprueban</td><td><strong>Media.</strong> Menos ramas y pruebas más simples</td><td>Sí</td></tr>
+<tr><td>M5</td><td>Strategy por tipo de plan</td><td>Las comparaciones por tipo (ejercicio, alimentación, alternativa) están repartidas en cinco módulos</td><td><strong>Baja por ahora</strong> (solo hay dos tipos); sube si se agrega un tercero</td><td>Parcial (cifra corregida)</td></tr>
+<tr><td>M6</td><td>Specification para «¿se puede aprobar?»</td><td>La regla está en la vista, en <code>approve_plan</code> y en <code>nutrition.approval_problems</code>; si una cambia, la interfaz puede mostrar un botón que el servicio rechaza</td><td><strong>Media.</strong></td><td>Sí</td></tr>
+<tr><td>M7</td><td>Facade o consulta única de «alimentos y ejercicios permitidos»</td><td>La composición del filtro se repite en tres sitios y corre hasta tres veces en una pantalla</td><td><strong>Media-baja.</strong></td><td>No</td></tr>
+<tr><td>M8</td><td>Decorator o Proxy sobre <code>AIClient</code></td><td>La política de reintentos está mezclada con el presupuesto de tiempo y los latidos</td><td><strong>Baja</strong> (hay un solo proveedor)</td><td>No</td></tr>
+<tr><td>M9</td><td>Objetos de regla para las banderas de seguridad</td><td><code>flags.evaluate</code> es una función de unas 120 líneas con 44 condiciones</td><td><strong>Baja hoy;</strong> media cuando un profesional cambie los umbrales</td><td>No</td></tr>
+<tr><td>M10</td><td>Observer o eventos de dominio propios</td><td>Los avisos y la auditoría se llaman directamente; otro canal obligaría a tocar cada sitio</td><td><strong>Baja</strong> (un solo canal)</td><td>No</td></tr>
+<tr><td>M11</td><td>Inyección de dependencias del cliente de IA</td><td>Tres ejecutores llaman a <code>get_ai_client()</code> y las pruebas deben parchearlo</td><td><strong>Baja</strong> (<code>mock.patch</code> ya funciona)</td><td>No</td></tr>
+<tr><td>M12</td><td>Builder o DTO tipado del payload a la IA</td><td>La lista de lo único que viaja a la IA es un <code>dict</code> armado a mano y repetido en el simulado y en <code>check_gemini</code></td><td><strong>Media</strong> (frontera de privacidad)</td><td>No</td></tr>
+<tr><td>M13</td><td>Repository o <code>QuerySet</code> propio</td><td>13 consultas <code>PlanGenerationJob.objects.filter(pk=…)</code> en <code>jobs.py</code>; no existe capa de repositorio</td><td><strong>Baja.</strong> Un <code>QuerySet</code> sí; una capa Repository formal, no</td><td>Sí (13)</td></tr>
+<tr><td>M14</td><td>Pipeline o Chain of Responsibility para validar la salida</td><td>Validadores largos pero cohesivos</td><td><strong>Nula:</strong> añadiría indirección sin variación real</td><td>No</td></tr>
+<tr><td>M15</td><td>Strategy para los cupos de uso</td><td>Cuatro funciones repiten «contar trabajos en una ventana de tiempo»</td><td><strong>Nula como patrón:</strong> basta extraer un método</td><td>No</td></tr>
+</tbody>
+</table>
+
+<h1>5. Clasificación: indicado o espontáneo</h1>
+<p>Para cada patrón aplicado se determinó si el material que guió la generación (Tabla 2) lo pedía o lo describía como decisión estructural (<em>indicado</em>), si lo pedía solo en parte (<em>mixto</em>) o si lo incorporó el asistente por sí solo (<em>espontáneo</em>). Como el prompt original no se conserva, la evidencia es el contrato <code>plan-ia.md</code> y las pautas del agente; para fechar el origen de algunos elementos se usó el historial de git.</p>
+<table>
+<caption>Tabla 7. Origen de cada patrón aplicado</caption>
+<thead><tr><th>Nº</th><th>Patrón</th><th>Origen</th><th>Evidencia</th></tr></thead>
+<tbody>
+<tr><td>C1</td><td>Simple Factory</td><td>Indicado</td><td>Contrato §4.3: «se inyecta con <code>get_ai_client()</code>»</td></tr>
+<tr><td>C2</td><td>Factory de banderas</td><td>Espontáneo</td><td>Sin mención en el contrato</td></tr>
+<tr><td>C3</td><td>Adapter (Gemini)</td><td>Indicado</td><td>Contrato §4.3: interfaz <code>AIClient</code> y errores normalizados</td></tr>
+<tr><td>C4</td><td>Adapter (datos)</td><td>Espontáneo</td><td>El contrato pide reglas puras (§3), no la forma de las dataclasses</td></tr>
+<tr><td>C5</td><td>Facade</td><td>Espontáneo</td><td>El contrato describe la salida <code>Eligibility</code>, no la fachada <code>assess</code>; aparece en la fase B (<code>42ed7e0</code>)</td></tr>
+<tr><td>C6</td><td>Decorator</td><td>Espontáneo</td><td>Idioma de Django; el proyecto ya usaba decoradores como <code>member_required</code></td></tr>
+<tr><td>C7</td><td>Strategy (<code>AIClient</code>)</td><td>Indicado</td><td>Contrato §1: «IA detrás de una interfaz»; §4.3: modos <code>simulated</code> y <code>live</code></td></tr>
+<tr><td>C8</td><td>Tabla de despacho</td><td>Espontáneo</td><td>Aparece en la fase C (<code>925d7f0</code>), al sumar el tercer tipo de trabajo</td></tr>
+<tr><td>C9</td><td>Template Method funcional</td><td>Espontáneo</td><td>Aparece en la fase C (<code>925d7f0</code>), al compartir la generación entre tres casos</td></tr>
+<tr><td>C10</td><td>Template Method (Django)</td><td>Espontáneo</td><td>Lo aporta el framework; el proyecto solo rellena los ganchos</td></tr>
+<tr><td>C11</td><td>Command</td><td>Indicado</td><td>Contrato §6.1 y §8.1: cola en base de datos y <code>PlanGenerationJob</code></td></tr>
+<tr><td>C12</td><td>Observer (<code>on_commit</code>)</td><td>Indicado</td><td>Contrato §6.1: «en <code>transaction.on_commit</code>, lanza un hilo»</td></tr>
+<tr><td>C13</td><td>State (implícito)</td><td>Indicado solo en prosa</td><td>Contrato §8.1 lista estados y transiciones en texto; no pide el patrón</td></tr>
+<tr><td>C14</td><td>Memento (versionado)</td><td>Indicado</td><td>Contrato §1: «Filas versionadas»; <code>Plan.version</code> en §8.1</td></tr>
+<tr><td>G1</td><td>Information Expert</td><td>Espontáneo</td><td>No aparece en el contrato ni en las pautas</td></tr>
+<tr><td>G2</td><td>Creator</td><td>Espontáneo</td><td>No aparece en el contrato ni en las pautas</td></tr>
+<tr><td>G3</td><td>Controller</td><td>Indicado</td><td>Pauta «separa controladores y servicios» y contrato §1</td></tr>
+<tr><td>G4</td><td>Low Coupling</td><td>Mixto</td><td>El contrato fija «reglas puras sin Django ni red»; el acoplamiento restante no se planeó</td></tr>
+<tr><td>G5</td><td>High Cohesion</td><td>Mixto</td><td>Pauta «separa responsabilidades»; el tamaño de los módulos de servicio no se acordó</td></tr>
+<tr><td>G6</td><td>Polymorphism</td><td>Indicado</td><td>Consecuencia de la interfaz <code>AIClient</code> (C7)</td></tr>
+<tr><td>G7</td><td>Pure Fabrication</td><td>Mixto</td><td><code>jobs.py</code> y <code>notifications.py</code> salen del contrato; <code>_SlotView</code> y <code>dates.py</code> no</td></tr>
+<tr><td>G8</td><td>Indirection</td><td>Mixto</td><td><code>get_ai_client()</code> está en el contrato; <code>dates.today()</code> no</td></tr>
+<tr><td>G9</td><td>Protected Variations</td><td>Mixto</td><td>Los modos <code>AI_PLANS_MODE</code> salen del contrato (§4.3); <code>GEMINI_SCHEMA_FIELD</code> y <code>professional_required()</code> se decidieron al construir</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Tabla 8. Resumen de la clasificación</caption>
+<thead><tr><th>Origen</th><th>Cantidad</th><th>Patrones</th></tr></thead>
+<tbody>
+<tr><td>Indicado</td><td>9</td><td>C1, C3, C7, C11, C12, C13, C14, G3, G6</td></tr>
+<tr><td>Mixto</td><td>5</td><td>G4, G5, G7, G8, G9</td></tr>
+<tr><td>Espontáneo</td><td>9</td><td>C2, C4, C5, C6, C8, C9, C10, G1, G2</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>23</strong></td><td></td></tr>
+</tbody>
+</table>
+<h2>5.1 Qué tipo de patrones aplica la IA por sí sola y cuáles omite</h2>
+<ol>
+<li><strong>Lo espontáneo es de pequeña escala y de estilo funcional</strong>: fachadas, adaptadores de datos, decoradores, tablas de despacho, un Template Method con funciones y objetos de valor inmutables, además de asignaciones de responsabilidad (Experto, Creador). Casi nunca son jerarquías de clases de manual: la única jerarquía propia con polimorfismo es la de <code>AIClient</code>, que el contrato pedía.</li>
+<li><strong>Los patrones aparecen cuando aparece la duplicación real.</strong> La tabla de despacho <code>_RUNNERS</code> y el Template Method <code>_generate_validated</code> no existían en la fase B; nacieron en la fase C, al llegar el tercer caso similar (commit <code>925d7f0</code>). Es la regla de tres aplicada por el asistente sin que nadie se lo pidiera.</li>
+<li><strong>Donde el contrato dio la decisión estructural, el código la siguió con fidelidad</strong>: interfaz del cliente de IA, cola en base de datos, <code>on_commit</code>, versionado. Las filas «indicadas» corresponden sobre todo a decisiones de frontera entre módulos.</li>
+<li><strong>Lo omitido es de tres clases.</strong> (a) <em>Consolidar código ya escrito</em> (M2, M3, M6, M7): el asistente aplica patrones al escribir lo nuevo, pero rara vez vuelve a unificar copias anteriores; la divergencia de M3 es la consecuencia. (b) <em>Abstracciones sin presión inmediata</em> (State, Null Object, Strategy por tipo): con dos tipos de plan y pocas transiciones, el código con condiciones funciona. (c) <em>Pautas genéricas con nombre propio</em>: la pauta pedía «repositorios (acceso a datos)» y no hay ninguna capa Repository; el asistente adaptó la pauta a las convenciones de Django (modelos y <code>QuerySet</code>) sin dejar constancia de la desviación.</li>
+</ol>
+
+<h1>6. Experimento de reformulación</h1>
+<h2>6.1 Pregunta y diseño</h2>
+<p>El asistente señaló como omisión relevante el patrón State para el ciclo de vida del plan (M1), aunque aclaró que «clases State completas: no» valían la pena y que bastaba una tabla de transiciones. El experimento pone a prueba ese juicio. Pregunta: <em>si se pide State de forma explícita, ¿lo incorpora el asistente y mejora la facilidad de ampliar y de probar el módulo?</em></p>
+<p><strong>Módulo.</strong> Los cambios de estado de un <code>Plan</code> (tomar para revisión, aprobar, archivar y regenerar), unas 100 líneas del original (<code>services.py</code>, líneas 462 a 559). Se comparan tres versiones:</p>
+<ul>
+<li><strong>Original (V0):</strong> el código del repositorio.</li>
+<li><strong>A, control:</strong> el módulo regenerado con la especificación reconstruida y las pautas genéricas de arquitectura, sin nombrar patrones (Anexo C). Se incluye para separar el efecto del prompt del efecto de regenerar el código en otra sesión.</li>
+<li><strong>B, reformulado:</strong> el mismo prompt que A más un único párrafo que pide el patrón State (GoF) con sus consecuencias. La única diferencia entre los dos prompts, verificada con <code>diff</code>, es ese párrafo y el nombre de la carpeta de salida (Anexo C).</li>
+</ul>
+<p><strong>Misma herramienta y mismo modelo.</strong> A y B se generaron con Claude Code y el modelo <code>claude-sonnet-5-5</code>, cada uno en una conversación nueva. Se les prohibió leer las funciones de ciclo de vida existentes para que no copiaran el original. El código original lo escribieron en parte Opus 5.5 (fase B) y en parte Sonnet 5.5 (fase C); la comparación con V0 es, por tanto, solo de referencia.</p>
+<p><strong>Medida de facilidad de ampliar.</strong> A cada versión se le pidió, en una conversación nueva y con el mismo texto, un cambio realista: agregar el estado «vencido» (<code>expired</code>) para planes aprobados con vigencia pasada, con una operación nueva <code>expire_overdue_plans</code> y reglas sobre qué se puede hacer con un plan vencido (Anexo C). Se midió el diff, los lugares del código tocados y las pruebas necesarias. El equipo corrió todas las pruebas por su cuenta.</p>
+
+<h2>6.2 Resultados</h2>
+<p>La Figura 1 muestra la estructura de A y la Figura 2 la de B. Ambas versiones respetan las firmas, las reglas y los mensajes pedidos y pasan sus pruebas (A, 45; B, 51).</p>
+<!--FIG1-->
+<!--FIG2-->
+<table>
+<caption>Tabla 9. Estructura de las tres versiones antes de ampliar</caption>
+<thead><tr><th>Métrica</th><th>V0 original</th><th>A control</th><th>B con State</th></tr></thead>
+<tbody>
+<tr><td>Líneas del módulo (incluye comentarios)</td><td>98</td><td>227</td><td>326</td></tr>
+<tr><td>Funciones o métodos</td><td>5</td><td>12</td><td>38</td></tr>
+<tr><td>Clases</td><td>0</td><td>0</td><td>10</td></tr>
+<tr><td>Condicionales <code>if</code>/<code>elif</code></td><td>18</td><td>13</td><td>10</td></tr>
+<tr><td>Dónde se decide qué transiciones son válidas</td><td>4 condiciones <code>status not in …</code> repartidas en 3 funciones (<code>approve_plan</code> tiene dos)</td><td>1 tupla (<code>ARCHIVABLE_STATUSES</code>) y la propiedad <code>is_pending</code></td><td>Cada clase de estado, por herencia y sobrescritura</td></tr>
+<tr><td>Pruebas del módulo</td><td>No comparable (están en la suite del proyecto)</td><td>45</td><td>51</td></tr>
+<tr><td>Pruebas que no usan base de datos</td><td>—</td><td>0</td><td>3 (registro de estados)</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Tabla 10. Costo de agregar el estado «vencido» (cambio idéntico pedido a A y a B)</caption>
+<thead><tr><th>Métrica</th><th>A control</th><th>B con State</th></tr></thead>
+<tbody>
+<tr><td>Líneas del módulo añadidas y eliminadas</td><td>+34 y −5</td><td>+47 y −9</td></tr>
+<tr><td>Lugares de código tocados (sin docstrings)</td><td>5: constantes, tupla <code>ARCHIVABLE_STATUSES</code>, un auxiliar, la función pública, <code>__all__</code></td><td>11: constantes, consulta del repositorio, método base <code>expire</code>, <code>ApprovedState.expire</code>, clase <code>ExpiredState</code>, registro <code>_STATES</code>, <code>PlanLifecycle.expire</code>, dos líneas de registro (<code>transition</code> y <code>record</code>), la función pública, <code>__all__</code></td></tr>
+<tr><td>Operaciones existentes que no hubo que modificar</td><td>4 (<code>take_for_review</code>, <code>approve_plan</code>, <code>regenerate_plan</code> y el reemplazo del aprobado anterior)</td><td>Las mismas 4, por la clase base que rechaza todo</td></tr>
+<tr><td>Pruebas añadidas</td><td>22 (de 45 a 67)</td><td>22 (de 51 a 73)</td></tr>
+<tr><td>Resultado de las pruebas</td><td>67 OK</td><td>73 OK</td></tr>
+</tbody>
+</table>
+<p>Aunque no se ejecutó, la lectura del original sugiere que la misma ampliación en V0 tocaría la condición de <code>archive_plan</code> y añadiría la función nueva: las otras tres operaciones comparan contra <code>PENDING_STATUSES</code> y ya rechazarían el estado nuevo. Es una inferencia, no una medida.</p>
+
+<h2>6.3 Comparación argumentada</h2>
+<p><strong>Al pedirlo, el asistente incorporó el patrón.</strong> B tiene una clase base <code>PlanState</code> que rechaza todo, cinco estados concretos que sobrescriben solo lo que admiten y un contexto <code>PlanLifecycle</code> que delega, sin <code>if plan.status</code> en las operaciones públicas. Mantuvo las firmas y los mensajes (Gamma et al., 1994, describen esta estructura).</p>
+<p><strong>Ventajas de B.</strong> (1) Los efectos de entrar en un estado (evento que se registra y activación o desactivación de la rutina) se declaran una sola vez por clase y los aplica una única función <code>transition</code>; en A, cada operación repite a mano los tres pasos de cambiar el estado, ajustar la rutina y registrar el evento, y la función nueva <code>expire_overdue_plans</code> los repitió. (2) Un estado nuevo hereda por defecto el rechazo de todo, y <code>ExpiredState</code> obtuvo <code>archive</code> gratis por herencia. (3) El patrón dejó el registro de estados verificable sin base de datos (3 pruebas).</p>
+<p><strong>Costos de B.</strong> Tiene un 44 % más de líneas que A (326 contra 227), 38 funciones y 10 clases contra 12 funciones, y exigió 11 lugares de código para la ampliación contra 5. Para entender una operación hay que recorrer varias clases de la jerarquía (por ejemplo, <code>approve</code> está en <code>_PendingState</code> y no en <code>DraftAIState</code>). Las pruebas siguen necesitando base de datos casi en su totalidad: el repositorio es inyectable, pero según una búsqueda en el archivo ninguna prueba lo reemplaza por un doble.</p>
+<p><strong>Dónde el patrón no mejora el diseño.</strong> En este módulo los estados casi no se diferencian por comportamiento: casi todas las operaciones se permiten en los mismos dos estados. Por eso A ya conseguía la ventaja principal de State, la ausencia de condicionales dispersos, con una tupla de estados archivables y la propiedad <code>is_pending</code> (una lista de permitidos funciona como tabla de transiciones). Con cinco o seis estados y reglas parecidas, la jerarquía añade conceptos sin quitar trabajo al ampliar. State pagaría cuando cada estado tenga reglas propias distintas por operación, o cuando haya muchos más estados. Esto confirma el juicio del asistente de la consulta (tabla sí, clases no).</p>
+<p><strong>Precaución sobre la comparación.</strong> B también creó una clase <code>PlanRepository</code> y A usó funciones auxiliares, aunque las dos recibieron la misma pauta genérica de «separar acceso a datos». Esa diferencia no se debe al párrafo de State: es variabilidad entre corridas. Por eso no se declara superior a B ni a A: A resultó más simple de ampliar y B centralizó los efectos de cada estado.</p>
+
+<h1>7. Conclusiones y recomendación</h1>
+<h2>7.1 Conclusiones</h2>
+<ol>
+<li><strong>Qué hizo el asistente de forma espontánea.</strong> Aplicó patrones ligeros y funcionales (fachada, adaptadores, decoradores, tablas de despacho, Template Method con funciones) y asignó responsabilidades con criterio GRASP. Los patrones aparecieron al repetirse el caso, no por anticipado (Tabla 7 y Sección 5.1).</li>
+<li><strong>Qué omitió.</strong> Unificar código duplicado que ya diverge (M2, M3), el patrón State y Null Object, y una capa de repositorios que la pauta pedía por su nombre. La omisión más costosa no fue de un patrón de catálogo: fue la duplicación entre <code>request_plan</code> y <code>request_alternative</code>.</li>
+<li><strong>Qué cambió al indicar el patrón en el prompt.</strong> El asistente lo incorporó y conservó el comportamiento, pero el módulo creció un 44 %, y ampliarlo costó más lugares de código (11 contra 5) sin una ventaja clara para este tamaño de problema.</li>
+<li><strong>Qué recomendar.</strong> No pedir nombres de patrones como lista de verificación. Pedir <em>principios con su límite</em> (una sola fuente de verdad, transiciones en una tabla, interfaz solo con dos implementaciones reales), una pasada de consolidación de duplicación y una auditoría final en la que el asistente liste lo que aplicó y lo que descartó.</li>
+</ol>
+<h2>7.2 Qué indicar en un prompt de generación, cuándo y cómo</h2>
+<table>
+<caption>Tabla 11. Recomendaciones para el prompt de generación</caption>
+<thead><tr><th>Situación</th><th>Qué indicar</th><th>Qué no indicar</th></tr></thead>
+<tbody>
+<tr><td>Fronteras entre módulos (proveedor externo, cola, versionado)</td><td>La decisión estructural y la interfaz, como hizo el contrato (el código la siguió con fidelidad)</td><td>El nombre del patrón sin el problema que resuelve</td></tr>
+<tr><td>Ciclo de vida con pocas transiciones</td><td>Las transiciones en una tabla única y una función que aplica una transición</td><td>«Aplica State»: genera una jerarquía que este tamaño no justifica</td></tr>
+<tr><td>Variación entre implementaciones</td><td>Una interfaz común solo si hoy existen al menos dos implementaciones reales</td><td>Interfaces «por si acaso»</td></tr>
+<tr><td>Duplicación</td><td>Extraer el bloque que se repita tres veces y unificar copias que ya difieren, con una prueba que fije el comportamiento correcto</td><td>Esperar que el asistente consolide solo</td></tr>
+<tr><td>Capas que el framework ya resuelve</td><td>Decir explícitamente qué usar (en Django, modelos y <code>QuerySet</code> en lugar de un Repository)</td><td>«Separa repositorios» sin aclarar el contexto del framework</td></tr>
+<tr><td>Cierre de la generación</td><td>Pedir la lista de patrones y principios aplicados y de los considerados y descartados, con su razón</td><td>Medir la calidad por la cantidad de patrones</td></tr>
+</tbody>
+</table>
+<h2>7.3 Versión mejorada del prompt de generación</h2>
+<pre class="prompt">ROL Y CONTEXTO
+Eres un desarrollador senior. Trabajas en &lt;proyecto y framework&gt;.
+
+QUÉ CONSTRUIR
+&lt;Especificación funcional: operaciones con sus firmas, estados, reglas y mensajes de error.&gt;
+
+ARQUITECTURA
+- Capas: vistas o controladores delgados -&gt; servicios (un caso de uso por función) -&gt;
+  modelos y consultas del framework. No crees una capa Repository si el framework ya ofrece
+  Manager o QuerySet; si la creas, justifícalo en una línea.
+- Las reglas de negocio puras (sin framework ni red) van en un módulo aparte.
+
+PRINCIPIOS DE DISEÑO (se pide el principio y su límite, no el nombre de un patrón)
+1. Una sola fuente de verdad por regla: si la misma regla se evalúa en dos lugares (por ejemplo
+   vista y servicio), el servicio la expone y la vista la consulta.
+2. Ciclo de vida: define las transiciones permitidas en una sola tabla (estado actual,
+   operación, estado destino) y una única función que aplica una transición (valida, guarda,
+   ajusta los efectos y registra el evento). Usa una clase por estado solo si cada estado tiene
+   reglas propias distintas.
+3. Variación: usa una interfaz común únicamente si existen hoy al menos dos implementaciones.
+4. Valores ausentes: si varios sitios comprueban None, devuelve un objeto vacío.
+5. Duplicación: si un bloque se repite en tres lugares, extráelo. Si dos copias de un mismo
+   flujo ya difieren, unifícalas y deja una prueba que fije el comportamiento correcto.
+
+LÍMITES
+- No agregues jerarquías, fábricas ni capas que la especificación no necesite. Cada abstracción
+  nueva se justifica en una línea con el problema concreto que resuelve.
+
+ENTREGA
+- Código y pruebas. Al final, lista los patrones o principios aplicados (dónde y por qué) y los
+  que consideraste y descartaste (por qué).</pre>
+<h2>7.4 Limitaciones del experimento</h2>
+<ul>
+<li><strong>Un solo asistente y una sola familia de modelos.</strong> La consulta, la generación y la ampliación las hizo Claude Sonnet 5.5; el código original lo escribieron Sonnet 4.6, Sonnet 5.5 y Opus 5.5. Es una IA evaluando código de su misma familia, sin contraste con otro asistente.</li>
+<li><strong>Un solo código y un solo módulo.</strong> Las conclusiones sobre State valen para un ciclo de vida de cinco estados y pocas diferencias de comportamiento; con otro módulo podrían ser distintas.</li>
+<li><strong>Una sola corrida por variante.</strong> No se repitió cada generación para estimar la variabilidad. Que B creara <code>PlanRepository</code> y A no, con la misma pauta, muestra que existe y que las diferencias de tamaño no se pueden atribuir enteras al párrafo de State.</li>
+<li><strong>Prompt original reconstruido.</strong> El control A usa una reconstrucción, no el texto real; la clasificación del paso 4 se basa en el contrato y en las pautas, no en los mensajes originales.</li>
+<li><strong>Conversación «nueva» con reservas.</strong> No se pudo comprobar que el agente de consulta no recibiera <code>CLAUDE.md</code> como contexto automático; se le indicó no usarlo. Tampoco se verificó independientemente el modelo que cada agente declara ser.</li>
+<li><strong>Imprecisiones de la consulta.</strong> El asistente dio una cifra que no se reproduce (comparaciones por tipo) y no se verificaron todas sus afirmaciones (Tablas 4 a 6, columna <em>Verificado</em>).</li>
+<li><strong>Métricas estructurales, no de calidad.</strong> Se midieron líneas, clases y lugares tocados; no se evaluó la corrección fina ni el desempeño del código. La valoración de relevancia de la Tabla 6 es una propuesta pendiente de confirmación del equipo.</li>
+</ul>
+<h2>7.5 Hallazgo práctico fuera del alcance de la actividad</h2>
+<p>La verificación de M3 reveló un posible defecto latente en el sistema real. Según la lectura del código (no se ejecutó), en <code>nutrition.request_alternative</code> un caso bloqueado por bandera roja no evita crear un trabajo y un aviso nuevos en cada pedido con un token distinto, y los trabajos bloqueados no consumen cupo; <code>services.request_plan</code>, en cambio, deduplica el aviso por día. Conviene confirmarlo con una prueba y corregirlo en un cambio aparte.</p>
+
+<h1>8. Registro de uso de IA</h1>
+<table>
+<caption>Tabla 12. Herramientas de IA utilizadas</caption>
+<thead><tr><th>Herramienta</th><th>Para qué se usó</th><th>Versión del modelo</th></tr></thead>
+<tbody>
+<tr><td>Claude Code (sesión principal)</td><td>Dirigir el experimento, verificar las respuestas contra el código, ejecutar pruebas, medir diffs y redactar este informe</td><td><code>claude-sonnet-5-5</code></td></tr>
+<tr><td>Claude Code, agente de consulta</td><td>Consulta de patrones aplicados y omitidos (Anexos A y B)</td><td><code>claude-sonnet-5-5</code> (declarado por el agente)</td></tr>
+<tr><td>Claude Code, 2 agentes de generación</td><td>Generar los módulos A (control) y B (con State)</td><td><code>claude-sonnet-5-5</code> (declarado)</td></tr>
+<tr><td>Claude Code, 2 agentes de ampliación</td><td>Agregar el estado «vencido» a A y a B</td><td><code>claude-sonnet-5-5</code> (declarado)</td></tr>
+<tr><td>Claude Code (código original del sistema)</td><td>Generación de ProFit Studio entre mayo y octubre de 2026</td><td>Sonnet 4.6, Sonnet 5.5 y Opus 5.5 (firmas de los commits)</td></tr>
+</tbody>
+</table>
+<p>Herramientas que no son de IA: <code>git</code>, el ejecutor de pruebas de Django y Chrome en modo sin interfaz para generar el PDF.</p>
+<table>
+<caption>Tabla 13. Evolución de los prompts principales</caption>
+<thead><tr><th>Prompt</th><th>Versión</th><th>Cambio respecto de la anterior</th><th>Motivo</th></tr></thead>
+<tbody>
+<tr><td>Consulta</td><td>1</td><td>Texto inicial; no hubo iteraciones</td><td>Cubrir el paso 2 de la actividad sin forzar patrones</td></tr>
+<tr><td>Generación (A, control)</td><td>1.0</td><td>Reconstrucción del original: especificación del ciclo de vida más las pautas de arquitectura del agente</td><td>El prompt original no se conserva</td></tr>
+<tr><td>Generación (A, control)</td><td>1.1</td><td>Se quitó la nota inicial que explicaba el experimento</td><td>Evitar que el agente supiera que se comparaban patrones</td></tr>
+<tr><td>Reformulado (B)</td><td>2</td><td>Se agregó un párrafo que pide State (GoF); el resto es idéntico (verificado con <code>diff</code>)</td><td>Patrón omitido M1 de la Tabla 6</td></tr>
+<tr><td>Ampliación (A y B)</td><td>1</td><td>Mismo texto para ambas; solo cambia la carpeta (verificado con <code>diff</code>)</td><td>Medir la facilidad de ampliar</td></tr>
+</tbody>
+</table>
+<p>Los informes completos de cada agente no se reproducen; lo que importa para las conclusiones está en los anexos y el equipo corrió por su cuenta todas las pruebas citadas.</p>
+
+<h1>9. Material de consulta</h1>
+<p class="ref">Gamma, E., Helm, R., Johnson, R., &amp; Vlissides, J. (1994). <em>Design patterns: Elements of reusable object-oriented software</em>. Addison-Wesley.</p>
+<p class="ref">Larman, C. (2004). <em>Applying UML and patterns: An introduction to object-oriented analysis and design and iterative development</em> (3.ª ed.). Prentice Hall.</p>
+<p class="ref">Sommerville, I. (2011). <em>Ingeniería de software</em> (9.ª ed.). Pearson Educación.</p>
+<p>Repositorio del código: <code>https://github.com/Jdarenas22/profit-studio</code>. El experimento está en la carpeta <code>docs/actividad-patrones/</code>.</p>

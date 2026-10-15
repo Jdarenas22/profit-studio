@@ -1,0 +1,142 @@
+--- docs/actividad-patrones/anexos/experimento/base/exp_b/plan_lifecycle.py	2026-10-15 16:58:31.414924800 -0500
++++ docs/actividad-patrones/anexos/experimento/exp_b/plan_lifecycle.py	2026-10-15 16:59:31.552991100 -0500
+@@ -3,11 +3,14 @@
+ Capas (Clean Architecture; los controladores HTTP quedan fuera y solo llaman a las funciones públicas):
+ 
+ - Servicios de negocio (abajo del todo): `take_for_review`, `archive_plan`, `approve_plan` y
+-  `regenerate_plan`. Comprueban el acceso del entrenador y delegan en el contexto.
++  `regenerate_plan`, que comprueban el acceso del entrenador y delegan en el contexto, y
++  `expire_overdue_plans`, que corre sin entrenador (proceso programado) y marca como vencidos
++  los planes aprobados cuya vigencia ya pasó.
+ - Dominio: `PlanLifecycle` (el contexto) delega cada operación en la clase del estado actual del
+-  plan. Cada estado (`DraftAIState`, `InReviewState`, `ApprovedState`, `SupersededState`,
+-  `ArchivedState`) declara qué operaciones admite y a qué estado pasa; lo que no admite lo
+-  rechaza la clase base `PlanState`. No hay `if plan.status ...` en las operaciones públicas.
++  plan. Cada estado (`DraftAIState`, `InReviewState`, `ApprovedState`, `ExpiredState`,
++  `SupersededState`, `ArchivedState`) declara qué operaciones admite y a qué estado pasa; lo que
++  no admite lo rechaza la clase base `PlanState`. No hay `if plan.status ...` en las operaciones
++  públicas.
+ - Acceso a datos: `PlanRepository` (consultas, bloqueos de fila, rutina y eventos).
+ 
+ Quedan fuera (las comprueba quien llama): la credencial de nutrición, que la rutina tenga
+@@ -42,6 +45,11 @@
+ MSG_CANNOT_REGENERATE = 'Solo se regenera un borrador o un plan en revisión.'
+ MSG_UNKNOWN_STATE = 'Este plan está en un estado desconocido.'
+ DEFAULT_ARCHIVE_NOTE = 'Archivado por el entrenador.'
++EXPIRED_NOTE = 'Vigencia vencida.'
++
++# El modelo no define el estado «vencido» ni su acción; ambas cadenas caben en sus campos.
++STATUS_EXPIRED = 'expired'
++ACTION_EXPIRED = 'expired'
+ 
+ 
+ def _clip(text, limit):
+@@ -71,6 +79,10 @@
+             .exclude(pk=plan.pk)
+         )
+ 
++    def overdue_approved(self, today):
++        """Planes aprobados cuya vigencia terminó antes de `today` (sin bloquear)."""
++        return list(Plan.objects.filter(status=Plan.STATUS_APPROVED, valid_until__lt=today).order_by('pk'))
++
+     def save(self, plan, fields):
+         plan.save(update_fields=fields)
+ 
+@@ -112,6 +124,10 @@
+     def supersede(self, ctx, actor, replacement):
+         raise PlanStateError(MSG_CHANGED)
+ 
++    def expire(self, ctx, actor):
++        """Solo un plan aprobado vence; en cualquier otro estado no hace nada (idempotente)."""
++        return False
++
+ 
+ class _ArchivableState(PlanState):
+     """Estados desde los que se puede archivar: pasan a `archived`."""
+@@ -192,6 +208,20 @@
+         ctx.transition(
+             Plan.STATUS_SUPERSEDED, actor, note=f'Reemplazado por la versión {replacement.version}.')
+ 
++    def expire(self, ctx, actor):
++        with ctx.locked():
++            if ctx.state is not self:
++                return False
++            ctx.transition(STATUS_EXPIRED, actor, note=EXPIRED_NOTE)
++        return True
++
++
++class ExpiredState(_ArchivableState):
++    """Plan aprobado cuya vigencia terminó: solo se puede archivar (la rutina ya está inactiva)."""
++    status = STATUS_EXPIRED
++    entered_action = ACTION_EXPIRED
++    routine_active = False
++
+ 
+ class SupersededState(PlanState):
+     status = Plan.STATUS_SUPERSEDED
+@@ -207,7 +237,8 @@
+ 
+ _STATES = {
+     state.status: state
+-    for state in (DraftAIState(), InReviewState(), ApprovedState(), SupersededState(), ArchivedState())
++    for state in (
++        DraftAIState(), InReviewState(), ApprovedState(), ExpiredState(), SupersededState(), ArchivedState())
+ }
+ 
+ 
+@@ -247,6 +278,9 @@
+     def supersede(self, actor, replacement):
+         return self.state.supersede(self, actor, replacement)
+ 
++    def expire(self, actor=None):
++        return self.state.expire(self, actor)
++
+     # Apoyo para los estados
+     @contextmanager
+     def locked(self):
+@@ -271,11 +305,11 @@
+         if target.routine_active is not None:
+             self.repository.set_routine_active(plan, target.routine_active)
+         self.repository.add_event(plan, actor, target.entered_action, note)
+-        logger.info('Plan %s: %s -> %s (usuario %s).', plan.pk, origin, target.status, actor.pk)
++        logger.info('Plan %s: %s -> %s (usuario %s).', plan.pk, origin, target.status, getattr(actor, 'pk', None))
+ 
+     def record(self, actor, action, note=''):
+         self.repository.add_event(self.plan, actor, action, note)
+-        logger.info('Plan %s: evento %s (usuario %s).', self.plan.pk, action, actor.pk)
++        logger.info('Plan %s: evento %s (usuario %s).', self.plan.pk, action, getattr(actor, 'pk', None))
+ 
+     def supersede_previous(self, actor):
+         """Reemplaza al plan aprobado anterior de la misma clienta y tipo (si lo hay)."""
+@@ -306,7 +340,7 @@
+ 
+ 
+ def archive_plan(plan, actor, reason=''):
+-    """Archiva un borrador, un plan en revisión o uno aprobado."""
++    """Archiva un borrador, un plan en revisión, uno aprobado o uno vencido."""
+     return _lifecycle_for(plan, actor).archive(actor, reason)
+ 
+ 
+@@ -320,7 +354,21 @@
+     return _lifecycle_for(plan, actor).regenerate(actor, notes, request_token)
+ 
+ 
++def expire_overdue_plans(today=None):
++    """Pasa a `expired` los planes `approved` con `valid_until` anterior a `today` (por defecto, hoy).
++
++    Desactiva su rutina y registra el evento `expired` de cada uno (sin autor: lo hace el sistema).
++    Devuelve cuántos cambió. Es idempotente: los planes que ya no están aprobados no se tocan.
++    """
++    if today is None:
++        today = health_dates.today()
++    repository = PlanRepository()
++    expired = sum(1 for plan in repository.overdue_approved(today) if PlanLifecycle(plan, repository).expire())
++    logger.info('Planes vencidos al %s: %s.', today, expired)
++    return expired
++
++
+ __all__ = [
+     'PlanLifecycle', 'PlanRepository', 'PlanState', 'state_for',
+-    'take_for_review', 'archive_plan', 'approve_plan', 'regenerate_plan',
++    'take_for_review', 'archive_plan', 'approve_plan', 'regenerate_plan', 'expire_overdue_plans',
+ ]

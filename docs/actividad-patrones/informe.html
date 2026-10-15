@@ -1,0 +1,921 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Patrones de diseño en el código generado con IA</title><style>
+@page { size: A4; margin: 2.5cm 2.5cm 2.5cm 3cm;
+        @bottom-center { content: counter(page); font-family: "Times New Roman", serif; font-size: 10pt; } }
+@page portada { @bottom-center { content: none; } }
+html { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.5; color: #000; }
+body { margin: 0; }
+h1 { font-size: 14pt; text-align: center; margin: 22pt 0 8pt; break-after: avoid; }
+h2 { font-size: 12pt; text-align: left; margin: 16pt 0 4pt; break-after: avoid; }
+h3 { font-size: 12pt; font-style: italic; margin: 12pt 0 4pt; break-after: avoid; }
+p { margin: 0 0 8pt; }
+ul, ol { margin: 0 0 8pt; padding-left: 22pt; }
+li { margin-bottom: 3pt; }
+code { font-family: Consolas, "Courier New", monospace; font-size: 10pt; }
+.pend { background: #fff3a8; padding: 0 2pt; }
+.ref { padding-left: 28pt; text-indent: -28pt; }
+.portada { page: portada; text-align: center; padding-top: 5cm; break-after: page; }
+.portada h1 { font-size: 20pt; margin-bottom: 14pt; }
+.portada .sub { font-size: 14pt; margin-bottom: 60pt; }
+.portada p { margin: 0 0 10pt; }
+.toc h1 { margin-top: 0; }
+.toc { break-after: page; }
+.toc ul { list-style: none; padding-left: 0; }
+.toc li.n2 { padding-left: 18pt; font-size: 11pt; }
+.toc a { color: #000; text-decoration: none; }
+table { border-collapse: collapse; width: 100%; margin: 4pt 0 12pt; font-size: 9.5pt; line-height: 1.25; }
+caption { caption-side: top; text-align: left; font-weight: bold; font-size: 10.5pt; margin-bottom: 4pt; line-height: 1.3; }
+th, td { border: 0.5pt solid #555; padding: 3pt 4pt; vertical-align: top; text-align: left; }
+th { background: #e9e9e9; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+table code { font-size: 8.5pt; }
+td, th, code { overflow-wrap: anywhere; word-break: break-word; }
+table.anx { table-layout: fixed; font-size: 8pt; line-height: 1.2; }
+table.anx code { font-size: 7.5pt; }
+table.anx tr { break-inside: auto; }
+table.anx th:first-child, table.anx td:first-child { width: 5.5%; }
+figure { margin: 8pt 0 12pt; break-inside: avoid; text-align: center; }
+figure svg { width: 100%; height: auto; }
+figcaption { font-size: 10.5pt; font-weight: bold; text-align: left; margin-bottom: 4pt; line-height: 1.3; }
+pre { font-family: Consolas, "Courier New", monospace; font-size: 8.5pt; line-height: 1.25; white-space: pre-wrap;
+      word-wrap: break-word; border: 0.5pt solid #777; background: #fafafa; padding: 6pt; margin: 4pt 0 10pt; }
+pre.prompt { font-size: 9pt; }
+.add { background: #dff3df; display: block; }
+.del { background: #f8dcdc; display: block; }
+.hunk { background: #e6ecf7; display: block; }
+.anexo h1 { break-before: page; }
+.nota { font-size: 10.5pt; }
+</style></head><body><section class="portada">
+<h1>Patrones de diseño en el código generado con IA</h1>
+<p class="sub">Informe de experimento sobre el sistema ProFit Studio (apps plans y health)</p>
+<p><strong>Actividad:</strong> Patrones de diseño en el código generado con IA</p>
+<p><strong>Equipo:</strong> <span class="pend">[COMPLETAR: nombres de las personas integrantes]</span></p>
+<p><strong>Curso y docente:</strong> <span class="pend">[COMPLETAR]</span></p>
+<p><strong>Fecha:</strong> 15 de octubre de 2026</p>
+<p><strong>Repositorio:</strong> https://github.com/Jdarenas22/profit-studio</p>
+</section><section class="toc"><h1>Tabla de contenido</h1><ul>
+<li class="n1"><a href="#s1">Resumen</a></li>
+<li class="n1"><a href="#s2">1. Prompt de generación</a></li>
+<li class="n2"><a href="#s3">1.1 Herramienta y modelos utilizados</a></li>
+<li class="n2"><a href="#s4">1.2 El texto del prompt de generación</a></li>
+<li class="n2"><a href="#s5">1.3 ¿El prompt pedía patrones, principios o una arquitectura?</a></li>
+<li class="n2"><a href="#s6">1.4 Prompt usado en el experimento de reformulación</a></li>
+<li class="n1"><a href="#s7">2. Consulta al asistente</a></li>
+<li class="n2"><a href="#s8">2.1 Diseño de la consulta</a></li>
+<li class="n2"><a href="#s9">2.2 Verificación de la respuesta</a></li>
+<li class="n1"><a href="#s10">3. Inventario de patrones aplicados</a></li>
+<li class="n1"><a href="#s11">4. Inventario de patrones omitidos</a></li>
+<li class="n1"><a href="#s12">5. Clasificación: indicado o espontáneo</a></li>
+<li class="n2"><a href="#s13">5.1 Qué tipo de patrones aplica la IA por sí sola y cuáles omite</a></li>
+<li class="n1"><a href="#s14">6. Experimento de reformulación</a></li>
+<li class="n2"><a href="#s15">6.1 Pregunta y diseño</a></li>
+<li class="n2"><a href="#s16">6.2 Resultados</a></li>
+<li class="n2"><a href="#s17">6.3 Comparación argumentada</a></li>
+<li class="n1"><a href="#s18">7. Conclusiones y recomendación</a></li>
+<li class="n2"><a href="#s19">7.1 Conclusiones</a></li>
+<li class="n2"><a href="#s20">7.2 Qué indicar en un prompt de generación, cuándo y cómo</a></li>
+<li class="n2"><a href="#s21">7.3 Versión mejorada del prompt de generación</a></li>
+<li class="n2"><a href="#s22">7.4 Limitaciones del experimento</a></li>
+<li class="n2"><a href="#s23">7.5 Hallazgo práctico fuera del alcance de la actividad</a></li>
+<li class="n1"><a href="#s24">8. Registro de uso de IA</a></li>
+<li class="n1"><a href="#s25">9. Material de consulta</a></li>
+<li class="n1"><a href="#s26">Anexo A. Prompt de consulta (íntegro)</a></li>
+<li class="n1"><a href="#s27">Anexo B. Respuesta íntegra del asistente</a></li>
+<li class="n1"><a href="#s28">Anexo C. Prompts del experimento</a></li>
+<li class="n2"><a href="#s29">C.1 Prompt A (control), íntegro</a></li>
+<li class="n2"><a href="#s30">C.2 Prompt B (reformulado): única diferencia con A</a></li>
+<li class="n2"><a href="#s31">C.3 Prompt de ampliación (estado «vencido»), versión para A</a></li>
+<li class="n1"><a href="#s32">Anexo D. Fragmentos de código comparados</a></li>
+<li class="n2"><a href="#s33">D.1 Original (V0): apps/plans/services.py, líneas 482 a 503</a></li>
+<li class="n2"><a href="#s34">D.2 Control A: constantes y archive_plan (plan_lifecycle.py, líneas 43-47 y 144-161)</a></li>
+<li class="n2"><a href="#s35">D.3 B con State: estados y contexto (plan_lifecycle.py, líneas 90-127, 186-194 y 262-274)</a></li>
+<li class="n2"><a href="#s36">D.4 Diff de la ampliación en A (plan_lifecycle.py)</a></li>
+<li class="n2"><a href="#s37">D.5 Diff de la ampliación en B (plan_lifecycle.py)</a></li>
+<li class="n1"><a href="#s38">Anexo E. Registro de verificaciones</a></li>
+</ul></section><h1 id="s1">Resumen</h1>
+<p>Este informe documenta un experimento sobre el código que Claude Code generó para ProFit Studio, una aplicación Django de gestión de un gimnasio. Un asistente de IA, consultado en una conversación nueva y sin el historial de la generación, identificó 14 patrones GoF y 9 patrones GRASP en las apps <code>plans</code> y <code>health</code>, y señaló 15 patrones que pudieron aplicarse y no se aplicaron. Se verificó contra el código la mayoría de las cifras que sustentan los hallazgos. Después se regeneró un módulo acotado (el ciclo de vida del plan) en tres versiones y se midió cuánto cuesta ampliarlo.</p>
+<p>Hallazgos principales: (1) la IA aplicó por sí sola patrones ligeros y funcionales y asignó responsabilidades con criterio GRASP, y siguió con fidelidad las interfaces que el contrato de diseño pedía; (2) omitió unificar código duplicado que ya empezó a divergir, y no aplicó State, Null Object ni Specification; (3) al pedirle State de forma explícita lo incorporó, pero con más código y mayor costo de ampliación y sin un beneficio claro para este módulo; (4) por eso se recomienda pedir principios con su límite y una auditoría final, no nombres de patrones.</p>
+<p><strong>Nota sobre la elaboración.</strong> El experimento y este informe los ejecutó Claude Code (modelo Claude Sonnet 5.5) a pedido del equipo. Lo marcado como <span class="pend">[COMPLETAR]</span> son datos que solo el equipo conoce, y las valoraciones de relevancia de la Sección 4 son propuestas que el equipo debe revisar y confirmar. El registro completo del uso de IA está en la Sección 8.</p>
+
+<h1 id="s2">1. Prompt de generación</h1>
+<h2 id="s3">1.1 Herramienta y modelos utilizados</h2>
+<p>El código se generó con Claude Code (interfaz de línea de comandos de Anthropic) en sesiones sucesivas entre el 6 de mayo y el 15 de octubre de 2026. El repositorio tiene 78 commits; 55 llevan una firma de coautoría que identifica el modelo (Tabla 1). Los otros 23 no indican modelo.</p>
+<table>
+<caption>Tabla 1. Modelos que firman los commits del repositorio (a 15 de octubre de 2026)</caption>
+<thead><tr><th>Modelo</th><th>Commits firmados</th><th>Relación con las apps analizadas</th></tr></thead>
+<tbody>
+<tr><td>Claude Sonnet 4.6</td><td>23</td><td>Ninguno toca <code>apps/plans</code> ni <code>apps/health</code></td></tr>
+<tr><td>Claude Sonnet 5.5</td><td>31</td><td>11 tocan <code>apps/plans</code> y 2 tocan <code>apps/health</code></td></tr>
+<tr><td>Claude Opus 5.5</td><td>1</td><td>Fase B (commit <code>42ed7e0</code>): ejercicio con IA, motor de reglas y cliente de IA</td></tr>
+</tbody>
+</table>
+<p>Fuente: <code>git log</code> sobre <code>main</code>. El tamaño del código de producción de las dos apps analizadas es de 8 245 líneas (6 344 en <code>plans</code> y 1 901 en <code>health</code>, sin pruebas ni migraciones).</p>
+
+<h2 id="s4">1.2 El texto del prompt de generación</h2>
+<p><strong>El texto íntegro de los prompts con los que se generó el código no se conserva en el repositorio</strong>: se dieron en conversaciones de Claude Code que no se guardaron como documentos. Lo que sí quedó escrito y guió la generación son tres fuentes (Tabla 2).</p>
+<table>
+<caption>Tabla 2. Fuentes escritas que guiaron la generación</caption>
+<thead><tr><th>Fuente</th><th>Qué pide (citas textuales)</th></tr></thead>
+<tbody>
+<tr><td>Instrucciones del agente <code>arquitecto-backend</code> (archivo de configuración de Claude Code del equipo)</td><td>«Todo backend que diseñes, construyas o revises sigue estrictamente Clean Architecture, OWASP y The Twelve-Factor App.» «Separa claramente las rutas/controladores (gestión HTTP), los servicios (lógica de negocio abstracta) y los repositorios (acceso a datos).»</td></tr>
+<tr><td>Contrato <code>docs/contracts/plan-ia.md</code> (escrito por el agente y aprobado por la persona antes de construir)</td><td>«Vistas (HTTP) -&gt; <code>services.py</code> (casos de uso) -&gt; modelos/consultas. Reglas puras en <code>plans/rules/</code> (sin Django ni red). IA detrás de una interfaz en <code>plans/ai/</code>» (§1). Interfaz <code>AIClient.generate_json(…)</code> «se inyecta con <code>get_ai_client()</code>» (§4.3). Cola en base de datos con <code>transaction.on_commit</code> (§6.1). Estados del plan descritos en prosa (§8.1).</td></tr>
+<tr><td><code>CLAUDE.md</code> del proyecto</td><td>Estructura de apps, modelo de roles, convenciones de seguridad y de pruebas.</td></tr>
+</tbody>
+</table>
+<p><span class="pend">[COMPLETAR por el equipo: pegar aquí el texto íntegro de los mensajes con los que se pidió cada fase, si se conservan en el historial de Claude Code.]</span></p>
+
+<h2 id="s5">1.3 ¿El prompt pedía patrones, principios o una arquitectura?</h2>
+<p>Pedía <strong>arquitectura y principios generales</strong>: Clean Architecture, separación entre controladores, servicios y repositorios, Twelve-Factor y OWASP. <strong>No pedía ningún patrón de diseño por su nombre.</strong> Se comprobó con <code>git grep</code> sobre todos los archivos versionados: ninguno menciona <em>strategy</em>, <em>factory method</em>, <em>abstract factory</em>, <em>singleton</em>, <em>observer pattern</em>, <em>template method</em>, <em>state pattern</em>, <em>repository pattern</em>, <em>clean architecture</em>, <em>SOLID</em>, <em>GRASP</em> ni «design pattern» (la búsqueda no distingue mayúsculas). Esa ausencia es el punto de partida del experimento: cualquier patrón GoF o GRASP presente en el código lo eligió el asistente, salvo los que el contrato describe como decisión estructural (Sección 5).</p>
+
+<h2 id="s6">1.4 Prompt usado en el experimento de reformulación</h2>
+<p>Como el prompt original no existe, el experimento de la Sección 6 parte de una <strong>reconstrucción</strong>: la especificación funcional del ciclo de vida del plan (tomada del comportamiento del código y de la sección 8 del contrato) más las pautas generales de arquitectura del agente. No nombra patrones. Está íntegro en el Anexo C.</p>
+
+<h1 id="s7">2. Consulta al asistente</h1>
+<h2 id="s8">2.1 Diseño de la consulta</h2>
+<p>Siguiendo el paso 2 de la actividad, la consulta se hizo en una <strong>conversación nueva</strong>, sin el historial de la generación: un agente de Claude Code que arranca sin contexto previo (modelo <code>claude-sonnet-5-5</code>, según el propio agente). Se le pidió analizar solo el código de producción de <code>apps/plans</code> y <code>apps/health</code> (46 archivos), en modo de solo lectura, sin leer <code>CLAUDE.md</code>, la carpeta <code>docs/</code> ni el historial de git, y sin forzar patrones: solo listar uno si podía señalar su lugar concreto. Las preguntas fueron dos: qué patrones GoF y GRASP contiene el código (con descripción, ubicación, evidencia y grado de certeza) y cuáles pudo o debió aplicar y no aplicó (con el problema que resolvería, el beneficio y el costo). El prompt exacto está en el Anexo A y la respuesta íntegra en el Anexo B.</p>
+<h2 id="s9">2.2 Verificación de la respuesta</h2>
+<p>Una IA puede inventar ubicaciones o cifras, así que antes de usar la respuesta el equipo contrastó con el código las afirmaciones que sustentan los hallazgos (Tabla 3). Las demás se toman de la consulta y se marcan «No» en la columna <em>Verificado</em> de las tablas 4 a 6.</p>
+<table>
+<caption>Tabla 3. Afirmaciones de la consulta contrastadas con el código</caption>
+<thead><tr><th>Afirmación del asistente</th><th>Resultado de la verificación</th></tr></thead>
+<tbody>
+<tr><td>Tamaño de <code>services.py</code> 559 líneas, <code>nutrition.py</code> 520, <code>jobs.py</code> 479, <code>views.py</code> 670</td><td>Coincide exactamente</td></tr>
+<tr><td>10 creaciones manuales de <code>PlanEvent</code> (6 en <code>services.py</code> y 4 en <code>nutrition.py</code>)</td><td>Coincide exactamente</td></tr>
+<tr><td>10 comprobaciones de «adaptación nula» en <code>jobs.py</code></td><td>Coincide (10)</td></tr>
+<tr><td>13 consultas <code>PlanGenerationJob.objects.filter(pk=…)</code> en <code>jobs.py</code></td><td>Coincide exactamente</td></tr>
+<tr><td>El bloque de cierre con <code>lost_lock</code> está repetido en los tres ejecutores</td><td>Coincide: <code>jobs.py</code> líneas 330, 434 y 467</td></tr>
+<tr><td><code>jobs.py</code> usa <code>client.is_simulated</code> y <code>client.model_name</code> sin preguntar el tipo de cliente</td><td>Coincide: líneas 332-333 y 436-438</td></tr>
+<tr><td>Tabla de despacho <code>_RUNNERS</code> en <code>jobs.py</code></td><td>Coincide: línea 475</td></tr>
+<tr><td>Imports locales con el comentario «evita el import circular»</td><td>Coincide parcialmente: dos de las tres ubicaciones citadas (<code>services.py</code> líneas 288 y 506)</td></tr>
+<tr><td><code>request_plan</code> evita repetir el aviso de bloqueo en el día y <code>request_alternative</code> no lo hace (divergencia)</td><td>Coincide: <code>services.py</code> líneas 303-310 y la rama de bloqueo de <code>nutrition.request_alternative</code></td></tr>
+<tr><td>La regla «¿se puede aprobar?» se evalúa en la vista y en el servicio</td><td>Coincide: <code>views.py</code> líneas 301-303 y <code>services.approve_plan</code></td></tr>
+<tr><td>«Unas 30 comparaciones por tipo de plan»</td><td><strong>No reproducible</strong>: 56 líneas mencionan las constantes de tipo (incluidos imports y definiciones). La cifra es imprecisa; la tendencia (comparaciones repartidas en cinco módulos) es cierta</td></tr>
+</tbody>
+</table>
+
+<h1 id="s10">3. Inventario de patrones aplicados</h1>
+<p>Las tablas 4 y 5 reúnen los patrones que el asistente informa. Los patrones GoF son los del catálogo de Gamma et al. (1994) y los GRASP son los nueve de Larman (2004). El asistente también descartó, con su razón, once patrones GoF «buscados y no encontrados» (Singleton, Abstract Factory, Builder, Prototype, Composite, Bridge, Proxy, Flyweight, Mediator, Chain of Responsibility y Iterator/Visitor/Interpreter; Anexo B, sección 1.3) y señaló nueve idiomas que no son GoF ni GRASP, como la capa de servicios, el núcleo funcional con cáscara imperativa, los objetos de valor inmutables y las reglas guiadas por tablas (Anexo B, sección 1.4).</p>
+<table>
+<caption>Tabla 4. Patrones GoF que el asistente ubica en el código (<code>claro</code> = el patrón está bien definido; <code>parcial</code> = cumple en parte; <code>discutible</code> = se parece pero no lo es en rigor)</caption>
+<thead><tr><th>Nº</th><th>Patrón</th><th>Descripción u objetivo</th><th>Dónde</th><th>Certeza</th><th>Verificado</th></tr></thead>
+<tbody>
+<tr><td>C1</td><td>Simple Factory (variante)</td><td>Centraliza qué cliente de IA se crea según la configuración</td><td><code>ai/__init__.py</code>, <code>get_ai_client()</code></td><td>Parcial</td><td>Sí</td></tr>
+<tr><td>C2</td><td>Simple Factory (banderas)</td><td>Construye objetos <code>Flag</code> inmutables desde una tabla de textos</td><td><code>rules/flags.py</code>, <code>_flag</code></td><td>Discutible</td><td>No</td></tr>
+<tr><td>C3</td><td>Adapter</td><td>Traduce la API REST de Gemini a <code>AIResult</code> y a una jerarquía de errores propia</td><td><code>ai/gemini.py</code>, <code>GeminiClient</code></td><td>Claro</td><td>No</td></tr>
+<tr><td>C4</td><td>Adapter (datos)</td><td>Convierte modelos del ORM en dataclasses congeladas para el motor de reglas</td><td><code>services.py</code>, <code>exercise_items</code>, <code>food_items</code>; <code>health/services.py</code>, <code>build_facts</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C5</td><td>Facade</td><td>Una llamada coordina ficha, banderas, elegibilidad y filtros de catálogo</td><td><code>services.py</code>, <code>assess()</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C6</td><td>Decorator (funcional)</td><td>Añade control de acceso y desactivación por interruptor a las vistas</td><td><code>plans_feature_required</code>, <code>health_feature_required</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C7</td><td>Strategy</td><td>Cliente de IA intercambiable (simulado o real) detrás de <code>AIClient</code></td><td><code>ai/base.py</code>, <code>ai/fake.py</code>, <code>ai/gemini.py</code></td><td>Claro</td><td>Sí</td></tr>
+<tr><td>C8</td><td>Strategy (tabla de despacho)</td><td>Elige el ejecutor del trabajo por tipo, sin <code>if/elif</code></td><td><code>jobs.py</code>, <code>_RUNNERS</code></td><td>Parcial</td><td>Sí</td></tr>
+<tr><td>C9</td><td>Template Method (funcional)</td><td>Esqueleto fijo de generar, validar y reintentar; los pasos variables llegan como parámetros</td><td><code>jobs.py</code>, <code>_generate_validated</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C10</td><td>Template Method (ganchos de Django)</td><td>Formularios, administración y comandos rellenan ganchos que define el framework</td><td><code>admin.py</code>, <code>health/forms.py</code>, <code>management/commands/</code></td><td>Claro (lo aporta Django)</td><td>No</td></tr>
+<tr><td>C11</td><td>Command</td><td>El pedido de plan es un registro persistente que se encola, se ejecuta después y se reintenta</td><td><code>models.py</code>, <code>PlanGenerationJob</code>; <code>jobs.py</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>C12</td><td>Observer (vía <code>on_commit</code>)</td><td>Callbacks que corren al confirmar la transacción (lanzar el hilo, enviar correo)</td><td><code>services.py</code>, <code>nutrition.py</code></td><td>Discutible</td><td>No</td></tr>
+<tr><td>C13</td><td>State (implícito)</td><td>Ciclo de vida por estados con transiciones repartidas en condiciones</td><td><code>Plan.status</code>, <code>PlanGenerationJob.status</code></td><td>Discutible</td><td>Sí</td></tr>
+<tr><td>C14</td><td>Memento (variante)</td><td>Versionado de la ficha y de las opciones de comida, con «deshacer» en estas últimas</td><td><code>health/models.py</code>, <code>HealthProfile</code>; <code>MealOption.replaces</code></td><td>Discutible</td><td>No</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Tabla 5. Patrones GRASP que el asistente ubica en el código</caption>
+<thead><tr><th>Nº</th><th>Patrón</th><th>Descripción u objetivo</th><th>Dónde</th><th>Certeza</th><th>Verificado</th></tr></thead>
+<tbody>
+<tr><td>G1</td><td>Information Expert</td><td>Los valores derivados los calcula el objeto que tiene los datos</td><td><code>rules/eligibility.py</code>, <code>Eligibility</code>; <code>rules/flags.py</code>, <code>FlagReport</code>; modelos de <code>health</code></td><td>Claro, con excepciones en las vistas</td><td>Sí (la regla de aprobación se repite en la vista)</td></tr>
+<tr><td>G2</td><td>Creator</td><td>La función que recibe la salida validada crea rutina, plan, comidas y eventos</td><td><code>services.create_exercise_draft</code>, <code>nutrition.create_nutrition_draft</code></td><td>Parcial</td><td>No</td></tr>
+<tr><td>G3</td><td>Controller</td><td>Vistas delgadas que delegan en servicios y traducen excepciones a mensajes</td><td><code>views.trainer_plan_approve</code>, <code>services.request_plan</code></td><td>Claro (tres vistas son gruesas)</td><td>No</td></tr>
+<tr><td>G4</td><td>Low Coupling</td><td>Núcleo <code>rules/</code> sin Django; pero dependencia mutua entre <code>health</code> y <code>plans</code> e imports locales para evitar ciclos</td><td><code>rules/*</code>; <code>services.py</code> líneas 288 y 506</td><td>Parcial</td><td>Parcial</td></tr>
+<tr><td>G5</td><td>High Cohesion</td><td><code>rules/</code> y <code>ai/</code> enfocados; los módulos de casos de uso agrupan varios temas</td><td><code>services.py</code> (559 líneas), <code>nutrition.py</code> (520), <code>jobs.py</code> (479), <code>views.py</code> (670)</td><td>Parcial</td><td>Sí</td></tr>
+<tr><td>G6</td><td>Polymorphism</td><td>El código trata igual a cualquier <code>AIClient</code>, sin condicionales por tipo</td><td><code>jobs.py</code> líneas 332-333 y 436-438</td><td>Claro</td><td>Sí</td></tr>
+<tr><td>G7</td><td>Pure Fabrication</td><td>Elementos artificiales que no son del negocio, creados para lograr cohesión</td><td><code>jobs.py</code>, <code>notifications.py</code>, <code>rules/*</code>, <code>_SlotView</code>, <code>health/dates.py</code></td><td>Claro</td><td>No</td></tr>
+<tr><td>G8</td><td>Indirection</td><td>Intermediarios que permiten cambiar o simular lo que hay detrás</td><td><code>get_ai_client()</code>, <code>dates.today()</code>, <code>adaptation.for_job</code></td><td>Claro</td><td>No</td></tr>
+<tr><td>G9</td><td>Protected Variations</td><td>Fronteras estables frente a lo que cambia: proveedor de IA, salida de la IA, reglas legales, modelo de datos</td><td><code>AIClient</code>, <code>rules/validate.py</code>, <code>professional_required()</code>, <code>ExerciseItem</code></td><td>Claro</td><td>No</td></tr>
+</tbody>
+</table>
+
+<h1 id="s11">4. Inventario de patrones omitidos</h1>
+<p>La Tabla 6 lista los patrones que el asistente dice que pudieron o debieron aplicarse. La columna <em>Valoración propuesta</em> es del equipo de trabajo asistido por IA: pondera el efecto de la ausencia sobre la facilidad de ampliar, de probar y de mantener, y <strong>debe ser confirmada por el equipo</strong>.</p>
+<table>
+<caption>Tabla 6. Patrones omitidos, problema que resolverían y valoración de su relevancia</caption>
+<thead><tr><th>Nº</th><th>Patrón</th><th>Problema de diseño que resolvería</th><th>Valoración propuesta</th><th>Verificado</th></tr></thead>
+<tbody>
+<tr><td>M1</td><td>State o tabla de transiciones</td><td>Las reglas de transición del plan están en 4 condiciones <code>status not in …</code> y en 10 creaciones manuales de <code>PlanEvent</code>; añadir un estado obliga a revisar varios sitios</td><td><strong>Media.</strong> Una tabla de transiciones sí; clases State, no (Sección 6)</td><td>Sí</td></tr>
+<tr><td>M2</td><td>Template Method o cierre común de los ejecutores</td><td>El bloque de cierre (bloqueo de fila, <code>lost_lock</code>, creación, cierre del trabajo) está copiado tres veces en <code>jobs.py</code></td><td><strong>Alta.</strong> Código de concurrencia duplicado: un arreglo debe hacerse en tres sitios</td><td>Sí</td></tr>
+<tr><td>M3</td><td>Template Method o fábrica común para crear trabajos</td><td><code>request_plan</code> y <code>request_alternative</code> repiten el flujo y ya divergieron: solo la primera evita repetir el aviso de bloqueo</td><td><strong>Alta.</strong> Posible defecto latente, según la lectura del código (no se ejecutó): cada nuevo pedido de un caso bloqueado crea otro trabajo y otro correo</td><td>Sí</td></tr>
+<tr><td>M4</td><td>Null Object (adaptación)</td><td><code>adaptation</code> puede ser <code>None</code> y 10 líneas de <code>jobs.py</code> lo comprueban</td><td><strong>Media.</strong> Menos ramas y pruebas más simples</td><td>Sí</td></tr>
+<tr><td>M5</td><td>Strategy por tipo de plan</td><td>Las comparaciones por tipo (ejercicio, alimentación, alternativa) están repartidas en cinco módulos</td><td><strong>Baja por ahora</strong> (solo hay dos tipos); sube si se agrega un tercero</td><td>Parcial (cifra corregida)</td></tr>
+<tr><td>M6</td><td>Specification para «¿se puede aprobar?»</td><td>La regla está en la vista, en <code>approve_plan</code> y en <code>nutrition.approval_problems</code>; si una cambia, la interfaz puede mostrar un botón que el servicio rechaza</td><td><strong>Media.</strong></td><td>Sí</td></tr>
+<tr><td>M7</td><td>Facade o consulta única de «alimentos y ejercicios permitidos»</td><td>La composición del filtro se repite en tres sitios y corre hasta tres veces en una pantalla</td><td><strong>Media-baja.</strong></td><td>No</td></tr>
+<tr><td>M8</td><td>Decorator o Proxy sobre <code>AIClient</code></td><td>La política de reintentos está mezclada con el presupuesto de tiempo y los latidos</td><td><strong>Baja</strong> (hay un solo proveedor)</td><td>No</td></tr>
+<tr><td>M9</td><td>Objetos de regla para las banderas de seguridad</td><td><code>flags.evaluate</code> es una función de unas 120 líneas con 44 condiciones</td><td><strong>Baja hoy;</strong> media cuando un profesional cambie los umbrales</td><td>No</td></tr>
+<tr><td>M10</td><td>Observer o eventos de dominio propios</td><td>Los avisos y la auditoría se llaman directamente; otro canal obligaría a tocar cada sitio</td><td><strong>Baja</strong> (un solo canal)</td><td>No</td></tr>
+<tr><td>M11</td><td>Inyección de dependencias del cliente de IA</td><td>Tres ejecutores llaman a <code>get_ai_client()</code> y las pruebas deben parchearlo</td><td><strong>Baja</strong> (<code>mock.patch</code> ya funciona)</td><td>No</td></tr>
+<tr><td>M12</td><td>Builder o DTO tipado del payload a la IA</td><td>La lista de lo único que viaja a la IA es un <code>dict</code> armado a mano y repetido en el simulado y en <code>check_gemini</code></td><td><strong>Media</strong> (frontera de privacidad)</td><td>No</td></tr>
+<tr><td>M13</td><td>Repository o <code>QuerySet</code> propio</td><td>13 consultas <code>PlanGenerationJob.objects.filter(pk=…)</code> en <code>jobs.py</code>; no existe capa de repositorio</td><td><strong>Baja.</strong> Un <code>QuerySet</code> sí; una capa Repository formal, no</td><td>Sí (13)</td></tr>
+<tr><td>M14</td><td>Pipeline o Chain of Responsibility para validar la salida</td><td>Validadores largos pero cohesivos</td><td><strong>Nula:</strong> añadiría indirección sin variación real</td><td>No</td></tr>
+<tr><td>M15</td><td>Strategy para los cupos de uso</td><td>Cuatro funciones repiten «contar trabajos en una ventana de tiempo»</td><td><strong>Nula como patrón:</strong> basta extraer un método</td><td>No</td></tr>
+</tbody>
+</table>
+
+<h1 id="s12">5. Clasificación: indicado o espontáneo</h1>
+<p>Para cada patrón aplicado se determinó si el material que guió la generación (Tabla 2) lo pedía o lo describía como decisión estructural (<em>indicado</em>), si lo pedía solo en parte (<em>mixto</em>) o si lo incorporó el asistente por sí solo (<em>espontáneo</em>). Como el prompt original no se conserva, la evidencia es el contrato <code>plan-ia.md</code> y las pautas del agente; para fechar el origen de algunos elementos se usó el historial de git.</p>
+<table>
+<caption>Tabla 7. Origen de cada patrón aplicado</caption>
+<thead><tr><th>Nº</th><th>Patrón</th><th>Origen</th><th>Evidencia</th></tr></thead>
+<tbody>
+<tr><td>C1</td><td>Simple Factory</td><td>Indicado</td><td>Contrato §4.3: «se inyecta con <code>get_ai_client()</code>»</td></tr>
+<tr><td>C2</td><td>Factory de banderas</td><td>Espontáneo</td><td>Sin mención en el contrato</td></tr>
+<tr><td>C3</td><td>Adapter (Gemini)</td><td>Indicado</td><td>Contrato §4.3: interfaz <code>AIClient</code> y errores normalizados</td></tr>
+<tr><td>C4</td><td>Adapter (datos)</td><td>Espontáneo</td><td>El contrato pide reglas puras (§3), no la forma de las dataclasses</td></tr>
+<tr><td>C5</td><td>Facade</td><td>Espontáneo</td><td>El contrato describe la salida <code>Eligibility</code>, no la fachada <code>assess</code>; aparece en la fase B (<code>42ed7e0</code>)</td></tr>
+<tr><td>C6</td><td>Decorator</td><td>Espontáneo</td><td>Idioma de Django; el proyecto ya usaba decoradores como <code>member_required</code></td></tr>
+<tr><td>C7</td><td>Strategy (<code>AIClient</code>)</td><td>Indicado</td><td>Contrato §1: «IA detrás de una interfaz»; §4.3: modos <code>simulated</code> y <code>live</code></td></tr>
+<tr><td>C8</td><td>Tabla de despacho</td><td>Espontáneo</td><td>Aparece en la fase C (<code>925d7f0</code>), al sumar el tercer tipo de trabajo</td></tr>
+<tr><td>C9</td><td>Template Method funcional</td><td>Espontáneo</td><td>Aparece en la fase C (<code>925d7f0</code>), al compartir la generación entre tres casos</td></tr>
+<tr><td>C10</td><td>Template Method (Django)</td><td>Espontáneo</td><td>Lo aporta el framework; el proyecto solo rellena los ganchos</td></tr>
+<tr><td>C11</td><td>Command</td><td>Indicado</td><td>Contrato §6.1 y §8.1: cola en base de datos y <code>PlanGenerationJob</code></td></tr>
+<tr><td>C12</td><td>Observer (<code>on_commit</code>)</td><td>Indicado</td><td>Contrato §6.1: «en <code>transaction.on_commit</code>, lanza un hilo»</td></tr>
+<tr><td>C13</td><td>State (implícito)</td><td>Indicado solo en prosa</td><td>Contrato §8.1 lista estados y transiciones en texto; no pide el patrón</td></tr>
+<tr><td>C14</td><td>Memento (versionado)</td><td>Indicado</td><td>Contrato §1: «Filas versionadas»; <code>Plan.version</code> en §8.1</td></tr>
+<tr><td>G1</td><td>Information Expert</td><td>Espontáneo</td><td>No aparece en el contrato ni en las pautas</td></tr>
+<tr><td>G2</td><td>Creator</td><td>Espontáneo</td><td>No aparece en el contrato ni en las pautas</td></tr>
+<tr><td>G3</td><td>Controller</td><td>Indicado</td><td>Pauta «separa controladores y servicios» y contrato §1</td></tr>
+<tr><td>G4</td><td>Low Coupling</td><td>Mixto</td><td>El contrato fija «reglas puras sin Django ni red»; el acoplamiento restante no se planeó</td></tr>
+<tr><td>G5</td><td>High Cohesion</td><td>Mixto</td><td>Pauta «separa responsabilidades»; el tamaño de los módulos de servicio no se acordó</td></tr>
+<tr><td>G6</td><td>Polymorphism</td><td>Indicado</td><td>Consecuencia de la interfaz <code>AIClient</code> (C7)</td></tr>
+<tr><td>G7</td><td>Pure Fabrication</td><td>Mixto</td><td><code>jobs.py</code> y <code>notifications.py</code> salen del contrato; <code>_SlotView</code> y <code>dates.py</code> no</td></tr>
+<tr><td>G8</td><td>Indirection</td><td>Mixto</td><td><code>get_ai_client()</code> está en el contrato; <code>dates.today()</code> no</td></tr>
+<tr><td>G9</td><td>Protected Variations</td><td>Mixto</td><td>Los modos <code>AI_PLANS_MODE</code> salen del contrato (§4.3); <code>GEMINI_SCHEMA_FIELD</code> y <code>professional_required()</code> se decidieron al construir</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Tabla 8. Resumen de la clasificación</caption>
+<thead><tr><th>Origen</th><th>Cantidad</th><th>Patrones</th></tr></thead>
+<tbody>
+<tr><td>Indicado</td><td>9</td><td>C1, C3, C7, C11, C12, C13, C14, G3, G6</td></tr>
+<tr><td>Mixto</td><td>5</td><td>G4, G5, G7, G8, G9</td></tr>
+<tr><td>Espontáneo</td><td>9</td><td>C2, C4, C5, C6, C8, C9, C10, G1, G2</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>23</strong></td><td></td></tr>
+</tbody>
+</table>
+<h2 id="s13">5.1 Qué tipo de patrones aplica la IA por sí sola y cuáles omite</h2>
+<ol>
+<li><strong>Lo espontáneo es de pequeña escala y de estilo funcional</strong>: fachadas, adaptadores de datos, decoradores, tablas de despacho, un Template Method con funciones y objetos de valor inmutables, además de asignaciones de responsabilidad (Experto, Creador). Casi nunca son jerarquías de clases de manual: la única jerarquía propia con polimorfismo es la de <code>AIClient</code>, que el contrato pedía.</li>
+<li><strong>Los patrones aparecen cuando aparece la duplicación real.</strong> La tabla de despacho <code>_RUNNERS</code> y el Template Method <code>_generate_validated</code> no existían en la fase B; nacieron en la fase C, al llegar el tercer caso similar (commit <code>925d7f0</code>). Es la regla de tres aplicada por el asistente sin que nadie se lo pidiera.</li>
+<li><strong>Donde el contrato dio la decisión estructural, el código la siguió con fidelidad</strong>: interfaz del cliente de IA, cola en base de datos, <code>on_commit</code>, versionado. Las filas «indicadas» corresponden sobre todo a decisiones de frontera entre módulos.</li>
+<li><strong>Lo omitido es de tres clases.</strong> (a) <em>Consolidar código ya escrito</em> (M2, M3, M6, M7): el asistente aplica patrones al escribir lo nuevo, pero rara vez vuelve a unificar copias anteriores; la divergencia de M3 es la consecuencia. (b) <em>Abstracciones sin presión inmediata</em> (State, Null Object, Strategy por tipo): con dos tipos de plan y pocas transiciones, el código con condiciones funciona. (c) <em>Pautas genéricas con nombre propio</em>: la pauta pedía «repositorios (acceso a datos)» y no hay ninguna capa Repository; el asistente adaptó la pauta a las convenciones de Django (modelos y <code>QuerySet</code>) sin dejar constancia de la desviación.</li>
+</ol>
+
+<h1 id="s14">6. Experimento de reformulación</h1>
+<h2 id="s15">6.1 Pregunta y diseño</h2>
+<p>El asistente señaló como omisión relevante el patrón State para el ciclo de vida del plan (M1), aunque aclaró que «clases State completas: no» valían la pena y que bastaba una tabla de transiciones. El experimento pone a prueba ese juicio. Pregunta: <em>si se pide State de forma explícita, ¿lo incorpora el asistente y mejora la facilidad de ampliar y de probar el módulo?</em></p>
+<p><strong>Módulo.</strong> Los cambios de estado de un <code>Plan</code> (tomar para revisión, aprobar, archivar y regenerar), unas 100 líneas del original (<code>services.py</code>, líneas 462 a 559). Se comparan tres versiones:</p>
+<ul>
+<li><strong>Original (V0):</strong> el código del repositorio.</li>
+<li><strong>A, control:</strong> el módulo regenerado con la especificación reconstruida y las pautas genéricas de arquitectura, sin nombrar patrones (Anexo C). Se incluye para separar el efecto del prompt del efecto de regenerar el código en otra sesión.</li>
+<li><strong>B, reformulado:</strong> el mismo prompt que A más un único párrafo que pide el patrón State (GoF) con sus consecuencias. La única diferencia entre los dos prompts, verificada con <code>diff</code>, es ese párrafo y el nombre de la carpeta de salida (Anexo C).</li>
+</ul>
+<p><strong>Misma herramienta y mismo modelo.</strong> A y B se generaron con Claude Code y el modelo <code>claude-sonnet-5-5</code>, cada uno en una conversación nueva. Se les prohibió leer las funciones de ciclo de vida existentes para que no copiaran el original. El código original lo escribieron en parte Opus 5.5 (fase B) y en parte Sonnet 5.5 (fase C); la comparación con V0 es, por tanto, solo de referencia.</p>
+<p><strong>Medida de facilidad de ampliar.</strong> A cada versión se le pidió, en una conversación nueva y con el mismo texto, un cambio realista: agregar el estado «vencido» (<code>expired</code>) para planes aprobados con vigencia pasada, con una operación nueva <code>expire_overdue_plans</code> y reglas sobre qué se puede hacer con un plan vencido (Anexo C). Se midió el diff, los lugares del código tocados y las pruebas necesarias. El equipo corrió todas las pruebas por su cuenta.</p>
+
+<h2 id="s16">6.2 Resultados</h2>
+<p>La Figura 1 muestra la estructura de A y la Figura 2 la de B. Ambas versiones respetan las firmas, las reglas y los mensajes pedidos y pasan sus pruebas (A, 45; B, 51).</p>
+<figure><figcaption>Figura 1. Estructura del módulo A (control): capas con funciones</figcaption><svg viewBox="0 0 640 306" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Estructura por capas del módulo A">
+<defs>
+<marker id="fau" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker>
+<marker id="fah" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M1,1 L11,6 L1,11 z" fill="#fff" stroke="#333" stroke-width="1.2"/></marker>
+</defs>
+<style>
+.t{font-family:Arial,Helvetica,sans-serif;font-size:12px;fill:#111;text-anchor:middle}
+.b{font-weight:bold} .s{font-size:11px} .n{font-size:10.5px;text-anchor:start}
+.bx{fill:#fff;stroke:#333;stroke-width:1.2} .c1{fill:#e8f0fe} .c2{fill:#fff4d6} .c3{fill:#e5f4e5} .c4{fill:#efefef}
+.ex{stroke-dasharray:5 3} .ln{stroke:#333;stroke-width:1.3;fill:none}
+</style>
+<rect class="bx c1" x="20" y="10" width="600" height="56"/>
+<text class="t b" x="320" y="32">Casos de uso públicos (funciones)</text>
+<text class="t s" x="320" y="53">take_for_review · archive_plan · approve_plan · regenerate_plan · expire_overdue_plans*</text>
+<rect class="bx c4" x="20" y="100" width="170" height="96"/>
+<text class="t b" x="105" y="122">Autorización</text><text class="t s" x="105" y="144">_ensure_access</text>
+<rect class="bx c2" x="205" y="100" width="170" height="96"/>
+<text class="t b" x="290" y="122">Reglas puras</text>
+<text class="t s" x="290" y="142">ARCHIVABLE_STATUSES</text><text class="t s" x="290" y="158">APPROVAL_VALIDITY_DAYS</text><text class="t s" x="290" y="174">MSG_* (mensajes)</text>
+<rect class="bx c3" x="390" y="100" width="230" height="96"/>
+<text class="t b" x="505" y="122">Acceso a datos (funciones _…)</text>
+<text class="t s" x="505" y="142">_lock_plan · _record_event</text><text class="t s" x="505" y="158">_set_routine_active</text>
+<text class="t s" x="505" y="174">_supersede_current_approved</text><text class="t s" x="505" y="190">_lock_overdue_approved*</text>
+<rect class="bx c4" x="20" y="232" width="600" height="44"/>
+<text class="t b" x="320" y="259">Modelos de Django: Plan · PlanEvent · Routine</text>
+<path class="ln" d="M105,66 V100" marker-end="url(#fau)"/><path class="ln" d="M290,66 V100" marker-end="url(#fau)"/>
+<path class="ln" d="M505,66 V100" marker-end="url(#fau)"/>
+<path class="ln" d="M105,196 V232" marker-end="url(#fau)"/><path class="ln" d="M505,196 V232" marker-end="url(#fau)"/>
+<text class="t n" x="20" y="298">* añadido en la ampliación (estado «vencido»). Las flechas indican «usa».</text>
+</svg></figure>
+<figure><figcaption>Figura 2. Estructura del módulo B (reformulado): patrón State con contexto y repositorio</figcaption><svg viewBox="0 0 640 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Estructura del módulo B con el patrón State">
+<defs>
+<marker id="fbu" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker>
+<marker id="fbh" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M1,1 L11,6 L1,11 z" fill="#fff" stroke="#333" stroke-width="1.2"/></marker>
+</defs>
+<style>
+.t{font-family:Arial,Helvetica,sans-serif;font-size:12px;fill:#111;text-anchor:middle}
+.b{font-weight:bold} .s{font-size:11px} .n{font-size:10.5px;text-anchor:start}
+.bx{fill:#fff;stroke:#333;stroke-width:1.2} .c1{fill:#e8f0fe} .c2{fill:#fff4d6} .c3{fill:#e5f4e5} .c4{fill:#efefef}
+.ex{stroke-dasharray:5 3} .ln{stroke:#333;stroke-width:1.3;fill:none}
+</style>
+<rect class="bx c1" x="20" y="10" width="400" height="40"/>
+<text class="t b" x="220" y="35">API pública: 4 funciones (+ expire_overdue_plans*)</text>
+<rect class="bx c1" x="20" y="75" width="400" height="52"/>
+<text class="t b" x="220" y="97">PlanLifecycle (contexto)</text><text class="t s" x="220" y="116">delega en el estado actual · transition() · locked()</text>
+<rect class="bx c3" x="450" y="75" width="170" height="52"/>
+<text class="t b" x="535" y="97">PlanRepository</text><text class="t s" x="535" y="116">único acceso a datos</text>
+<rect class="bx c4" x="450" y="165" width="170" height="40"/>
+<text class="t b s" x="535" y="189">Plan · PlanEvent · Routine</text>
+<path class="ln" d="M220,50 V75" marker-end="url(#fbu)"/>
+<path class="ln" d="M420,101 H450" marker-end="url(#fbu)"/>
+<path class="ln" d="M535,127 V165" marker-end="url(#fbu)"/>
+<rect class="bx c2" x="20" y="165" width="400" height="40"/>
+<text class="t b" x="220" y="190">PlanState (base: rechaza toda operación)</text>
+<path class="ln" d="M220,127 V165" marker-end="url(#fbu)"/><text class="t n" x="226" y="150">usa el estado actual</text>
+<rect class="bx c2" x="20" y="245" width="170" height="40"/><text class="t b s" x="105" y="269">_ArchivableState</text>
+<rect class="bx c2" x="200" y="245" width="110" height="40"/><text class="t b s" x="255" y="269">SupersededState</text>
+<rect class="bx c2" x="320" y="245" width="100" height="40"/><text class="t b s" x="370" y="269">ArchivedState</text>
+<path class="ln" d="M105,245 L160,205" marker-end="url(#fbh)"/><path class="ln" d="M255,245 L255,205" marker-end="url(#fbh)"/>
+<path class="ln" d="M370,245 L330,205" marker-end="url(#fbh)"/>
+<rect class="bx c2" x="20" y="325" width="105" height="40"/><text class="t b s" x="72" y="349">_PendingState</text>
+<rect class="bx c2" x="135" y="325" width="105" height="40"/><text class="t b s" x="187" y="349">ApprovedState</text>
+<rect class="bx c2 ex" x="250" y="325" width="105" height="40"/><text class="t b s" x="302" y="349">ExpiredState*</text>
+<path class="ln" d="M72,325 L90,285" marker-end="url(#fbh)"/><path class="ln" d="M187,325 L130,285" marker-end="url(#fbh)"/>
+<path class="ln" d="M302,325 L150,285" marker-end="url(#fbh)"/>
+<rect class="bx c2" x="15" y="405" width="100" height="40"/><text class="t b s" x="65" y="429">DraftAIState</text>
+<rect class="bx c2" x="125" y="405" width="100" height="40"/><text class="t b s" x="175" y="429">InReviewState</text>
+<path class="ln" d="M65,405 L60,365" marker-end="url(#fbh)"/><path class="ln" d="M175,405 L90,365" marker-end="url(#fbh)"/>
+<text class="t n" x="260" y="415">Flecha con triángulo hueco = «hereda de».</text>
+<text class="t n" x="260" y="432">Trazo discontinuo y * = añadido en la ampliación</text>
+<text class="t n" x="260" y="449">(estado «vencido»).</text>
+</svg></figure>
+<table>
+<caption>Tabla 9. Estructura de las tres versiones antes de ampliar</caption>
+<thead><tr><th>Métrica</th><th>V0 original</th><th>A control</th><th>B con State</th></tr></thead>
+<tbody>
+<tr><td>Líneas del módulo (incluye comentarios)</td><td>98</td><td>227</td><td>326</td></tr>
+<tr><td>Funciones o métodos</td><td>5</td><td>12</td><td>38</td></tr>
+<tr><td>Clases</td><td>0</td><td>0</td><td>10</td></tr>
+<tr><td>Condicionales <code>if</code>/<code>elif</code></td><td>18</td><td>13</td><td>10</td></tr>
+<tr><td>Dónde se decide qué transiciones son válidas</td><td>4 condiciones <code>status not in …</code> repartidas en 3 funciones (<code>approve_plan</code> tiene dos)</td><td>1 tupla (<code>ARCHIVABLE_STATUSES</code>) y la propiedad <code>is_pending</code></td><td>Cada clase de estado, por herencia y sobrescritura</td></tr>
+<tr><td>Pruebas del módulo</td><td>No comparable (están en la suite del proyecto)</td><td>45</td><td>51</td></tr>
+<tr><td>Pruebas que no usan base de datos</td><td>—</td><td>0</td><td>3 (registro de estados)</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Tabla 10. Costo de agregar el estado «vencido» (cambio idéntico pedido a A y a B)</caption>
+<thead><tr><th>Métrica</th><th>A control</th><th>B con State</th></tr></thead>
+<tbody>
+<tr><td>Líneas del módulo añadidas y eliminadas</td><td>+34 y −5</td><td>+47 y −9</td></tr>
+<tr><td>Lugares de código tocados (sin docstrings)</td><td>5: constantes, tupla <code>ARCHIVABLE_STATUSES</code>, un auxiliar, la función pública, <code>__all__</code></td><td>11: constantes, consulta del repositorio, método base <code>expire</code>, <code>ApprovedState.expire</code>, clase <code>ExpiredState</code>, registro <code>_STATES</code>, <code>PlanLifecycle.expire</code>, dos líneas de registro (<code>transition</code> y <code>record</code>), la función pública, <code>__all__</code></td></tr>
+<tr><td>Operaciones existentes que no hubo que modificar</td><td>4 (<code>take_for_review</code>, <code>approve_plan</code>, <code>regenerate_plan</code> y el reemplazo del aprobado anterior)</td><td>Las mismas 4, por la clase base que rechaza todo</td></tr>
+<tr><td>Pruebas añadidas</td><td>22 (de 45 a 67)</td><td>22 (de 51 a 73)</td></tr>
+<tr><td>Resultado de las pruebas</td><td>67 OK</td><td>73 OK</td></tr>
+</tbody>
+</table>
+<p>Aunque no se ejecutó, la lectura del original sugiere que la misma ampliación en V0 tocaría la condición de <code>archive_plan</code> y añadiría la función nueva: las otras tres operaciones comparan contra <code>PENDING_STATUSES</code> y ya rechazarían el estado nuevo. Es una inferencia, no una medida.</p>
+
+<h2 id="s17">6.3 Comparación argumentada</h2>
+<p><strong>Al pedirlo, el asistente incorporó el patrón.</strong> B tiene una clase base <code>PlanState</code> que rechaza todo, cinco estados concretos que sobrescriben solo lo que admiten y un contexto <code>PlanLifecycle</code> que delega, sin <code>if plan.status</code> en las operaciones públicas. Mantuvo las firmas y los mensajes (Gamma et al., 1994, describen esta estructura).</p>
+<p><strong>Ventajas de B.</strong> (1) Los efectos de entrar en un estado (evento que se registra y activación o desactivación de la rutina) se declaran una sola vez por clase y los aplica una única función <code>transition</code>; en A, cada operación repite a mano los tres pasos de cambiar el estado, ajustar la rutina y registrar el evento, y la función nueva <code>expire_overdue_plans</code> los repitió. (2) Un estado nuevo hereda por defecto el rechazo de todo, y <code>ExpiredState</code> obtuvo <code>archive</code> gratis por herencia. (3) El patrón dejó el registro de estados verificable sin base de datos (3 pruebas).</p>
+<p><strong>Costos de B.</strong> Tiene un 44 % más de líneas que A (326 contra 227), 38 funciones y 10 clases contra 12 funciones, y exigió 11 lugares de código para la ampliación contra 5. Para entender una operación hay que recorrer varias clases de la jerarquía (por ejemplo, <code>approve</code> está en <code>_PendingState</code> y no en <code>DraftAIState</code>). Las pruebas siguen necesitando base de datos casi en su totalidad: el repositorio es inyectable, pero según una búsqueda en el archivo ninguna prueba lo reemplaza por un doble.</p>
+<p><strong>Dónde el patrón no mejora el diseño.</strong> En este módulo los estados casi no se diferencian por comportamiento: casi todas las operaciones se permiten en los mismos dos estados. Por eso A ya conseguía la ventaja principal de State, la ausencia de condicionales dispersos, con una tupla de estados archivables y la propiedad <code>is_pending</code> (una lista de permitidos funciona como tabla de transiciones). Con cinco o seis estados y reglas parecidas, la jerarquía añade conceptos sin quitar trabajo al ampliar. State pagaría cuando cada estado tenga reglas propias distintas por operación, o cuando haya muchos más estados. Esto confirma el juicio del asistente de la consulta (tabla sí, clases no).</p>
+<p><strong>Precaución sobre la comparación.</strong> B también creó una clase <code>PlanRepository</code> y A usó funciones auxiliares, aunque las dos recibieron la misma pauta genérica de «separar acceso a datos». Esa diferencia no se debe al párrafo de State: es variabilidad entre corridas. Por eso no se declara superior a B ni a A: A resultó más simple de ampliar y B centralizó los efectos de cada estado.</p>
+
+<h1 id="s18">7. Conclusiones y recomendación</h1>
+<h2 id="s19">7.1 Conclusiones</h2>
+<ol>
+<li><strong>Qué hizo el asistente de forma espontánea.</strong> Aplicó patrones ligeros y funcionales (fachada, adaptadores, decoradores, tablas de despacho, Template Method con funciones) y asignó responsabilidades con criterio GRASP. Los patrones aparecieron al repetirse el caso, no por anticipado (Tabla 7 y Sección 5.1).</li>
+<li><strong>Qué omitió.</strong> Unificar código duplicado que ya diverge (M2, M3), el patrón State y Null Object, y una capa de repositorios que la pauta pedía por su nombre. La omisión más costosa no fue de un patrón de catálogo: fue la duplicación entre <code>request_plan</code> y <code>request_alternative</code>.</li>
+<li><strong>Qué cambió al indicar el patrón en el prompt.</strong> El asistente lo incorporó y conservó el comportamiento, pero el módulo creció un 44 %, y ampliarlo costó más lugares de código (11 contra 5) sin una ventaja clara para este tamaño de problema.</li>
+<li><strong>Qué recomendar.</strong> No pedir nombres de patrones como lista de verificación. Pedir <em>principios con su límite</em> (una sola fuente de verdad, transiciones en una tabla, interfaz solo con dos implementaciones reales), una pasada de consolidación de duplicación y una auditoría final en la que el asistente liste lo que aplicó y lo que descartó.</li>
+</ol>
+<h2 id="s20">7.2 Qué indicar en un prompt de generación, cuándo y cómo</h2>
+<table>
+<caption>Tabla 11. Recomendaciones para el prompt de generación</caption>
+<thead><tr><th>Situación</th><th>Qué indicar</th><th>Qué no indicar</th></tr></thead>
+<tbody>
+<tr><td>Fronteras entre módulos (proveedor externo, cola, versionado)</td><td>La decisión estructural y la interfaz, como hizo el contrato (el código la siguió con fidelidad)</td><td>El nombre del patrón sin el problema que resuelve</td></tr>
+<tr><td>Ciclo de vida con pocas transiciones</td><td>Las transiciones en una tabla única y una función que aplica una transición</td><td>«Aplica State»: genera una jerarquía que este tamaño no justifica</td></tr>
+<tr><td>Variación entre implementaciones</td><td>Una interfaz común solo si hoy existen al menos dos implementaciones reales</td><td>Interfaces «por si acaso»</td></tr>
+<tr><td>Duplicación</td><td>Extraer el bloque que se repita tres veces y unificar copias que ya difieren, con una prueba que fije el comportamiento correcto</td><td>Esperar que el asistente consolide solo</td></tr>
+<tr><td>Capas que el framework ya resuelve</td><td>Decir explícitamente qué usar (en Django, modelos y <code>QuerySet</code> en lugar de un Repository)</td><td>«Separa repositorios» sin aclarar el contexto del framework</td></tr>
+<tr><td>Cierre de la generación</td><td>Pedir la lista de patrones y principios aplicados y de los considerados y descartados, con su razón</td><td>Medir la calidad por la cantidad de patrones</td></tr>
+</tbody>
+</table>
+<h2 id="s21">7.3 Versión mejorada del prompt de generación</h2>
+<pre class="prompt">ROL Y CONTEXTO
+Eres un desarrollador senior. Trabajas en &lt;proyecto y framework&gt;.
+
+QUÉ CONSTRUIR
+&lt;Especificación funcional: operaciones con sus firmas, estados, reglas y mensajes de error.&gt;
+
+ARQUITECTURA
+- Capas: vistas o controladores delgados -&gt; servicios (un caso de uso por función) -&gt;
+  modelos y consultas del framework. No crees una capa Repository si el framework ya ofrece
+  Manager o QuerySet; si la creas, justifícalo en una línea.
+- Las reglas de negocio puras (sin framework ni red) van en un módulo aparte.
+
+PRINCIPIOS DE DISEÑO (se pide el principio y su límite, no el nombre de un patrón)
+1. Una sola fuente de verdad por regla: si la misma regla se evalúa en dos lugares (por ejemplo
+   vista y servicio), el servicio la expone y la vista la consulta.
+2. Ciclo de vida: define las transiciones permitidas en una sola tabla (estado actual,
+   operación, estado destino) y una única función que aplica una transición (valida, guarda,
+   ajusta los efectos y registra el evento). Usa una clase por estado solo si cada estado tiene
+   reglas propias distintas.
+3. Variación: usa una interfaz común únicamente si existen hoy al menos dos implementaciones.
+4. Valores ausentes: si varios sitios comprueban None, devuelve un objeto vacío.
+5. Duplicación: si un bloque se repite en tres lugares, extráelo. Si dos copias de un mismo
+   flujo ya difieren, unifícalas y deja una prueba que fije el comportamiento correcto.
+
+LÍMITES
+- No agregues jerarquías, fábricas ni capas que la especificación no necesite. Cada abstracción
+  nueva se justifica en una línea con el problema concreto que resuelve.
+
+ENTREGA
+- Código y pruebas. Al final, lista los patrones o principios aplicados (dónde y por qué) y los
+  que consideraste y descartaste (por qué).</pre>
+<h2 id="s22">7.4 Limitaciones del experimento</h2>
+<ul>
+<li><strong>Un solo asistente y una sola familia de modelos.</strong> La consulta, la generación y la ampliación las hizo Claude Sonnet 5.5; el código original lo escribieron Sonnet 4.6, Sonnet 5.5 y Opus 5.5. Es una IA evaluando código de su misma familia, sin contraste con otro asistente.</li>
+<li><strong>Un solo código y un solo módulo.</strong> Las conclusiones sobre State valen para un ciclo de vida de cinco estados y pocas diferencias de comportamiento; con otro módulo podrían ser distintas.</li>
+<li><strong>Una sola corrida por variante.</strong> No se repitió cada generación para estimar la variabilidad. Que B creara <code>PlanRepository</code> y A no, con la misma pauta, muestra que existe y que las diferencias de tamaño no se pueden atribuir enteras al párrafo de State.</li>
+<li><strong>Prompt original reconstruido.</strong> El control A usa una reconstrucción, no el texto real; la clasificación del paso 4 se basa en el contrato y en las pautas, no en los mensajes originales.</li>
+<li><strong>Conversación «nueva» con reservas.</strong> No se pudo comprobar que el agente de consulta no recibiera <code>CLAUDE.md</code> como contexto automático; se le indicó no usarlo. Tampoco se verificó independientemente el modelo que cada agente declara ser.</li>
+<li><strong>Imprecisiones de la consulta.</strong> El asistente dio una cifra que no se reproduce (comparaciones por tipo) y no se verificaron todas sus afirmaciones (Tablas 4 a 6, columna <em>Verificado</em>).</li>
+<li><strong>Métricas estructurales, no de calidad.</strong> Se midieron líneas, clases y lugares tocados; no se evaluó la corrección fina ni el desempeño del código. La valoración de relevancia de la Tabla 6 es una propuesta pendiente de confirmación del equipo.</li>
+</ul>
+<h2 id="s23">7.5 Hallazgo práctico fuera del alcance de la actividad</h2>
+<p>La verificación de M3 reveló un posible defecto latente en el sistema real. Según la lectura del código (no se ejecutó), en <code>nutrition.request_alternative</code> un caso bloqueado por bandera roja no evita crear un trabajo y un aviso nuevos en cada pedido con un token distinto, y los trabajos bloqueados no consumen cupo; <code>services.request_plan</code>, en cambio, deduplica el aviso por día. Conviene confirmarlo con una prueba y corregirlo en un cambio aparte.</p>
+
+<h1 id="s24">8. Registro de uso de IA</h1>
+<table>
+<caption>Tabla 12. Herramientas de IA utilizadas</caption>
+<thead><tr><th>Herramienta</th><th>Para qué se usó</th><th>Versión del modelo</th></tr></thead>
+<tbody>
+<tr><td>Claude Code (sesión principal)</td><td>Dirigir el experimento, verificar las respuestas contra el código, ejecutar pruebas, medir diffs y redactar este informe</td><td><code>claude-sonnet-5-5</code></td></tr>
+<tr><td>Claude Code, agente de consulta</td><td>Consulta de patrones aplicados y omitidos (Anexos A y B)</td><td><code>claude-sonnet-5-5</code> (declarado por el agente)</td></tr>
+<tr><td>Claude Code, 2 agentes de generación</td><td>Generar los módulos A (control) y B (con State)</td><td><code>claude-sonnet-5-5</code> (declarado)</td></tr>
+<tr><td>Claude Code, 2 agentes de ampliación</td><td>Agregar el estado «vencido» a A y a B</td><td><code>claude-sonnet-5-5</code> (declarado)</td></tr>
+<tr><td>Claude Code (código original del sistema)</td><td>Generación de ProFit Studio entre mayo y octubre de 2026</td><td>Sonnet 4.6, Sonnet 5.5 y Opus 5.5 (firmas de los commits)</td></tr>
+</tbody>
+</table>
+<p>Herramientas que no son de IA: <code>git</code>, el ejecutor de pruebas de Django y Chrome en modo sin interfaz para generar el PDF.</p>
+<table>
+<caption>Tabla 13. Evolución de los prompts principales</caption>
+<thead><tr><th>Prompt</th><th>Versión</th><th>Cambio respecto de la anterior</th><th>Motivo</th></tr></thead>
+<tbody>
+<tr><td>Consulta</td><td>1</td><td>Texto inicial; no hubo iteraciones</td><td>Cubrir el paso 2 de la actividad sin forzar patrones</td></tr>
+<tr><td>Generación (A, control)</td><td>1.0</td><td>Reconstrucción del original: especificación del ciclo de vida más las pautas de arquitectura del agente</td><td>El prompt original no se conserva</td></tr>
+<tr><td>Generación (A, control)</td><td>1.1</td><td>Se quitó la nota inicial que explicaba el experimento</td><td>Evitar que el agente supiera que se comparaban patrones</td></tr>
+<tr><td>Reformulado (B)</td><td>2</td><td>Se agregó un párrafo que pide State (GoF); el resto es idéntico (verificado con <code>diff</code>)</td><td>Patrón omitido M1 de la Tabla 6</td></tr>
+<tr><td>Ampliación (A y B)</td><td>1</td><td>Mismo texto para ambas; solo cambia la carpeta (verificado con <code>diff</code>)</td><td>Medir la facilidad de ampliar</td></tr>
+</tbody>
+</table>
+<p>Los informes completos de cada agente no se reproducen; lo que importa para las conclusiones está en los anexos y el equipo corrió por su cuenta todas las pruebas citadas.</p>
+
+<h1 id="s25">9. Material de consulta</h1>
+<p class="ref">Gamma, E., Helm, R., Johnson, R., &amp; Vlissides, J. (1994). <em>Design patterns: Elements of reusable object-oriented software</em>. Addison-Wesley.</p>
+<p class="ref">Larman, C. (2004). <em>Applying UML and patterns: An introduction to object-oriented analysis and design and iterative development</em> (3.ª ed.). Prentice Hall.</p>
+<p class="ref">Sommerville, I. (2011). <em>Ingeniería de software</em> (9.ª ed.). Pearson Educación.</p>
+<p>Repositorio del código: <code>https://github.com/Jdarenas22/profit-studio</code>. El experimento está en la carpeta <code>docs/actividad-patrones/</code>.</p>
+
+<div class="anexo">
+<h1 id="s26">Anexo A. Prompt de consulta (íntegro)</h1>
+<p class="nota">Texto exacto enviado al asistente en una conversación nueva (archivo <code>anexos/A-prompt-de-consulta.md</code>). En todos los prompts de los anexos, la ruta absoluta del equipo local se sustituyó por <code>&lt;RAIZ_DEL_PROYECTO&gt;</code> antes de publicar el informe; el resto del texto es íntegro.</p>
+<pre class="prompt">Eres un asistente de IA que revisa código. Esta es una conversación nueva: no tienes historial previo sobre cómo se generó este código y no debes buscarlo.
+
+CONTEXTO
+El proyecto Django está en &lt;RAIZ_DEL_PROYECTO&gt;. Analiza únicamente el código de producción de dos apps: `apps/plans` y `apps/health` (excluye `tests/`, `migrations/` y `templates/`). Es una aplicación web de gestión de un gimnasio; esas dos apps implementan la ficha de salud de la clienta y los planes de ejercicio y de alimentación generados con IA.
+
+REGLAS DE LA CONSULTA
+- Solo lectura: no modifiques ni crees archivos del proyecto, excepto el archivo de respuesta indicado abajo.
+- Basa tus respuestas únicamente en el código. No leas `CLAUDE.md`, ni nada de la carpeta `docs/`, ni el historial de git: queremos tu análisis independiente de lo que digan los documentos.
+- No fuerces patrones: lista un patrón solo si puedes señalar el lugar concreto del código (archivo y clase o función, con número de línea aproximado) y explicar por qué lo es. Si es parcial o discutible, dilo. Si el patrón lo aporta el framework (Django) y no el código del proyecto, dilo.
+
+PREGUNTAS
+1. ¿Qué patrones de diseño GoF (creacionales, estructurales y de comportamiento) y qué patrones GRASP contiene este código? Para cada uno: nombre, familia (GoF creacional, estructural o de comportamiento; o GRASP), descripción de su intención, dónde está (archivo, clase o función, línea aproximada), evidencia breve y grado de certeza (claro, parcial o discutible).
+2. ¿Qué patrones de diseño pudo o debió aplicar y no aplicó? Para cada uno: nombre, el problema de diseño concreto que resolvería (con un ejemplo tomado del código), dónde se aplicaría, qué mejoraría en la facilidad de ampliar, de probar o de mantener, el costo o el riesgo de aplicarlo y si en tu opinión valdría la pena (sí, no o quizá, con la razón).
+3. Al final, un resumen de 5 a 8 líneas sobre qué tipo de patrones predominan y cuáles faltan.
+
+FORMATO
+Responde en español, con tablas Markdown para los dos inventarios. En la primera línea indica el ID exacto del modelo que eres. Guarda tu respuesta completa, exactamente como la entregas, en `docs/actividad-patrones/anexos/B-respuesta-del-asistente.md`. Tu mensaje final debe decir solo la ruta del archivo guardado y cuántas líneas tiene, sin repetir la respuesta.
+</pre>
+</div><div class="anexo">
+<h1 id="s27">Anexo B. Respuesta íntegra del asistente</h1>
+<p class="nota">Respuesta tal como la guardó el asistente (archivo <code>anexos/B-respuesta-del-asistente.md</code>), convertida de Markdown a HTML sin cambiar su contenido.</p>
+<p>Modelo: claude-sonnet-5-5</p>
+<h3><strong>Patrones de diseño en <code>apps/plans</code> y <code>apps/health</code> (código de producción)</strong></h3>
+<p><strong>Alcance y método.</strong> Leí los 46 archivos <code>.py</code> de producción de las dos apps (unas 8 200 líneas; sin <code>tests/</code>, <code>migrations/</code> ni <code>templates/</code>). Es un análisis estático: no ejecuté el código ni vi las pruebas. Los números de línea son aproximados (<code>~L</code>). Cuando un patrón lo aporta Django y no el proyecto, lo indico. Las rutas son relativas a la raíz del proyecto.</p>
+<hr>
+<h3>1. Patrones presentes</h3>
+<h3>1.1 GoF (creacionales, estructurales y de comportamiento)</h3>
+<table class="anx"><colgroup><col style="width:5%"><col style="width:12%"><col style="width:9%"><col style="width:14%"><col style="width:20%"><col style="width:33%"><col style="width:7%"></colgroup><thead><tr><th>Nº</th><th>Patrón</th><th>Familia</th><th>Intención</th><th>Dónde</th><th>Evidencia</th><th>Certeza</th></tr></thead><tbody>
+<tr><td>C1</td><td>Simple Factory (variante; no es el Factory Method puro)</td><td>GoF creacional</td><td>Centralizar la decisión de qué objeto concreto se crea según la configuración.</td><td><code>apps/plans/ai/__init__.py</code>, <code>get_ai_client()</code> ~L40-52, apoyada en <code>ai_mode()</code> ~L23-28 y <code>live_is_configured()</code> ~L35-37.</td><td>Según <code>AI_PLANS_MODE</code> devuelve <code>FakeAIClient()</code> o <code>GeminiClient(...)</code> (imports diferidos) o lanza <code>AIPermanentError('ai_not_configured')</code>. <code>jobs._run_exercise</code> ~L314 y <code>_run_nutrition</code> ~L411 solo piden "un cliente". No hay clase creadora con subclases que redefinan un método fábrica; por eso no es el Factory Method de GoF.</td><td>Parcial</td></tr>
+<tr><td>C2</td><td>Simple Factory (fábrica de banderas)</td><td>GoF creacional (variante)</td><td>Encapsular los detalles de construcción de un objeto.</td><td><code>apps/plans/rules/flags.py</code>, <code>_flag</code>, <code>_red</code>, <code>_yellow</code> ~L248-259.</td><td><code>_flag</code> busca texto y acción en <code>_TEXTS</code> y construye el <code>Flag</code> inmutable; <code>evaluate</code> (~L272-390) nunca llama <code>Flag(...)</code> directamente. No hay variación de tipos, solo de datos.</td><td>Discutible</td></tr>
+<tr><td>C3</td><td>Adapter</td><td>GoF estructural</td><td>Convertir la interfaz de un servicio externo a la que espera el cliente.</td><td><code>apps/plans/ai/gemini.py</code>, <code>GeminiClient</code> ~L42-138 (<code>generate_json</code> ~L73-102, <code>parse_response</code> ~L104-138), que implementa <code>AIClient</code> (<code>apps/plans/ai/base.py</code> ~L57-62).</td><td>Traduce la API REST de Gemini (<code>candidates</code>, <code>usageMetadata</code>, <code>finishReason</code>, códigos HTTP, timeouts) a <code>AIResult</code>/<code>AIUsage</code> y a la jerarquía <code>AITransientError</code>/<code>AIPermanentError</code>/<code>AIBlockedError</code>/<code>AIInvalidOutput</code> con códigos como <code>ai_http_429</code>. El resto del sistema no conoce el formato de Google.</td><td>Claro</td></tr>
+<tr><td>C4</td><td>Adapter (capa anticorrupción de datos)</td><td>GoF estructural (variante)</td><td>Aislar el dominio de la forma de los datos de otra capa.</td><td><code>apps/plans/services.py</code>: <code>exercise_items</code> ~L141-152, <code>food_items</code> ~L163-179, <code>training_profile</code> ~L155, <code>nutrition_profile</code> ~L182. <code>apps/health/services.py</code>: <code>build_facts</code> ~L414-451.</td><td>Convierten <code>Exercise</code>, <code>Food</code>, <code>HealthProfile</code> y consentimientos del ORM en dataclasses congeladas (<code>ExerciseItem</code>, <code>FoodItem</code>, <code>Facts</code>) que consumen los módulos de <code>rules/</code> sin importar Django. Son funciones de mapeo, no clases que implementen una interfaz destino.</td><td>Parcial</td></tr>
+<tr><td>C5</td><td>Facade</td><td>GoF estructural</td><td>Dar una interfaz única y simple a un subsistema.</td><td><code>apps/plans/services.py</code>, <code>assess()</code> ~L205-235, que devuelve <code>Assessment</code> (~L122-138).</td><td>Una sola llamada coordina <code>health.current_profile</code>, <code>profile_flags</code>, <code>rules_eligibility.evaluate</code>, <code>rules_catalog.filter_exercises</code>, <code>rules_foods.filter_foods</code> y <code>energy_and_slots</code>. La usan las vistas, <code>jobs._evaluate_for_run</code> (~L277) y <code>nutrition.edit_option</code> (~L231) sin conocer las reglas. Es una función, no una clase, y ramifica por <code>kind</code>. El paquete <code>apps/plans/ai/__init__.py</code> actúa de fachada menor al reexportar nombres de <code>base.py</code>.</td><td>Parcial</td></tr>
+<tr><td>C6</td><td>Decorator (forma funcional de Python) con un toque de Chain of Responsibility</td><td>GoF estructural (y de comportamiento)</td><td>Añadir una responsabilidad a una función sin modificarla.</td><td><code>apps/health/decorators.py</code>, <code>health_feature_required</code> ~L9-17. <code>apps/plans/views.py</code>, <code>plans_feature_required</code> ~L50-58. Se apilan como <code>@plans_feature_required @member_required @require_GET</code> (por ejemplo <code>member_plans</code> ~L111-114).</td><td>Envuelven la vista con <code>functools.wraps</code>, responden 404 si la función está apagada y añaden <code>never_cache</code>. Cada decorador puede cortar la cadena (404, 403, 405). Es el mecanismo de decoradores del lenguaje y de Django, no el GoF Decorator por composición de objetos.</td><td>Parcial</td></tr>
+<tr><td>C7</td><td>Strategy</td><td>GoF de comportamiento</td><td>Familia de algoritmos intercambiables detrás de una misma interfaz.</td><td><code>AIClient</code> (<code>apps/plans/ai/base.py</code> ~L57-62), <code>FakeAIClient</code> (<code>ai/fake.py</code> ~L140-197), <code>GeminiClient</code> (<code>ai/gemini.py</code> ~L42); elegidos por <code>get_ai_client</code>.</td><td>Las dos clases implementan <code>generate_json(*, task, system, payload, schema, job_ref)</code> y exponen <code>model_name</code> e <code>is_simulated</code>. <code>jobs.py</code> ~L333 y ~L437 usa <code>client.is_simulated</code> y <code>client.model_name</code> sin preguntar el tipo; el modo (<code>off</code>, <code>simulated</code>, <code>live</code>) decide en ejecución cuál se usa.</td><td>Claro</td></tr>
+<tr><td>C8</td><td>Strategy en forma de tabla de despacho</td><td>GoF de comportamiento (variante funcional)</td><td>Elegir el comportamiento por clave sin <code>if/elif</code>.</td><td><code>apps/plans/jobs.py</code>, <code>_RUNNERS</code> ~L475-479, usado en <code>run_job</code> ~L146.</td><td>Mapea <code>KIND_EXERCISE</code>, <code>KIND_NUTRITION</code> y <code>nutrition.ALTERNATIVE</code> a <code>_run_exercise</code>, <code>_run_nutrition</code> y <code>_run_alternative</code> (misma firma <code>(job, started)</code>). Son funciones, no objetos con interfaz común.</td><td>Parcial</td></tr>
+<tr><td>C9</td><td>Template Method (funcional, por funciones de orden superior)</td><td>GoF de comportamiento (variante)</td><td>Fijar el esqueleto de un algoritmo y dejar pasos variables.</td><td><code>apps/plans/jobs.py</code>, <code>_generate_validated</code> ~L250-274; la usan <code>_run_exercise</code> ~L319 y <code>_generate_slot_options</code> ~L395.</td><td>El esqueleto (armar payload, llamar con reintentos, acumular tokens, validar, un reintento enviando solo los códigos del error) es fijo; los pasos variables llegan como <code>make_payload</code>, <code>make_schema</code> y <code>validate</code>. Se logra con parámetros, no con herencia.</td><td>Parcial</td></tr>
+<tr><td>C10</td><td>Template Method (ganchos de Django)</td><td>GoF de comportamiento</td><td>Esqueleto fijo con ganchos que redefine el cliente.</td><td><code>apps/plans/admin.py</code>, <code>SuperuserOnlyAdmin</code> ~L12-29 (redefine <code>has_*_permission</code> de <code>ModelAdmin</code>). <code>apps/health/forms.py</code>, <code>HealthProfileForm.clean_birth_date</code>, <code>clean_clearance_date</code>, <code>clean</code> ~L218-328. <code>Command.handle</code> en <code>apps/plans/management/commands/</code>.</td><td>El esqueleto lo controla Django (<code>full_clean</code>, <code>ModelAdmin</code>, <code>BaseCommand</code>); el proyecto rellena los ganchos. <code>SuperuserOnlyAdmin</code> sí es una base propia que reutilizan <code>TrainerCredentialAdmin</code> y <code>FoodAdmin</code>. El patrón lo aporta el framework.</td><td>Claro, pero aportado por Django</td></tr>
+<tr><td>C11</td><td>Command (pedido persistente en cola)</td><td>GoF de comportamiento</td><td>Encapsular un pedido como objeto para encolarlo, ejecutarlo después y registrarlo.</td><td><code>apps/plans/models.py</code>, <code>PlanGenerationJob</code> ~L130-221. <code>apps/plans/jobs.py</code>: <code>start_job</code> ~L62-68, <code>claim</code> ~L81-90, <code>run_job</code> ~L138-167, <code>recover_stale_jobs</code> ~L93-120. Se crea en <code>services.request_plan</code> ~L311-330.</td><td>El trabajo guarda tipo, clienta, notas, <code>request_token</code>, estado e intentos; se ejecuta después en un hilo y puede relanzarse. Pero no tiene un método <code>execute()</code>: los datos están en el modelo y la lógica en <code>jobs.py</code> (invocador) y <code>_RUNNERS</code> (receptores).</td><td>Parcial</td></tr>
+<tr><td>C12</td><td>Observer (vía <code>transaction.on_commit</code>)</td><td>GoF de comportamiento</td><td>Avisar a interesados cuando ocurre un evento.</td><td><code>apps/plans/services.py</code> ~L316, ~L329, ~L544; <code>apps/plans/nutrition.py</code> ~L454, ~L468.</td><td>Registran un callback que corre al confirmarse la transacción (lanzar el hilo, enviar correo). Lo provee Django; no hay sujeto con lista de observadores ni señales propias (la búsqueda de <code>receiver</code> y <code>signals</code> en ambas apps no encontró nada). Las notificaciones de <code>jobs.run_job</code> ~L150-166 son llamadas directas.</td><td>Discutible</td></tr>
+<tr><td>C13</td><td>State (solo como máquina de estados implícita)</td><td>GoF de comportamiento (no aplicado como clases)</td><td>Cambiar el comportamiento según el estado del objeto.</td><td><code>Plan.status</code> (<code>apps/plans/models.py</code> ~L37-127) y <code>PlanGenerationJob.status</code> (~L130-221). Transiciones en <code>services.take_for_review</code> ~L462, <code>_archive</code> ~L473, <code>approve_plan</code> ~L494, <code>jobs.claim</code> ~L81, <code>_finish</code> ~L128 y <code>recover_stale_jobs</code> ~L93.</td><td>Hay estados con nombre, grupos (<code>PENDING_STATUSES</code>, <code>ACTIVE_STATUSES</code>, <code>FINAL_STATUSES</code>) y transiciones protegidas con <code>UPDATE</code> condicional (<code>filter(status=...).update(...)</code>). No hay clases de estado ni tabla de transiciones: el ciclo de vida está repartido en condiciones. Es una máquina de estados, no el patrón State.</td><td>Discutible</td></tr>
+<tr><td>C14</td><td>Memento (versionado persistente, sin restauración general)</td><td>GoF de comportamiento (variante)</td><td>Guardar el estado para poder volver atrás.</td><td><code>apps/health/models.py</code>, <code>HealthProfile</code> ~L135-294 y <code>apps/health/services.save_profile</code> ~L275-323; <code>ConsentTextVersion</code> ~L45-94; <code>Plan.version</code> y <code>Plan.parent</code>. <code>MealOption.replaces</code> (<code>apps/plans/models.py</code> ~L392) con <code>nutrition.review_option(action='revert')</code> ~L258-282.</td><td>Cada guardado de la ficha crea una fila nueva con <code>version</code> y una sola <code>is_current</code>; las opciones de comida reemplazadas se pueden recuperar. Es historial de versiones, sin originador/caretaker; solo las opciones de comida tienen "deshacer".</td><td>Discutible</td></tr>
+</tbody></table>
+<h3>1.2 GRASP</h3>
+<table class="anx"><colgroup><col style="width:5%"><col style="width:12%"><col style="width:9%"><col style="width:14%"><col style="width:20%"><col style="width:33%"><col style="width:7%"></colgroup><thead><tr><th>Nº</th><th>Patrón</th><th>Familia</th><th>Intención</th><th>Dónde</th><th>Evidencia</th><th>Certeza</th></tr></thead><tbody>
+<tr><td>G1</td><td>Information Expert</td><td>GRASP</td><td>Asignar la responsabilidad a quien tiene la información.</td><td><code>apps/plans/rules/eligibility.py</code>, <code>Eligibility</code> ~L59-81. <code>rules/flags.py</code>, <code>FlagReport</code> ~L75-105. <code>rules/foods.py</code>, <code>FoodCatalog</code> ~L91-114 y <code>Totals.fat_share</code> ~L166. <code>rules/catalog.py</code>, <code>CatalogResult.enough</code> ~L69-80. <code>apps/health/models.py</code>, <code>HealthProfile.age</code>, <code>clearance_is_valid</code>, <code>meal_schedule</code> ~L233-294 y <code>ConsentTextVersion.has_placeholders</code> ~L72.</td><td>Los valores derivados (<code>blocked</code>, <code>can_request</code>, <code>conservative</code>, <code>enough</code>, <code>can_generate</code>, <code>age</code>) los calcula el objeto que tiene los datos. Contraejemplo: <code>can_approve</code> y <code>simulated_blocked</code> se calculan en la vista (<code>apps/plans/views.py</code> ~L301-303) repitiendo la regla de <code>services.approve_plan</code> ~L499.</td><td>Claro en <code>rules/</code> y modelos; con excepciones en las vistas</td></tr>
+<tr><td>G2</td><td>Creator</td><td>GRASP</td><td>Que cree el objeto quien lo contiene, lo usa o tiene los datos para inicializarlo.</td><td><code>apps/plans/services.create_exercise_draft</code> ~L419-452; <code>apps/plans/nutrition.create_nutrition_draft</code> ~L88-123 y <code>_save_option</code> ~L71-83; <code>services.request_plan</code> ~L311-321.</td><td>La función que recibe la salida validada crea <code>Routine</code>, <code>RoutineDay</code>, <code>RoutineExercise</code>, <code>Plan</code>, <code>NutritionPlan</code>, <code>MealSlot</code>, <code>MealOption</code> y <code>PlanEvent</code>. El creador es una función de servicio, no el agregado contenedor (por ejemplo <code>NutritionPlan</code> no crea sus propios <code>MealSlot</code>).</td><td>Parcial</td></tr>
+<tr><td>G3</td><td>Controller</td><td>GRASP</td><td>Un objeto, no de interfaz, recibe y coordina el evento del sistema.</td><td>Vistas delgadas: <code>apps/plans/views.trainer_plan_approve</code> ~L339-356 (valida el formulario, llama <code>services.approve_plan</code>, traduce <code>PlanError</code> a mensajes) y <code>member_meal_choice</code> ~L500-513. Controladores de casos de uso: <code>services.request_plan</code> ~L267, <code>approve_plan</code> ~L494, <code>nutrition.choose_option</code> ~L368, <code>health.services.save_profile</code> ~L275.</td><td>Las excepciones de dominio (<code>PlanError</code>, <code>ProfileError</code>, <code>ConsentError</code>) se traducen a mensajes en la vista, y la lógica queda en <code>services</code>. Las vistas de Django son el controlador del framework; la contribución del proyecto es la disciplina de mantenerlas delgadas. Hay vistas gruesas: <code>trainer_plan_inbox</code> ~L221-253, <code>_plan_detail_context</code> ~L277-312 y <code>apps/health/views.member_health_profile</code> ~L205-258.</td><td>Claro en la mayoría; parcial en tres vistas</td></tr>
+<tr><td>G4</td><td>Low Coupling</td><td>GRASP</td><td>Mantener pocas y débiles dependencias entre elementos.</td><td>A favor: <code>apps/plans/rules/*</code> importan solo biblioteca estándar (por ejemplo <code>flags.py</code> ~L21-24); la IA queda tras <code>AIClient</code>. En contra: dependencia mutua <code>health</code> y <code>plans</code> (<code>health/models.py</code> ~L19, <code>health/services.py</code> ~L31 y <code>health/views.py</code> ~L26 importan <code>apps.plans.rules.flags</code>; <code>plans/services.py</code> ~L30-33 y <code>plans/jobs.py</code> ~L30 importan <code>apps.health</code>); ciclo <code>services</code>, <code>jobs</code>, <code>nutrition</code> resuelto con imports locales (<code>services.py</code> ~L288 y ~L506, ambos con el comentario "evita el import circular", y <code>nutrition.py</code> ~L433).</td><td><code>nutrition.py</code> usa funciones privadas de <code>services</code> (<code>_check_trainer</code>, <code>_parse_token</code>, <code>_since</code>, <code>_archive</code>; ~L122, ~L224, ~L313, ~L422) y <code>views.py</code> ~L243 usa <code>services._since</code>. Los imports locales de esos tres puntos son síntoma de ciclos de diseño.</td><td>Parcial</td></tr>
+<tr><td>G5</td><td>High Cohesion</td><td>GRASP</td><td>Que cada módulo tenga responsabilidades enfocadas.</td><td>A favor: cada archivo de <code>rules/</code> tiene una sola preocupación (banderas, elegibilidad, catálogo, alimentos, energía, validación, adaptación); <code>ai/</code> se divide en <code>base</code>, <code>gemini</code>, <code>fake</code>, <code>prompts</code>; <code>notifications.py</code>. En contra: <code>services.py</code> (559 líneas: cupos, evaluación, pedidos, lectura, aprobación, borradores), <code>nutrition.py</code> (520: borrador, revisión, elección de la clienta, alternativas, compras), <code>jobs.py</code> (479: cola, reintentos, payloads y tres ejecutores), <code>views.py</code> (670).</td><td>La separación en <code>rules/</code> y <code>ai/</code> es muy nítida; los módulos de casos de uso agrupan varios temas.</td><td>Parcial</td></tr>
+<tr><td>G6</td><td>Polymorphism</td><td>GRASP</td><td>Variar el comportamiento por tipo con operaciones polimórficas, sin condicionales.</td><td><code>AIClient</code>, <code>FakeAIClient</code>, <code>GeminiClient</code> (<code>apps/plans/ai/</code>); <code>_RUNNERS</code> en <code>jobs.py</code> ~L475-479.</td><td><code>jobs.py</code> ~L333 y ~L437 trata a cualquier cliente igual. Contraejemplo: <code>_call_with_retries</code> ~L236-246 discrimina por tipo de excepción con <code>except</code> en lugar de polimorfismo.</td><td>Claro (en <code>AIClient</code>)</td></tr>
+<tr><td>G7</td><td>Pure Fabrication</td><td>GRASP</td><td>Crear una clase artificial, que no está en el dominio, para lograr cohesión y bajo acoplamiento.</td><td><code>apps/plans/jobs.py</code> (cola, hilos, latidos, presupuesto de tiempo); <code>apps/plans/notifications.py</code>; módulos de servicios; <code>rules/*</code> como motor de reglas; <code>_SlotView</code> ~L381-385 (unifica la forma de una comida del plan nuevo y de "otra opción"); <code>apps/health/dates.py</code>.</td><td>Ninguno de esos elementos es un concepto del negocio del gimnasio; existen para repartir responsabilidades y facilitar las pruebas.</td><td>Claro</td></tr>
+<tr><td>G8</td><td>Indirection</td><td>GRASP</td><td>Poner un intermediario entre dos elementos para desacoplarlos.</td><td><code>get_ai_client()</code> entre <code>jobs</code> y los proveedores; <code>apps/health/dates.py</code> <code>today()</code> ~L9-10 entre el código y el reloj (su docstring dice que existe para simular el día en las pruebas); <code>adaptation.for_job</code> ~L189-210 entre <code>jobs</code> y <code>rules/adaptation</code>; <code>jobs._sleep = time.sleep</code> ~L50 y <code>GeminiClient(opener=...)</code> ~L45 y ~L54 como puntos de sustitución.</td><td>Cada intermediario permite cambiar o simular lo que hay detrás sin tocar a quien lo llama.</td><td>Claro</td></tr>
+<tr><td>G9</td><td>Protected Variations</td><td>GRASP</td><td>Proteger el sistema de los puntos de variación o inestabilidad con una interfaz estable.</td><td>(a) Proveedor de IA: <code>AIClient</code> y normalización de errores; <code>GEMINI_SCHEMA_FIELD</code> configurable porque el proveedor cambia nombres de campos (<code>ai/gemini.py</code> ~L14-16, ~L29, ~L59-71). (b) Salida impredecible de la IA: <code>rules/validate.py</code> y <code>rules/meal_validate.py</code> validan todo; la IA solo elige ids y gramos y Python calcula energía y macros (<code>rules/foods.portion_totals</code> ~L171). (c) Reglas legales o profesionales cambiantes: <code>services.professional_required()</code> ~L400-403 y <code>health.services.ai_texts_ready()</code> ~L177-187 son interruptores únicos. (d) Cambios del modelo de datos: <code>ExerciseItem</code> y <code>FoodItem</code> aíslan a <code>rules/</code>.</td><td>En cada caso hay una frontera estable (interfaz, validador, interruptor, dataclass) delante de lo que puede cambiar.</td><td>Claro</td></tr>
+</tbody></table>
+<h3>1.3 Patrones GoF buscados y descartados (lo más cercano que hay)</h3>
+<table class="anx"><colgroup><col style="width:20%"><col style="width:30%"><col style="width:50%"></colgroup><thead><tr><th>Patrón</th><th>Lo más cercano</th><th>Por qué no cuenta</th></tr></thead><tbody>
+<tr><td>Singleton</td><td><code>COLD_START</code> (<code>rules/adaptation.py</code> ~L151); <code>django.conf.settings</code>.</td><td>Es una constante inmutable compartida; nada controla que exista una sola instancia.</td></tr>
+<tr><td>Abstract Factory</td><td><code>get_ai_client()</code>.</td><td>Crea un solo producto, no familias de productos relacionados.</td></tr>
+<tr><td>Builder</td><td><code>build_exercise_payload</code> ~L181-226 y <code>build_meal_payload</code> ~L341-378 (<code>jobs.py</code>).</td><td>Arman un <code>dict</code> de una vez; no hay pasos separados ni director.</td></tr>
+<tr><td>Prototype</td><td><code>dataclasses.replace(eligibility, ...)</code> en <code>services.assess</code> ~L221, ~L231, ~L233.</td><td>Es copia con modificación de un valor inmutable, idioma de dataclasses.</td></tr>
+<tr><td>Composite</td><td><code>Plan</code>, <code>NutritionPlan</code>, <code>MealSlot</code>, <code>MealOption</code>, <code>MealOptionItem</code>; <code>Totals.__add__</code> ~L162.</td><td>Jerarquía de datos sin interfaz común de componente.</td></tr>
+<tr><td>Bridge</td><td><code>AIClient</code> frente a <code>jobs</code> y <code>prompts</code>.</td><td>Es Strategy; no hay dos jerarquías paralelas (abstracción e implementación).</td></tr>
+<tr><td>Proxy</td><td><code>FakeAIClient</code>.</td><td>Es un doble de pruebas, no un sustituto que delegue con control de acceso o caché.</td></tr>
+<tr><td>Flyweight</td><td>Regex precompiladas <code>_ALLERGEN_RE</code> y <code>_DIET_RE</code> (<code>meal_validate.py</code> ~L99-100).</td><td>Es caché a nivel de módulo, no objetos compartidos por el patrón.</td></tr>
+<tr><td>Mediator</td><td><code>jobs.py</code> como orquestador.</td><td>Los participantes no se comunican a través de él; es un orquestador de casos de uso (Pure Fabrication).</td></tr>
+<tr><td>Chain of Responsibility (propia)</td><td><code>flags.evaluate</code> ~L272-390 y <code>meal_validate.validate_meal_slot</code> ~L190-233.</td><td>Recorren todas las reglas acumulando errores; ningún manejador decide pasar a un sucesor.</td></tr>
+<tr><td>Iterator, Visitor, Interpreter</td><td><code>_compile(words)</code> (<code>meal_validate.py</code> ~L88-96).</td><td>Construye regex desde listas de palabras; no interpreta una gramática.</td></tr>
+</tbody></table>
+<h3>1.4 Otros patrones e idiomas relevantes (ni GoF ni GRASP)</h3>
+<table class="anx"><colgroup><col style="width:20%"><col style="width:30%"><col style="width:50%"></colgroup><thead><tr><th>Patrón o idioma</th><th>Dónde</th><th>Comentario</th></tr></thead><tbody>
+<tr><td>Service Layer</td><td><code>apps/plans/services.py</code>, <code>nutrition.py</code>, <code>apps/health/services.py</code></td><td>Los casos de uso viven aparte de las vistas y del ORM.</td></tr>
+<tr><td>Núcleo funcional con cáscara imperativa</td><td><code>apps/plans/rules/</code> (puro) frente a <code>services</code>, <code>jobs</code>, <code>views</code></td><td>Las reglas no usan Django, base de datos ni red.</td></tr>
+<tr><td>Objeto de valor inmutable</td><td><code>Flag</code>, <code>Facts</code>, <code>Eligibility</code>, <code>Totals</code>, <code>AIResult</code> (dataclasses <code>frozen=True</code>)</td><td>Comparables y seguros de compartir.</td></tr>
+<tr><td>Reglas guiadas por tablas</td><td><code>_MISSING_TO_REQUIREMENT</code> (<code>eligibility.py</code> ~L46), <code>_FLAG_EXCLUDES</code>, <code>_CONDITION_EXCLUDES</code> (<code>catalog.py</code> ~L23-31), <code>_FLAG_TO_TAG</code> (<code>foods.py</code> ~L41), <code>MEAL_SPLITS</code> (<code>energy.py</code> ~L62)</td><td>Cambiar una regla es cambiar datos.</td></tr>
+<tr><td>Receptor idempotente</td><td><code>request_token</code> único (<code>models.py</code> ~L171) y <code>services.request_plan</code> ~L276-281</td><td>Recargar o hacer doble clic no crea otro trabajo.</td></tr>
+<tr><td>Reclamo atómico (compare-and-set)</td><td><code>jobs.claim</code> ~L81-90; restricción <code>plans_job_one_active</code> (<code>models.py</code> ~L209); <code>select_for_update</code> ~L328</td><td>Evita que dos procesos ejecuten el mismo trabajo.</td></tr>
+<tr><td>Reintento con espera creciente</td><td><code>jobs._call_with_retries</code> ~L229-247</td><td>Espera de 2, 6 y 18 s con variación y respeto de <code>Retry-After</code>.</td></tr>
+<tr><td>Interruptores de función (Feature Toggle)</td><td><code>health_features_enabled</code> (<code>health/services.py</code> ~L57), <code>ai_mode</code> (<code>ai/__init__.py</code> ~L23), <code>adaptation.enabled</code> (~L39), <code>professional_required</code> (<code>services.py</code> ~L400)</td><td>Funciones encendibles por configuración.</td></tr>
+<tr><td>Bitácora de auditoría</td><td><code>PlanEvent</code> (<code>models.py</code> ~L224-261), <code>HealthAccessLog</code> (<code>health/models.py</code> ~L297-325)</td><td>Registro de quién hizo qué, sin contenido de salud.</td></tr>
+</tbody></table>
+<hr>
+<h3>2. Patrones que pudo o debió aplicar y no aplicó</h3>
+<table class="anx"><colgroup><col style="width:4%"><col style="width:10%"><col style="width:25%"><col style="width:15%"><col style="width:17%"><col style="width:16%"><col style="width:13%"></colgroup><thead><tr><th>Nº</th><th>Patrón</th><th>Problema concreto (ejemplo del código)</th><th>Dónde se aplicaría</th><th>Qué mejoraría</th><th>Costo o riesgo</th><th>¿Vale la pena?</th></tr></thead><tbody>
+<tr><td>M1</td><td>State, al menos como tabla de transiciones</td><td>Las reglas de transición están repartidas: <code>take_for_review</code> solo desde <code>draft_ai</code> (<code>services.py</code> ~L465), <code>archive_plan</code> acepta pendientes y aprobados (~L487), <code>approve_plan</code> revisa dos veces (~L497 y ~L520), <code>regenerate_plan</code> (~L552), <code>edit_option</code> (<code>nutrition.py</code> ~L225), y <code>_archive</code> (~L474) y <code>approve_plan</code> (~L525) escriben el estado a mano. Hay 10 llamadas manuales a <code>PlanEvent.objects.create</code> (6 en <code>services.py</code>, 4 en <code>nutrition.py</code>). <code>valid_until</code> se guarda al aprobar (~L537) y solo se muestra (<code>views.py</code> ~L127-128): no hay estado ni transición por vencimiento.</td><td><code>Plan.status</code> y <code>PlanGenerationJob.status</code>: un <code>ALLOWED_TRANSITIONS</code> y una función <code>transition(plan, nuevo_estado, actor, nota)</code> que valide y registre el evento.</td><td>Ampliar: agregar un estado (por ejemplo "vencido") hoy obliga a revisar unos 8 sitios. Probar: la tabla se prueba de una vez. Mantener: auditoría uniforme.</td><td>Bajo para la tabla; medio para clases <code>State</code> completas. Riesgo: tocar el flujo de aprobación, que es sensible por razones legales; exige pruebas.</td><td>Tabla de transiciones: sí. Clases State completas: no, porque el comportamiento propio de cada estado es mínimo.</td></tr>
+<tr><td>M2</td><td>Template Method (o una función común de cierre) para los tres ejecutores</td><td><code>_run_exercise</code> ~L305-336, <code>_run_nutrition</code> ~L405-440 y <code>_run_alternative</code> ~L443-472 repiten: <code>_evaluate_for_run</code>, <code>_adaptation_for</code>, <code>update(flags=..., progress_total=...)</code>, <code>ai.get_ai_client()</code>, generar, <code>_check_budget</code> y el bloque <code>with transaction.atomic(): select_for_update; si status != RUNNING lanzar 'lost_lock'; crear; _finish</code> (idéntico en ~L327-335, ~L431-439 y ~L464-471).</td><td><code>apps/plans/jobs.py</code>: helper <code>_commit(job, persist)</code> o clase base <code>PlanRunner</code> con <code>prepare</code>, <code>generate</code> y <code>persist</code>.</td><td>Mantener: un arreglo del bloqueo en un solo lugar. Ampliar: un cuarto tipo de trabajo. Probar: el esqueleto una vez.</td><td>Bajo con helper; medio con jerarquía. Riesgo: es código de concurrencia bajo <code>select_for_update</code>.</td><td>Sí para el helper; quizá para la jerarquía de clases.</td></tr>
+<tr><td>M3</td><td>Template Method o Factory Method compartido para crear trabajos</td><td><code>services.request_plan</code> ~L267-330 y <code>nutrition.request_alternative</code> ~L418-469 son dos copias del mismo flujo (token, idempotencia, trabajo activo, <code>recover_stale_jobs</code>, <code>assess</code>, rama de bloqueo, <code>create</code> dentro de <code>atomic</code>, <code>except IntegrityError</code>, <code>on_commit(start_job)</code>). Ya divergieron: <code>request_plan</code> evita repetir el aviso por el mismo bloqueo en el día (~L303-310) y <code>request_alternative</code> no (~L450-455), así que, según lo leído, cada clic en un caso bloqueado crearía otro trabajo y otro correo (no lo ejecuté).</td><td><code>services.py</code>: <code>_create_job(client, kind, actor, token, extras, ...)</code> con ganchos para cupo y evento.</td><td>Mantener: corregir la carrera y la deduplicación una sola vez. Probar.</td><td>Bajo a medio; riesgo en la lógica de concurrencia.</td><td>Sí.</td></tr>
+<tr><td>M4</td><td>Null Object (Special Case) para la adaptación</td><td><code>adaptation</code> puede ser <code>None</code> y 10 líneas de <code>jobs.py</code> lo preguntan (~L190, ~L224, ~L298, ~L309, ~L311, ~L347, ~L376, ~L392, ~L394, ~L437). <code>adaptation.for_job</code> (~L189-210) devuelve <code>None</code> por cuatro motivos distintos (apagada, sin consentimiento, sin ficha, error).</td><td><code>adaptation.for_job</code> devolvería un <code>JobAdaptation</code> vacío (<code>history=None</code>, <code>exercises=None</code>, <code>foods=None</code>, <code>summary()</code> vacío).</td><td>Mantener y probar: desaparecen unas 10 ramas.</td><td>Muy bajo; cuidar que el resumen vacío no se guarde (la guarda de ~L298 lo evita hoy).</td><td>Sí.</td></tr>
+<tr><td>M5</td><td>Strategy o registro por tipo de plan (<code>PlanKind</code>)</td><td>Hay unas 24 comparaciones por tipo en <code>adaptation.py</code> (~L136-277, con 9 usos de <code>is_exercise</code>), <code>services.py</code> (~L217, ~L224, ~L505, ~L512), <code>nutrition.py</code> (~L165, ~L225, ~L262), <code>jobs.py</code> ~L163 y unas 5 más en <code>views.py</code> (~L284-302). La "alternativa" es un tercer tipo tratado a mano (<code>adaptation.for_job</code> usa <code>elif job.kind != KIND_EXERCISE</code>).</td><td>Un objeto por tipo con <code>assess_catalog</code>, <code>build_payload</code>, <code>schema</code>, <code>validate</code>, <code>create_draft</code>, <code>approval_problems</code> y <code>adaptation_slice</code>, registrado en un diccionario como <code>_RUNNERS</code>.</td><td>Ampliar: un tipo nuevo sería una clase más un registro, no 30 ediciones. Probar por tipo.</td><td>Medio a alto: toca los módulos centrales con riesgo de regresión en seguridad y reglas legales.</td><td>Quizá: hoy hay dos tipos; vale la pena si se planea un tercero (por ejemplo sueño o recuperación). Si no, bastan M2, M3 y M4.</td></tr>
+<tr><td>M6</td><td>Specification única para "¿se puede aprobar?"</td><td>La regla se expresa en tres sitios: <code>views._plan_detail_context</code> ~L301-303 (<code>can_approve</code>, <code>simulated_blocked</code>), <code>services.approve_plan</code> ~L494-514 y <code>nutrition.approval_problems</code> ~L183-201. Si cambia una, la interfaz puede mostrar un botón que el servicio rechaza, o al revés.</td><td><code>services.approval_blockers(plan, actor)</code> devuelve la lista de motivos; el servicio lanza con ella y la vista la pinta.</td><td>Mantener y probar: una sola fuente de la regla.</td><td>Bajo.</td><td>Sí.</td></tr>
+<tr><td>M7</td><td>Facade o consulta única, con resultado calculado una vez por petición, para "alimentos y ejercicios permitidos hoy"</td><td>La composición <code>filter_foods(food_items(), nutrition_profile(...))</code> aparece en <code>assess</code> ~L225, <code>nutrition.current_allowed_ids</code> ~L158 y <code>exchange_rows</code> ~L491 (esta última con <code>plan.flags</code> guardadas, no las vigentes). En la pantalla de revisión de un plan de alimentación pendiente, <code>current_allowed_ids</code> corre hasta 3 veces (<code>review_context</code> ~L212, <code>approval_problems</code> ~L193 y ~L197), cada una leyendo ficha, banderas y toda la tabla <code>Food</code>. Algo parecido pasa con ejercicios en <code>routine_conflicts</code> ~L378-393.</td><td><code>services.allowed_foods_for(client, profile=None)</code> y un objeto de contexto de revisión calculado una vez y pasado a <code>review_context</code> y <code>approval_problems</code>.</td><td>Mantener: un único criterio de "permitido". Rendimiento (por lectura del código, no medido). Probar.</td><td>Bajo; cuidar la diferencia de <code>exchange_rows</code> (usa <code>plan.flags</code>).</td><td>Sí.</td></tr>
+<tr><td>M8</td><td>Decorator (objeto) o Proxy sobre <code>AIClient</code> para reintentos y medición</td><td><code>_call_with_retries</code> ~L229-247 mezcla la política de reintentos con <code>_check_budget(started)</code> y <code>_heartbeat(job)</code>; el conteo de tokens vive en <code>_generate_validated</code> ~L264-265. <code>check_gemini</code> llama al cliente sin esos reintentos y copia a mano la forma del payload (<code>sample_payload</code> ~L43-59).</td><td><code>ai/retry.py</code> con <code>RetryingClient(AIClient)</code> y ganchos <code>before_call</code>; opcionalmente <code>MeteredClient</code>.</td><td>Probar los reintentos sin base de datos ni hilos. Ampliar con otro proveedor sin reescribir la política.</td><td>Bajo; riesgo bajo a medio por el orden de los latidos.</td><td>Quizá: solo si se agrega un segundo proveedor o se reutiliza fuera de <code>jobs</code>; hoy hay un solo punto de llamada.</td></tr>
+<tr><td>M9</td><td>Rule objects o Specification para las banderas de seguridad</td><td><code>flags.evaluate</code> ~L272-390 es una función de unas 120 líneas con 44 condiciones, y los textos están aparte en <code>_TEXTS</code>. Los umbrales están marcados "[A VALIDAR]" en el propio archivo y cambiarán cuando los revise un profesional.</td><td><code>rules/flags.py</code>: lista <code>RULES = [Rule(code, severidad, alcances, cuando=...)]</code> y un contexto que precalcule <code>bmi_value</code>, <code>clearance_valid</code> y <code>controlled_ok</code>.</td><td>Ampliar y probar regla por regla; revisión clínica regla por regla.</td><td>Medio. Riesgo alto: es código de seguridad de salud y exige pruebas de equivalencia exhaustivas (no vi las pruebas existentes).</td><td>Quizá: solo cuando el profesional pida cambiar muchas reglas. Mientras tanto, mantener la función con pruebas de tabla.</td></tr>
+<tr><td>M10</td><td>Observer o eventos de dominio propios para avisos y auditoría</td><td><code>jobs.run_job</code> ~L150-166 y <code>services</code>/<code>nutrition</code> llaman directamente a <code>notifications.*</code> y crean <code>PlanEvent</code> a mano; un canal nuevo (WhatsApp, push) obliga a tocar cada sitio. Los ciclos <code>services</code>, <code>jobs</code>, <code>nutrition</code> se evitan con imports locales (<code>services.py</code> ~L288, ~L506; <code>nutrition.py</code> ~L433).</td><td>Eventos <code>plan_approved</code>, <code>job_blocked</code>, <code>draft_ready</code>, con suscriptores <code>notifications</code> y <code>audit</code>.</td><td>Ampliar canales y romper ciclos de dependencia.</td><td>Medio; el flujo queda menos visible en un área con requisitos legales (qué se envía a quién).</td><td>Quizá, más bien no por ahora: hay cinco avisos y un solo canal. Sí si se agregan canales.</td></tr>
+<tr><td>M11</td><td>Inyección de dependencias del cliente de IA (en lugar del localizador <code>get_ai_client()</code>)</td><td><code>_run_exercise</code> ~L314, <code>_run_nutrition</code> ~L411 y <code>_run_alternative</code> ~L459 llaman a <code>ai.get_ai_client()</code>; para probar hay que parchear <code>apps.plans.ai.get_ai_client</code> (así lo indica el docstring de <code>ai/__init__.py</code>).</td><td><code>run_job(job_id, client=None)</code> y <code>start_job(..., client=None)</code>.</td><td>Probar sin parches.</td><td>Muy bajo; cuidar el paso por hilos.</td><td>Quizá: <code>mock.patch</code> ya funciona, el beneficio es pequeño.</td></tr>
+<tr><td>M12</td><td>Builder o DTO tipado para el payload de la IA</td><td>El contrato de "lo único que viaja a la IA" es un <code>dict</code> armado a mano en <code>build_exercise_payload</code> ~L181-226 y <code>build_meal_payload</code> ~L341-378. Las mismas claves se repiten como cadenas en <code>ai/fake.py</code> ~L25-50 y ~L79-110, en el texto de <code>ai/prompts.py</code> y en <code>check_gemini.sample_payload</code> ~L43-76 (copia manual).</td><td>Dataclasses <code>ExercisePayload</code> y <code>MealPayload</code> con <code>to_dict()</code> y lista blanca de campos.</td><td>Probar (una prueba de "sin campos personales" sobre la clase) y mantener (el fake y <code>check_gemini</code> reutilizan la misma estructura).</td><td>Bajo a medio.</td><td>Quizá: es frontera de privacidad, pero no sustituye las pruebas.</td></tr>
+<tr><td>M13</td><td>Repository o QuerySet personalizado</td><td>Consultas como funciones sueltas (<code>_counted_jobs</code> ~L88, <code>active_job</code> ~L262, <code>approved_plan</code> ~L344, <code>pending_plans</code> ~L349, <code>plans_for_trainer</code> ~L335) y 13 consultas <code>PlanGenerationJob.objects.filter(pk=...)</code> en <code>jobs.py</code>, casi todas con <code>update</code> de estado.</td><td><code>PlanGenerationJobQuerySet</code> (<code>active</code>, <code>counted</code>, <code>claim</code>) y <code>PlanQuerySet</code> (<code>approved</code>).</td><td>Mantener y probar.</td><td>Bajo; Django ya ofrece Manager y QuerySet.</td><td>Quizá: un QuerySet propio sí; una capa Repository formal, no.</td></tr>
+<tr><td>M14</td><td>Pipeline o Chain of Responsibility para validar la salida de la IA</td><td><code>validate_exercise_plan</code> (~75 líneas) y <code>validate_meal_slot</code> (~45) mezclan esquema, textos, ids, rangos y variedad.</td><td><code>rules/validate.py</code> y <code>rules/meal_validate.py</code>.</td><td>Poco: ya reutilizan <code>check_text</code>, <code>_exact_keys</code> y <code>_option_rows</code>.</td><td>Añadiría indirección sin variación real; el orden de las comprobaciones importa.</td><td>No.</td></tr>
+<tr><td>M15</td><td>Strategy para los cupos de uso</td><td><code>global_quota_ok</code>, <code>client_quota_ok</code>, <code>trainer_quota_ok</code> (<code>services.py</code> ~L93-117) y <code>alternatives_left</code> (<code>nutrition.py</code> ~L309-315) repiten el patrón "contar trabajos en una ventana de tiempo".</td><td><code>services.py</code>.</td><td>Un helper <code>_count_jobs(window, **filtros)</code> basta.</td><td>Muy bajo.</td><td>No como patrón; sí como pequeña extracción de método.</td></tr>
+</tbody></table>
+<hr>
+<h3>3. Resumen</h3>
+<ul>
+<li>Predominan los patrones de asignación de responsabilidades (GRASP) y de arquitectura (capa de servicios, núcleo de reglas puro en <code>rules/</code>, objetos de valor inmutables, reglas guiadas por tablas) sobre los patrones GoF de manual.</li>
+<li>De GoF aparecen pocos y con claridad: Strategy/Polymorphism en <code>AIClient</code> (<code>FakeAIClient</code> y <code>GeminiClient</code>), Adapter en <code>GeminiClient</code> y en el mapeo del ORM a dataclasses, Facade parcial en <code>assess</code> y Template Method funcional en <code>_generate_validated</code>. Command, Observer y los Template Method de formularios y admin existen sobre todo porque Django los aporta.</li>
+<li>Los creacionales casi no existen (solo una fábrica simple, <code>get_ai_client</code>); Singleton, Builder y Abstract Factory no aparecen y no hacen falta.</li>
+<li>Lo que más falta: un ciclo de vida explícito para <code>Plan</code> y <code>PlanGenerationJob</code> (hoy son condiciones dispersas), una abstracción por tipo de plan (unas 30 comparaciones por <code>kind</code> y tres ejecutores casi iguales) y un Null Object para la adaptación (10 comprobaciones de <code>None</code>).</li>
+<li>Hay lógica duplicada que ya empezó a divergir (<code>request_plan</code> frente a <code>request_alternative</code>; la regla de aprobación en vista y servicio; la composición del filtro de alimentos en tres sitios), lo que pesa más que cualquier patrón ausente.</li>
+<li>El acoplamiento es la parte más débil: dependencia mutua <code>health</code> y <code>plans</code>, ciclos entre <code>services</code>, <code>jobs</code> y <code>nutrition</code> resueltos con imports locales, y uso de funciones privadas entre módulos.</li>
+<li>Prioridad sugerida: M3, M2, M4, M6 y M7 (baratos y de bajo riesgo), luego M1 (tabla de transiciones). Dejar para cuando haya un motivo concreto M5, M9 y M10, y no reescribir <code>flags.evaluate</code> sin pruebas de equivalencia.</li>
+<li>Limitación: análisis estático sin ejecutar el sistema ni revisar las pruebas; las afirmaciones sobre rendimiento y sobre la divergencia de M3 salen de leer el código.</li>
+</ul>
+</div><div class="anexo">
+<h1 id="s28">Anexo C. Prompts del experimento</h1>
+<h2 id="s29">C.1 Prompt A (control), íntegro</h2>
+<p class="nota">Reconstrucción del prompt original. Archivo <code>anexos/C-prompt-control-A.md</code>.</p>
+<pre class="prompt">Eres un desarrollador de software. Trabajas en un proyecto Django existente (ProFit Studio, gestión de un gimnasio) ubicado en &lt;RAIZ_DEL_PROYECTO&gt; (usa `.venv/Scripts/python.exe`; estás en Windows con Git Bash).
+
+## Qué construir
+
+Los planes de ejercicio o alimentación de una clienta (`apps/plans/models.py`: `Plan`, `PlanEvent`) los genera una IA como borrador y los revisa un entrenador. Implementa el módulo del CICLO DE VIDA DEL PLAN (los cambios de estado de un `Plan`) en `docs/actividad-patrones/anexos/experimento/exp_a/plan_lifecycle.py`, con sus pruebas en `docs/actividad-patrones/anexos/experimento/exp_a/tests.py` (crea también `exp_a/__init__.py`).
+
+Estados de `Plan.status`: `draft_ai` (borrador de la IA), `in_review` (en revisión), `approved` (aprobado: la clienta lo ve), `superseded` (reemplazado por uno aprobado más nuevo) y `archived` (archivado).
+
+Operaciones públicas (firmas fijas; el resto del sistema las usará así):
+
+- `take_for_review(plan, actor) -&gt; bool`: `draft_ai` -&gt; `in_review`. Guarda `reviewed_by=actor` y registra un `PlanEvent` con acción `PlanEvent.ACTION_TAKEN`. Devuelve `True` si cambió el estado; si el plan no estaba en `draft_ai` no hace nada y devuelve `False`.
+- `archive_plan(plan, actor, reason='') -&gt; Plan`: desde `draft_ai`, `in_review` o `approved` pasa a `archived`. Guarda `archived_at`, desactiva su rutina (`Routine.is_active=False`) si tiene y registra un evento `ACTION_ARCHIVED` con el motivo (se recorta a 300 caracteres; si viene vacío, `'Archivado por el entrenador.'`). Desde cualquier otro estado lanza `PlanStateError('Este plan ya no se puede archivar.')`.
+- `approve_plan(plan, actor, *, note_for_client='', warnings_ack=False, stale_ack=False) -&gt; Plan`: `draft_ai` o `in_review` -&gt; `approved`. Reglas previas: si el plan no está pendiente, `PlanStateError('Solo se puede aprobar un borrador o un plan en revisión.')`; si `plan.is_simulated` y no `settings.DEBUG`, `PlanStateError('Este plan se generó en MODO DE PRUEBA: no se puede aprobar. Genera uno real.')`; si `plan.flags` no está vacío y no `warnings_ack`, `PlanStateError('Marca "Revisé las advertencias" para aprobar.')`. (`stale_ack` se acepta pero este módulo no lo usa.) Efectos, todos dentro de una transacción con `select_for_update` y volviendo a verificar el estado dentro de ella (si cambió: `PlanStateError('Este plan cambió mientras lo revisabas. Recarga la página.')`): el plan aprobado anterior de la misma clienta y del mismo tipo pasa a `superseded` (se desactiva su rutina y se registra un evento `ACTION_SUPERSEDED` con la nota `f'Reemplazado por la versión {plan.version}.'`); el plan queda `approved` con `approved_by=actor`, `approved_at=ahora`, `reviewed_by` (el que ya tenía o el actor), `note_for_client` (recortada a 500), `valid_until = hoy + 28 días` (usa `apps.health.dates.today()`), y si tenía `flags` guarda `warnings_ack_by` y `warnings_ack_at`; su rutina se activa (`is_active=True`); se registra un evento `ACTION_APPROVED`; al confirmarse la transacción se avisa a la clienta con `apps.plans.notifications.client_plan_approved(plan)` (usa `transaction.on_commit`).
+- `regenerate_plan(plan, actor, notes, request_token) -&gt; (job, created)`: solo desde `draft_ai` o `in_review` (si no, `PlanStateError('Solo se regenera un borrador o un plan en revisión.')`). Pide un trabajo de generación con `apps.plans.services.request_plan(plan.client, plan.kind, actor, request_token, trainer_notes=notes, parent_plan=plan)` (úsala como caja negra: ya existe) y, si `created` es verdadero, registra un evento `ACTION_REGENERATE` con las notas (recortadas a 500).
+
+Todas las operaciones verifican primero que el `actor` sea entrenador con acceso a la clienta del plan (`actor.is_trainer` y que la clienta esté en `apps.accounts.permissions.clients_for_trainer(actor)`); si no, `PlanNotAllowed('No tienes acceso a este plan.')`.
+
+Quedan fuera de este módulo (las comprueba quien llama): la credencial de nutrición, que la rutina tenga ejercicios y la ficha desactualizada.
+
+Reutiliza lo que ya existe: `Plan` y `PlanEvent` (`apps/plans/models.py`), `Routine` (`apps/routines/models.py`) y las excepciones `PlanNotAllowed` y `PlanStateError` de `apps/plans/services.py`.
+
+## Pautas de diseño
+
+- Clean Architecture: separa responsabilidades (controladores HTTP, servicios de negocio, acceso a datos).
+- Mensajes de error genéricos y un `logger` para registrar los cambios de estado.
+- Código mantenible y con pruebas.
+
+## Reglas de esta tarea
+
+- No modifiques ningún archivo existente del proyecto. Solo crea los 3 archivos de `exp_a/` indicados.
+- No leas las funciones de ciclo de vida que ya existen en `apps/plans/services.py` (`take_for_review`, `_archive`, `archive_plan`, `approve_plan`, `regenerate_plan`). Puedes ver ese archivo únicamente con `grep -n "^class "` para conocer las excepciones y, si lo necesitas, las constantes del principio del archivo. Tampoco leas `apps/plans/nutrition.py`, `apps/plans/jobs.py` ni nada dentro de `docs/` (salvo este archivo). Sí puedes leer los modelos, `apps/accounts/permissions.py` y los helpers de pruebas de `apps/plans/tests/helpers.py` (por ejemplo `PlanScenarioTestCase`).
+- Las pruebas se corren desde la raíz del proyecto con: `PYTHONPATH=docs/actividad-patrones/anexos/experimento .venv/Scripts/python.exe manage.py test exp_a`. No uses `--parallel`. No ejecutes la suite completa del proyecto.
+- No hagas commits, ni push, ni cambies de rama (git solo lectura). No instales dependencias.
+
+## Respuesta final (breve)
+
+1. La primera línea: el ID exacto del modelo que eres.
+2. Archivos creados, número de líneas de `plan_lifecycle.py`, número de pruebas y resultado (OK o fallos).
+3. Lista exacta de los archivos del proyecto que leíste.
+4. Decisiones de diseño que tomaste (máximo 8 líneas).
+</pre>
+<h2 id="s30">C.2 Prompt B (reformulado): única diferencia con A</h2>
+<p class="nota">B es igual a A salvo el nombre de la carpeta de salida (<code>exp_b</code> en lugar de <code>exp_a</code>) y este párrafo adicional en «Pautas de diseño» (verificado con <code>diff</code>). Archivo <code>anexos/D-prompt-reformulado-B.md</code>.</p>
+<pre class="prompt">- Aplica el patrón de diseño State (GoF) para modelar el ciclo de vida del plan: cada estado (`draft_ai`, `in_review`, `approved`, `superseded`, `archived`) es una clase que conoce qué operaciones admite y a qué estado transiciona, y el plan (el contexto) delega en su estado actual. Evita los condicionales dispersos por estado (`if plan.status in ...`) dentro de las operaciones públicas. Conserva exactamente las firmas públicas, las reglas y los mensajes indicados arriba.</pre>
+<h2 id="s31">C.3 Prompt de ampliación (estado «vencido»), versión para A</h2>
+<p class="nota">La versión para B es idéntica salvo la carpeta (<code>exp_b</code>). Archivos <code>anexos/E-prompt-ampliacion-A.md</code> y <code>E-prompt-ampliacion-B.md</code>.</p>
+<pre class="prompt">Eres un desarrollador de software. Trabajas en un proyecto Django existente (ProFit Studio, gestión de un gimnasio) ubicado en &lt;RAIZ_DEL_PROYECTO&gt; (usa `.venv/Scripts/python.exe`; estás en Windows con Git Bash).
+
+## Situación
+
+Ya existe el módulo del ciclo de vida de un `Plan` (los cambios de estado de un plan de ejercicio o alimentación) en `docs/actividad-patrones/anexos/experimento/exp_a/`: `plan_lifecycle.py` y `tests.py`. Léelos completos antes de empezar.
+
+## Cambio pedido: nuevo estado «vencido» (`expired`)
+
+- Un plan `approved` cuya fecha `valid_until` es anterior a hoy debe poder pasar a `expired`. Agrega la operación pública `expire_overdue_plans(today=None) -&gt; int`: marca como `expired` todos los planes `approved` con `valid_until &lt; today` (por defecto `apps.health.dates.today()`), desactiva su rutina (`Routine.is_active=False`), registra para cada uno un `PlanEvent` con la acción `'expired'` (es una cadena nueva; cabe en el campo, no cambies el modelo) y la nota `'Vigencia vencida.'`, y devuelve cuántos cambió. Es idempotente: no toca los planes que ya no están en `approved`. Registra el cambio con el `logger`.
+- Un plan `expired` se puede archivar con `archive_plan` (pasa a `archived`, mismo resultado que archivar un aprobado; su rutina ya está inactiva). Un plan `expired` NO se puede aprobar, ni tomar para revisión, ni regenerar: cada operación responde como ya responde para un estado no permitido (los mismos mensajes y valores de retorno que existen hoy).
+- Un plan `expired` no cuenta como aprobado vigente: al aprobar otro plan de la misma clienta y tipo, el `expired` no se reemplaza ni se modifica.
+- Las operaciones y los mensajes que ya existen no cambian de comportamiento para los demás estados.
+- Actualiza `tests.py`: agrega las pruebas del estado nuevo y no rompas las existentes.
+
+## Reglas de esta tarea
+
+- Edita únicamente los archivos de `exp_a/` (`plan_lifecycle.py` y `tests.py`). No hagas más cambios de los necesarios para este pedido: no reorganices ni renombres lo que no haga falta.
+- No leas ninguna otra carpeta `exp_*`, ni nada dentro de `docs/` salvo este archivo y `exp_a/`. Puedes leer los modelos (`apps/plans/models.py`), `apps/health/dates.py`, `apps/routines/models.py` y `apps/plans/tests/helpers.py`.
+- Las pruebas se corren desde la raíz del proyecto con: `PYTHONPATH=docs/actividad-patrones/anexos/experimento .venv/Scripts/python.exe manage.py test exp_a`. No uses `--parallel` ni ejecutes la suite completa del proyecto.
+- No hagas commits, ni push, ni cambies de rama (git solo lectura). No instales dependencias.
+
+## Respuesta final (breve)
+
+1. La primera línea: el ID exacto del modelo que eres.
+2. Lista de los lugares del código que tuviste que tocar (función, clase o constante) y por qué.
+3. Número total de pruebas y resultado (OK o fallos).
+4. Cualquier dificultad o duda de diseño (máximo 5 líneas).
+</pre>
+</div><div class="anexo">
+<h1 id="s32">Anexo D. Fragmentos de código comparados</h1>
+<p class="nota">Los archivos completos están en <code>anexos/experimento/</code>: las versiones generadas en <code>base/exp_a</code> y <code>base/exp_b</code> y las ampliadas en <code>exp_a</code> y <code>exp_b</code>.</p>
+<h2 id="s33">D.1 Original (V0): <code>apps/plans/services.py</code>, líneas 482 a 503</h2>
+<pre>    plan.status = Plan.STATUS_ARCHIVED
+    plan.archived_at = timezone.now()
+    plan.save(update_fields=['status', 'archived_at'])
+    if plan.routine_id:
+        Routine.objects.filter(pk=plan.routine_id).update(is_active=False)
+    PlanEvent.objects.create(plan=plan, actor=actor, action=PlanEvent.ACTION_ARCHIVED, note=reason[:500])
+
+
+def archive_plan(plan, actor, reason=''):
+    """Descarta un borrador (o retira un plan aprobado: su rutina deja de verse)."""
+    _check_trainer(plan, actor)
+    with transaction.atomic():
+        plan = Plan.objects.select_for_update().get(pk=plan.pk)
+        if plan.status not in (*Plan.PENDING_STATUSES, Plan.STATUS_APPROVED):
+            raise PlanStateError('Este plan ya no se puede archivar.')
+        _archive(plan, actor, (reason or '').strip()[:ARCHIVE_REASON_MAX] or 'Archivado por el entrenador.')
+    logger.info('plan archived plan_id=%s actor_id=%s', plan.pk, actor.pk)
+    return plan
+
+
+def approve_plan(plan, actor, *, note_for_client='', warnings_ack=False, stale_ack=False):
+    """Aprueba un borrador: la clienta lo ve desde ahora. Reemplaza al aprobado anterior."""</pre>
+<h2 id="s34">D.2 Control A: constantes y <code>archive_plan</code> (<code>plan_lifecycle.py</code>, líneas 43-47 y 144-161)</h2>
+<pre>ARCHIVABLE_STATUSES = (Plan.STATUS_DRAFT_AI, Plan.STATUS_IN_REVIEW, Plan.STATUS_APPROVED)
+APPROVAL_VALIDITY_DAYS = 28
+ARCHIVE_REASON_MAX = 300
+NOTE_MAX = 500
+DEFAULT_ARCHIVE_REASON = 'Archivado por el entrenador.'
+…
+def archive_plan(plan, actor, reason=''):
+    """Archiva un borrador, un plan en revisión o un plan aprobado y desactiva su rutina."""
+    _ensure_access(plan, actor)
+    with transaction.atomic():
+        locked = _lock_plan(plan.pk)
+        if locked.status not in ARCHIVABLE_STATUSES:
+            raise PlanStateError(MSG_CANNOT_ARCHIVE)
+        previous_status = locked.status
+        locked.status = Plan.STATUS_ARCHIVED
+        locked.archived_at = timezone.now()
+        locked.save(update_fields=['status', 'archived_at'])
+        _set_routine_active(locked, False)
+        _record_event(
+            locked, actor, PlanEvent.ACTION_ARCHIVED, _clip(reason, ARCHIVE_REASON_MAX) or DEFAULT_ARCHIVE_REASON,
+        )
+    plan.refresh_from_db()
+    logger.info('Plan %s: %s -&gt; archived (actor %s).', plan.pk, previous_status, actor.pk)
+    return plan</pre>
+<h2 id="s35">D.3 B con State: estados y contexto (<code>plan_lifecycle.py</code>, líneas 90-127, 186-194 y 262-274)</h2>
+<pre>class PlanState:
+    """Estado base: no admite ninguna operación. Los estados concretos sobrescriben solo las suyas."""
+    status = None
+    entered_action = None     # evento que se registra al entrar en este estado
+    routine_active = None     # None = no toca la rutina; True/False = la activa/desactiva al entrar
+
+    def take_for_review(self, ctx, actor):
+        return False
+
+    def archive(self, ctx, actor, reason):
+        raise PlanStateError(MSG_CANNOT_ARCHIVE)
+
+    def approve(self, ctx, actor, *, note_for_client, warnings_ack):
+        raise PlanStateError(MSG_CANNOT_APPROVE)
+
+    def ensure_approvable_under_lock(self):
+        """Segunda verificación, ya con la fila bloqueada: solo un estado pendiente la supera."""
+        raise PlanStateError(MSG_CHANGED)
+
+    def regenerate(self, ctx, actor, notes, request_token):
+        raise PlanStateError(MSG_CANNOT_REGENERATE)
+
+    def supersede(self, ctx, actor, replacement):
+        raise PlanStateError(MSG_CHANGED)
+
+
+class _ArchivableState(PlanState):
+    """Estados desde los que se puede archivar: pasan a `archived`."""
+
+    def archive(self, ctx, actor, reason):
+        with ctx.locked():
+            ctx.ensure_state(self, MSG_CANNOT_ARCHIVE)
+            ctx.transition(
+                Plan.STATUS_ARCHIVED, actor,
+                note=_clip(reason, ARCHIVE_REASON_MAX) or DEFAULT_ARCHIVE_NOTE,
+                archived_at=timezone.now(),
+            )
+        return ctx.plan
+…
+class ApprovedState(_ArchivableState):
+    status = Plan.STATUS_APPROVED
+    entered_action = PlanEvent.ACTION_APPROVED
+    routine_active = True
+
+    def supersede(self, ctx, actor, replacement):
+        ctx.transition(
+            Plan.STATUS_SUPERSEDED, actor, note=f'Reemplazado por la versión {replacement.version}.')
+
+…
+    def transition(self, target_status, actor, *, note='', **fields):
+        """Pasa el plan a `target_status`, guarda `fields`, ajusta la rutina y registra el evento."""
+        plan = self.plan
+        origin = plan.status
+        target = state_for(target_status)
+        plan.status = target.status
+        for name, value in fields.items():
+            setattr(plan, name, value)
+        self.repository.save(plan, ['status', *fields])
+        if target.routine_active is not None:
+            self.repository.set_routine_active(plan, target.routine_active)
+        self.repository.add_event(plan, actor, target.entered_action, note)
+        logger.info('Plan %s: %s -&gt; %s (usuario %s).', plan.pk, origin, target.status, actor.pk)</pre>
+<h2 id="s36">D.4 Diff de la ampliación en A (<code>plan_lifecycle.py</code>)</h2>
+<pre>--- docs/actividad-patrones/anexos/experimento/base/exp_a/plan_lifecycle.py	2026-10-15 16:58:31.319097300 -0500
++++ docs/actividad-patrones/anexos/experimento/exp_a/plan_lifecycle.py	2026-10-15 16:59:12.918002100 -0500
+<span class="hunk">@@ -1,6 +1,8 @@</span> """Ciclo de vida de un `Plan`: los cambios de estado (capa de casos de uso).
+ 
+<span class="del">-Estados: `draft_ai` -&gt; `in_review` -&gt; `approved` -&gt; `superseded` / `archived`.</span><span class="add">+Estados: `draft_ai` -&gt; `in_review` -&gt; `approved` -&gt; `superseded` / `archived`. Un plan `approved`</span><span class="add">+cuya vigencia (`valid_until`) ya pasó se marca `expired` (`expire_overdue_plans`) y luego solo se</span><span class="add">+puede archivar.</span> 
+ Capas de este módulo (de adentro hacia afuera):
+ 
+<span class="hunk">@@ -8,7 +10,8 @@</span> 2. Acceso a datos: funciones pequeñas con prefijo `_` que leen o escriben `Plan`, `PlanEvent` y
+    `Routine`. Los casos de uso no escriben consultas sueltas.
+ 3. Autorización: `_ensure_access` (el actor debe ser entrenador con acceso a la clienta).
+<span class="del">-4. Casos de uso públicos: `take_for_review`, `archive_plan`, `approve_plan`, `regenerate_plan`.</span><span class="add">+4. Casos de uso públicos: `take_for_review`, `archive_plan`, `approve_plan`, `regenerate_plan`,</span><span class="add">+   `expire_overdue_plans`.</span> 
+ Las vistas HTTP (controladores) solo traducen la petición a estas llamadas y las excepciones a
+ respuestas. Aquí no hay `request` ni plantillas. Quedan fuera, porque las comprueba quien llama:
+<span class="hunk">@@ -33,18 +36,22 @@</span> 
+ __all__ = [
+     'PlanNotAllowed', 'PlanStateError',
+<span class="del">-    'take_for_review', 'archive_plan', 'approve_plan', 'regenerate_plan',</span><span class="add">+    'take_for_review', 'archive_plan', 'approve_plan', 'regenerate_plan', 'expire_overdue_plans',</span> ]
+ 
+ logger = logging.getLogger(__name__)
+ 
+ # ─── 1. Reglas puras ──────────────────────────────────────────────────────────
+ 
+<span class="del">-ARCHIVABLE_STATUSES = (Plan.STATUS_DRAFT_AI, Plan.STATUS_IN_REVIEW, Plan.STATUS_APPROVED)</span><span class="add">+# El modelo `Plan` no define el estado `expired` (este módulo no lo toca): se declara aquí.</span><span class="add">+STATUS_EXPIRED = 'expired'</span><span class="add">+ACTION_EXPIRED = 'expired'</span><span class="add">+ARCHIVABLE_STATUSES = (Plan.STATUS_DRAFT_AI, Plan.STATUS_IN_REVIEW, Plan.STATUS_APPROVED, STATUS_EXPIRED)</span> APPROVAL_VALIDITY_DAYS = 28
+ ARCHIVE_REASON_MAX = 300
+ NOTE_MAX = 500
+ DEFAULT_ARCHIVE_REASON = 'Archivado por el entrenador.'
+<span class="add">+EXPIRED_NOTE = 'Vigencia vencida.'</span> 
+ MSG_NOT_ALLOWED = 'No tienes acceso a este plan.'
+ MSG_CANNOT_ARCHIVE = 'Este plan ya no se puede archivar.'
+<span class="hunk">@@ -100,6 +107,13 @@</span>         logger.info('Plan %s: approved -&gt; superseded por el plan %s.', old.pk, new_plan.pk)
+ 
+ 
+<span class="add">+def _lock_overdue_approved(today):</span><span class="add">+    """Planes aprobados con vigencia anterior a `today`, con la fila bloqueada (sin fecha = no vence)."""</span><span class="add">+    return list(</span><span class="add">+        Plan.objects.select_for_update().filter(status=Plan.STATUS_APPROVED, valid_until__lt=today)</span><span class="add">+    )</span><span class="add">+</span><span class="add">+</span> def _notify_client_approved(plan):
+     """Aviso a la clienta tras confirmarse la transacción. Un fallo del aviso no deshace la aprobación."""
+     try:
+<span class="hunk">@@ -142,7 +156,7 @@</span> 
+ 
+ def archive_plan(plan, actor, reason=''):
+<span class="del">-    """Archiva un borrador, un plan en revisión o un plan aprobado y desactiva su rutina."""</span><span class="add">+    """Archiva un borrador, un plan en revisión, un plan aprobado o uno vencido y desactiva su rutina."""</span>     _ensure_access(plan, actor)
+     with transaction.atomic():
+         locked = _lock_plan(plan.pk)
+<span class="hunk">@@ -225,3 +239,23 @@</span>     if created:
+         logger.info('Plan %s: regeneración pedida (actor %s).', plan.pk, actor.pk)
+     return job, created
+<span class="add">+</span><span class="add">+</span><span class="add">+def expire_overdue_plans(today=None):</span><span class="add">+    """`approved` -&gt; `expired` para los planes cuya `valid_until` es anterior a `today`. Devuelve cuántos.</span><span class="add">+</span><span class="add">+    `today` es hoy (`dates.today()`) si no se indica. Desactiva la rutina de cada plan y registra su</span><span class="add">+    evento sin actor (lo hace el sistema, no una persona). Es idempotente: solo toca planes que</span><span class="add">+    siguen en `approved`, así que repetirlo no cambia nada.</span><span class="add">+    """</span><span class="add">+    if today is None:</span><span class="add">+        today = dates.today()</span><span class="add">+    with transaction.atomic():</span><span class="add">+        overdue = _lock_overdue_approved(today)</span><span class="add">+        for plan in overdue:</span><span class="add">+            plan.status = STATUS_EXPIRED</span><span class="add">+            plan.save(update_fields=['status'])</span><span class="add">+            _set_routine_active(plan, False)</span><span class="add">+            _record_event(plan, None, ACTION_EXPIRED, EXPIRED_NOTE)</span><span class="add">+            logger.info('Plan %s: approved -&gt; expired (vigencia hasta %s).', plan.pk, plan.valid_until)</span><span class="add">+    return len(overdue)</span></pre>
+<h2 id="s37">D.5 Diff de la ampliación en B (<code>plan_lifecycle.py</code>)</h2>
+<pre>--- docs/actividad-patrones/anexos/experimento/base/exp_b/plan_lifecycle.py	2026-10-15 16:58:31.414924800 -0500
++++ docs/actividad-patrones/anexos/experimento/exp_b/plan_lifecycle.py	2026-10-15 16:59:31.552991100 -0500
+<span class="hunk">@@ -3,11 +3,14 @@</span> Capas (Clean Architecture; los controladores HTTP quedan fuera y solo llaman a las funciones públicas):
+ 
+ - Servicios de negocio (abajo del todo): `take_for_review`, `archive_plan`, `approve_plan` y
+<span class="del">-  `regenerate_plan`. Comprueban el acceso del entrenador y delegan en el contexto.</span><span class="add">+  `regenerate_plan`, que comprueban el acceso del entrenador y delegan en el contexto, y</span><span class="add">+  `expire_overdue_plans`, que corre sin entrenador (proceso programado) y marca como vencidos</span><span class="add">+  los planes aprobados cuya vigencia ya pasó.</span> - Dominio: `PlanLifecycle` (el contexto) delega cada operación en la clase del estado actual del
+<span class="del">-  plan. Cada estado (`DraftAIState`, `InReviewState`, `ApprovedState`, `SupersededState`,</span><span class="del">-  `ArchivedState`) declara qué operaciones admite y a qué estado pasa; lo que no admite lo</span><span class="del">-  rechaza la clase base `PlanState`. No hay `if plan.status ...` en las operaciones públicas.</span><span class="add">+  plan. Cada estado (`DraftAIState`, `InReviewState`, `ApprovedState`, `ExpiredState`,</span><span class="add">+  `SupersededState`, `ArchivedState`) declara qué operaciones admite y a qué estado pasa; lo que</span><span class="add">+  no admite lo rechaza la clase base `PlanState`. No hay `if plan.status ...` en las operaciones</span><span class="add">+  públicas.</span> - Acceso a datos: `PlanRepository` (consultas, bloqueos de fila, rutina y eventos).
+ 
+ Quedan fuera (las comprueba quien llama): la credencial de nutrición, que la rutina tenga
+<span class="hunk">@@ -42,6 +45,11 @@</span> MSG_CANNOT_REGENERATE = 'Solo se regenera un borrador o un plan en revisión.'
+ MSG_UNKNOWN_STATE = 'Este plan está en un estado desconocido.'
+ DEFAULT_ARCHIVE_NOTE = 'Archivado por el entrenador.'
+<span class="add">+EXPIRED_NOTE = 'Vigencia vencida.'</span><span class="add">+</span><span class="add">+# El modelo no define el estado «vencido» ni su acción; ambas cadenas caben en sus campos.</span><span class="add">+STATUS_EXPIRED = 'expired'</span><span class="add">+ACTION_EXPIRED = 'expired'</span> 
+ 
+ def _clip(text, limit):
+<span class="hunk">@@ -71,6 +79,10 @@</span>             .exclude(pk=plan.pk)
+         )
+ 
+<span class="add">+    def overdue_approved(self, today):</span><span class="add">+        """Planes aprobados cuya vigencia terminó antes de `today` (sin bloquear)."""</span><span class="add">+        return list(Plan.objects.filter(status=Plan.STATUS_APPROVED, valid_until__lt=today).order_by('pk'))</span><span class="add">+</span>     def save(self, plan, fields):
+         plan.save(update_fields=fields)
+ 
+<span class="hunk">@@ -112,6 +124,10 @@</span>     def supersede(self, ctx, actor, replacement):
+         raise PlanStateError(MSG_CHANGED)
+ 
+<span class="add">+    def expire(self, ctx, actor):</span><span class="add">+        """Solo un plan aprobado vence; en cualquier otro estado no hace nada (idempotente)."""</span><span class="add">+        return False</span><span class="add">+</span> 
+ class _ArchivableState(PlanState):
+     """Estados desde los que se puede archivar: pasan a `archived`."""
+<span class="hunk">@@ -192,6 +208,20 @@</span>         ctx.transition(
+             Plan.STATUS_SUPERSEDED, actor, note=f'Reemplazado por la versión {replacement.version}.')
+ 
+<span class="add">+    def expire(self, ctx, actor):</span><span class="add">+        with ctx.locked():</span><span class="add">+            if ctx.state is not self:</span><span class="add">+                return False</span><span class="add">+            ctx.transition(STATUS_EXPIRED, actor, note=EXPIRED_NOTE)</span><span class="add">+        return True</span><span class="add">+</span><span class="add">+</span><span class="add">+class ExpiredState(_ArchivableState):</span><span class="add">+    """Plan aprobado cuya vigencia terminó: solo se puede archivar (la rutina ya está inactiva)."""</span><span class="add">+    status = STATUS_EXPIRED</span><span class="add">+    entered_action = ACTION_EXPIRED</span><span class="add">+    routine_active = False</span><span class="add">+</span> 
+ class SupersededState(PlanState):
+     status = Plan.STATUS_SUPERSEDED
+<span class="hunk">@@ -207,7 +237,8 @@</span> 
+ _STATES = {
+     state.status: state
+<span class="del">-    for state in (DraftAIState(), InReviewState(), ApprovedState(), SupersededState(), ArchivedState())</span><span class="add">+    for state in (</span><span class="add">+        DraftAIState(), InReviewState(), ApprovedState(), ExpiredState(), SupersededState(), ArchivedState())</span> }
+ 
+ 
+<span class="hunk">@@ -247,6 +278,9 @@</span>     def supersede(self, actor, replacement):
+         return self.state.supersede(self, actor, replacement)
+ 
+<span class="add">+    def expire(self, actor=None):</span><span class="add">+        return self.state.expire(self, actor)</span><span class="add">+</span>     # Apoyo para los estados
+     @contextmanager
+     def locked(self):
+<span class="hunk">@@ -271,11 +305,11 @@</span>         if target.routine_active is not None:
+             self.repository.set_routine_active(plan, target.routine_active)
+         self.repository.add_event(plan, actor, target.entered_action, note)
+<span class="del">-        logger.info('Plan %s: %s -&gt; %s (usuario %s).', plan.pk, origin, target.status, actor.pk)</span><span class="add">+        logger.info('Plan %s: %s -&gt; %s (usuario %s).', plan.pk, origin, target.status, getattr(actor, 'pk', None))</span> 
+     def record(self, actor, action, note=''):
+         self.repository.add_event(self.plan, actor, action, note)
+<span class="del">-        logger.info('Plan %s: evento %s (usuario %s).', self.plan.pk, action, actor.pk)</span><span class="add">+        logger.info('Plan %s: evento %s (usuario %s).', self.plan.pk, action, getattr(actor, 'pk', None))</span> 
+     def supersede_previous(self, actor):
+         """Reemplaza al plan aprobado anterior de la misma clienta y tipo (si lo hay)."""
+<span class="hunk">@@ -306,7 +340,7 @@</span> 
+ 
+ def archive_plan(plan, actor, reason=''):
+<span class="del">-    """Archiva un borrador, un plan en revisión o uno aprobado."""</span><span class="add">+    """Archiva un borrador, un plan en revisión, uno aprobado o uno vencido."""</span>     return _lifecycle_for(plan, actor).archive(actor, reason)
+ 
+ 
+<span class="hunk">@@ -320,7 +354,21 @@</span>     return _lifecycle_for(plan, actor).regenerate(actor, notes, request_token)
+ 
+ 
+<span class="add">+def expire_overdue_plans(today=None):</span><span class="add">+    """Pasa a `expired` los planes `approved` con `valid_until` anterior a `today` (por defecto, hoy).</span><span class="add">+</span><span class="add">+    Desactiva su rutina y registra el evento `expired` de cada uno (sin autor: lo hace el sistema).</span><span class="add">+    Devuelve cuántos cambió. Es idempotente: los planes que ya no están aprobados no se tocan.</span><span class="add">+    """</span><span class="add">+    if today is None:</span><span class="add">+        today = health_dates.today()</span><span class="add">+    repository = PlanRepository()</span><span class="add">+    expired = sum(1 for plan in repository.overdue_approved(today) if PlanLifecycle(plan, repository).expire())</span><span class="add">+    logger.info('Planes vencidos al %s: %s.', today, expired)</span><span class="add">+    return expired</span><span class="add">+</span><span class="add">+</span> __all__ = [
+     'PlanLifecycle', 'PlanRepository', 'PlanState', 'state_for',
+<span class="del">-    'take_for_review', 'archive_plan', 'approve_plan', 'regenerate_plan',</span><span class="add">+    'take_for_review', 'archive_plan', 'approve_plan', 'regenerate_plan', 'expire_overdue_plans',</span> ]
+</pre>
+</div><div class="anexo">
+<h1 id="s38">Anexo E. Registro de verificaciones</h1>
+<table>
+<caption>Tabla E1. Comprobaciones hechas por el equipo (las ejecutó Claude Code)</caption>
+<thead><tr><th>Qué se comprobó</th><th>Cómo</th><th>Resultado</th></tr></thead>
+<tbody>
+<tr><td>Commits y firmas de modelo</td><td><code>git rev-list --count</code>; <code>git log</code> con búsqueda de «Co-Authored-By»</td><td>78 commits; Sonnet 5.5: 31, Sonnet 4.6: 23, Opus 5.5: 1</td></tr>
+<tr><td>Tamaño del código de producción</td><td><code>wc -l</code> sin pruebas ni migraciones</td><td><code>plans</code>: 6 344 líneas; <code>health</code>: 1 901; 46 archivos <code>.py</code></td></tr>
+<tr><td>Cifras de la consulta</td><td><code>grep -c</code>, <code>git log -S</code>, lectura de las funciones citadas</td><td>Ver Tabla 3 del informe</td></tr>
+<tr><td>Menciones de patrones en el repositorio</td><td><code>git grep -c -iE</code> con los nombres de patrones</td><td>Sin resultados</td></tr>
+<tr><td>Prompts A y B; ampliación en A y B</td><td><code>diff</code> entre archivos</td><td>Solo cambian el párrafo de State y el nombre de la carpeta</td></tr>
+<tr><td>Pruebas de A y B tal como se generaron</td><td><code>PYTHONPATH=anexos/experimento manage.py test exp_a</code> (y <code>exp_b</code>)</td><td>A: 45 OK. B: 51 OK</td></tr>
+<tr><td>Pruebas de A y B tras ampliar</td><td>Mismo comando</td><td>A: 67 OK (13,6 s). B: 73 OK (12,4 s)</td></tr>
+<tr><td>Diff de la ampliación</td><td><code>diff -u</code> contra la copia guardada antes de ampliar</td><td>A: +34 y −5 (módulo), +210 y −3 (pruebas). B: +47 y −9 (módulo), +178 y −1 (pruebas)</td></tr>
+<tr><td>Que el experimento no alterara el proyecto</td><td><code>git status</code> y suite completa <code>manage.py test</code></td><td>Solo archivos nuevos en <code>docs/actividad-patrones/</code>. Suite completa del proyecto tras el experimento: 1009 pruebas OK (178 s), las mismas que antes.</td></tr>
+</tbody></table>
+</div></body></html>
