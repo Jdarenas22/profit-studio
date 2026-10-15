@@ -325,19 +325,25 @@ def day_view(client, plan, on_date):
     chosen = {c.slot_id: c for c in MealChoice.objects.filter(
         client=client, date=on_date, slot__nutrition_plan__plan=plan, option__is_active=True)}
     total = rules_foods.Totals()
-    picked = 0
+    picked = completed = 0
+    day_has_come = on_date <= health_dates.today()          # solo se marca "hecha" hoy o un día anterior
     for entry in slots:
         slot = entry['slot']
         choice = chosen.get(slot.id)
         entry['chosen_id'] = choice.option_id if choice else None
+        entry['choice_id'] = choice.pk if choice else None
+        entry['completed'] = bool(choice and choice.completed_at is not None)
+        # `can_complete` = se podría marcar ahora (para desmarcar basta `completed`)
+        entry['can_complete'] = bool(choice and day_has_come and choice.option_id not in conflicts)
         entry['week_left'], entry['day_left'] = alternatives_left(client, slot)
         if choice:
             picked += 1
+            completed += entry['completed']
             option = choice.option
             total = total + rules_foods.Totals(option.kcal, option.protein_g, option.carbs_g, option.fat_g)
     nutrition = plan.nutrition
     return {
-        'slots': slots, 'chosen_count': picked, 'slot_count': len(slots),
+        'slots': slots, 'chosen_count': picked, 'completed_count': completed, 'slot_count': len(slots),
         'day_totals': rules_foods.round_totals(total) if picked else None,
         'targets': {'kcal': nutrition.kcal_target, 'protein': nutrition.protein_g,
                     'carbs': nutrition.carbs_g, 'fat': nutrition.fat_g},
@@ -372,6 +378,38 @@ def choose_option(client, slot_pk, option_pk, on_date):
     if not created and choice.option_id != option.pk:
         choice.option, choice.completed_at = option, None
         choice.save(update_fields=['option', 'completed_at'])
+    return choice
+
+
+def complete_choice(client, choice_pk, done):
+    """Marca (`done=True`) o desmarca (`done=False`) una comida elegida como "cumplida" (fase D).
+
+    - Solo la dueña y solo sobre su plan aprobado vigente y una opción activa; cualquier otra cosa
+      (elección ajena, plan en borrador/archivado/reemplazado, opción reemplazada) = `OptionNotFound`.
+    - Marcar exige que el día sea hoy o anterior y que la opción siga siendo compatible con la
+      ficha; desmarcar siempre se permite.
+    - Es idempotente: marcar dos veces no cambia la hora ya guardada (la actualización condicional
+      se hace en la base, así un doble clic simultáneo tampoco la pisa) y desmarcar una comida sin
+      marca no hace nada.
+    """
+    plan = member_plan(client)
+    if plan is None:
+        raise OptionNotFound
+    choice = MealChoice.objects.select_related('option').filter(
+        pk=choice_pk, client=client, slot__nutrition_plan__plan=plan, option__is_active=True).first()
+    if choice is None:
+        raise OptionNotFound
+    if done:
+        if choice.date > health_dates.today():
+            raise services.PlanStateError('Solo puedes marcar comidas de hoy o de días anteriores.')
+        if choice.option_id in conflicting_option_ids(plan):
+            raise services.PlanStateError('Esa opción incluye un alimento que ya no es compatible con tu ficha. '
+                                          'No se puede marcar como cumplida; habla con tu entrenador.')
+        MealChoice.objects.filter(pk=choice.pk, option_id=choice.option_id, completed_at__isnull=True
+                                  ).update(completed_at=timezone.now())
+    else:
+        MealChoice.objects.filter(pk=choice.pk, completed_at__isnull=False).update(completed_at=None)
+    choice.refresh_from_db()
     return choice
 
 

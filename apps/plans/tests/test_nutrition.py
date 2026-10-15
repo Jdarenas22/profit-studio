@@ -648,3 +648,187 @@ class ChoiceTests(NutritionScenarioTestCase):
         self.assertTrue(names)
         self.assertNotIn('Leche entera', names)
         self.assertIn('Arroz blanco cocido', names)
+
+
+class CompleteChoiceTests(NutritionScenarioTestCase):
+    """Fase D: "Cumplí esta comida" (`nutrition.complete_choice`)."""
+
+    def setUp(self):
+        super().setUp()
+        self.plan = self.approved_nutrition(self.client_a)
+        self.slot = self.plan.nutrition.slots.get(code='lunch')
+        self.option = self.slot.options.get(position=1)
+        self.today = health.dates.today()
+
+    def pick(self, day=None, client=None, slot=None, option=None):
+        """Crea la elección directamente (`choose_option` no deja elegir días pasados)."""
+        return MealChoice.objects.create(client=client or self.client_a, slot=slot or self.slot,
+                                         option=option or self.option, date=day or self.today)
+
+    def complete(self, choice, done=True, client=None):
+        return nutrition.complete_choice(client or self.client_a, choice.pk, done)
+
+    def completed_at(self, choice):
+        choice.refresh_from_db()
+        return choice.completed_at
+
+    def test_mark_and_unmark(self):
+        choice = self.pick()
+        marked = self.complete(choice)
+        self.assertEqual(marked.pk, choice.pk)
+        self.assertIsNotNone(marked.completed_at)
+        self.assertEqual(self.completed_at(choice), marked.completed_at)
+        unmarked = self.complete(choice, done=False)
+        self.assertIsNone(unmarked.completed_at)
+        self.assertIsNone(self.completed_at(choice))
+
+    def test_marking_twice_keeps_the_first_time(self):
+        choice = self.pick()
+        self.complete(choice)
+        earlier = timezone.now() - timedelta(hours=3)
+        MealChoice.objects.filter(pk=choice.pk).update(completed_at=earlier)
+        again = self.complete(choice)                      # doble clic: no pisa la hora guardada
+        self.assertEqual(again.completed_at, earlier)
+        self.assertEqual(self.completed_at(choice), earlier)
+
+    def test_unmarking_an_unmarked_meal_does_nothing(self):
+        choice = self.pick()
+        for _ in range(2):
+            self.assertIsNone(self.complete(choice, done=False).completed_at)
+        self.assertEqual(MealChoice.objects.count(), 1)
+
+    def test_a_past_day_can_be_marked(self):
+        choice = self.pick(day=self.today - timedelta(days=2))
+        self.assertIsNotNone(self.complete(choice).completed_at)
+
+    def test_a_future_day_cannot_be_marked_but_can_be_unmarked(self):
+        choice = self.pick(day=self.today + timedelta(days=1))
+        with self.assertRaises(services.PlanStateError) as ctx:
+            self.complete(choice)
+        self.assertEqual(str(ctx.exception), 'Solo puedes marcar comidas de hoy o de días anteriores.')
+        self.assertIsNone(self.completed_at(choice))
+        MealChoice.objects.filter(pk=choice.pk).update(completed_at=timezone.now())   # (marca vieja)
+        self.assertIsNone(self.complete(choice, done=False).completed_at)
+
+    def test_changing_the_option_the_same_day_resets_the_mark(self):
+        first, second = self.slot.options.filter(position__in=(1, 2)).order_by('position')
+        choice = nutrition.choose_option(self.client_a, self.slot.pk, first.pk, self.today)
+        self.complete(choice)
+        nutrition.choose_option(self.client_a, self.slot.pk, second.pk, self.today)
+        self.assertIsNone(self.completed_at(choice))
+        self.assertIsNotNone(self.complete(choice).completed_at)                       # y se puede volver a marcar
+        nutrition.choose_option(self.client_a, self.slot.pk, second.pk, self.today)     # la misma opción: sin cambios
+        self.assertIsNotNone(self.completed_at(choice))
+
+    def test_an_incompatible_option_cannot_be_marked_but_can_be_unmarked(self):
+        choice = self.pick()
+        self.complete(choice)                                          # se marcó cuando todavía era compatible
+        MealOptionItem.objects.filter(option=self.option).update(food=Food.objects.get(name='Leche entera'))
+        self.make_profile(self.client_a, allergies=['milk'], allergy_severity='mild')
+        self.assertIn(self.option.pk, nutrition.conflicting_option_ids(self.plan))
+        self.assertIsNone(self.complete(choice, done=False).completed_at)
+        with self.assertRaises(services.PlanStateError) as ctx:
+            self.complete(choice)
+        self.assertIn('ya no es compatible con tu ficha', str(ctx.exception))
+        self.assertIsNone(self.completed_at(choice))
+
+    def test_someone_elses_choice_is_not_found_and_stays_untouched(self):
+        other = self.approved_nutrition(self.client_b)
+        foreign_slot = other.nutrition.slots.get(code='lunch')
+        foreign_option = foreign_slot.options.first()
+        theirs = self.pick(client=self.client_b, slot=foreign_slot, option=foreign_option)
+        known = timezone.now() - timedelta(days=1)
+        MealChoice.objects.filter(pk=theirs.pk).update(completed_at=known)
+        mine = self.pick()
+        forged = self.pick(slot=foreign_slot, option=foreign_option)   # (suya, pero de una comida de otra clienta)
+        for done in (True, False):
+            for choice, client in ((theirs, self.client_a), (mine, self.client_b), (forged, self.client_a)):
+                with self.subTest(done=done, choice=choice.pk, client=client.pk), self.assertRaises(nutrition.OptionNotFound):
+                    self.complete(choice, done=done, client=client)
+        with self.assertRaises(nutrition.OptionNotFound):
+            nutrition.complete_choice(self.client_a, 999999, True)
+        self.assertEqual(self.completed_at(theirs), known)
+        self.assertIsNone(self.completed_at(mine))
+        self.assertIsNone(self.completed_at(forged))
+
+    def test_a_choice_owned_by_someone_else_on_my_own_plan_is_not_found(self):
+        """Aunque el dato quede cruzado (elección de otra clienta sobre una comida de MI plan), la dueña
+        es quien cuenta: ni se marca ni se desmarca."""
+        known = timezone.now() - timedelta(hours=4)
+        intruder = self.pick(client=self.client_b)
+        MealChoice.objects.filter(pk=intruder.pk).update(completed_at=known)
+        for done in (True, False):
+            with self.subTest(done=done), self.assertRaises(nutrition.OptionNotFound):
+                self.complete(intruder, done=done)
+        self.assertEqual(self.completed_at(intruder), known)
+
+    def test_a_choice_from_a_draft_plan_is_not_found(self):
+        job, _ = self.request_nutrition(self.client_a)                 # 2.º plan, en borrador
+        draft_slot = job.plan.nutrition.slots.get(code='lunch')
+        choice = self.pick(slot=draft_slot, option=draft_slot.options.first())
+        with self.assertRaises(nutrition.OptionNotFound):
+            self.complete(choice)
+        self.assertIsNone(self.completed_at(choice))
+        # Y una clienta que solo tiene borrador no puede marcar nada
+        draft_b = self.nutrition_draft(self.client_b)
+        slot_b = draft_b.nutrition.slots.get(code='lunch')
+        choice_b = self.pick(client=self.client_b, slot=slot_b, option=slot_b.options.first())
+        with self.assertRaises(nutrition.OptionNotFound):
+            self.complete(choice_b, client=self.client_b)
+
+    def test_a_choice_from_an_archived_plan_is_not_found(self):
+        choice = self.pick()
+        services.archive_plan(self.plan, self.trainer_a, 'Cambió de objetivo')
+        with self.assertRaises(nutrition.OptionNotFound):
+            self.complete(choice)
+        self.assertIsNone(self.completed_at(choice))
+
+    def test_a_choice_from_a_superseded_plan_is_not_found(self):
+        old = self.pick()
+        job, _ = self.request_nutrition(self.client_a)
+        Plan.objects.filter(pk=job.plan.pk).update(is_simulated=False)
+        new_plan = services.approve_plan(Plan.objects.get(pk=job.plan.pk), self.boss)
+        self.assertEqual(Plan.objects.get(pk=self.plan.pk).status, Plan.STATUS_SUPERSEDED)
+        with self.assertRaises(nutrition.OptionNotFound):
+            self.complete(old)
+        new_slot = new_plan.nutrition.slots.get(code='lunch')
+        current = self.pick(slot=new_slot, option=new_slot.options.first())
+        self.assertIsNotNone(self.complete(current).completed_at)
+
+    def test_a_replaced_option_is_not_found(self):
+        choice = self.pick()
+        MealOption.objects.filter(pk=self.option.pk).update(is_active=False)
+        with self.assertRaises(nutrition.OptionNotFound):
+            self.complete(choice)
+        self.assertIsNone(self.completed_at(choice))
+
+    def test_day_view_tells_the_template_what_can_be_done(self):
+        lunch = self.pick()
+        tomorrow = self.pick(day=self.today + timedelta(days=1))
+        view = nutrition.day_view(self.client_a, self.plan, self.today)
+        entries = {entry['slot'].code: entry for entry in view['slots']}
+        self.assertEqual((entries['lunch']['choice_id'], entries['lunch']['completed'], entries['lunch']['can_complete']),
+                         (lunch.pk, False, True))
+        self.assertEqual((entries['lunch']['chosen_id'], view['chosen_count'], view['completed_count']),
+                         (self.option.pk, 1, 0))                       # (las claves de siempre siguen ahí)
+        for code in ('breakfast', 'dinner'):                          # sin elección: nada que marcar
+            self.assertEqual((entries[code]['choice_id'], entries[code]['completed'], entries[code]['can_complete']),
+                             (None, False, False))
+        self.complete(lunch)
+        view = nutrition.day_view(self.client_a, self.plan, self.today)
+        entry = [e for e in view['slots'] if e['slot'].code == 'lunch'][0]
+        self.assertEqual((entry['completed'], entry['can_complete'], view['completed_count']), (True, True, 1))
+        # Mañana: hay elección pero todavía no se puede marcar; lo de hoy no cuenta
+        view = nutrition.day_view(self.client_a, self.plan, self.today + timedelta(days=1))
+        entry = [e for e in view['slots'] if e['slot'].code == 'lunch'][0]
+        self.assertEqual((entry['choice_id'], entry['completed'], entry['can_complete'], view['completed_count']),
+                         (tomorrow.pk, False, False, 0))
+
+    def test_day_view_does_not_offer_to_mark_an_incompatible_option_but_shows_the_mark(self):
+        choice = self.pick()
+        self.complete(choice)
+        MealOptionItem.objects.filter(option=self.option).update(food=Food.objects.get(name='Leche entera'))
+        self.make_profile(self.client_a, allergies=['milk'], allergy_severity='mild')
+        view = nutrition.day_view(self.client_a, self.plan, self.today)
+        entry = [e for e in view['slots'] if e['slot'].code == 'lunch'][0]
+        self.assertEqual((entry['completed'], entry['can_complete'], view['completed_count']), (True, False, 1))

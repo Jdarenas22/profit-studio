@@ -3,19 +3,26 @@ ve lo aprobado y lo suyo, elegir opción, "otra opción", intercambios, lista de
 entrenador, bandeja e interruptores."""
 from datetime import timedelta
 
+from django.contrib.messages import get_messages
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.health import services as health
-from apps.plans import services
+from apps.plans import adaptation, services
 from apps.plans.models import Food, MealChoice, MealOption, MealOptionItem, Plan, PlanGenerationJob
+from apps.plans.rules import adaptation as rules_adaptation
 
 from .helpers import NutritionScenarioTestCase
 
 
 def has_milk(food):
     return 'milk' in food.allergen_tags or 'milk' in food.trace_tags
+
+
+def messages_of(response):
+    return [str(message) for message in get_messages(response.wsgi_request)]
 
 
 class TrainerNutritionAuthTests(NutritionScenarioTestCase):
@@ -412,13 +419,222 @@ class RequestAndTrainerFlowTests(NutritionScenarioTestCase):
         self.assertTrue(old.is_active)
 
 
+class MealCompleteViewTests(NutritionScenarioTestCase):
+    """Fase D: `member_meal_complete` ("Cumplí esta comida")."""
+
+    def setUp(self):
+        super().setUp()
+        self.plan = self.approved_nutrition(self.client_a)
+        self.slot = self.plan.nutrition.slots.get(code='lunch')
+        self.option = self.slot.options.get(position=1)
+        self.today = health.dates.today()
+        self.choice = MealChoice.objects.create(client=self.client_a, slot=self.slot, option=self.option, date=self.today)
+        self.login(self.client_a)
+
+    def url(self, choice=None):
+        return reverse('member_meal_complete', args=[(choice or self.choice).pk])
+
+    def post(self, done='1', choice=None):
+        return self.client.post(self.url(choice), {} if done is None else {'done': done})
+
+    def completed_at(self, choice=None):
+        return MealChoice.objects.get(pk=(choice or self.choice).pk).completed_at
+
+    def day_url(self, day=None):
+        return reverse('member_nutrition_plan') + f'?date={(day or self.today).isoformat()}#slot-{self.slot.pk}'
+
+    def test_mark_and_unmark_go_back_to_the_day(self):
+        response = self.post('1')
+        self.assertRedirects(response, self.day_url(), fetch_redirect_response=False)
+        self.assertIn('no-store', response['Cache-Control'])
+        self.assertEqual(messages_of(response), [])                       # la pantalla muestra el estado
+        self.assertIsNotNone(self.completed_at())
+        response = self.post('0')
+        self.assertRedirects(response, self.day_url(), fetch_redirect_response=False)
+        self.assertIsNone(self.completed_at())
+
+    def test_a_double_click_does_not_move_the_time(self):
+        self.post('1')
+        earlier = timezone.now() - timedelta(hours=5)
+        MealChoice.objects.filter(pk=self.choice.pk).update(completed_at=earlier)
+        self.post('1')
+        self.assertEqual(self.completed_at(), earlier)
+        self.post('0')
+        self.post('0')                                                    # desmarcar lo no marcado no falla
+        self.assertIsNone(self.completed_at())
+
+    def test_changing_the_option_the_same_day_resets_the_mark(self):
+        self.post('1')
+        other = self.slot.options.get(position=2)
+        response = self.client.post(reverse('member_meal_choice'), {
+            'slot': self.slot.pk, 'option': other.pk, 'date': self.today.isoformat()})
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(self.completed_at())
+        self.assertEqual(MealChoice.objects.get(pk=self.choice.pk).option, other)
+
+    def test_a_past_day_can_be_marked(self):
+        past = MealChoice.objects.create(client=self.client_a, slot=self.slot, option=self.option,
+                                         date=self.today - timedelta(days=3))
+        response = self.post('1', past)
+        self.assertRedirects(response, self.day_url(past.date), fetch_redirect_response=False)
+        self.assertIsNotNone(self.completed_at(past))
+
+    def test_a_future_day_cannot_be_marked(self):
+        future = MealChoice.objects.create(client=self.client_a, slot=self.slot, option=self.option,
+                                           date=self.today + timedelta(days=2))
+        response = self.post('1', future)
+        self.assertRedirects(response, reverse('member_nutrition_plan'), fetch_redirect_response=False)
+        self.assertEqual(messages_of(response), ['Solo puedes marcar comidas de hoy o de días anteriores.'])
+        self.assertIsNone(self.completed_at(future))
+
+    def test_an_incompatible_option_cannot_be_marked_but_can_be_unmarked(self):
+        self.post('1')
+        MealOptionItem.objects.filter(option=self.option).update(food=Food.objects.get(name='Leche entera'))
+        self.make_profile(self.client_a, allergies=['milk'], allergy_severity='mild')
+        response = self.post('0')                                         # quitar la marca siempre se puede
+        self.assertRedirects(response, self.day_url(), fetch_redirect_response=False)
+        self.assertIsNone(self.completed_at())
+        response = self.post('1')
+        self.assertRedirects(response, reverse('member_nutrition_plan'), fetch_redirect_response=False)
+        self.assertTrue(any('ya no es compatible con tu ficha' in text for text in messages_of(response)))
+        self.assertIsNone(self.completed_at())
+
+    def test_another_clients_choice_is_a_404_and_stays_untouched(self):
+        other = self.approved_nutrition(self.client_b)
+        other_slot = other.nutrition.slots.get(code='lunch')
+        theirs = MealChoice.objects.create(client=self.client_b, slot=other_slot, option=other_slot.options.first(),
+                                           date=self.today)
+        known = timezone.now() - timedelta(hours=2)
+        MealChoice.objects.filter(pk=theirs.pk).update(completed_at=known)
+        for done in ('1', '0'):
+            self.assertEqual(self.post(done, theirs).status_code, 404)
+        self.assertEqual(self.completed_at(theirs), known)
+        intruder = MealChoice.objects.create(client=self.client_b, slot=self.slot, option=self.option, date=self.today)
+        self.assertEqual(self.post('1', intruder).status_code, 404)       # (dato cruzado sobre MI comida)
+        self.assertIsNone(self.completed_at(intruder))
+        self.assertEqual(self.client.post(reverse('member_meal_complete', args=[999999]), {'done': '1'}).status_code, 404)
+        self.login(self.client_b)                                         # y al revés
+        self.assertEqual(self.post('1').status_code, 404)
+        self.assertIsNone(self.completed_at())
+
+    def test_a_choice_of_an_unapproved_plan_is_a_404(self):
+        draft = self.nutrition_draft(self.client_b)                       # solo borrador: sin plan aprobado
+        slot = draft.nutrition.slots.get(code='lunch')
+        choice = MealChoice.objects.create(client=self.client_b, slot=slot, option=slot.options.first(), date=self.today)
+        self.login(self.client_b)
+        self.assertEqual(self.post('1', choice).status_code, 404)
+        self.assertIsNone(self.completed_at(choice))
+        self.login(self.client_a)                                         # tiene plan aprobado + un borrador nuevo
+        job, _ = self.request_nutrition(self.client_a)
+        draft_slot = job.plan.nutrition.slots.get(code='lunch')
+        in_draft = MealChoice.objects.create(client=self.client_a, slot=draft_slot, option=draft_slot.options.first(),
+                                             date=self.today)
+        self.assertEqual(self.post('1', in_draft).status_code, 404)
+        self.assertIsNone(self.completed_at(in_draft))
+        services.archive_plan(self.plan, self.trainer_a, 'Cambió de objetivo')
+        self.assertEqual(self.post('1').status_code, 404)                 # archivado también
+        self.assertIsNone(self.completed_at())
+
+    def test_a_replaced_option_is_a_404(self):
+        MealOption.objects.filter(pk=self.option.pk).update(is_active=False)
+        self.assertEqual(self.post('1').status_code, 404)
+        self.assertIsNone(self.completed_at())
+
+    def test_trainers_are_forbidden_and_anonymous_users_go_to_login(self):
+        for user in (self.trainer_a, self.boss):
+            self.login(user)
+            self.assertEqual(self.post('1').status_code, 403)
+        self.client.logout()
+        response = self.post('1')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('login'), response['Location'])
+        self.assertIsNone(self.completed_at())
+
+    def test_only_post_is_accepted(self):
+        for method in ('get', 'put', 'delete'):
+            response = getattr(self.client, method)(self.url())
+            self.assertEqual(response.status_code, 405, method)
+            self.assertIn('no-store', response['Cache-Control'])
+        self.assertIsNone(self.completed_at())
+
+    def test_an_invalid_done_is_a_form_error_without_changes(self):
+        known = timezone.now() - timedelta(hours=1)
+        MealChoice.objects.filter(pk=self.choice.pk).update(completed_at=known)
+        for done in (None, '', 'yes', 'true', '2', '-1', '1 ', 'x' * 500):
+            with self.subTest(done=done):
+                response = self.post(done)
+                self.assertRedirects(response, reverse('member_nutrition_plan'), fetch_redirect_response=False)
+                # (el almacén de mensajes acumula los que nadie ha mostrado: se mira el último)
+                self.assertEqual(messages_of(response)[-1], 'No se pudo guardar. Inténtalo de nuevo.')
+                self.assertEqual(self.completed_at(), known)
+
+    def test_the_page_context_carries_what_the_template_needs(self):
+        response = self.client.get(reverse('member_nutrition_plan'))
+        self.assertEqual(response.status_code, 200)
+        lunch = [entry for entry in response.context['slots'] if entry['slot'].code == 'lunch'][0]
+        self.assertEqual((lunch['choice_id'], lunch['completed'], lunch['can_complete']), (self.choice.pk, False, True))
+        self.assertEqual(response.context['completed_count'], 0)
+        self.post('1')
+        response = self.client.get(reverse('member_nutrition_plan'))
+        lunch = [entry for entry in response.context['slots'] if entry['slot'].code == 'lunch'][0]
+        self.assertEqual((lunch['completed'], lunch['can_complete']), (True, True))
+        self.assertEqual((response.context['completed_count'], response.context['chosen_count']), (1, 1))
+        tomorrow = self.today + timedelta(days=1)
+        response = self.client.get(reverse('member_nutrition_plan'), {'date': tomorrow.isoformat()})
+        self.assertEqual(response.context['completed_count'], 0)
+        self.assertTrue(all(not entry['can_complete'] and not entry['completed'] for entry in response.context['slots']))
+
+
+@override_settings(AI_PLANS_ADAPTATION=True)
+class MealCompleteAdaptationTests(NutritionScenarioTestCase):
+    """De punta a punta: lo que la clienta marca en la vista llega a la señal de «le gusta» de la
+    adaptación y a lo que se le manda a la IA."""
+
+    def test_marking_meals_with_the_same_foods_makes_them_liked_foods(self):
+        plan = self.approved_nutrition(self.client_a)
+        Plan.objects.filter(pk=plan.pk).update(approved_at=timezone.now() - timedelta(days=30))   # ya hay historial
+        slot = plan.nutrition.slots.get(code='lunch')
+        option = slot.options.get(position=1)
+        foods = set(option.items.values_list('food_id', flat=True))
+        profile = health.current_profile(self.client_a)
+        today = health.dates.today()
+        meals = rules_adaptation.LIKED_MIN_MEALS
+        choices = [MealChoice.objects.create(client=self.client_a, slot=slot, option=option,
+                                             date=today - timedelta(days=ago)) for ago in range(1, meals + 1)]
+
+        def liked():
+            return set(rules_adaptation.build_profile(adaptation.collect(self.client_a, profile)).liked_food_ids)
+
+        self.login(self.client_a)
+        self.assertEqual(liked(), set())                                  # elegir no basta: hay que marcarla
+        for choice in choices[:-1]:
+            response = self.client.post(reverse('member_meal_complete', args=[choice.pk]), {'done': '1'})
+            self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(adaptation._completed_meals(self.client_a, today)), meals - 1)
+        self.assertEqual(liked(), set())                                  # una menos que el mínimo
+        self.client.post(reverse('member_meal_complete', args=[choices[-1].pk]), {'done': '1'})
+        self.assertEqual(liked(), foods)
+        # La IA recibe esa preferencia en el pedido siguiente
+        with self.fake_ai() as fake, self.captureOnCommitCallbacks(execute=True):
+            job, _created = services.request_plan(self.client_a, 'nutrition', self.client_a, services.new_request_token())
+        job.refresh_from_db()
+        self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
+        self.assertEqual(set(fake.calls[0]['payload']['history']['nutrition']['liked_food_ids']), foods)
+        self.assertEqual(job.adaptation_summary['liked_foods'], len(foods))
+        # Quitar una marca quita la señal
+        self.client.post(reverse('member_meal_complete', args=[choices[-1].pk]), {'done': '0'})
+        self.assertEqual(liked(), set())
+
+
 class NutritionSwitchTests(NutritionScenarioTestCase):
     def test_everything_is_404_when_off(self):
         plan = self.approved_nutrition(self.client_a)
         slot = plan.nutrition.slots.first()
         option = slot.options.first()
+        choice = MealChoice.objects.create(client=self.client_a, slot=slot, option=option, date=health.dates.today())
         member = [('get', reverse('member_nutrition_plan')), ('get', reverse('member_exchanges')),
                   ('get', reverse('member_shopping_list')), ('post', reverse('member_meal_choice')),
+                  ('post', reverse('member_meal_complete', args=[choice.pk])),
                   ('post', reverse('member_meal_alternative', args=[slot.pk]))]
         trainer = [('get', reverse('trainer_meal_option_edit', args=[plan.pk, option.pk])),
                    ('post', reverse('trainer_meal_option_review', args=[plan.pk, option.pk]))]
