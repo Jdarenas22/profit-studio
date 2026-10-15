@@ -755,3 +755,25 @@ Implementado: catálogo de alimentos, cálculo de energía y macros, plan de ali
 - **Quién aprueba**: el diseño exige credencial de nutrición; si el seguimiento lo hace un entrenador físico, la superusuaria tendría que otorgarle la credencial en el admin, y eso es una decisión legal (Ley 1164 de 2007) que debe confirmar un abogado.
 - **Gemini real sin probar**: `check_gemini` ahora prueba también una comida (esquema con la lista de ids de alimentos); falta correrlo con la clave y medir tokens y tasa de fallos de V04/V05.
 - **Entrega por correo/WhatsApp** de la dieta: no está en esta fase (hoy la clienta la ve en su cuenta y puede imprimirla).
+
+### Fase D (parcial): marcar comida hecha (2026-10-15, rama `plan-ia-d-comida-hecha`)
+
+Implementado: la ruta `member_meal_complete` («Cumplí esta comida», sección 8.3). Es la primera pieza de la fase D; el resto (bandeja con contador, clonar, progreso, trabajos con problemas) sigue pendiente. **Sin migración**: `MealChoice.completed_at` ya existía desde la fase C, pero ninguna vista lo escribía.
+
+**Qué se construyó**
+
+- `POST /plans/nutrition/choices/<pk>/complete/` (`pk` = `MealChoice`), campo `done` (`1` marca, `0` desmarca; otro valor = error de formulario sin cambios). Mismos decoradores y protecciones que `member_meal_choice`: función apagada = 404, entrenador = 403, anónimo = inicio de sesión, solo POST y `Cache-Control: no-store`. En éxito vuelve a `member_nutrition_plan?date=...#slot-N` sin mensaje (la pantalla muestra el estado).
+- `nutrition.complete_choice(client, choice_pk, done)`: solo la dueña, solo sobre su plan aprobado vigente y una opción activa; lo ajeno, un plan en borrador/archivado/reemplazado o una opción reemplazada = `OptionNotFound` (404, evita IDOR). Marcar exige que el día sea hoy o anterior y que la opción siga siendo compatible con la ficha; **desmarcar siempre se permite**.
+- Idempotente: la marca se escribe con una actualización condicional en la base (`completed_at` solo si estaba vacío), así el doble clic, aunque llegue en paralelo, no pisa la hora. Cambiar de opción el mismo día sigue reiniciando la marca (`choose_option`).
+- `nutrition.day_view` agrega por comida `choice_id`, `completed` y `can_complete`, y a nivel del día `completed_count`; las claves anteriores no cambian. Pedido a la plantilla: `docs/contracts/requests.md`, «Fase D: marcar comida hecha».
+- Pruebas sin red: servicio, vista (incluidos 404 por elección ajena o de un plan no aprobado, 403, 405, `done` inválido y `no-store`), contexto y la matriz de interruptores; más un recorrido de punta a punta (marcar por la vista → perfil de adaptación → pedido a la IA).
+
+**Cierra una dependencia de la adaptación**
+
+La señal `liked_food_ids` (`apps/plans/adaptation.py::_completed_meals`, umbral `LIKED_MIN_MEALS = 3` de `rules/adaptation.py`) lee `MealChoice.completed_at`. Hasta hoy nada lo escribía y la señal salía siempre vacía; con esta ruta, un alimento presente en 3 o más comidas marcadas aparece en `history.nutrition.liked_food_ids` del siguiente pedido a la IA (con `AI_PLANS_ADAPTATION` encendida, que sigue apagada por defecto). Las reglas y umbrales de la adaptación no cambiaron.
+
+**Pendiente / observaciones**
+
+- La plantilla `plans/member_nutrition.html` (botón «Cumplí esta comida») es del frontend.
+- La pantalla solo navega de hoy a hoy + 6 (`meal_dates`), así que desde la interfaz únicamente se marcan comidas de hoy, aunque el servicio acepta días anteriores. Si se quiere dejar marcar «ayer», es una decisión de producto aparte.
+- La adherencia de comidas para el entrenador (F-16, sección 8.2) todavía no se muestra: el dato ya se guarda, falta la pantalla.

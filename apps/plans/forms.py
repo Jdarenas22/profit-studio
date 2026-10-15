@@ -43,6 +43,12 @@ class MealChoiceForm(forms.Form):
         'required': 'Falta el día.', 'invalid': 'Día no válido.'})
 
 
+class CompleteForm(forms.Form):
+    """"Cumplí esta comida": `1` marca, `0` desmarca. Cualquier otro valor (o ninguno) es un error."""
+    done = forms.ChoiceField(choices=[('1', 'Marcar como cumplida'), ('0', 'Quitar la marca')], error_messages={
+        'required': 'Falta indicar si cumpliste la comida.', 'invalid_choice': 'Valor no válido.'})
+
+
 class AlternativeForm(forms.Form):
     option = forms.IntegerField(min_value=1, error_messages={'required': 'Elige la opción que quieres cambiar.',
                                                               'invalid': 'Opción no válida.'})

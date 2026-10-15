@@ -10,6 +10,7 @@ urlpatterns = [
     path('requests/<int:pk>/status/', views.member_plan_request_poll, name='member_plan_request_poll'),
     path('nutrition/', views.member_nutrition_plan, name='member_nutrition_plan'),
     path('nutrition/choices/', views.member_meal_choice, name='member_meal_choice'),
+    path('nutrition/choices/<int:pk>/complete/', views.member_meal_complete, name='member_meal_complete'),
     path('nutrition/slots/<int:slot_pk>/alternatives/', views.member_meal_alternative, name='member_meal_alternative'),
     path('nutrition/exchanges/', views.member_exchanges, name='member_exchanges'),
     path('nutrition/shopping-list/', views.member_shopping_list, name='member_shopping_list'),

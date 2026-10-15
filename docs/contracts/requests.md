@@ -5,7 +5,7 @@ Contrato de referencia: `docs/contracts/plan-ia.md` (propuesta pendiente de apro
 
 ## De arquitecto-backend para frontend-architect
 
-Estado: contrato aprobado. **Fases A1, A2, B y C implementadas en el backend** (la B y la C también con sus plantillas; ver "Fase B: entregada" y "Fase C: entregada" más abajo) (ver "Contrato A1 para el frontend" y "Contrato A2 para el frontend" más abajo; si algo difiere de las filas F-01 a F-05 de las tablas, mandan esos bloques); las demás fases siguen **PENDIENTES** hasta que se construyan.
+Estado: contrato aprobado. **Fases A1, A2, B y C implementadas en el backend** (la B y la C también con sus plantillas; ver "Fase B: entregada" y "Fase C: entregada" más abajo) (ver "Contrato A1 para el frontend" y "Contrato A2 para el frontend" más abajo; si algo difiere de las filas F-01 a F-05 de las tablas, mandan esos bloques); las demás fases siguen **PENDIENTES** hasta que se construyan. Excepción: de la fase D ya existe `member_meal_complete` (ver «Fase D: marcar comida hecha» más abajo).
 
 ### Convenciones (igual que las vistas actuales)
 
@@ -206,6 +206,24 @@ Textos libres: el servidor los normaliza (espacios, caracteres invisibles) y **r
 - Opcional: en `assessments/member_measurements.html`, un enlace a "Mi ficha de salud" dentro del mismo `{% if %}`.
 
 **Qué NO hace el backend en A2 (para no esperarlo en la UI):** no hay pantalla de historial de accesos (queda en `HealthAccessLog`, sin interfaz); no se pueden ver versiones anteriores de la ficha (solo la lista `versions`); el entrenador no ve ni gestiona consentimientos desde esta pantalla (solo ve si existen); las banderas no se guardan, se calculan cada vez.
+
+### Fase D: marcar comida hecha (`member_meal_complete`) (IMPLEMENTADO por el backend, 2026-10-15)
+
+Primera pieza de la fase D (el resto sigue pendiente). Sin migración: `MealChoice.completed_at` ya existía. Pedido a `plans/member_nutrition.html`.
+
+- **Ruta**: `POST {% url 'member_meal_complete' entry.choice_id %}` (`/plans/nutrition/choices/<pk>/complete/`). El `pk` es el de la **elección del día** (`entry.choice_id`), no el de la opción ni el de la comida. Solo POST (un GET responde 405). Misma protección que `member_meal_choice`: clienta con membresía, función apagada = 404, entrenador = 403, `Cache-Control: no-store`.
+- **Campo POST `done`**: `1` marca como cumplida, `0` quita la marca. Cualquier otro valor (o ninguno) es un error de formulario: mensaje «No se pudo guardar. Inténtalo de nuevo.» y no cambia nada. Es idempotente: enviar `done=1` dos veces conserva la hora de la primera, así que un doble clic no hace daño.
+- **Respuesta**: redirige a `member_nutrition_plan?date=<día>#slot-<id de la comida>`. **No hay mensaje de éxito**: la pantalla muestra el estado (`entry.completed`). Los errores llegan como mensajes (`messages.error`) y redirigen a `member_nutrition_plan` sin fecha: «Solo puedes marcar comidas de hoy o de días anteriores.» y «Esa opción incluye un alimento que ya no es compatible con tu ficha. No se puede marcar como cumplida; habla con tu entrenador.». Una elección que no es suya o que no está en su plan aprobado responde 404.
+- **Claves nuevas del contexto de `member_nutrition_plan`** (las de siempre —`chosen_id`, `week_left`, `day_left`, `chosen_count`, `slot_count`, `day_totals`, `targets`— no cambian):
+  - En cada elemento de `slots` (`entry`): `choice_id` (int o `None`: la elección de ese día para esa comida), `completed` (bool: ya está marcada) y `can_complete` (bool: hay elección, su día es hoy o anterior y su opción sigue siendo compatible con la ficha; en días futuros es siempre `False`).
+  - Nivel superior: `completed_count` (int: comidas marcadas ese día; úsalo como «2 de 3 comidas cumplidas»; el total es `slot_count`).
+- **Lo que se pide a la plantilla**:
+  1. Por cada comida, un formulario `method="post"` hacia `member_meal_complete` con `{% csrf_token %}` y un `<input type="hidden" name="done">` cuyo valor es `0` si `entry.completed` y `1` si no.
+  2. Mostrarlo solo si `entry.can_complete or entry.completed` (marcar necesita `can_complete`; quitar la marca solo necesita `completed`, aunque `can_complete` sea `False`).
+  3. Texto del botón para marcar: «Cumplí esta comida». Con la marca puesta, mostrar el estado de forma clara y permitir deshacerla con el mismo formulario; el texto exacto de ese estado lo define el frontend.
+  4. El botón se deshabilita mientras envía (como los demás).
+  5. Ocultarlo en la impresión.
+- **Para saber**: las pastillas de día de la pantalla van de hoy a hoy + 6, así que desde la interfaz solo se marcan comidas de **hoy** (el servicio acepta también días anteriores, pero la pantalla no navega hacia atrás). La hora de la marca no se muestra en ninguna parte.
 
 ## De frontend-architect para arquitecto-backend
 

@@ -27,8 +27,8 @@ from apps.health.models import PURPOSE_AI, PURPOSE_HEALTH_DATA, HealthAccessLog
 from . import adaptation as adaptation_service
 from . import ai, jobs, nutrition, services
 from .forms import (
-    AlternativeForm, ApproveForm, ArchiveForm, GenerateForm, MealChoiceForm, PlanRequestForm, RegenerateForm,
-    ReviewOptionForm, parse_option_post,
+    AlternativeForm, ApproveForm, ArchiveForm, CompleteForm, GenerateForm, MealChoiceForm, PlanRequestForm,
+    RegenerateForm, ReviewOptionForm, parse_option_post,
 )
 from .models import KIND_EXERCISE, KIND_NUTRITION, MealOption, Plan, PlanGenerationJob
 from .rules import eligibility as rules_eligibility
@@ -511,6 +511,26 @@ def member_meal_choice(request):
         messages.error(request, str(exc))
         return redirect('member_nutrition_plan')
     return _back_to_day(data['date'], data['slot'])
+
+
+@plans_feature_required
+@member_required
+@require_POST
+def member_meal_complete(request, pk):
+    """Fase D: "Cumplí esta comida". `pk` = id del `MealChoice` de la clienta; `done` = `1` marca,
+    `0` desmarca. Una elección que no es suya o que no está en su plan aprobado = 404."""
+    form = CompleteForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'No se pudo guardar. Inténtalo de nuevo.')
+        return redirect('member_nutrition_plan')
+    try:
+        choice = nutrition.complete_choice(request.user, pk, form.cleaned_data['done'] == '1')
+    except nutrition.OptionNotFound:
+        raise Http404 from None
+    except services.PlanError as exc:
+        messages.error(request, str(exc))
+        return redirect('member_nutrition_plan')
+    return _back_to_day(choice.date, choice.slot_id)
 
 
 @plans_feature_required
