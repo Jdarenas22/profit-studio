@@ -1,0 +1,94 @@
+--- docs/actividad-patrones/anexos/experimento/base/exp_a/plan_lifecycle.py	2026-10-15 16:58:31.319097300 -0500
++++ docs/actividad-patrones/anexos/experimento/exp_a/plan_lifecycle.py	2026-10-15 16:59:12.918002100 -0500
+@@ -1,6 +1,8 @@
+ """Ciclo de vida de un `Plan`: los cambios de estado (capa de casos de uso).
+ 
+-Estados: `draft_ai` -> `in_review` -> `approved` -> `superseded` / `archived`.
++Estados: `draft_ai` -> `in_review` -> `approved` -> `superseded` / `archived`. Un plan `approved`
++cuya vigencia (`valid_until`) ya pasó se marca `expired` (`expire_overdue_plans`) y luego solo se
++puede archivar.
+ 
+ Capas de este módulo (de adentro hacia afuera):
+ 
+@@ -8,7 +10,8 @@
+ 2. Acceso a datos: funciones pequeñas con prefijo `_` que leen o escriben `Plan`, `PlanEvent` y
+    `Routine`. Los casos de uso no escriben consultas sueltas.
+ 3. Autorización: `_ensure_access` (el actor debe ser entrenador con acceso a la clienta).
+-4. Casos de uso públicos: `take_for_review`, `archive_plan`, `approve_plan`, `regenerate_plan`.
++4. Casos de uso públicos: `take_for_review`, `archive_plan`, `approve_plan`, `regenerate_plan`,
++   `expire_overdue_plans`.
+ 
+ Las vistas HTTP (controladores) solo traducen la petición a estas llamadas y las excepciones a
+ respuestas. Aquí no hay `request` ni plantillas. Quedan fuera, porque las comprueba quien llama:
+@@ -33,18 +36,22 @@
+ 
+ __all__ = [
+     'PlanNotAllowed', 'PlanStateError',
+-    'take_for_review', 'archive_plan', 'approve_plan', 'regenerate_plan',
++    'take_for_review', 'archive_plan', 'approve_plan', 'regenerate_plan', 'expire_overdue_plans',
+ ]
+ 
+ logger = logging.getLogger(__name__)
+ 
+ # ─── 1. Reglas puras ──────────────────────────────────────────────────────────
+ 
+-ARCHIVABLE_STATUSES = (Plan.STATUS_DRAFT_AI, Plan.STATUS_IN_REVIEW, Plan.STATUS_APPROVED)
++# El modelo `Plan` no define el estado `expired` (este módulo no lo toca): se declara aquí.
++STATUS_EXPIRED = 'expired'
++ACTION_EXPIRED = 'expired'
++ARCHIVABLE_STATUSES = (Plan.STATUS_DRAFT_AI, Plan.STATUS_IN_REVIEW, Plan.STATUS_APPROVED, STATUS_EXPIRED)
+ APPROVAL_VALIDITY_DAYS = 28
+ ARCHIVE_REASON_MAX = 300
+ NOTE_MAX = 500
+ DEFAULT_ARCHIVE_REASON = 'Archivado por el entrenador.'
++EXPIRED_NOTE = 'Vigencia vencida.'
+ 
+ MSG_NOT_ALLOWED = 'No tienes acceso a este plan.'
+ MSG_CANNOT_ARCHIVE = 'Este plan ya no se puede archivar.'
+@@ -100,6 +107,13 @@
+         logger.info('Plan %s: approved -> superseded por el plan %s.', old.pk, new_plan.pk)
+ 
+ 
++def _lock_overdue_approved(today):
++    """Planes aprobados con vigencia anterior a `today`, con la fila bloqueada (sin fecha = no vence)."""
++    return list(
++        Plan.objects.select_for_update().filter(status=Plan.STATUS_APPROVED, valid_until__lt=today)
++    )
++
++
+ def _notify_client_approved(plan):
+     """Aviso a la clienta tras confirmarse la transacción. Un fallo del aviso no deshace la aprobación."""
+     try:
+@@ -142,7 +156,7 @@
+ 
+ 
+ def archive_plan(plan, actor, reason=''):
+-    """Archiva un borrador, un plan en revisión o un plan aprobado y desactiva su rutina."""
++    """Archiva un borrador, un plan en revisión, un plan aprobado o uno vencido y desactiva su rutina."""
+     _ensure_access(plan, actor)
+     with transaction.atomic():
+         locked = _lock_plan(plan.pk)
+@@ -225,3 +239,23 @@
+     if created:
+         logger.info('Plan %s: regeneración pedida (actor %s).', plan.pk, actor.pk)
+     return job, created
++
++
++def expire_overdue_plans(today=None):
++    """`approved` -> `expired` para los planes cuya `valid_until` es anterior a `today`. Devuelve cuántos.
++
++    `today` es hoy (`dates.today()`) si no se indica. Desactiva la rutina de cada plan y registra su
++    evento sin actor (lo hace el sistema, no una persona). Es idempotente: solo toca planes que
++    siguen en `approved`, así que repetirlo no cambia nada.
++    """
++    if today is None:
++        today = dates.today()
++    with transaction.atomic():
++        overdue = _lock_overdue_approved(today)
++        for plan in overdue:
++            plan.status = STATUS_EXPIRED
++            plan.save(update_fields=['status'])
++            _set_routine_active(plan, False)
++            _record_event(plan, None, ACTION_EXPIRED, EXPIRED_NOTE)
++            logger.info('Plan %s: approved -> expired (vigencia hasta %s).', plan.pk, plan.valid_until)
++    return len(overdue)
