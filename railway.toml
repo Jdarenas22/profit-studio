@@ -1,5 +1,8 @@
 [build]
 builder = "nixpacks"
+# collectstatic en el BUILD (no en cada arranque). Si falla (p. ej. faltan variables en el build),
+# el build sigue y start.sh lo repite al arrancar solo si falta staticfiles/.
+buildCommand = "python manage.py collectstatic --noinput || echo 'AVISO: collectstatic fallo en el build; start.sh lo repetira'"
 
 [build.env]
 DJANGO_SETTINGS_MODULE = "config.settings.production"
