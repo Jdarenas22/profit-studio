@@ -125,14 +125,14 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-white/60 text-xs font-medium mb-2">Contraseña *</label>
-            <input type="password" name="password1" required
+            <input type="password" name="password1" required autocomplete="new-password"
                    placeholder="Mínimo 8 caracteres"
                    class="w-full bg-black/40 border {% if errors.password1 %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
             {% if errors.password1 %}<p class="text-red-400 text-xs mt-1">{{ errors.password1 }}</p>{% else %}<p class="text-white/20 text-xs mt-1">Mínimo 8 caracteres; no puede ser común ni solo números.</p>{% endif %}
           </div>
           <div>
             <label class="block text-white/60 text-xs font-medium mb-2">Repetir contraseña *</label>
-            <input type="password" name="password2" required
+            <input type="password" name="password2" required autocomplete="new-password"
                    placeholder="••••••••"
                    class="w-full bg-black/40 border {% if errors.password2 %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
             {% if errors.password2 %}<p class="text-red-400 text-xs mt-1">{{ errors.password2 }}</p>{% endif %}

@@ -1,0 +1,4 @@
+/* Fuente de Tailwind. No se sirve: se compila a static/css/app.css con scripts/build-css.(ps1|sh). */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
