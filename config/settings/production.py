@@ -98,7 +98,10 @@ X_FRAME_OPTIONS = 'DENY'
 # ─── Archivos estáticos — sin manifest para evitar errores al iniciar ──────────
 # CompressedStaticFilesStorage comprime los archivos pero NO crea staticfiles.json
 # Evita el error "Missing staticfiles.json manifest" si collectstatic falla.
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STORAGES = {
+    **STORAGES,
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 # ─── Cloudflare R2 — almacenamiento de archivos (OPCIONAL) ─────────────────────
 _r2_key       = env('R2_ACCESS_KEY_ID', default='')
@@ -119,7 +122,11 @@ if _r2_key and _r2_secret and _r2_bucket and _r2_endpoint:
     AWS_DEFAULT_ACL         = None           # R2 no soporta ACLs por objeto; acceso controlado a nivel bucket
     AWS_S3_FILE_OVERWRITE   = False
     AWS_QUERYSTRING_AUTH    = False          # media pública: URLs permanentes (requiere bucket público en Cloudflare)
-    DEFAULT_FILE_STORAGE    = 'storages.backends.s3boto3.S3Boto3Storage'
+    # La media pública va a R2 (los estáticos siguen con WhiteNoise: ver STORAGES más arriba)
+    STORAGES = {
+        **STORAGES,
+        'default': {'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage'},
+    }
 
     # ── URLs de la media pública ──────────────────────────────────────────────────
     # django-storages (S3Boto3Storage.url) NO usa MEDIA_URL: arma `FieldFile.url` con

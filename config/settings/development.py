@@ -16,7 +16,10 @@ DATABASES = {
 }
 
 # ─── Archivos multimedia locales ────────────────────────────────────────────────
-DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+STORAGES = {
+    **STORAGES,
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+}
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 

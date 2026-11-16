@@ -109,7 +109,15 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# ─── Almacenamiento (STORAGES) ──────────────────────────────────────────────────
+# Django 5.1 eliminó DEFAULT_FILE_STORAGE y STATICFILES_STORAGE: ya no se leen y no avisan.
+# 'default' guarda las subidas (media); 'staticfiles' sirve los estáticos con WhiteNoise.
+# production.py cambia 'staticfiles' (sin manifest) y, con R2, también 'default'.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
 
 # ─── Archivos media (subidas por usuarios) ───────────────────────────────────────
 # Producción sin R2 usa estas mismas rutas; con R2 las sobreescribe production.py.
