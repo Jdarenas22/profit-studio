@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Proyecto
 
-**ProFit Studio** — Plataforma web de gestión para gimnasio/entrenamiento personal. Django 5.0.6, desplegado en Railway con PostgreSQL. El negocio opera en Colombia (moneda COP, zona horaria `America/Bogota`).
+**ProFit Studio** — Plataforma web de gestión para gimnasio/entrenamiento personal. Django 5.2 LTS (5.2.19), desplegado en Railway con PostgreSQL (**Django 5.2 exige PostgreSQL 14 o superior**: con una versión anterior el servidor no arranca). El negocio opera en Colombia (moneda COP, zona horaria `America/Bogota`).
 
 ## Comandos esenciales
 

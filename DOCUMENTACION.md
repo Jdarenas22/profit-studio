@@ -52,9 +52,9 @@ El sistema tiene dos tipos de usuarios:
 | Tecnología | Versión | Para qué sirve |
 |------------|---------|----------------|
 | **Python** | 3.11+ | Lenguaje de programación principal |
-| **Django** | 5.0.6 | Framework web — maneja URLs, base de datos, plantillas, autenticación |
+| **Django** | 5.2.19 (LTS) | Framework web — maneja URLs, base de datos, plantillas, autenticación |
 | **Gunicorn** | 22.0.0 | Servidor WSGI para producción (el que "sirve" la web) |
-| **PostgreSQL** | latest | Base de datos en producción (más robusta que SQLite) |
+| **PostgreSQL** | 14 o superior (lo exige Django 5.2) | Base de datos en producción (más robusta que SQLite) |
 | **SQLite** | built-in | Base de datos en desarrollo local (un solo archivo) |
 | **Redis** | 5.0.7 | Caché compartida opcional en producción (límite de intentos de login entre workers); sin `REDIS_URL` se usa memoria local |
 
