@@ -73,14 +73,14 @@
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Contraseña *</label>
-          <input type="password" name="password" required
+          <input type="password" name="password" required autocomplete="new-password"
                  class="w-full bg-black/40 border {% if errors.password %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors"
                  placeholder="Mínimo 8 caracteres">
           {% if errors.password %}<p class="text-red-400 text-xs mt-1">{{ errors.password }}</p>{% endif %}
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Confirmar contraseña *</label>
-          <input type="password" name="password2" required
+          <input type="password" name="password2" required autocomplete="new-password"
                  class="w-full bg-black/40 border {% if errors.password2 %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors"
                  placeholder="••••••••">
           {% if errors.password2 %}<p class="text-red-400 text-xs mt-1">{{ errors.password2 }}</p>{% endif %}

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Proyecto
 
-**ProFit Studio** — Plataforma web de gestión para gimnasio/entrenamiento personal. Django 5.0.6, desplegado en Railway con PostgreSQL. El negocio opera en Colombia (moneda COP, zona horaria `America/Bogota`).
+**ProFit Studio** — Plataforma web de gestión para gimnasio/entrenamiento personal. Django 5.2 LTS (5.2.19), desplegado en Railway con PostgreSQL (**Django 5.2 exige PostgreSQL 14 o superior**: con una versión anterior el servidor no arranca). El negocio opera en Colombia (moneda COP, zona horaria `America/Bogota`).
 
 ## Comandos esenciales
 
@@ -99,7 +99,9 @@ Variables de entorno requeridas en Railway:
 
 ### Frontend
 
-- **CSS**: Tailwind CDN (sin build step)
+- **CSS**: Tailwind CSS v3.4.19 compilado en local (Railway no compila). Fuente: `frontend/tailwind.css` + `tailwind.config.js` (tema, `content` y `safelist` para clases armadas por partes en las plantillas). Salida en git: `static/css/app.css` (minificado; en `base.html` va después de Font Awesome para que las utilidades ganen a `.fas`). Tras cambiar clases, regenerar con `.\scripts\build-css.ps1` o `scripts/build-css.sh` (`--watch` en desarrollo) y commitear `app.css`; `apps/public/tests/test_tailwind_build.py` falla si quedó desactualizado (se salta sin `npx`). No hay `package.json` a propósito: nixpacks detectaría Node y cambiaría el build de Railway
+- **CDN con versión fija y SRI** en `base.html`: Font Awesome 6.5.0, HTMX 1.9.10, Alpine 3.17.5 (`integrity` + `crossorigin="anonymous"` + `referrerpolicy="no-referrer"`). Al actualizar una versión hay que recalcular el `integrity` (sha384) con los bytes exactos del archivo
+- **Contraseñas**: todo `input type="password"` lleva `autocomplete` (`current-password` para la actual, `new-password` para crear o cambiar)
 - **JS interactivo**: Alpine.js (directivas `x-data`, `x-model`, `x-show`)
 - **Tema**: dark (`bg-zinc-900`/`bg-black`), color acento `#FF6B00` (`text-primary`, `bg-primary`)
 - **Templates**: dos base templates — `base.html` (público y miembros) y `trainer/base.html` (panel admin)

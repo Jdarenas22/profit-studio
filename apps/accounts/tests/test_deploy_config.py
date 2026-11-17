@@ -44,8 +44,11 @@ PROBE = (
     "django.setup();"
     "from django.conf import settings;"
     "from django.core.files.storage import default_storage;"
+    "from django.contrib.staticfiles.storage import staticfiles_storage;"
     "from apps.payments.models import ManualPayment;"
+    "qual = lambda o: o.__class__.__module__ + '.' + o.__class__.__qualname__;"
     "print(json.dumps({'hosts': settings.ALLOWED_HOSTS, 'csrf': settings.CSRF_TRUSTED_ORIGINS,"
+    " 'default_storage': qual(default_storage), 'static_storage': qual(staticfiles_storage),"
     " 'secret_ok': bool(settings.SECRET_KEY), 'debug': settings.DEBUG,"
     " 'axes_ip': settings.AXES_CLIENT_IP_CALLABLE,"
     " 'axes_params': settings.AXES_LOCKOUT_PARAMETERS,"
@@ -80,6 +83,25 @@ class ProductionSettingsTests(SimpleTestCase):
         self.assertEqual(data['axes_ip'], 'apps.accounts.axes_utils.get_client_ip')
         self.assertEqual(data['axes_params'], [['username', 'ip_address']])
         self.assertTrue(data['axes_reset'])
+
+    # ── Almacenamiento: Django 5.1 eliminó DEFAULT_FILE_STORAGE y STATICFILES_STORAGE ─────
+    # Esos nombres ya no se leen y no avisan: sin STORAGES, la media iría al disco del servidor
+    # (que Railway borra en cada despliegue) en vez de a R2, y los estáticos perderían WhiteNoise.
+    STORAGE_FILESYSTEM = 'django.core.files.storage.filesystem.FileSystemStorage'
+    STORAGE_S3 = 'storages.backends.s3.S3Storage'                     # alias: S3Boto3Storage
+    STORAGE_STATIC_PROD = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+    def test_without_r2_media_uses_the_local_disk_and_static_uses_whitenoise(self):
+        code, data, err = load_production()
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['default_storage'], self.STORAGE_FILESYSTEM)
+        self.assertEqual(data['static_storage'], self.STORAGE_STATIC_PROD)
+
+    def test_with_r2_media_goes_to_r2_and_not_to_the_local_disk(self):
+        code, data, err = load_production(R2_RECEIPTS_BUCKET_NAME='recibos-privado', **self.R2_ENV)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['default_storage'], self.STORAGE_S3)
+        self.assertEqual(data['static_storage'], self.STORAGE_STATIC_PROD)   # los estáticos nunca van a R2
 
     R2_ENV = {'R2_ACCESS_KEY_ID': 'k', 'R2_SECRET_ACCESS_KEY': 's', 'R2_BUCKET_NAME': 'media-publico',
               'R2_ENDPOINT_URL': 'https://acc123.r2.cloudflarestorage.com',
@@ -262,6 +284,47 @@ class StartScriptTests(SimpleTestCase):
         self.assertIn('||', line)                                    # si falla, el arranque continúa
         self.assertNotIn('exit', line)
 
+    # ── Arranque rápido: lo lento sale del camino crítico (App Sleeping de Railway) ──────
+    def _before_gunicorn(self):
+        return self.text[:self.text.index('exec gunicorn')]
+
+    def test_migrate_and_db_wait_stay_before_the_server_and_in_the_critical_path(self):
+        before = self._before_gunicorn()
+        self.assertLess(before.index('connection.ensure_connection()'), before.index('migrate --noinput'))
+        # ninguna de las tareas en segundo plano se lanza antes de migrate
+        self.assertLess(before.index('migrate --noinput'), before.index('run_check_infra &'))
+        self.assertLess(before.index('migrate --noinput'), before.index('run_load_data &'))
+
+    def test_slow_tasks_run_in_the_background_and_not_in_the_critical_path(self):
+        # Las llamadas a los comandos viven dentro de funciones; solo se invocan con "&".
+        for func in ('run_check_infra', 'run_load_data'):
+            self.assertRegex(self.text, rf'(?m)^{func}\(\) \{{', msg=func)       # definida como función
+            self.assertRegex(self.text, rf'(?m)^{func} &\s*$', msg=func)      # y lanzada en segundo plano
+            self.assertNotRegex(self.text, rf'(?m)^{func}\s*$', msg=func)     # nunca en primer plano
+        for command in ('check_infra', 'load_initial_data', 'load_foods'):
+            lines = [l for l in self.text.splitlines() if f'python manage.py {command}' in l
+                     and not l.lstrip().startswith('#')]
+            self.assertTrue(lines, command)
+            for line in lines:
+                self.assertTrue(line.startswith('    '), f'{command} debe estar dentro de una función: {line}')
+
+    def test_background_tasks_never_abort_the_boot(self):
+        body = self.text[self.text.index('run_check_infra() {'):self.text.index('exec gunicorn')]
+        self.assertNotIn('exit 1', body)
+        self.assertNotIn('set -e', self.text)
+
+    def test_collectstatic_only_runs_at_boot_when_the_build_did_not_generate_it(self):
+        self.assertEqual(self.text.count('python manage.py collectstatic'), 1)
+        guard = re.search(r'if \[ -n "\$\(ls -A staticfiles[^\n]*\)" \]; then\n(.*?)\nelse\n(.*?)\nfi', self.text, re.S)
+        self.assertIsNotNone(guard)
+        self.assertNotIn('collectstatic --noinput', guard.group(1))         # con staticfiles/ → se omite
+        self.assertIn('collectstatic --noinput', guard.group(2))            # sin staticfiles/ → se repite
+
+    def test_collectstatic_failure_at_boot_does_not_abort(self):
+        match = re.search(r'collectstatic --noinput.*?\n\s*else\n(.*?)\n\s*fi', self.text, re.S)
+        self.assertIsNotNone(match)
+        self.assertNotIn('exit', match.group(1))
+
     def test_keeps_media_directories(self):
         self.assertIn('mkdir -p', self.text)
         self.assertIn('media/profiles', self.text)
@@ -310,3 +373,41 @@ class CreateTrainerCommandTests(TestCase):
         user = User.objects.get(username='yiseth')
         self.assertTrue(user.check_password('Original-Segura-1122!'))
         self.assertTrue(user.is_superuser)
+
+
+class RailwayBuildConfigTests(SimpleTestCase):
+    """railway.toml: collectstatic en el build y healthcheck intacto."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.text = (BASE_DIR / 'railway.toml').read_text(encoding='utf-8')
+
+    def _config(self):
+        try:
+            import tomllib
+        except ImportError:  # Python < 3.11
+            self.skipTest('tomllib no está disponible')
+        return tomllib.loads(self.text)
+
+    def test_collectstatic_runs_in_the_build_and_does_not_break_it(self):
+        build = self._config()['build']
+        self.assertIn('manage.py collectstatic --noinput', build['buildCommand'])
+        self.assertIn('||', build['buildCommand'])          # si falla, start.sh lo repite: el build no se cae
+
+    def test_start_command_and_healthcheck_are_kept(self):
+        deploy = self._config()['deploy']
+        self.assertEqual(deploy['startCommand'], 'bash start.sh')
+        self.assertEqual(deploy['healthcheckPath'], '/health/')
+        self.assertGreaterEqual(deploy['healthcheckTimeout'], 60)
+
+
+
+class HealthEndpointTests(TestCase):
+    """Railway sondea /health/ mientras corren check_infra y load_* en segundo plano."""
+
+    def test_health_endpoint_answers_without_touching_the_database(self):
+        with self.assertNumQueries(0):
+            response = self.client.get('/health/', HTTP_HOST='testserver')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'ok'})

@@ -10,6 +10,7 @@ Escenario:
 """
 from datetime import date
 
+from django.conf import settings
 from django.test import TestCase, override_settings
 
 from apps.accounts.models import User
@@ -20,9 +21,13 @@ from apps.payments.models import ManualPayment
 from apps.routines.models import Routine, RoutineDay, RoutineExercise
 
 PASSWORD = 'Clave-De-Prueba-9182!'
-# Los templates usan {% static %}: en pruebas no hay collectstatic ni manifest
+# Los templates usan {% static %}: en pruebas no hay collectstatic ni manifest.
+# (Django 5.1 eliminó STATICFILES_STORAGE: se cambia el alias 'staticfiles' de STORAGES.)
 NO_MANIFEST = override_settings(
-    STATICFILES_STORAGE='django.contrib.staticfiles.storage.StaticFilesStorage',
+    STORAGES={
+        **settings.STORAGES,
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
 )
 
 

@@ -38,3 +38,6 @@ build/
 # Node (si se agrega después)
 node_modules/
 package-lock.json
+
+# Cuentas de prueba locales
+USUARIOS-PRUEBA.local.txt
