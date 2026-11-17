@@ -37,6 +37,7 @@ LOCAL_APPS = [
     'apps.routines',
     'apps.payments',
     'apps.public',
+    'apps.whatsapp',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -84,6 +85,7 @@ TEMPLATES = [
                 'apps.public.context_processors.site_settings',
                 'apps.health.context_processors.health_flags',
                 'apps.plans.context_processors.plan_flags',
+                'apps.whatsapp.context_processors.whatsapp_flags',
             ],
         },
     },
@@ -185,3 +187,26 @@ AI_PLANS_REQUIRE_PROFESSIONAL = env.bool('AI_PLANS_REQUIRE_PROFESSIONAL', defaul
 AI_PLANS_ADAPTATION = env.bool('AI_PLANS_ADAPTATION', default=False)
 # Ejecutar el trabajo en la misma petición, sin hilo (pruebas y depuración)
 AI_PLANS_RUN_INLINE = env.bool('AI_PLANS_RUN_INLINE', default=False)
+
+# ─── Avisos por WhatsApp (docs/contracts/whatsapp.md) ─────────────────────────
+# WhatsApp Business Cloud API de Meta. NO confundir con WHATSAPP_NUMBER / WHATSAPP_LINK (botón wa.me
+# de soporte). WHATSAPP_CLOUD_MODE: off | simulated | live. Vacío = simulated con DEBUG y off sin él.
+# En live, production.py no arranca sin las variables obligatorias (sección 8 del contrato).
+WHATSAPP_CLOUD_MODE = env('WHATSAPP_CLOUD_MODE', default='')
+WHATSAPP_CLOUD_ACCESS_TOKEN = env('WHATSAPP_CLOUD_ACCESS_TOKEN', default='')   # solo entorno; nunca en logs
+WHATSAPP_CLOUD_PHONE_NUMBER_ID = env('WHATSAPP_CLOUD_PHONE_NUMBER_ID', default='')
+WHATSAPP_CLOUD_WABA_ID = env('WHATSAPP_CLOUD_WABA_ID', default='')
+WHATSAPP_CLOUD_APP_SECRET = env('WHATSAPP_CLOUD_APP_SECRET', default='')
+WHATSAPP_CLOUD_VERIFY_TOKEN = env('WHATSAPP_CLOUD_VERIFY_TOKEN', default='')
+WHATSAPP_CLOUD_GRAPH_VERSION = env('WHATSAPP_CLOUD_GRAPH_VERSION', default='v27.0')
+WHATSAPP_CLOUD_TEMPLATE_LANG = env('WHATSAPP_CLOUD_TEMPLATE_LANG', default='es_CO')
+WHATSAPP_CLOUD_TIMEOUT_SECONDS = env.int('WHATSAPP_CLOUD_TIMEOUT_SECONDS', default=10)
+WHATSAPP_CLOUD_DAILY_LIMIT = env.int('WHATSAPP_CLOUD_DAILY_LIMIT', default=200)
+WHATSAPP_CLOUD_EXPIRING_DAYS = env.int('WHATSAPP_CLOUD_EXPIRING_DAYS', default=3)
+WHATSAPP_CLOUD_PAYMENT_NOTICE = env.bool('WHATSAPP_CLOUD_PAYMENT_NOTICE', default=False)
+WHATSAPP_CLOUD_SEND_INLINE = env.bool('WHATSAPP_CLOUD_SEND_INLINE', default=False)
+# Pendientes legales (pregunta 14 del contrato). En live NO se envía nada (ni se ofrece activar) mientras
+# falte alguno: dominio definitivo (https, se usa en los textos), revisión del abogado confirmada y
+# PRIVACY_POLICY_URL (arriba). Además el texto de consentimiento vigente no debe tener marcadores [...].
+WHATSAPP_CLOUD_SITE_URL = env('WHATSAPP_CLOUD_SITE_URL', default='')
+WHATSAPP_CLOUD_LEGAL_REVIEWED = env.bool('WHATSAPP_CLOUD_LEGAL_REVIEWED', default=False)

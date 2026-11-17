@@ -10,8 +10,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Desarrollo local
-python manage.py runserver                          # Settings: base.py (DEBUG desde .env)
-DJANGO_SETTINGS_MODULE=config.settings.production python manage.py runserver  # Simular producción
+python manage.py runserver --settings=config.settings.development
+python manage.py check --settings=config.settings.development
+python manage.py test --settings=config.settings.development
 
 # Base de datos
 python manage.py migrate
@@ -23,6 +24,8 @@ python manage.py create_trainer --username yiseth --first-name Yiseth --last-nam
 # Producción (Railway ejecuta start.sh automáticamente)
 # El flujo es: migrate → collectstatic → create_trainer → load_initial_data → gunicorn
 ```
+
+Abre en VS Code la carpeta que contiene este archivo (`manage.py` y `.git`), no la carpeta de respaldo exterior. El entorno virtual local vive en `.venv/`; los comandos de VS Code usan el intérprete de ese entorno. `.claude/settings.json` impide a Claude leer el `.env`, la base SQLite local, el archivo local de usuarios de prueba y los medios.
 
 ## Arquitectura
 
@@ -39,6 +42,7 @@ python manage.py create_trainer --username yiseth --first-name Yiseth --last-nam
 | `plans` | Planes con IA (fase B: borrador de rutina; fase C: plan de alimentación, ambos con Google Gemini). Motor de reglas en Python puro (`rules/`: banderas, elegibilidad, filtro del catálogo, energía y macros, alimentos, validación de la salida), cliente de IA (`ai/`: simulado y Gemini), cola de trabajos (`jobs.py`), casos de uso (`services.py`, `nutrition.py`). Ver "Planes con IA" y "Plan de alimentación" abajo |
 | `payments` | Pagos online (Wompi) y manuales (efectivo/transferencia) |
 | `public` | Páginas públicas (home, nosotros, contacto, testimonios) |
+| `whatsapp` | Avisos de la cuenta por WhatsApp (WhatsApp Business Cloud API de Meta): consentimiento `whatsapp_notices`, número confirmado, cola con reintentos, webhook firmado. Ver "Avisos por WhatsApp" abajo y `docs/contracts/whatsapp.md` |
 
 ### Modelo de roles
 
@@ -89,6 +93,7 @@ Variables de entorno requeridas en Railway:
 - Email: `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
 - `WHATSAPP_NUMBER`, `WHATSAPP_LINK`, `INSTAGRAM_URL`
 - Planes con IA (opcionales): `AI_PLANS_MODE` (`off` por defecto en producción, `simulated` en desarrollo, `live` = Gemini). En `live`, `production.py` NO arranca sin `GEMINI_API_KEY`, `GEMINI_MODEL` y `GEMINI_BILLING_CONFIRMED=true` (la clave debe ser de un proyecto con facturación: el nivel gratuito permite que Google use los datos). Otras: `GEMINI_TIMEOUT_SECONDS`, `GEMINI_SCHEMA_FIELD` (`responseJsonSchema` o `none`), `AI_PLANS_CLIENT_WEEKLY_LIMIT`, `AI_PLANS_TRAINER_DAILY_LIMIT`, `AI_PLANS_DAILY_JOB_LIMIT`, `AI_PLANS_ALT_SLOT_WEEKLY_LIMIT`, `AI_PLANS_ALT_DAILY_LIMIT` ("otra opción"), `AI_PLANS_RUN_INLINE` (pruebas)
+- Avisos por WhatsApp (opcionales; NO confundir con `WHATSAPP_NUMBER`/`WHATSAPP_LINK`): `WHATSAPP_CLOUD_MODE` (`off` por defecto en producción, `simulated` en desarrollo, `live` = Meta). En `live`, `production.py` NO arranca sin `WHATSAPP_CLOUD_ACCESS_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `WHATSAPP_CLOUD_WABA_ID`, `WHATSAPP_CLOUD_APP_SECRET`, `WHATSAPP_CLOUD_VERIFY_TOKEN` (32+ caracteres) y `WHATSAPP_CLOUD_GRAPH_VERSION` (`vNN.N`). Pendientes legales (en `live` no se envía nada sin ellos): `WHATSAPP_CLOUD_SITE_URL` (https), `WHATSAPP_CLOUD_LEGAL_REVIEWED=true`, `PRIVACY_POLICY_URL` y texto `whatsapp_notices` sin marcadores. Otras: `WHATSAPP_CLOUD_TEMPLATE_LANG` (`es_CO`), `WHATSAPP_CLOUD_TIMEOUT_SECONDS`, `WHATSAPP_CLOUD_DAILY_LIMIT`, `WHATSAPP_CLOUD_EXPIRING_DAYS`, `WHATSAPP_CLOUD_PAYMENT_NOTICE`, `WHATSAPP_CLOUD_SEND_INLINE` (pruebas)
 - `HEALTH_FEATURES_ENABLED` (opcional): enciende las pantallas de salud de la clienta ("Mis medidas", consentimiento). **Apagada por defecto en producción** (las rutas responden 404) hasta que un abogado apruebe los textos de consentimiento y la superusuaria publique la versión definitiva (Admin > Textos de consentimiento); `development.py` la enciende. `PRIVACY_POLICY_URL` (opcional): enlace público a la política de tratamiento de datos que se muestra junto al consentimiento
 
 ### Almacenamiento de archivos media
@@ -172,3 +177,11 @@ Estructura jerárquica: `Routine` → `RoutineDay` (días) → `RoutineExercise`
 - Con `AI_PLANS_REQUIRE_PROFESSIONAL=true`, aprobar un plan de alimentación exige `TrainerCredential.can_validate_nutrition` (la superusuaria la asigna en el admin; quién puede tenerla es una decisión legal) y que hoy no haya bandera roja ni alimentos incompatibles con la ficha. El entrenador edita opciones con `trainer_meal_option_edit` (solo alimentos permitidos a la clienta).
 - La clienta (`member_nutrition_plan`, solo plan `approved` y suyo) elige una opción por comida y día (`MealChoice`, ventana de hoy + 6 días), puede pedir **«otra opción»** (`nutrition.request_alternative`: reemplaza una opción, queda `needs_review` para el entrenador, cupos por comida y por día) y ve intercambios y lista de compras. Opciones con un alimento que ya no le corresponde se marcan y no se pueden elegir.
 - Pruebas: `test_nutrition_rules.py` (puras), `test_nutrition.py`, `test_nutrition_views.py`, `test_foods_admin.py`; el escenario `NutritionScenarioTestCase` (`tests/helpers.py`) carga el catálogo validado y da la credencial a la superusuaria.
+
+### Avisos por WhatsApp (`docs/contracts/whatsapp.md`)
+
+- Avisos de una sola vía con plantillas *utility* (`apps/whatsapp/catalog.py`): membresía por vencer (3 días antes) y vencida, plan aprobado, "pendientes por revisar" para el entrenador (agrupado cada 3 h) y, opcional, pago recibido. **Nunca datos de salud**: solo primer nombre y una fecha. El correo sigue saliendo igual.
+- Alta: `/accounts/whatsapp/` (`whatsapp_settings`, `whatsapp_enable`, `whatsapp_disable`, `whatsapp_resend_confirmation`), siempre sobre `request.user`. Consentimiento versionado `whatsapp_notices` (mismo `ConsentTextVersion`/`ConsentRecord`, pero las pantallas y reglas de salud usan `HEALTH_PURPOSES` y no lo ven) + confirmación del número con el botón "Sí, soy yo". Baja: web, botón "No recibir avisos" o BAJA/STOP. Menores de 18 no pueden activar.
+- Cola en la base (`WhatsAppMessage`, idempotente por `dedupe_key`; solo ids, códigos y fechas): intento inmediato en hilo para avisos por acción y **cron de Railway** como respaldo: servicio aparte con `python manage.py process_whatsapp_queue` y Cron Schedule `*/15 12-23 * * 1-6` (UTC). Ventana Ley 2300 (L-V 7-19, sáb 8-15, sin domingos ni festivos de Colombia, `apps/whatsapp/calendar.py`). Errores de Meta por clase (`client/base.py`): de cuenta/token pausan el canal y avisan a la superusuaria; de plantilla pausan esa plantilla. `python manage.py check_whatsapp [--resume]`, `whatsapp_register_number`.
+- Webhook `/whatsapp/webhook/` (`@csrf_exempt` solo ahí): firma `X-Hub-Signature-256` sobre el cuerpo crudo, cuenta y número propios, idempotente. Nunca se guarda ni registra el texto de los mensajes, teléfonos completos ni tokens.
+- Pruebas sin red (`FakeWhatsAppClient`, `apps/whatsapp/tests/`). Pantallas: esqueletos `accounts/whatsapp_settings.html` y `trainer/whatsapp_settings.html` hasta que el frontend entregue las reales (`docs/contracts/requests.md`, "contrato W-01 a W-03").

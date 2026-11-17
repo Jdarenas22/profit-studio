@@ -34,9 +34,11 @@ WOMPI_VARS = ('WOMPI_PUBLIC_KEY', 'WOMPI_PRIVATE_KEY', 'WOMPI_INTEGRITY_SECRET',
 SECRET_ENV_NAMES = (
     'SECRET_KEY', 'DATABASE_URL', 'REDIS_URL', 'TRAINER_INITIAL_PASSWORD', 'TRAINER_PASSWORD',
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT_URL', 'EMAIL_HOST_PASSWORD',
-    *WOMPI_VARS, 'GEMINI_API_KEY',
+    *WOMPI_VARS, 'GEMINI_API_KEY', 'WHATSAPP_CLOUD_ACCESS_TOKEN', 'WHATSAPP_CLOUD_APP_SECRET',
+    'WHATSAPP_CLOUD_VERIFY_TOKEN',
 )
-SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', *WOMPI_VARS, 'GEMINI_API_KEY')
+SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', *WOMPI_VARS, 'GEMINI_API_KEY',
+                        'WHATSAPP_CLOUD_ACCESS_TOKEN', 'WHATSAPP_CLOUD_APP_SECRET', 'WHATSAPP_CLOUD_VERIFY_TOKEN')
 
 NETWORK_TIMEOUT_SECONDS = 10
 
@@ -537,6 +539,85 @@ def check_ai_plans(ctx):
     return results
 
 
+def whatsapp_state(settings_):
+    """(modo, variables que faltan, pendientes legales, canal pausado, plantillas pausadas, fallidos 24 h).
+    Misma regla que apps.whatsapp.conf, leída del objeto de settings recibido (las pruebas usan uno falso)."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.health.models import PURPOSE_WHATSAPP, ConsentTextVersion
+    from apps.whatsapp.conf import GRAPH_VERSION_RE, LIVE_REQUIRED, MIN_VERIFY_TOKEN_LENGTH
+    from apps.whatsapp.models import WhatsAppChannelState, WhatsAppMessage
+
+    raw = (getattr(settings_, 'WHATSAPP_CLOUD_MODE', '') or '').strip().lower()
+    mode = raw or ('simulated' if getattr(settings_, 'DEBUG', False) else 'off')
+    missing, legal = [], []
+    if mode == 'live':
+        missing = [name for name in LIVE_REQUIRED if not str(get_setting(settings_, name) or '').strip()]
+        token = str(get_setting(settings_, 'WHATSAPP_CLOUD_VERIFY_TOKEN') or '')
+        if token and len(token) < MIN_VERIFY_TOKEN_LENGTH:
+            missing.append('WHATSAPP_CLOUD_VERIFY_TOKEN (muy corta)')
+        version = str(get_setting(settings_, 'WHATSAPP_CLOUD_GRAPH_VERSION') or '')
+        if version and not GRAPH_VERSION_RE.match(version):
+            missing.append('WHATSAPP_CLOUD_GRAPH_VERSION (formato vNN.N)')
+    if mode != 'off':
+        for name, label in (('WHATSAPP_CLOUD_SITE_URL', 'WHATSAPP_CLOUD_SITE_URL (https)'),
+                            ('PRIVACY_POLICY_URL', 'PRIVACY_POLICY_URL (https)')):
+            if urlsplit(str(getattr(settings_, name, '') or '').strip()).scheme != 'https':
+                legal.append(label)
+        if not getattr(settings_, 'WHATSAPP_CLOUD_LEGAL_REVIEWED', False):
+            legal.append('WHATSAPP_CLOUD_LEGAL_REVIEWED=true')
+        text = ConsentTextVersion.objects.filter(purpose=PURPOSE_WHATSAPP, is_current=True).first()
+        if text is None or text.has_placeholders:
+            legal.append('texto de consentimiento de WhatsApp sin marcadores')
+    state = WhatsAppChannelState.objects.filter(pk=1).first()
+    failed = WhatsAppMessage.objects.filter(status=WhatsAppMessage.STATUS_FAILED,
+                                            created_at__gte=timezone.now() - timedelta(hours=24)).count()
+    return mode, missing, legal, bool(state and state.paused), list(state.paused_templates) if state else [], failed
+
+
+def check_whatsapp(ctx):
+    area = 'WhatsApp'
+    raw = (getattr(ctx.settings, 'WHATSAPP_CLOUD_MODE', '') or '').strip().lower()
+    if raw not in ('', 'off', 'simulated', 'live'):
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', ERROR, f'Valor no válido: {raw}.', 'Usa off, simulated o live.')]
+    if (raw or ('simulated' if getattr(ctx.settings, 'DEBUG', False) else 'off')) == 'off':
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', OK, 'Apagado: no se ofrecen ni se envían avisos.')]
+    if not ctx.db_ok:
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', WARN, 'Sin base de datos: no se pudo revisar.')]
+    try:
+        mode, missing, legal, paused, paused_templates, failed = whatsapp_state(ctx.settings)
+    except DatabaseError:
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', WARN, 'No se pudo leer el estado (¿faltan migraciones?).')]
+    if mode == 'off':
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', OK, 'Apagado: no se ofrecen ni se envían avisos.')]
+    results = []
+    if mode == 'simulated':
+        results.append(Check(area, 'WHATSAPP_CLOUD_MODE', WARN if ctx.is_production else OK,
+                             'Modo de prueba: los avisos no salen a WhatsApp.'))
+    elif missing:
+        results.append(Check(area, 'WHATSAPP_CLOUD_MODE', ERROR, 'live sin configuración completa: falta '
+                             + ', '.join(missing) + '.', 'Revisa la sección 8 de docs/contracts/whatsapp.md.'))
+    else:
+        results.append(Check(area, 'WHATSAPP_CLOUD_MODE', OK, 'live (conexión sin probar).',
+                             'Pruébala con: python manage.py check_whatsapp'))
+    if legal:
+        results.append(Check(area, 'Pendientes legales', WARN if mode == 'live' else OK,
+                             ('No se envía nada mientras falte: ' if mode == 'live' else 'Pendiente: ') + '; '.join(legal) + '.',
+                             'Pregunta 14 de docs/contracts/whatsapp.md.' if mode == 'live' else ''))
+    if paused:
+        results.append(Check(area, 'Canal', ERROR, 'Pausado por un error de cuenta o token.',
+                             'python manage.py check_whatsapp --resume'))
+    if paused_templates:
+        results.append(Check(area, 'Plantillas', WARN, 'Pausadas: ' + ', '.join(paused_templates) + '.',
+                             'Revísalas en el Administrador de WhatsApp y luego: python manage.py check_whatsapp --resume'))
+    if failed:
+        results.append(Check(area, 'Fallidos (24 h)', WARN, f'{failed} aviso(s) no se pudieron enviar.',
+                             'python manage.py check_whatsapp'))
+    return results
+
+
 CHECKS = (
     check_settings,
     check_secret_key_and_hosts,
@@ -547,6 +628,7 @@ CHECKS = (
     check_superuser,
     check_health_switches,
     check_ai_plans,
+    check_whatsapp,
 )
 
 

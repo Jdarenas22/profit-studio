@@ -105,9 +105,15 @@ def dashboard(request):
     routines = request.user.routines.filter(is_active=True).prefetch_related(
         'days__exercises__exercise'
     )
+    from apps.whatsapp import conf as whatsapp_conf
+    from apps.whatsapp import services as whatsapp_services
     return render(request, 'accounts/member_dashboard.html', {
         'membership': membership,
         'routines': routines,
+        # Avisos por WhatsApp (W-03): None con la función apagada; si no, 'off', 'pending', 'active',
+        # 'wrong_number', 'undeliverable' u 'opted_out'
+        'whatsapp_status': (whatsapp_services.status_for(request.user)
+                            if whatsapp_conf.enabled() else None),
     })
 
 

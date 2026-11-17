@@ -1,3 +1,4 @@
+import re
 import warnings
 from urllib.parse import urlsplit
 
@@ -65,6 +66,31 @@ if _ai_mode == 'live':
         )
 if GEMINI_SCHEMA_FIELD not in ('responseJsonSchema', 'none'):
     raise ImproperlyConfigured('GEMINI_SCHEMA_FIELD debe ser responseJsonSchema o none.')
+
+# ─── Avisos por WhatsApp: live solo con la configuración completa ──────────────
+# (docs/contracts/whatsapp.md, sección 8). El mensaje nombra la variable, nunca su valor. Los pendientes
+# legales (dominio, política, revisión del abogado, texto sin marcadores) NO detienen el arranque: con
+# ellos pendientes el sistema simplemente no ofrece activar ni envía nada (apps.whatsapp.conf).
+_wa_mode = (WHATSAPP_CLOUD_MODE or '').strip().lower()
+if _wa_mode not in ('', 'off', 'simulated', 'live'):
+    raise ImproperlyConfigured('WHATSAPP_CLOUD_MODE debe ser off, simulated o live.')
+if _wa_mode == 'live':
+    # Misma regla que apps.whatsapp.conf.missing_live_settings (aquí no se puede importar: los settings
+    # aún se están cargando).
+    _wa_missing = [name for name, value in (
+        ('WHATSAPP_CLOUD_ACCESS_TOKEN', WHATSAPP_CLOUD_ACCESS_TOKEN),
+        ('WHATSAPP_CLOUD_PHONE_NUMBER_ID', WHATSAPP_CLOUD_PHONE_NUMBER_ID),
+        ('WHATSAPP_CLOUD_WABA_ID', WHATSAPP_CLOUD_WABA_ID),
+        ('WHATSAPP_CLOUD_APP_SECRET', WHATSAPP_CLOUD_APP_SECRET),
+        ('WHATSAPP_CLOUD_VERIFY_TOKEN', WHATSAPP_CLOUD_VERIFY_TOKEN),
+        ('WHATSAPP_CLOUD_GRAPH_VERSION', WHATSAPP_CLOUD_GRAPH_VERSION),
+    ) if not str(value or '').strip()]
+    if WHATSAPP_CLOUD_VERIFY_TOKEN and len(WHATSAPP_CLOUD_VERIFY_TOKEN) < 32:
+        _wa_missing.append('WHATSAPP_CLOUD_VERIFY_TOKEN (mínimo 32 caracteres)')
+    if WHATSAPP_CLOUD_GRAPH_VERSION and not re.match(r'^v\d+\.\d+$', WHATSAPP_CLOUD_GRAPH_VERSION):
+        _wa_missing.append('WHATSAPP_CLOUD_GRAPH_VERSION (formato vNN.N)')
+    if _wa_missing:
+        raise ImproperlyConfigured('WHATSAPP_CLOUD_MODE=live exige ' + ', '.join(_wa_missing) + '.')
 
 # ─── django-axes detrás del proxy de Railway ───────────────────────────────────
 # Railway envía la IP real del cliente en X-Real-IP. Sin esto, todos los visitantes
@@ -243,6 +269,12 @@ LOGGING = {
         },
         # Planes con IA: solo ids, estados, tokens y códigos de error (nunca datos de salud)
         'apps.plans': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Avisos por WhatsApp: ids, tipos, estados y códigos (nunca teléfonos, tokens ni textos)
+        'apps.whatsapp': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,

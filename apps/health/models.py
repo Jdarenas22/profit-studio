@@ -23,11 +23,18 @@ from . import dates
 
 PURPOSE_HEALTH_DATA = 'health_data'
 PURPOSE_AI = 'ai_processing'
+# Avisos de la cuenta por WhatsApp (docs/contracts/whatsapp.md). Usa el mismo registro versionado,
+# pero NO es una finalidad de salud: las pantallas y reglas de salud usan `HEALTH_PURPOSES`.
+PURPOSE_WHATSAPP = 'whatsapp_notices'
 PURPOSE_CHOICES = [
     (PURPOSE_HEALTH_DATA, 'Tratamiento de datos de salud'),
     (PURPOSE_AI, 'Envío sin identificar a la inteligencia artificial'),
+    (PURPOSE_WHATSAPP, 'Avisos de mi cuenta por WhatsApp'),
 ]
 PURPOSES = tuple(code for code, _ in PURPOSE_CHOICES)
+# Finalidades de salud: las únicas que ven `member_consent`, la tarjeta de consentimientos de la
+# ficha y la revisión de textos legales de la IA (`ai_texts_ready`).
+HEALTH_PURPOSES = (PURPOSE_HEALTH_DATA, PURPOSE_AI)
 
 # Marcador pendiente de reemplazar en un texto legal: [RAZÓN SOCIAL], [NIT], [CORREO DE DERECHOS]...
 PLACEHOLDER_RE = re.compile(r'\[[^\[\]]+\]')

@@ -9,7 +9,8 @@ echo ">>> DJANGO_SETTINGS_MODULE = $DJANGO_SETTINGS_MODULE"
 if [ -n "${DATABASE_URL:-}" ]; then
     echo ">>> DATABASE_URL definida: SI"
 else
-    echo ">>> DATABASE_URL definida: NO (usando SQLite)"
+    echo ">>> ERROR: DATABASE_URL no esta definida. Produccion requiere PostgreSQL; no se arrancara con SQLite." >&2
+    exit 1
 fi
 echo ">>> PORT = $PORT"
 
@@ -21,8 +22,7 @@ mkdir -p "$(pwd)/media/profiles" "$(pwd)/media/exercises/images" "$(pwd)/media/e
 #     acepte conexiones y el migrate fallaria con "Connection refused". Se reintenta
 #     la conexion cada 3 s hasta DB_WAIT_SECONDS (opcional, por defecto 90).
 #     Solo se imprime la clase del error, nunca el mensaje (podria traer host/usuario).
-#     Con SQLite no hay nada que esperar. Si se agota el tiempo, se aborta (igual que
-#     si fallara el migrate): no se sirve con la base a medias.
+#     Si se agota el tiempo, se aborta: no se sirve con la base a medias.
 export DB_WAIT_SECONDS="${DB_WAIT_SECONDS:-90}"
 echo ">>> Esperando a la base de datos (maximo ${DB_WAIT_SECONDS}s)..."
 if python - <<'PY'

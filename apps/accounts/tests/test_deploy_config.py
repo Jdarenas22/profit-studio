@@ -36,6 +36,9 @@ CLEAN_ENV = {
     'EMAIL_HOST_USER': '',
     'AI_PLANS_MODE': '', 'GEMINI_API_KEY': '', 'GEMINI_MODEL': '', 'GEMINI_BILLING_CONFIRMED': 'false',
     'GEMINI_SCHEMA_FIELD': 'responseJsonSchema',
+    'WHATSAPP_CLOUD_MODE': '', 'WHATSAPP_CLOUD_ACCESS_TOKEN': '', 'WHATSAPP_CLOUD_PHONE_NUMBER_ID': '',
+    'WHATSAPP_CLOUD_WABA_ID': '', 'WHATSAPP_CLOUD_APP_SECRET': '', 'WHATSAPP_CLOUD_VERIFY_TOKEN': '',
+    'WHATSAPP_CLOUD_GRAPH_VERSION': 'v27.0',
 }
 
 PROBE = (
@@ -264,6 +267,10 @@ class StartScriptTests(SimpleTestCase):
         for line in self.text.splitlines():
             if line.strip().startswith('echo'):
                 self.assertNotRegex(line, r'\$\{?DATABASE_URL', line)
+
+    def test_production_fails_closed_without_database_url(self):
+        self.assertIn('DATABASE_URL no esta definida', self.text)
+        self.assertRegex(self.text, r'if \[ -n "\$\{DATABASE_URL:-\}" \]; then[\s\S]*?exit 1')
 
     def test_migrate_failure_aborts(self):
         match = re.search(r'migrate --noinput.*?\n\s*else\n(.*?)\n\s*fi', self.text, re.S)

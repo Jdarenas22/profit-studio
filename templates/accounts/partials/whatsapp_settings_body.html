@@ -1,0 +1,47 @@
+{% comment %}
+  ESQUELETO MÍNIMO (backend, 2026-11-16): REEMPLAZAR POR frontend-architect.
+  Contrato del contexto: docs/contracts/requests.md, «Avisos por WhatsApp: contrato W-01 a W-03».
+{% endcomment %}
+<section>
+  <h1>Avisos por WhatsApp</h1>
+  {% if is_simulated %}<p>MODO DE PRUEBA: los mensajes no salen a WhatsApp.</p>{% endif %}
+  {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+  {% if errors.general %}<p role="alert">{{ errors.general }}</p>{% endif %}
+
+  <p>Estado: {{ status }}{% if phone_display %} · {{ phone_display }}{% endif %}</p>
+
+  {% if status == 'active' or status == 'pending' %}
+    {% if status == 'pending' %}
+      <p>Te enviamos un mensaje por WhatsApp. Pulsa «Sí, soy yo» para empezar a recibir los avisos.</p>
+      {% if can_resend %}
+      <form method="post" action="{% url 'whatsapp_resend_confirmation' %}">{% csrf_token %}
+        <button type="submit">Reenviar confirmación</button>
+      </form>
+      {% endif %}
+    {% endif %}
+    <form method="post" action="{% url 'whatsapp_disable' %}">{% csrf_token %}
+      <button type="submit">Desactivar avisos</button>
+    </form>
+  {% elif is_minor %}
+    <p>Los avisos por WhatsApp son solo para mayores de 18 años. Consulta con tu entrenador.</p>
+  {% elif not available %}
+    <p>Esta función aún no está disponible.</p>
+  {% else %}
+    <form method="post" action="{% url 'whatsapp_enable' %}">{% csrf_token %}
+      <input type="hidden" name="text_version" value="{{ text_version }}">
+      <label for="wa-phone">Celular</label>
+      <input id="wa-phone" name="phone" type="tel" autocomplete="tel" value="{{ form.phone }}">
+      {% if errors.phone %}<p role="alert">{{ errors.phone }}</p>{% endif %}
+      <div style="white-space: pre-line">{{ body }}</div>
+      {% if privacy_policy_url %}<a href="{{ privacy_policy_url }}" rel="noopener">Política de tratamiento de datos</a>{% endif %}
+      <label><input type="checkbox" name="accept" {% if form.accept %}checked{% endif %}> Acepto recibir avisos de mi cuenta por WhatsApp</label>
+      {% if errors.accept %}<p role="alert">{{ errors.accept }}</p>{% endif %}
+      <button type="submit">Activar avisos</button>
+    </form>
+  {% endif %}
+
+  {% if recent %}
+  <h2>Últimos avisos</h2>
+  <ul>{% for item in recent %}<li>{{ item.kind_label }} · {{ item.created_at|date:"j M Y H:i" }} · {{ item.status_label }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
