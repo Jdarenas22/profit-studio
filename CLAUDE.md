@@ -87,6 +87,12 @@ Variables de entorno requeridas en Railway:
 
 - `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`
 - `SECRET_KEY` y `ALLOWED_HOSTS` son OBLIGATORIAS: `production.py` no arranca si faltan, si ALLOWED_HOSTS tiene `*` o si SECRET_KEY es un valor de ejemplo
+- `SECURITY_STRICT_SECRETS` (opcional, `false` por defecto; un valor distinto de true/false detiene el arranque). Reglas en `config/security.py`. Por defecto solo AVISA cuando:
+  - la `SECRET_KEY` no cumple `security.W009` (50+ caracteres, 5+ distintos, sin `django-insecure-`): chequeo `profit.W001`;
+  - con R2, `R2_RECEIPTS_BUCKET_NAME` falta o es igual a `R2_BUCKET_NAME`: chequeo `profit.W002`, `RuntimeWarning` y `check_infra`.
+
+  Los chequeos `profit.*` (`config/checks.py`) solo salen con `check --deploy`. Con `true`, `production.py` lanza `ImproperlyConfigured` y no arranca. Activarla en Railway solo después de ver `SECRET_KEY` y "Bucket de comprobantes" en OK en `check_infra`. Los mensajes nombran variables, nunca valores
+- `REDIS_URL` (opcional): sin ella la caché es memoria por proceso de gunicorn. Solo el límite del registro de cuentas (`apps/accounts/ratelimit.py`) se cuenta por proceso; las sesiones y `django-axes` usan la base de datos. `check_infra` lo avisa en producción (área "Caché"). Con Redis, las sesiones viven allí: si Redis cae, nadie inicia sesión (`check_infra` hace un PING y da ERROR)
 - `TRAINER_INITIAL_PASSWORD` (opcional; también se acepta el nombre antiguo `TRAINER_PASSWORD`): si existe, `start.sh` crea la superusuaria `yiseth` con esa contraseña. Sin ella no se crea la cuenta. Nunca hay contraseña por defecto en el código
 - R2: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL`, `R2_PUBLIC_URL`, `R2_RECEIPTS_BUCKET_NAME` (bucket PRIVADO para comprobantes)
 - Wompi: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`
@@ -95,6 +101,19 @@ Variables de entorno requeridas en Railway:
 - Planes con IA (opcionales): `AI_PLANS_MODE` (`off` por defecto en producción, `simulated` en desarrollo, `live` = Gemini). En `live`, `production.py` NO arranca sin `GEMINI_API_KEY`, `GEMINI_MODEL` y `GEMINI_BILLING_CONFIRMED=true` (la clave debe ser de un proyecto con facturación: el nivel gratuito permite que Google use los datos). Otras: `GEMINI_TIMEOUT_SECONDS`, `GEMINI_SCHEMA_FIELD` (`responseJsonSchema` o `none`), `AI_PLANS_CLIENT_WEEKLY_LIMIT`, `AI_PLANS_TRAINER_DAILY_LIMIT`, `AI_PLANS_DAILY_JOB_LIMIT`, `AI_PLANS_ALT_SLOT_WEEKLY_LIMIT`, `AI_PLANS_ALT_DAILY_LIMIT` ("otra opción"), `AI_PLANS_RUN_INLINE` (pruebas)
 - Avisos por WhatsApp (opcionales; NO confundir con `WHATSAPP_NUMBER`/`WHATSAPP_LINK`): `WHATSAPP_CLOUD_MODE` (`off` por defecto en producción, `simulated` en desarrollo, `live` = Meta). En `live`, `production.py` NO arranca sin `WHATSAPP_CLOUD_ACCESS_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `WHATSAPP_CLOUD_WABA_ID`, `WHATSAPP_CLOUD_APP_SECRET`, `WHATSAPP_CLOUD_VERIFY_TOKEN` (32+ caracteres) y `WHATSAPP_CLOUD_GRAPH_VERSION` (`vNN.N`). Pendientes legales (en `live` no se envía nada sin ellos): `WHATSAPP_CLOUD_SITE_URL` (https), `WHATSAPP_CLOUD_LEGAL_REVIEWED=true`, `PRIVACY_POLICY_URL` y texto `whatsapp_notices` sin marcadores. Otras: `WHATSAPP_CLOUD_TEMPLATE_LANG` (`es_CO`), `WHATSAPP_CLOUD_TIMEOUT_SECONDS`, `WHATSAPP_CLOUD_DAILY_LIMIT`, `WHATSAPP_CLOUD_EXPIRING_DAYS`, `WHATSAPP_CLOUD_PAYMENT_NOTICE`, `WHATSAPP_CLOUD_SEND_INLINE` (pruebas)
 - `HEALTH_FEATURES_ENABLED` (opcional): enciende las pantallas de salud de la clienta ("Mis medidas", consentimiento). **Apagada por defecto en producción** (las rutas responden 404) hasta que un abogado apruebe los textos de consentimiento y la superusuaria publique la versión definitiva (Admin > Textos de consentimiento); `development.py` la enciende. `PRIVACY_POLICY_URL` (opcional): enlace público a la política de tratamiento de datos que se muestra junto al consentimiento
+
+### Railway: configuración de despliegue
+
+`railway.toml` define el `collectstatic` del build, `startCommand = "bash start.sh"`, el healthcheck `/health/` y la política de reinicio. **Railway deja de leerlo el 2026-12-01** (pasa a Infrastructure as Code, `.railway/railway.ts`). Hay que migrarlo antes de esa fecha: sin esa configuración, el `Procfile` arrancaría gunicorn sin `start.sh` (sin migraciones ni verificaciones). No borrar `railway.toml` hasta haber migrado.
+
+### Integración continua (`.github/workflows/ci.yml`)
+
+En cada push y pull request, sin secretos ni despliegue (`permissions: contents: read`):
+
+- Job "pruebas": Python 3.11 con caché de pip, `requirements/development.txt`, `check`, `makemigrations --check --dry-run` y `python -W error::DeprecationWarning manage.py test`. Node 24 con `actions/setup-node` para que la prueba de Tailwind compile con `npx` (sigue sin `package.json`).
+- Job "dependencias": `pip-audit` sobre `requirements/base.txt`, `development.txt` y `local.txt`.
+
+La suite no necesita variables de entorno: sin `.env`, development.py usa sus valores por defecto. Si una prueba nueva necesita una, se define en el workflow con un valor ficticio.
 
 ### Almacenamiento de archivos media
 

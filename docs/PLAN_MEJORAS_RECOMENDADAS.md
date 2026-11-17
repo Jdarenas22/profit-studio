@@ -13,17 +13,27 @@ Este plan separa las mejoras ya realizadas durante la auditoría de las que conv
 - VS Code tiene tareas de Django y CSS, extensiones recomendadas e intérprete del entorno virtual local.
 - Claude Code tiene reglas compartidas que bloquean lectura de `.env`, SQLite local, medios y archivo de usuarios de prueba.
 - `CLAUDE.md` indica abrir la carpeta real del repositorio y especifica los comandos de desarrollo.
+- Django 5.2 LTS está en producción desde el PR #20.
+- HTTPS comprobado desde fuera: Railway redirige HTTP a HTTPS con 301 y envía HSTS.
+- Pruebas de WhatsApp (firma, challenge, consentimiento, cola y webhook) sin red.
+- Rama `security/endurecimiento`:
+  - `SECRET_KEY` validada con los criterios de `security.W009`. Por defecto solo avisa (`profit.W001`, `check_infra`); con `SECURITY_STRICT_SECRETS=true` no arranca.
+  - El bucket privado de comprobantes avisa por defecto (`profit.W002`, `RuntimeWarning`, `check_infra`) y es obligatorio con R2 en modo estricto.
+  - Diagnóstico de Redis en `check_infra`.
+  - CI en GitHub Actions con `check`, migraciones, la suite completa (incluida la prueba de Tailwind) y `pip-audit`.
 
 ## Recomendaciones priorizadas
 
 | Prioridad | Mejora | Motivo y alcance | Criterio para darla por terminada |
 | --- | --- | --- | --- |
-| P0 | Reemplazar la `SECRET_KEY` local y confirmar la de producción | `check --deploy` detectó que la clave que carga el `.env` local no satisface los criterios de fuerza de Django. Claude no debe leer, imprimir ni cambiar secretos. La clave de producción debe ser independiente. | Claves nuevas, aleatorias y distintas; `check --deploy` deja de mostrar W009 usando variables de entorno de prueba fuertes. |
-| P0 | Exigir bucket privado separado para comprobantes cuando R2 esté activo | El código advierte si `R2_RECEIPTS_BUCKET_NAME` falta o coincide con el bucket público de media. Una URL firmada no evita que el objeto sea público si el bucket entero permite acceso público. | Producción no arranca con R2 configurado sin un bucket privado distinto; pruebas cubren ausencia, igualdad y configuración válida. Verificar además el acceso público en Cloudflare. |
-| P0 | Confirmar HTTPS de extremo a extremo | Django depende del proxy de Railway para redirigir HTTP; `check --deploy` avisa W008. No cambiar el redirect sin considerar el healthcheck interno. | Comprobación desde el dominio público demuestra que HTTP redirige a HTTPS; `/health/` sigue pasando el healthcheck interno. |
-| P1 | Completar pruebas del flujo de WhatsApp | Las pruebas nuevas cubren autenticación del webhook, pero no todo el tratamiento de consentimiento, mensajes ni estados. Ampliar pruebas unitarias y de vistas sin llamar a Meta. | Casos de consentimiento vigente/retirado y versionado; menores; alta, cambio de número y baja; idempotencia; payload de otra WABA/número; límite del cuerpo; reintentos y transiciones de estado. |
-| P1 | Añadir CI con pruebas y auditoría de dependencias | El entorno no tiene `pip-audit`; la suite de CSS requiere npm. La integración continua debe detectar CVE y regresiones en cada PR. | GitHub Actions instala requirements, ejecuta `check`, revisión de migraciones, pruebas Django y `pip-audit`; informa fallos sin desplegar ni requerir secretos. |
-| P1 | Usar Redis compartido en producción para límites y caché | La caché local por proceso no comparte contadores entre workers. Esto reduce la precisión de los límites de intentos y otras claves temporales. | `REDIS_URL` activo en producción, chequeo de infraestructura lo informa con claridad y pruebas validan el backend configurado. |
+| P0 | Reemplazar la `SECRET_KEY` local y confirmar la de producción | **Código listo (modo gradual); falta la parte operativa.** Claude no debe leer, imprimir ni cambiar secretos, y la clave de producción debe ser independiente. | Generar una clave local nueva. En Railway, confirmar que `check_infra` muestra `SECRET_KEY` en OK. Después, activar `SECURITY_STRICT_SECRETS=true`. |
+| P0 | Exigir bucket privado separado para comprobantes cuando R2 esté activo | **Código listo (modo gradual).** Por defecto se avisa. Con `SECURITY_STRICT_SECRETS=true`, producción no arranca con R2 si `R2_RECEIPTS_BUCKET_NAME` falta o es igual a `R2_BUCKET_NAME`. Hay pruebas de ausencia, igualdad, configuración válida y sin R2. | Confirmar en Cloudflare que el bucket de comprobantes existe, es distinto y tiene el acceso público apagado. Definir la variable en Railway y activar el modo estricto. |
+| P0 | Migrar la configuración de Railway antes del 2026-12-01 | Railway deja de leer `railway.toml` ese día. Allí están el `collectstatic` del build, `bash start.sh`, el healthcheck `/health/` y la política de reinicio. Sin ellos, el `Procfile` arrancaría gunicorn sin migraciones ni las verificaciones de `start.sh`. | La configuración vive en Infrastructure as Code (`.railway/railway.ts`) o en el panel, y un despliegue de prueba muestra en los logs `>>> migrate OK` y el healthcheck en verde. No borrar `railway.toml` hasta migrar. |
+| ~~P0~~ | ~~Confirmar HTTPS de extremo a extremo~~ | **Hecho:** Railway redirige con 301 y envía HSTS. | Repetir al conectar el dominio definitivo. |
+| ~~P1~~ | ~~Completar pruebas del flujo de WhatsApp~~ | **Hecho** (pruebas sin red en `apps/whatsapp/tests/`, incluida la firma). | Antes de `live`, validar con el entorno de pruebas de Meta. |
+| ~~P1~~ | ~~Añadir CI con pruebas y auditoría de dependencias~~ | **Hecho:** `.github/workflows/ci.yml`, sin secretos ni despliegue. | Ver el primer resultado en GitHub > Actions tras el push. Opcional: exigirlo antes de fusionar (Settings > Branches). |
+| P1 | Usar Redis compartido en producción para límites y caché | **Diagnóstico hecho**: `check_infra` avisa en producción sin `REDIS_URL` y explica qué se cuenta por proceso. Solo afecta el límite del registro de cuentas; axes y las sesiones usan la base. | Decidir si se agrega Redis en Railway (tiene costo). Si se agrega, `check_infra` muestra "Redis responde". |
+| P2 | Quitar el N+1 del constructor de rutinas | `trainer_routine_builder` recorre días y ejercicios sin precargar relaciones. | Prueba con `assertNumQueries` y `prefetch_related('days__exercises__exercise')` en la vista. |
 | P1 | Revisar retención, copias de seguridad y recuperación | La aplicación guarda mediciones, perfiles de salud y pagos. La revisión de código no confirma retención, cifrado ni restauración de la base y archivos en Railway/R2. | Política de retención definida y una restauración de backup ensayada; confirmar acceso privado a comprobantes y permisos mínimos de credenciales R2. |
 | P2 | Preparar actualización del runtime Python | El proyecto fija Python 3.11, con fin de soporte de seguridad previsto para octubre de 2027. | Migración a Python 3.12 probada en desarrollo y despliegue de ensayo; no actualizar Django hasta una ventana compatible. |
 | P2 | Planificar Django 6.2 LTS | Django 5.2.19 está vigente y tiene soporte extendido hasta abril de 2028. Django 6.2 LTS está previsto para abril de 2027; evaluar cuando sea estable. | Actualización en rama separada con revisión de notas, dependencias, migraciones y suite completa. |
@@ -31,11 +41,12 @@ Este plan separa las mejoras ya realizadas durante la auditoría de las que conv
 
 ## Secuencia sugerida
 
-1. **Cerrar exposición de archivos y secretos:** reemplazar claves fuera del código; hacer obligatorio el bucket privado para recibos cuando aplique; confirmar configuración HTTPS desde el dominio público.
-2. **Aumentar cobertura de WhatsApp:** completar pruebas de consentimiento, revocación, encolado, duplicados y validación de cuenta. Mantener `WHATSAPP_CLOUD_MODE=off` hasta validar el contrato y la configuración real.
-3. **Automatizar seguridad y calidad:** CI con pruebas, migraciones y auditoría de dependencias. Resolver o aislar la descarga de Tailwind para que la comprobación de CSS sea repetible en CI.
-4. **Asegurar operación:** Redis compartido, copias de seguridad y restauración probada, revisión de permisos de R2 y proceso de respuesta a incidentes.
-5. **Actualizar plataforma en ventanas controladas:** Python 3.12 primero; Django 6.2 LTS cuando esté publicado y validado.
+1. **Antes del 2026-12-01:** migrar la configuración de Railway (`railway.toml`).
+2. **Cerrar exposición de archivos y secretos:** confirmar la `SECRET_KEY` y el bucket privado de comprobantes en Railway y Cloudflare. Después, activar `SECURITY_STRICT_SECRETS=true`.
+3. **WhatsApp:** mantener `WHATSAPP_CLOUD_MODE=off` hasta validar el contrato y la configuración real.
+4. **Calidad:** revisar el CI en cada PR y el N+1 del constructor de rutinas.
+5. **Asegurar operación:** Redis compartido, copias de seguridad y restauración probada, revisión de permisos de R2 y proceso de respuesta a incidentes.
+6. **Actualizar plataforma en ventanas controladas:** Python 3.12 primero; Django 6.2 LTS cuando esté publicado y validado.
 
 ## No automatizar desde Claude
 
