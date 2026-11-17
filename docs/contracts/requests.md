@@ -348,6 +348,10 @@ Plantilla nueva `trainer/partials/adaptation_panel.html`, incluida desde `plan_d
 
 Solo plantillas: `partials/navbar.html` (botón con foto/inicial + nombre que abre el submenú; sección «Mi cuenta» en el menú móvil), `partials/account_menu_items.html` (contenido compartido) y `trainer/base.html` (se quitan «Mi perfil» y «Salir» de la fila de pestañas). Sin cambios de contrato ni de vistas. Usa lo que ya llega: `user.is_trainer`, `user.is_superuser`, `user.profile_photo`, `user.get_full_name`, `HEALTH_FEATURES_ENABLED` y `AI_PLANS_ENABLED` (procesadores de contexto existentes) y las rutas `dashboard`, `trainer_dashboard`, `member_profile_edit`, `member_measurement_list`, `member_health_profile`, `member_plans` y `logout`. Pedidos al backend: ninguno.
 
+### Avisos por WhatsApp: W-01 a W-03 entregadas (frontend, 2026-11-16)
+
+Plantillas reales en lugar de los esqueletos: `accounts/whatsapp_settings.html`, `trainer/whatsapp_settings.html` y `accounts/partials/whatsapp_settings_body.html` (W-01); enlace «Avisos por WhatsApp» en `partials/account_menu_items.html` con `WHATSAPP_NOTICES_ENABLED` (W-02); aviso en `accounts/member_dashboard.html` para `pending`, `wrong_number` y `undeliverable` (W-03). Usan solo el contexto y las rutas de este contrato. Los mensajes de `messages` los sigue pintando `base.html`. «Activar avisos» y los botones de envío usan `aria-disabled` (no `disabled`) para seguir enfocables; el servidor valida igual. Pedidos al backend: ninguno.
+
 ## Resueltos
 
 (ninguno)

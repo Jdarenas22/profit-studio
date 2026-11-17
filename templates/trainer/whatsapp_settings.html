@@ -1,6 +1,19 @@
 {% extends "trainer/base.html" %}
 {% comment %}
-  ESQUELETO MÍNIMO (backend, 2026-11-16): REEMPLAZAR POR frontend-architect.
-  Contrato del contexto: docs/contracts/requests.md, «Avisos por WhatsApp: contrato W-01 a W-03».
+  W-01 «Avisos por WhatsApp» (entrenador o superusuaria). Contrato: docs/contracts/requests.md,
+  «Avisos por WhatsApp: contrato W-01 a W-03». El cuerpo es común con accounts/whatsapp_settings.html.
 {% endcomment %}
-{% block trainer_content %}{% include "accounts/partials/whatsapp_settings_body.html" %}{% endblock %}
+
+{% block title %}Avisos por WhatsApp — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="max-w-2xl mx-auto">
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'trainer_dashboard' %}" class="rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Avisos por WhatsApp</span>
+  </nav>
+
+  {% include "accounts/partials/whatsapp_settings_body.html" %}
+</div>
+{% endblock %}
