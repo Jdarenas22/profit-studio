@@ -89,6 +89,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
+- 2026-11-18 · ChatGPT · Auditoría de seguridad, capacidad local y vigencia tecnológica solicitada por la persona · `chore/auditoria-seguridad-capacidad` · en curso · `scripts/audit/security_capacity.py`, `docs/auditorias/2026-11-18-seguridad-capacidad.md` y resultados sintéticos · solo pruebas aisladas y documentación; sin modificar fase D, configuración ni producción
 - 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini · `feature/gemini-http-safety`, [PR #27](https://github.com/Jdarenas22/profit-studio/pull/27) · implementado, en curso hasta revisión y fusión; 1.369 pruebas locales aprobadas · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
 - 2026-11-17 · Claude · Fase D (D-01 a D-04), contrato aprobado por la persona · `feature/fase-d` · en curso · `apps/plans/` (vistas, `rules/progress.py`, `services.py`, `nutrition.py`), `apps/routines/`, plantillas `trainer/client_plans.html`, `trainer/client_progress.html` y `trainer/plan_detail.html`
 
