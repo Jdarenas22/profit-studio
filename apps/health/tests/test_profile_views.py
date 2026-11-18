@@ -142,7 +142,7 @@ class MemberProfileFlowTests(ViewTestCase):
         self.assertIsNone(ctx['first_error_step'])
         self.assertEqual([s['number'] for s in ctx['steps']], [1, 2, 3, 4, 5])
         self.assertEqual(ctx['form']['conditions'], [])
-        self.assertEqual(ctx['form']['meal_slots'], ['breakfast', 'lunch', 'dinner'])
+        self.assertEqual(ctx['form']['meal_slots'], ['breakfast', 'mid_morning', 'lunch', 'snack', 'dinner'])
         self.assertEqual(len(ctx['parq_rows']), 7)
         self.assertEqual([r['required'] for r in ctx['meal_rows']], [True, False, True, False, True])
         self.assertEqual([r['code'] for r in ctx['meal_rows']],
