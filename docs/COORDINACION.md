@@ -16,6 +16,49 @@ dueña del proyecto hace de puente y decide cuando hay dudas.
   temporal: `git worktree add ../tablero-tmp main`, editar, commit, push y `git worktree remove ../tablero-tmp`.
 - No se edita este archivo dentro de las ramas de trabajo (evita conflictos al fusionar).
 
+## Alcance vigente: demostración universitaria (2026-11-18)
+
+**Aviso de ChatGPT para Claude, solicitado expresamente por la persona dueña:** ProFit Studio
+es, en esta etapa, un proyecto universitario para mostrar su funcionamiento. El cierre actual
+NO es un lanzamiento a producción. Se usarán perfiles ficticios coherentes, rutinas y sugerencias
+alimenticias de cinco comidas. Se busca mostrar generación real con Gemini, bajo las cuotas
+gratuitas del proyecto de Google; no se autoriza habilitar facturación ni contratar servicios.
+Las tareas históricas de despliegue, R2, Redis y operación productiva quedan como trabajo futuro
+y no son requisitos de esta demostración. Esto actualiza el alcance, sin eliminar controles de
+acceso, validación de alimentos, límites ni la revisión de borradores.
+
+### Validación de ChatGPT y pendientes para la prueba final
+
+- Revisado en `fix/auditoria-seguridad-rendimiento`, commit `cbee229`: 146 pruebas aprobadas
+  sin secretos, sin datos locales y sin red (115 de flujos/recetas/nutrición y 31 de clientes
+  Gemini/USDA y seguridad HTTP). Son pruebas automatizadas, no una demostración real completa
+  desde el navegador. El código de esta rama aún depende de revisión/fusión de los PR abiertos.
+- Ya hay generación por trabajos, recetas permitidas, cinco comidas, cálculo de objetivos en
+  Django, borradores y aprobación. USDA es la fuente de composición; Gemini selecciona y
+  organiza opciones permitidas. Las cifras del catálogo de ejemplo son aproximadas: revisar
+  procedencia, porción y alimento crudo/cocido antes de exhibirlas como datos USDA.
+- Falta un camino explícito de demo con Gemini real: `simulated` usa `FakeAIClient`; `live`
+  exige `GEMINI_BILLING_CONFIRMED`. No marcar esa bandera para eludir el requisito. ChatGPT
+  debe proponer/implementar un modo de demostración limitado a desarrollo y datos ficticios,
+  con pruebas de bloqueo fuera de ese entorno. El modo todavía no existe: no configurar `demo`.
+- Confirmar en Google AI Studio que el proyecto/modelo usado tiene cuota gratuita disponible;
+  la bandera local de facturación no demuestra el estado de Google. Sin cuota: respuesta
+  controlada y resultado guardado claramente identificado, sin cambio automático a pago.
+- El menú recibe actividad, días y duración declarados; falta enlazar la rutina efectivamente
+  asignada si la presentación promete adaptación a ese entrenamiento. No afirmar que ya existe.
+- Preparar una base de demostración separada, con cuentas ficticias de entrenador y clientes
+  (reducir grasa, ganar masa y mantener), catálogo revisado y consentimientos de prueba. No
+  reutilizar ni modificar automáticamente la base local actual. Los perfiles clínicos siguen
+  fuera del alcance alimenticio actual; celiaquía/diabetes no se mostrarán como dietas tratantes.
+- Coordinar con Claude el recorrido visual tras integrar su fase D (PR #30): iniciar sesión,
+  elegir objetivo/rutina, solicitar menú, ver estado, revisar/aprobar borrador y ver cinco comidas
+  con porciones y totales. Probar también falta de cuota y acceso de otro usuario. La conexión
+  real inicial ya probada no sustituye esta aceptación completa en navegador.
+
+**Pedido a Claude:** al leer este tablero, ajustar textos, guion y prioridades al alcance académico;
+avisar aquí antes de tocar archivos de IA/configuración compartidos. No desplegar ni activar
+servicios por este aviso. Este mensaje queda publicado por git; no supone que Claude lo haya leído.
+
 ## 1. Carpetas (una por asistente)
 
 | Asistente | Carpeta | Uso |
