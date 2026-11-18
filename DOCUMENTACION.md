@@ -837,8 +837,20 @@ El archivo `.env` en la raíz del proyecto controla el comportamiento del sistem
 | `WOMPI_PRIVATE_KEY` | ❌ | Clave privada de Wompi (nunca exponer al cliente) |
 | `WOMPI_INTEGRITY_SECRET` | ❌ | Secreto para generar firmas de integridad |
 | `WOMPI_EVENTS_SECRET` | ❌ | Secreto para verificar webhooks de eventos |
+| `WHATSAPP_CLOUD_MODE` | ❌ | Avisos por WhatsApp (API de Meta): `off` (por defecto en producción), `simulated` (desarrollo, sin red) o `live`. NO es lo mismo que `WHATSAPP_LINK` |
+| `WHATSAPP_CLOUD_ACCESS_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `WHATSAPP_CLOUD_WABA_ID`, `WHATSAPP_CLOUD_APP_SECRET`, `WHATSAPP_CLOUD_VERIFY_TOKEN`, `WHATSAPP_CLOUD_GRAPH_VERSION` | Solo en `live` | Datos de Meta. Sin ellos el servidor no arranca en `live`. El verify token debe tener 32 caracteres o más |
+| `WHATSAPP_CLOUD_SITE_URL`, `WHATSAPP_CLOUD_LEGAL_REVIEWED` | Solo en `live` | Pendientes legales: dominio definitivo (https) y confirmación de que un abogado revisó el texto. Sin ellos (ni `PRIVACY_POLICY_URL`) no se envía ningún aviso |
 
 > Las variables marcadas ❌ en "Requerida" tienen valores por defecto en `settings/base.py` y son opcionales en desarrollo.
+
+---
+
+### Avisos por WhatsApp (app `whatsapp`)
+
+Avisos automáticos de una sola vía (membresía por vencer y vencida, plan aprobado, pendientes para la entrenadora), solo para quien los activa en **Mi cuenta > Avisos por WhatsApp** y confirma su número. Nunca llevan datos de salud. Diseño completo en `docs/contracts/whatsapp.md`.
+
+- La cola la envía un **servicio cron de Railway** (servicio aparte del mismo repositorio): comando de inicio `python manage.py process_whatsapp_queue`, en *Settings > Cron Schedule* `*/15 12-23 * * 1-6` (hora UTC; equivale a lunes a sábado de 7:00 a 18:45 en Bogotá). Necesita las mismas variables que la web.
+- Revisión: `python manage.py check_whatsapp` (y `--resume` para reanudar si se pausó por un error de Meta). Registro del número en Meta (una sola vez): `python manage.py whatsapp_register_number`.
 
 ---
 

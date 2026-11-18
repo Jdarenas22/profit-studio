@@ -1,25 +1,44 @@
+import re
 import warnings
 from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
+from config import security as _security
+
 from .base import *
 
 DEBUG = False
+
+# ─── Modo estricto de secretos (gradual) ───────────────────────────────────────
+# SECURITY_STRICT_SECRETS=true convierte en error de arranque lo que por defecto solo se
+# avisa: una SECRET_KEY que Django marcaría con security.W009 y, con R2, un bucket de
+# comprobantes ausente o igual al de media. Activarla en Railway solo DESPUÉS de confirmar
+# ambas cosas (ver config/security.py). Un valor que no sea true/false detiene el arranque.
+try:
+    SECURITY_STRICT_SECRETS = _security.parse_strict_flag(env('SECURITY_STRICT_SECRETS', default=''))
+except ValueError as _exc:
+    raise ImproperlyConfigured(str(_exc)) from None
 
 # ─── Variables obligatorias: el servidor NO arranca si faltan o son inseguras ───
 # SECRET_KEY: sin valor por defecto. Se rechazan el valor de desarrollo de base.py
 # y el de ejemplo de .env.example.
 SECRET_KEY = env('SECRET_KEY', default='')
-if (
-    not SECRET_KEY.strip()
-    or 'insecure' in SECRET_KEY.lower()
-    or SECRET_KEY.lower().startswith(('cambia-esta', 'changeme', 'change-me', 'tu-clave'))
-):
+if _security.secret_key_is_placeholder(SECRET_KEY):
     raise ImproperlyConfigured(
         'SECRET_KEY es obligatoria en producción: defínela como variable de entorno '
         '(Railway > Variables) con un valor largo y aleatorio; no sirven el valor por '
         'defecto ni el de .env.example.'
+    )
+# Fuerza de la clave (criterios de security.W009). Por defecto solo se avisa con el
+# chequeo profit.W001 (check --deploy) y en check_infra; en modo estricto no arranca.
+# El mensaje nombra la variable y el motivo, nunca el valor.
+_secret_weaknesses = _security.secret_key_weaknesses(SECRET_KEY)
+if _secret_weaknesses and SECURITY_STRICT_SECRETS:
+    raise ImproperlyConfigured(
+        'SECRET_KEY no cumple los criterios de seguridad de Django (security.W009): '
+        + '; '.join(_secret_weaknesses) + '. Con SECURITY_STRICT_SECRETS=true el servidor no '
+        'arranca. ' + _security.SECRET_KEY_ACTION_TEXT
     )
 
 # ALLOWED_HOSTS: obligatorio y sin comodín. Ejemplo:
@@ -65,6 +84,31 @@ if _ai_mode == 'live':
         )
 if GEMINI_SCHEMA_FIELD not in ('responseJsonSchema', 'none'):
     raise ImproperlyConfigured('GEMINI_SCHEMA_FIELD debe ser responseJsonSchema o none.')
+
+# ─── Avisos por WhatsApp: live solo con la configuración completa ──────────────
+# (docs/contracts/whatsapp.md, sección 8). El mensaje nombra la variable, nunca su valor. Los pendientes
+# legales (dominio, política, revisión del abogado, texto sin marcadores) NO detienen el arranque: con
+# ellos pendientes el sistema simplemente no ofrece activar ni envía nada (apps.whatsapp.conf).
+_wa_mode = (WHATSAPP_CLOUD_MODE or '').strip().lower()
+if _wa_mode not in ('', 'off', 'simulated', 'live'):
+    raise ImproperlyConfigured('WHATSAPP_CLOUD_MODE debe ser off, simulated o live.')
+if _wa_mode == 'live':
+    # Misma regla que apps.whatsapp.conf.missing_live_settings (aquí no se puede importar: los settings
+    # aún se están cargando).
+    _wa_missing = [name for name, value in (
+        ('WHATSAPP_CLOUD_ACCESS_TOKEN', WHATSAPP_CLOUD_ACCESS_TOKEN),
+        ('WHATSAPP_CLOUD_PHONE_NUMBER_ID', WHATSAPP_CLOUD_PHONE_NUMBER_ID),
+        ('WHATSAPP_CLOUD_WABA_ID', WHATSAPP_CLOUD_WABA_ID),
+        ('WHATSAPP_CLOUD_APP_SECRET', WHATSAPP_CLOUD_APP_SECRET),
+        ('WHATSAPP_CLOUD_VERIFY_TOKEN', WHATSAPP_CLOUD_VERIFY_TOKEN),
+        ('WHATSAPP_CLOUD_GRAPH_VERSION', WHATSAPP_CLOUD_GRAPH_VERSION),
+    ) if not str(value or '').strip()]
+    if WHATSAPP_CLOUD_VERIFY_TOKEN and len(WHATSAPP_CLOUD_VERIFY_TOKEN) < 32:
+        _wa_missing.append('WHATSAPP_CLOUD_VERIFY_TOKEN (mínimo 32 caracteres)')
+    if WHATSAPP_CLOUD_GRAPH_VERSION and not re.match(r'^v\d+\.\d+$', WHATSAPP_CLOUD_GRAPH_VERSION):
+        _wa_missing.append('WHATSAPP_CLOUD_GRAPH_VERSION (formato vNN.N)')
+    if _wa_missing:
+        raise ImproperlyConfigured('WHATSAPP_CLOUD_MODE=live exige ' + ', '.join(_wa_missing) + '.')
 
 # ─── django-axes detrás del proxy de Railway ───────────────────────────────────
 # Railway envía la IP real del cliente en X-Real-IP. Sin esto, todos los visitantes
@@ -173,15 +217,17 @@ if _r2_key and _r2_secret and _r2_bucket and _r2_endpoint:
     # del servidor y comprueba quién pide el archivo).
     # MEDIA_URL / R2_PUBLIC_URL solo alimentan el storage de media pública; los comprobantes
     # no los usan.
+    # Sin bucket propio (o con el mismo de media): por defecto solo se avisa (aquí y con el
+    # chequeo profit.W002); con SECURITY_STRICT_SECRETS=true el servidor no arranca.
     RECEIPTS_BUCKET_NAME = _r2_receipts
-    if not _r2_receipts or _r2_receipts == _r2_bucket:
-        warnings.warn(
-            'R2_RECEIPTS_BUCKET_NAME no está definido (o es igual a R2_BUCKET_NAME): los '
-            'comprobantes se guardan en el bucket de media. Si ese bucket tiene acceso público '
-            '(r2.dev o dominio personalizado), los comprobantes serían públicos para quien '
-            'tenga la URL. Crea un bucket privado y define R2_RECEIPTS_BUCKET_NAME.',
-            RuntimeWarning, stacklevel=2,
-        )
+    _receipts_problem = _security.receipts_bucket_problem(_r2_bucket, _r2_receipts)
+    if _receipts_problem:
+        _receipts_message = (_security.RECEIPTS_PROBLEM_TEXT[_receipts_problem] + ' '
+                             + _security.RECEIPTS_RISK_TEXT + ' ' + _security.RECEIPTS_ACTION_TEXT)
+        if SECURITY_STRICT_SECRETS:
+            raise ImproperlyConfigured(
+                _receipts_message + ' Con SECURITY_STRICT_SECRETS=true el servidor no arranca.')
+        warnings.warn(_receipts_message, RuntimeWarning, stacklevel=2)
 else:
     MEDIA_ROOT = BASE_DIR / 'media'
     MEDIA_URL  = '/media/'
@@ -243,6 +289,12 @@ LOGGING = {
         },
         # Planes con IA: solo ids, estados, tokens y códigos de error (nunca datos de salud)
         'apps.plans': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Avisos por WhatsApp: ids, tipos, estados y códigos (nunca teléfonos, tokens ni textos)
+        'apps.whatsapp': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,

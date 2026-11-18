@@ -22,11 +22,13 @@ from django.urls import clear_url_caches
 from apps.accounts.models import User
 
 BASE_DIR = Path(settings.BASE_DIR)
-GOOD_SECRET = 'k9#Vz!2mQx7$Lp0wRt5&Yb3nHs8^Df1JcGu6Ae4Ko-Zi_Xv'
+# Ficticia y fuerte según security.W009 (50+ caracteres, variados, sin prefijo inseguro)
+GOOD_SECRET = 'k9#Vz!2mQx7$Lp0wRt5&Yb3nHs8^Df1JcGu6Ae4Ko-Zi_Xv+Tq8@Wm'
 
 # Variables que neutralizan lo que pudiera venir del .env local (se leen con setdefault)
 CLEAN_ENV = {
     'SECRET_KEY': GOOD_SECRET,
+    'SECURITY_STRICT_SECRETS': '',
     'ALLOWED_HOSTS': 'profit-test.up.railway.app,www.ejemplo.com',
     'RAILWAY_PUBLIC_DOMAIN': '',
     'DATABASE_URL': 'sqlite:///:memory:',
@@ -36,6 +38,9 @@ CLEAN_ENV = {
     'EMAIL_HOST_USER': '',
     'AI_PLANS_MODE': '', 'GEMINI_API_KEY': '', 'GEMINI_MODEL': '', 'GEMINI_BILLING_CONFIRMED': 'false',
     'GEMINI_SCHEMA_FIELD': 'responseJsonSchema',
+    'WHATSAPP_CLOUD_MODE': '', 'WHATSAPP_CLOUD_ACCESS_TOKEN': '', 'WHATSAPP_CLOUD_PHONE_NUMBER_ID': '',
+    'WHATSAPP_CLOUD_WABA_ID': '', 'WHATSAPP_CLOUD_APP_SECRET': '', 'WHATSAPP_CLOUD_VERIFY_TOKEN': '',
+    'WHATSAPP_CLOUD_GRAPH_VERSION': 'v27.0',
 }
 
 PROBE = (
@@ -54,6 +59,7 @@ PROBE = (
     " 'axes_params': settings.AXES_LOCKOUT_PARAMETERS,"
     " 'axes_reset': settings.AXES_RESET_ON_SUCCESS,"
     " 'receipts_bucket': getattr(settings, 'RECEIPTS_BUCKET_NAME', None),"
+    " 'strict': settings.SECURITY_STRICT_SECRETS,"
     " 'media_url': settings.MEDIA_URL,"
     " 'custom_domain': getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None),"
     " 'url_protocol': getattr(settings, 'AWS_S3_URL_PROTOCOL', None),"
@@ -194,6 +200,88 @@ class ProductionSettingsTests(SimpleTestCase):
                 self.assertIn('ImproperlyConfigured', err)
                 self.assertIn('SECRET_KEY', err)
 
+    # ── Modo gradual de secretos (SECURITY_STRICT_SECRETS) ────────────────────────────
+    # Claves ficticias que Django marcaría con security.W009 sin ser valores de ejemplo.
+    WEAK_SECRETS = (
+        'Clave-Corta-Pero-Variada-4821',            # menos de 50 caracteres
+        'abcd' * 15,                                 # 60 caracteres, solo 4 distintos
+    )
+
+    def test_good_secret_fixture_is_strong(self):
+        from config import security
+        self.assertEqual(security.secret_key_weaknesses(GOOD_SECRET), [])
+
+    def test_weak_secret_only_warns_by_default(self):
+        for weak in self.WEAK_SECRETS:
+            with self.subTest(secret=weak):
+                code, data, err = load_production(SECRET_KEY=weak)
+                self.assertEqual(code, 0, err)          # no tumba el despliegue actual
+                self.assertTrue(data['secret_ok'])
+                self.assertFalse(data['strict'])
+                self.assertNotIn(weak, err)
+
+    def test_weak_secret_stops_the_server_in_strict_mode_without_showing_it(self):
+        for weak in self.WEAK_SECRETS:
+            for flag in ('true', 'True', '1'):
+                with self.subTest(secret=weak, flag=flag):
+                    code, _, err = load_production(SECRET_KEY=weak, SECURITY_STRICT_SECRETS=flag)
+                    self.assertNotEqual(code, 0)
+                    self.assertIn('ImproperlyConfigured', err)
+                    self.assertIn('SECRET_KEY', err)
+                    self.assertIn('security.W009', err)
+                    self.assertNotIn(weak, err)
+
+    def test_strong_secret_loads_in_strict_mode(self):
+        code, data, err = load_production(SECURITY_STRICT_SECRETS='true')
+        self.assertEqual(code, 0, err)
+        self.assertTrue(data['strict'])
+
+    def test_strict_mode_explicitly_off_behaves_like_default(self):
+        code, data, err = load_production(SECRET_KEY=self.WEAK_SECRETS[0], SECURITY_STRICT_SECRETS='false')
+        self.assertEqual(code, 0, err)
+        self.assertFalse(data['strict'])
+
+    def test_invalid_strict_flag_stops_the_server(self):
+        code, _, err = load_production(SECURITY_STRICT_SECRETS='quizas')
+        self.assertNotEqual(code, 0)
+        self.assertIn('ImproperlyConfigured', err)
+        self.assertIn('SECURITY_STRICT_SECRETS', err)
+
+    def test_placeholder_secret_stops_the_server_even_without_strict_mode(self):
+        code, _, err = load_production(SECRET_KEY='django-insecure-' + GOOD_SECRET, SECURITY_STRICT_SECRETS='false')
+        self.assertNotEqual(code, 0)
+        self.assertIn('SECRET_KEY', err)
+        self.assertNotIn(GOOD_SECRET, err)
+
+    def test_r2_receipts_bucket_equal_to_media_bucket_warns_by_default(self):
+        code, data, err = load_production(R2_RECEIPTS_BUCKET_NAME='media-publico', **self.R2_ENV)
+        self.assertEqual(code, 0, err)
+        self.assertIn('R2_RECEIPTS_BUCKET_NAME', err)
+        self.assertIn('RuntimeWarning', err)
+
+    def test_strict_mode_requires_a_separate_receipts_bucket_with_r2(self):
+        for receipts in ('', 'media-publico'):
+            with self.subTest(receipts=receipts):
+                code, _, err = load_production(SECURITY_STRICT_SECRETS='true',
+                                               R2_RECEIPTS_BUCKET_NAME=receipts, **self.R2_ENV)
+                self.assertNotEqual(code, 0)
+                self.assertIn('ImproperlyConfigured', err)
+                self.assertIn('R2_RECEIPTS_BUCKET_NAME', err)
+                self.assertNotIn('acc123', err)          # ni el endpoint ni otros valores
+
+    def test_strict_mode_with_a_private_receipts_bucket_loads(self):
+        code, data, err = load_production(SECURITY_STRICT_SECRETS='true',
+                                          R2_RECEIPTS_BUCKET_NAME='recibos-privado', **self.R2_ENV)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['receipts_bucket'], 'recibos-privado')
+        self.assertNotIn('R2_RECEIPTS_BUCKET_NAME', err)
+
+    def test_strict_mode_without_r2_does_not_require_a_receipts_bucket(self):
+        code, data, err = load_production(SECURITY_STRICT_SECRETS='true')
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['receipts_bucket'], '')
+        self.assertNotIn('R2_RECEIPTS_BUCKET_NAME', err)
+
     def test_allowed_hosts_is_required_and_has_no_wildcard(self):
         for bad in ('', '*', 'midominio.com,*'):
             with self.subTest(hosts=bad):
@@ -219,6 +307,52 @@ class ProductionSettingsTests(SimpleTestCase):
         code, data, err = load_production(ALLOWED_HOSTS='.ejemplo.com')
         self.assertEqual(code, 0, err)
         self.assertEqual(data['csrf'], ['https://*.ejemplo.com'])
+
+
+def run_deploy_check(**overrides):
+    """`manage.py check --deploy` con production.py en un subproceso. Devuelve (código, salida)."""
+    env = {k: v for k, v in os.environ.items() if k in ('PATH', 'SYSTEMROOT', 'TEMP', 'TMP', 'HOME')}
+    env.update(CLEAN_ENV)
+    env.update(overrides)
+    env['DJANGO_SETTINGS_MODULE'] = 'config.settings.production'
+    done = subprocess.run(
+        [sys.executable, 'manage.py', 'check', '--deploy'], cwd=BASE_DIR, env=env,
+        capture_output=True, text=True, timeout=120,
+    )
+    return done.returncode, done.stdout + done.stderr
+
+
+class DeployCheckTests(SimpleTestCase):
+    """profit.W001 / profit.W002 aparecen en check --deploy, solo como avisos y sin valores."""
+
+    R2_ENV = ProductionSettingsTests.R2_ENV
+
+    def test_weak_secret_shows_profit_w001_without_the_value(self):
+        weak = 'Clave-Corta-Pero-Variada-4821'
+        code, out = run_deploy_check(SECRET_KEY=weak)
+        self.assertEqual(code, 0, out)                     # aviso, no error: no tumba nada
+        self.assertIn('profit.W001', out)
+        self.assertIn('security.W009', out)                # el aviso propio de Django sigue ahí
+        self.assertNotIn(weak, out)
+
+    def test_strong_secret_and_private_bucket_have_no_project_warnings(self):
+        code, out = run_deploy_check(R2_RECEIPTS_BUCKET_NAME='recibos-privado', **self.R2_ENV)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn('profit.W001', out)
+        self.assertNotIn('profit.W002', out)
+        self.assertNotIn('security.W009', out)
+
+    def test_shared_receipts_bucket_shows_profit_w002(self):
+        for receipts in ('', 'media-publico'):
+            with self.subTest(receipts=receipts):
+                code, out = run_deploy_check(R2_RECEIPTS_BUCKET_NAME=receipts, **self.R2_ENV)
+                self.assertEqual(code, 0, out)
+                self.assertIn('profit.W002', out)
+
+    def test_without_r2_there_is_no_profit_w002(self):
+        code, out = run_deploy_check()
+        self.assertEqual(code, 0, out)
+        self.assertNotIn('profit.W002', out)
 
 
 class MediaRouteTests(SimpleTestCase):
@@ -264,6 +398,10 @@ class StartScriptTests(SimpleTestCase):
         for line in self.text.splitlines():
             if line.strip().startswith('echo'):
                 self.assertNotRegex(line, r'\$\{?DATABASE_URL', line)
+
+    def test_production_fails_closed_without_database_url(self):
+        self.assertIn('DATABASE_URL no esta definida', self.text)
+        self.assertRegex(self.text, r'if \[ -n "\$\{DATABASE_URL:-\}" \]; then[\s\S]*?exit 1')
 
     def test_migrate_failure_aborts(self):
         match = re.search(r'migrate --noinput.*?\n\s*else\n(.*?)\n\s*fi', self.text, re.S)

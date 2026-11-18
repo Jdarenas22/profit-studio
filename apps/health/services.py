@@ -33,7 +33,7 @@ from apps.plans.rules import flags as rules_flags
 from . import choices as ch
 from . import dates
 from .models import (
-    PURPOSE_AI, PURPOSE_CHOICES, PURPOSE_HEALTH_DATA, PURPOSES, ConsentRecord, ConsentTextVersion,
+    HEALTH_PURPOSES, PURPOSE_AI, PURPOSE_CHOICES, PURPOSE_HEALTH_DATA, ConsentRecord, ConsentTextVersion,
     HealthAccessLog, HealthProfile,
 )
 
@@ -60,7 +60,9 @@ def health_features_enabled():
 
 
 def is_valid_purpose(purpose):
-    return purpose in PURPOSES
+    """Finalidades que manejan las pantallas de salud (`member_consent`). La de WhatsApp tiene sus
+    propias rutas (`apps.whatsapp`): aquí no es válida."""
+    return purpose in HEALTH_PURPOSES
 
 
 def current_text(purpose):
@@ -127,7 +129,7 @@ def consent_cards(user):
     finalidad con `active`, fecha y versión aceptadas, y `outdated` si aceptó un texto que ya no
     es el vigente (debe aceptar el nuevo)."""
     cards = []
-    for purpose in PURPOSES:
+    for purpose in HEALTH_PURPOSES:
         record = active_consent(user, purpose)
         text = current_text(purpose)
         outdated = record is None and ConsentRecord.objects.filter(
@@ -167,7 +169,7 @@ def is_minor(user):
 def purposes_with_placeholders():
     """Finalidades cuyo texto vigente aún tiene marcadores `[...]` (o no existe)."""
     pending = []
-    for purpose in PURPOSES:
+    for purpose in HEALTH_PURPOSES:
         text = current_text(purpose)
         if text is None or text.has_placeholders:
             pending.append(purpose)

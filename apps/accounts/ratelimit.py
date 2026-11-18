@@ -4,6 +4,11 @@ Usa la caché configurada: Redis si existe REDIS_URL (límite compartido entre t
 los procesos) o LocMem (cada proceso de gunicorn cuenta por separado, así que el
 límite real puede ser hasta N veces mayor con N procesos; sigue frenando abusos
 masivos). Si la caché falla, NO se bloquea a nadie (falla abierta) y se registra.
+
+Hoy lo usa el registro de cuentas (apps/accounts/views.py). django-axes (intentos de inicio
+de sesión) no usa esta caché sino la base de datos, así que su bloqueo es el mismo en todos
+los procesos con o sin Redis. Redis es opcional: el despliegue no depende de él, y
+`python manage.py check_infra` avisa en producción cuando falta (área "Caché").
 """
 import hashlib
 import logging

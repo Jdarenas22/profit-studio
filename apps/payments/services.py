@@ -164,6 +164,11 @@ def activate_membership(payment):
     return membership
 
 
+def _whatsapp_payment_approved(payment_id):
+    from apps.whatsapp import services as whatsapp
+    whatsapp.notify_payment_approved(payment_id)
+
+
 def apply_transaction_event(payload: dict) -> str:
     """
     Aplica un evento `transaction.updated` (ya autenticado) al Payment local.
@@ -255,6 +260,10 @@ def apply_transaction_event(payload: dict) -> str:
             payment.save()
             activate_membership(payment)   # si falla, se revierte todo
             logger.info(f"Payment APPROVED: {reference} | user={payment.user_id} | method={method_type}")
+            # Aviso "pago recibido" por WhatsApp (opcional, WHATSAPP_CLOUD_PAYMENT_NOTICE). Solo tras
+            # confirmar la transacción y sin poder fallar: no cambia la respuesta a Wompi.
+            payment_id = payment.pk
+            transaction.on_commit(lambda: _whatsapp_payment_approved(payment_id))
             return 'approved'
         if wompi_status == 'DECLINED':
             payment.status = Payment.STATUS_DECLINED

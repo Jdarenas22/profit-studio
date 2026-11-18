@@ -225,6 +225,79 @@ Primera pieza de la fase D (el resto sigue pendiente). Sin migración: `MealChoi
   5. Ocultarlo en la impresión.
 - **Para saber**: las pastillas de día de la pantalla van de hoy a hoy + 6, así que desde la interfaz solo se marcan comidas de **hoy** (el servicio acepta también días anteriores, pero la pantalla no navega hacia atrás). La hora de la marca no se muestra en ninguna parte.
 
+### Avisos por WhatsApp: contrato W-01 a W-03 (IMPLEMENTADO por el backend, 2026-11-16)
+
+Contrato: `docs/contracts/whatsapp.md` (APROBADO; ver secciones 2.1, 3, 4 y 11). Rama `feature/whatsapp-avisos`. Los avisos son de una sola vía y **nunca** llevan datos de salud. No cambia nada del botón de soporte (`WHATSAPP_LINK` / `WHATSAPP_NUMBER`).
+
+**Plantillas que hay que reemplazar.** Hoy existen esqueletos mínimos, sin estilos, marcados "REEMPLAZAR POR frontend-architect":
+- `templates/accounts/whatsapp_settings.html`: clienta. Extiende `base.html` y usa el bloque `content`.
+- `templates/trainer/whatsapp_settings.html`: entrenador o superusuaria. Extiende `trainer/base.html` y usa el bloque `trainer_content`.
+- `templates/accounts/partials/whatsapp_settings_body.html`: cuerpo común que incluyen las dos anteriores.
+
+La vista elige la plantilla según `request.user.is_trainer`. Las pruebas del backend comprueban el **contexto**, no el HTML.
+
+**Rutas.** Todas trabajan sobre `request.user` y no reciben ningún id:
+
+| Nombre | Ruta | Método | Notas |
+| --- | --- | --- | --- |
+| `whatsapp_settings` | `/accounts/whatsapp/` | GET | Pantalla W-01. Exige sesión; no exige membresía vigente. Con la función apagada responde 404. Lleva `Cache-Control: no-store`. |
+| `whatsapp_enable` | `/accounts/whatsapp/enable/` | POST | Campos: `phone`, `accept` (casilla, valor `on`) y `text_version` (oculto, `{{ text_version }}`). Si hay errores, vuelve a pintar W-01 con `errors` y `form` (HTTP 200). Si sale bien, redirige a W-01 con un mensaje de éxito. |
+| `whatsapp_disable` | `/accounts/whatsapp/disable/` | POST | Siempre permitida, incluso con la función apagada. Redirige a W-01 (o al `dashboard` si está apagada) con un mensaje. Conviene pedir confirmación antes de enviar. |
+| `whatsapp_resend_confirmation` | `/accounts/whatsapp/resend/` | POST | Permite 1 reenvío cada 10 minutos y 3 por día. Los errores y el éxito llegan como `messages`. |
+
+Las tres rutas POST responden 405 si se abren con GET. Todo formulario lleva `{% csrf_token %}` y su botón se deshabilita mientras envía.
+
+**Contexto de W-01**
+
+- `status`: estado de los avisos. Valores posibles:
+  - `off`: no los activó, retiró la autorización o se publicó un texto nuevo que debe aceptar.
+  - `pending`: activó, pero falta que pulse «Sí, soy yo» en WhatsApp.
+  - `active`.
+  - `wrong_number`: alguien respondió «No soy yo».
+  - `undeliverable`: WhatsApp no pudo entregar los mensajes dos veces seguidas.
+  - `opted_out`: se dio de baja.
+- `phone_display`: número formateado (`+57 300 123 4567`), o `''` si `status` es `off`.
+- `available` (= `text_ready`): bool. Si es falso, mostrar «Esta función aún no está disponible» y **no** mostrar el formulario. Pasa, por ejemplo, en producción mientras falten los datos legales.
+- `form`: diccionario `{phone, accept}` para repoblar el formulario. `phone` llega precargado desde el perfil (`User.phone`) cuando es un celular válido.
+- `errors`: diccionario con estas claves posibles:
+  - `phone`: número no válido o ya registrado en otra cuenta. El mensaje no dice en cuál.
+  - `accept`: falta marcar la casilla, o el texto cambió mientras se leía.
+  - `general`: falta `text_version`, la función no está disponible o la persona es menor de edad.
+
+  Cada error se pinta junto a su campo; `general`, arriba.
+- `text_version`: número de versión del texto de consentimiento.
+- `body`: texto completo del consentimiento. Se muestra escapado, con los saltos de línea respetados (por ejemplo, `white-space: pre-line`).
+- `privacy_policy_url`: si viene vacío, no se muestra el enlace.
+- `can_resend`: bool. Solo se muestra «Reenviar confirmación» si `status == 'pending'` y `can_resend`.
+- `recent`: hasta 10 elementos `{kind_label, created_at, status_label, status}` con los últimos avisos, sin contenido.
+- `is_minor`: bool. Si es verdadero: «Los avisos por WhatsApp son solo para mayores de 18 años. Consulta con tu entrenador.», sin formulario.
+- `is_simulated`: bool. Si es verdadero, mostrar la franja «MODO DE PRUEBA: los mensajes no salen a WhatsApp».
+
+**Qué mostrar según `status`**
+
+| `status` | Qué ve la persona |
+| --- | --- |
+| `off`, `opted_out`, `wrong_number`, `undeliverable` | Formulario de activación: número + texto + casilla **sin marcar** + botón «Activar avisos», deshabilitado hasta marcar la casilla. Con `wrong_number`: «Ese número no confirmó los avisos; revisa tu número». Con `undeliverable`: «No pudimos entregarte avisos; revisa tu número». |
+| `pending` | «Te enviamos un mensaje por WhatsApp. Pulsa "Sí, soy yo" para empezar a recibir los avisos», más «Reenviar confirmación» (si `can_resend`) y «Desactivar avisos». |
+| `active` | «Recibes avisos en {phone_display}», más «Desactivar avisos». Opcional: indicar que también se puede responder BAJA en WhatsApp. |
+
+Mensajes de éxito y error que llegan por `messages` (ya redactados):
+- «Listo. Te enviamos un mensaje por WhatsApp: pulsa "Sí, soy yo" para empezar a recibir los avisos.»
+- «Desactivaste los avisos por WhatsApp. No te enviaremos más mensajes.»
+- «Te enviamos de nuevo el mensaje de confirmación.»
+- «Ya te enviamos la confirmación hace poco. Espera unos minutos.»
+- «Llegaste al máximo de reenvíos de hoy. Inténtalo mañana.»
+- «No pudimos guardar el cambio. Inténtalo de nuevo más tarde.»
+
+**W-02: enlace en el menú.** En `partials/account_menu_items.html` (clienta y entrenador), agregar «Avisos por WhatsApp» con `{% url 'whatsapp_settings' %}`, solo dentro de `{% if WHATSAPP_NOTICES_ENABLED %}`. Esa variable global la entrega el procesador de contexto `apps.whatsapp.context_processors.whatsapp_flags` y no consulta la base de datos.
+
+**W-03: aviso en el panel de la clienta.** `accounts/member_dashboard.html` recibe `whatsapp_status`, que vale `None` con la función apagada (en ese caso no se dibuja nada) o uno de los valores de `status`:
+- `pending`: «Confirma tu número en WhatsApp», con enlace a W-01.
+- `wrong_number` o `undeliverable`: «Revisa tu número de WhatsApp», con enlace a W-01.
+- Cualquier otro valor: no se dibuja nada, o como mucho un enlace discreto.
+
+**Reglas de siempre:** sin `|safe` ni `innerHTML` con datos, no poner el teléfono en la URL y no cargar scripts nuevos de terceros.
+
 ## De frontend-architect para arquitecto-backend
 
 ### Fase A1: plantillas entregadas (F-01, F-02, F-03) y lo que asumen de las vistas
@@ -274,6 +347,10 @@ Plantilla nueva `trainer/partials/adaptation_panel.html`, incluida desde `plan_d
 ### Submenú de perfil en el banner (frontend, 2026-10-13)
 
 Solo plantillas: `partials/navbar.html` (botón con foto/inicial + nombre que abre el submenú; sección «Mi cuenta» en el menú móvil), `partials/account_menu_items.html` (contenido compartido) y `trainer/base.html` (se quitan «Mi perfil» y «Salir» de la fila de pestañas). Sin cambios de contrato ni de vistas. Usa lo que ya llega: `user.is_trainer`, `user.is_superuser`, `user.profile_photo`, `user.get_full_name`, `HEALTH_FEATURES_ENABLED` y `AI_PLANS_ENABLED` (procesadores de contexto existentes) y las rutas `dashboard`, `trainer_dashboard`, `member_profile_edit`, `member_measurement_list`, `member_health_profile`, `member_plans` y `logout`. Pedidos al backend: ninguno.
+
+### Avisos por WhatsApp: W-01 a W-03 entregadas (frontend, 2026-11-16)
+
+Plantillas reales en lugar de los esqueletos: `accounts/whatsapp_settings.html`, `trainer/whatsapp_settings.html` y `accounts/partials/whatsapp_settings_body.html` (W-01); enlace «Avisos por WhatsApp» en `partials/account_menu_items.html` con `WHATSAPP_NOTICES_ENABLED` (W-02); aviso en `accounts/member_dashboard.html` para `pending`, `wrong_number` y `undeliverable` (W-03). Usan solo el contexto y las rutas de este contrato. Los mensajes de `messages` los sigue pintando `base.html`. «Activar avisos» y los botones de envío usan `aria-disabled` (no `disabled`) para seguir enfocables; el servidor valida igual. Pedidos al backend: ninguno.
 
 ## Resueltos
 
