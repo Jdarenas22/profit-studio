@@ -98,6 +98,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### Hecho
 
+- 2026-11-18 · ChatGPT · Primera conexión real de Gemini validada con datos ficticios: `gemini-3.5-flash-lite`; tres llamadas (rutina, comida y contrato con 24 recetas candidatas), formato y reglas aprobados. Sin consultar usuarios ni modificar .env, modelo persistente o modo de clientes (`simulated`). Pendiente seleccionar modelo en configuración, confirmar preparación para producción y probar el día completo; esto no valida datos alimenticios reales ni el despliegue.
 - 2026-11-17 · ChatGPT · Integración USDA FoodData Central · PR #26 · migración `plans/0005`
 - 2026-11-17 · Claude · Railway sin `railway.toml` (configuración en el panel) · PR #25
 
