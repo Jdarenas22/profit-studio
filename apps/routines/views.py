@@ -6,7 +6,10 @@ from django.http import Http404, HttpResponse
 from django.utils.html import format_html
 from apps.accounts.decorators import trainer_required
 from apps.accounts.form_utils import errors_dict, flash_errors
-from apps.accounts.permissions import clients_for_trainer
+from apps.accounts.permissions import (
+    INACTIVE_CLIENT_MESSAGE, ClientInactiveError, clients_for_trainer, ensure_client_active,
+    reject_if_inactive,
+)
 from .forms import RoutineDayForm, RoutineExerciseForm, RoutineForm
 from .models import Routine, RoutineDay, RoutineExercise, RoutineDayLog
 
@@ -25,6 +28,19 @@ def htmx_form_error(form):
     response = HttpResponse(format_html('<p class="text-red-400 text-xs p-2" role="alert">{}</p>', message))
     response['X-Form-Error'] = '1'
     return response
+
+
+def htmx_inactive_client(routine):
+    """Fragmento HTMX cuando la clienta está desactivada (su ficha es de solo lectura). Mismo
+    formato y misma cabecera que `htmx_form_error`. `None` si está activa."""
+    try:
+        ensure_client_active(routine.user)
+    except ClientInactiveError:
+        response = HttpResponse(format_html('<p class="text-red-400 text-xs p-2" role="alert">{}</p>',
+                                            INACTIVE_CLIENT_MESSAGE))
+        response['X-Form-Error'] = '1'
+        return response
+    return None
 
 
 @login_required
@@ -66,13 +82,18 @@ def trainer_routine_list(request):
 
 @trainer_required
 def trainer_routine_create(request):
-    clients = clients_for_trainer(request.user).order_by('first_name', 'last_name')
+    accessible = clients_for_trainer(request.user)
+    # En el selector solo las activas (una desactivada es de solo lectura)
+    clients = accessible.filter(is_active=True).order_by('first_name', 'last_name')
     if request.method == 'POST':
         # El destinatario debe ser un cliente (role='member') accesible para este entrenador
         client_id = request.POST.get('client', '')
         if not str(client_id).isdigit():
             raise Http404
-        client = get_object_or_404(clients, pk=int(client_id))
+        client = get_object_or_404(accessible, pk=int(client_id))
+        blocked = reject_if_inactive(request, client)
+        if blocked:
+            return blocked
         form = RoutineForm(request.POST)
         if form.is_valid():
             routine = Routine.objects.create(
@@ -108,6 +129,9 @@ def trainer_routine_builder(request, pk):
 def trainer_add_day(request, pk):
     routine = get_routine_for_trainer(request, pk)
     if request.method == 'POST':
+        inactive = htmx_inactive_client(routine)
+        if inactive:
+            return inactive
         form = RoutineDayForm(request.POST)
         if not form.is_valid():
             return htmx_form_error(form)
@@ -130,6 +154,9 @@ def trainer_delete_day(request, pk, day_pk):
     routine = get_routine_for_trainer(request, pk)
     day = get_object_or_404(RoutineDay, pk=day_pk, routine=routine)
     if request.method == 'POST':
+        inactive = htmx_inactive_client(routine)
+        if inactive:
+            return inactive
         day.delete()
         return HttpResponse('')
     return HttpResponse(status=405)
@@ -140,6 +167,9 @@ def trainer_add_exercise_to_day(request, pk, day_pk):
     routine = get_routine_for_trainer(request, pk)
     day = get_object_or_404(RoutineDay, pk=day_pk, routine=routine)
     if request.method == 'POST':
+        inactive = htmx_inactive_client(routine)
+        if inactive:
+            return inactive
         form = RoutineExerciseForm(request.POST)
         if not form.is_valid():
             return htmx_form_error(form)
@@ -168,6 +198,9 @@ def trainer_remove_exercise(request, pk, day_pk, re_pk):
     day = get_object_or_404(RoutineDay, pk=day_pk, routine=routine)
     re = get_object_or_404(RoutineExercise, pk=re_pk, day=day)
     if request.method == 'POST':
+        inactive = htmx_inactive_client(routine)
+        if inactive:
+            return inactive
         re.delete()
         return HttpResponse('')
     return HttpResponse(status=405)
@@ -177,6 +210,9 @@ def trainer_remove_exercise(request, pk, day_pk, re_pk):
 def trainer_routine_delete(request, pk):
     routine = get_routine_for_trainer(request, pk)
     if request.method == 'POST':
+        blocked = reject_if_inactive(request, routine.user)
+        if blocked:
+            return blocked
         name = routine.name
         routine.is_active = False
         routine.save(update_fields=['is_active'])

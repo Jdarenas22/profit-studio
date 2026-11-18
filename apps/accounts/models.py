@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 
+from . import choices
 
 class User(AbstractUser):
     ROLE_TRAINER = 'trainer'
@@ -73,10 +74,21 @@ class User(AbstractUser):
         help_text='Descripción breve del entrenador (aparece en la página Nosotros)',
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    # Ciclo de vida (docs/contracts/cuentas-eliminar.md): desactivada = is_active False + fecha;
+    # eliminada = lápida sin datos personales (erased_at). Solo los cambia apps/accounts/services.py.
+    deactivated_at = models.DateTimeField(null=True, blank=True, verbose_name='Desactivada el')
+    erased_at = models.DateTimeField(null=True, blank=True, verbose_name='Eliminada el')
 
     class Meta:
         verbose_name = 'Usuario'
         verbose_name_plural = 'Usuarios'
+        constraints = [
+            # Una cuenta eliminada nunca puede volver a estar activa
+            models.CheckConstraint(
+                condition=models.Q(erased_at__isnull=True) | models.Q(is_active=False),
+                name='accounts_user_erased_is_inactive',
+            ),
+        ]
 
     @property
     def is_trainer(self):
@@ -89,6 +101,45 @@ class User(AbstractUser):
         except ObjectDoesNotExist:
             return False
 
+    @property
+    def is_erased(self):
+        return self.erased_at is not None
+
+    @property
+    def display_name(self):
+        """Nombre para mostrar: «Cuenta eliminada» en una lápida; si no, el nombre o el usuario."""
+        if self.is_erased:
+            return choices.ERASED_LABEL
+        return self.get_full_name() or self.username
+
     def __str__(self):
-        full = self.get_full_name()
-        return f"{full or self.username} ({self.get_role_display()})"
+        return f"{self.display_name} ({self.get_role_display()})"
+
+
+class AccountAuditLog(models.Model):
+    """Quién desactivó, reactivó o eliminó qué cuenta y cuándo (sección 11 del contrato).
+
+    Sin nombres, correos, IP ni texto libre: solo ids, rol, acción, motivo (lista cerrada) y
+    conteos. Las claves son PROTECT: las superusuarias no se eliminan y el resto queda como
+    lápida, así que nunca se pierde la referencia. Solo lectura en el admin.
+    """
+    actor = models.ForeignKey(User, on_delete=models.PROTECT, related_name='account_actions',
+                              verbose_name='Quién')
+    target = models.ForeignKey(User, on_delete=models.PROTECT, related_name='account_audit',
+                               verbose_name='Cuenta')
+    target_role = models.CharField(max_length=10, choices=User.ROLE_CHOICES, verbose_name='Rol de la cuenta')
+    action = models.CharField(max_length=12, choices=choices.ACTION_CHOICES, verbose_name='Acción')
+    reason = models.CharField(max_length=20, choices=choices.REASON_CHOICES, blank=True, default='',
+                              verbose_name='Motivo')
+    reassigned_to = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True,
+                                      related_name='account_reassignments', verbose_name='Clientas pasaron a')
+    reassigned_count = models.PositiveIntegerField(default=0, verbose_name='Clientas reasignadas')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Cuándo')
+
+    class Meta:
+        verbose_name = 'Registro de cuentas'
+        verbose_name_plural = 'Registro de cuentas (auditoría)'
+        ordering = ['-created_at', '-pk']
+
+    def __str__(self):
+        return f'{self.get_action_display()} · cuenta {self.target_id} · {self.created_at:%Y-%m-%d %H:%M}'

@@ -399,12 +399,16 @@ class ModelAndAdminTests(HealthScenarioTestCase):
         profile.clearance_date = today
         self.assertFalse(profile.clearance_is_valid())
 
-    def test_deleting_the_account_removes_profile_and_log(self):
+    def test_erasing_the_account_removes_profile_and_keeps_the_log(self):
+        """Eliminar la cuenta (docs/contracts/cuentas-eliminar.md, lápida) borra la ficha y conserva el
+        registro de accesos como constancia, ahora con el borrado hecho por la superusuaria."""
+        from apps.accounts.services import erase_account
         self.make_profile(self.client_a)
         services.export_data(self.client_a)
-        User.objects.filter(pk=self.client_a.pk).delete()
+        erase_account(self.client_a, self.boss, 'holder_request')
         self.assertFalse(HealthProfile.objects.exists())
-        self.assertFalse(HealthAccessLog.objects.exists())
+        self.assertEqual(set(HealthAccessLog.objects.values_list('action', 'actor')),
+                         {('export', self.client_a.pk), ('delete', self.boss.pk)})
 
     def test_trainer_deleted_keeps_the_log_entry(self):
         self.make_profile(self.client_a)

@@ -25,7 +25,9 @@ from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from apps.accounts.permissions import clients_for_trainer
+from apps.accounts.permissions import (
+    INACTIVE_CLIENT_MESSAGE, ClientInactiveError, clients_for_trainer, ensure_client_active,
+)
 from apps.assessments.models import BodyMeasurement, InitialAssessment
 from apps.assessments.services import latest_anthropometrics
 from apps.plans.rules import flags as rules_flags
@@ -292,6 +294,10 @@ def save_profile(user, data, actor):
     elif actor.is_trainer:
         if not clients_for_trainer(actor).filter(pk=user.pk).exists():
             raise ProfileNotAllowed('No tienes acceso a esta clienta.')
+        try:
+            ensure_client_active(user)   # una clienta desactivada es de solo lectura
+        except ClientInactiveError:
+            raise ProfileNotAllowed(INACTIVE_CLIENT_MESSAGE) from None
         role = HealthProfile.ROLE_TRAINER
     else:
         raise ProfileNotAllowed('No tienes acceso a esta ficha.')

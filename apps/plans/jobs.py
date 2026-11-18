@@ -135,6 +135,30 @@ def _finish(job, status, error_code='', plan=None):
 
 # ─── Ejecución ────────────────────────────────────────────────────────────────
 
+# Cuenta de la clienta desactivada o eliminada (docs/contracts/cuentas-eliminar.md): el trabajo
+# termina sin guardar nada y sin avisar al entrenador.
+CLIENT_INACTIVE = 'client_inactive'
+
+
+def _check_client_active(job):
+    """Se relee la cuenta: pudo desactivarse o eliminarse mientras el trabajo corría."""
+    from apps.accounts.models import User
+    if not User.objects.filter(pk=job.client_id, is_active=True, erased_at__isnull=True).exists():
+        raise JobFailed(CLIENT_INACTIVE)
+
+
+def _lock_running(job):
+    """Bloquea el trabajo antes de guardar el resultado. Si ya no está corriendo (o se borró con
+    la cuenta), no se guarda nada."""
+    locked = PlanGenerationJob.objects.select_for_update().filter(pk=job.pk).first()
+    if locked is None:   # solo desaparece si se eliminó la cuenta de la clienta
+        raise JobFailed(CLIENT_INACTIVE)
+    if locked.status != PlanGenerationJob.STATUS_RUNNING:
+        raise JobFailed('lost_lock')
+    _check_client_active(job)
+    return locked
+
+
 def run_job(job_id):
     """Corre un trabajo hasta el final. Nunca lo deja en `running` si no se cae el proceso."""
     if not claim(job_id):
@@ -143,6 +167,7 @@ def run_job(job_id):
                                                    'requested_by').get(pk=job_id)
     started = time.monotonic()
     try:
+        _check_client_active(job)   # nada va a la IA de una cuenta desactivada
         runner = _RUNNERS.get(job.kind)
         if runner is None:
             raise JobFailed('kind_not_available')
@@ -151,6 +176,8 @@ def run_job(job_id):
         status = PlanGenerationJob.STATUS_BLOCKED if exc.blocked else PlanGenerationJob.STATUS_FAILED
         _finish(job, status, exc.code)
         _log(job, status, started, exc.code)
+        if exc.code == CLIENT_INACTIVE:
+            return None   # cuenta desactivada o eliminada: no hay nada que avisar
         notify = notifications.trainer_job_blocked if exc.blocked else notifications.trainer_job_failed
         notify(job)
         return None
@@ -325,9 +352,7 @@ def _run_exercise(job, started):
         validate=lambda data: rules_validate.validate_exercise_plan(data, rules))
     _check_budget(started)
     with transaction.atomic():
-        locked = PlanGenerationJob.objects.select_for_update().get(pk=job.pk)
-        if locked.status != PlanGenerationJob.STATUS_RUNNING:
-            raise JobFailed('lost_lock')
+        _lock_running(job)
         plan = services.create_exercise_draft(
             job, validation.data, model_name=result.model or client.model_name,
             prompt_version=prompt_version, is_simulated=client.is_simulated)
@@ -429,9 +454,7 @@ def _run_nutrition(job, started):
         raise JobFailed(f'validation_failed:{day_codes[0]}')
     _check_budget(started)
     with transaction.atomic():
-        locked = PlanGenerationJob.objects.select_for_update().get(pk=job.pk)
-        if locked.status != PlanGenerationJob.STATUS_RUNNING:
-            raise JobFailed('lost_lock')
+        _lock_running(job)
         plan = nutrition.create_nutrition_draft(
             job, assessment, generated, model_name=model or client.model_name,
             prompt_version=prompts.meal_prompt(adaptation is not None and bool(adaptation.history))[1],
@@ -462,9 +485,7 @@ def _run_alternative(job, started):
                                              adaptation=adaptation)
     _check_budget(started)
     with transaction.atomic():
-        locked = PlanGenerationJob.objects.select_for_update().get(pk=job.pk)
-        if locked.status != PlanGenerationJob.STATUS_RUNNING:
-            raise JobFailed('lost_lock')
+        _lock_running(job)
         if nutrition.create_alternative(job, options[0], plan=plan, slot=slot, replaced=replaced) is None:
             raise JobFailed('option_changed')
         job.progress_done = 1

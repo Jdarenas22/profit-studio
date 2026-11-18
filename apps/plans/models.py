@@ -231,6 +231,8 @@ class PlanEvent(models.Model):
     ACTION_SUPERSEDED = 'superseded'
     ACTION_CLONED = 'cloned'
     ACTION_CLIENT_ALTERNATIVE = 'client_alternative'
+    # El entrenador que lo revisaba se desactivó o se eliminó: vuelve a la bandeja (cuentas-eliminar.md)
+    ACTION_RELEASED = 'released'
     ACTION_CHOICES = [
         (ACTION_CREATED, 'Creado'),
         (ACTION_TAKEN, 'Tomado para revisión'),
@@ -241,6 +243,7 @@ class PlanEvent(models.Model):
         (ACTION_SUPERSEDED, 'Reemplazado por una versión nueva'),
         (ACTION_CLONED, 'Clonado a borrador'),
         (ACTION_CLIENT_ALTERNATIVE, 'Otra opción pedida por la clienta'),
+        (ACTION_RELEASED, 'Liberado: el entrenador se desactivó'),
     ]
 
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name='events', verbose_name='Plan')

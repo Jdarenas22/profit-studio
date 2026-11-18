@@ -43,6 +43,9 @@ urlpatterns = [
     path('trainer/clients/add/', views.trainer_add_client, name='trainer_add_client'),
     path('trainer/clients/<int:pk>/', views.trainer_client_detail, name='trainer_client_detail'),
     path('trainer/clients/<int:pk>/edit/', views.trainer_client_edit, name='trainer_client_edit'),
+    path('trainer/clients/<int:pk>/deactivate/', views.trainer_client_deactivate, name='trainer_client_deactivate'),
+    path('trainer/clients/<int:pk>/reactivate/', views.trainer_client_reactivate, name='trainer_client_reactivate'),
+    # Eliminar definitivamente: solo la superusuaria (docs/contracts/cuentas-eliminar.md)
     path('trainer/clients/<int:pk>/delete/', views.trainer_client_delete, name='trainer_client_delete'),
     path('trainer/clients/<int:pk>/assign/', views.trainer_assign_client, name='trainer_assign_client'),
 
@@ -50,4 +53,7 @@ urlpatterns = [
     path('trainer/staff/', views.trainer_staff_list, name='trainer_staff_list'),
     path('trainer/staff/create/', views.trainer_create_trainer, name='trainer_create_trainer'),
     path('trainer/staff/<int:pk>/edit/', views.trainer_edit_trainer, name='trainer_edit_trainer'),
+    path('trainer/staff/<int:pk>/deactivate/', views.trainer_staff_deactivate, name='trainer_staff_deactivate'),
+    path('trainer/staff/<int:pk>/reactivate/', views.trainer_staff_reactivate, name='trainer_staff_reactivate'),
+    path('trainer/staff/<int:pk>/delete/', views.trainer_staff_delete, name='trainer_staff_delete'),
 ]

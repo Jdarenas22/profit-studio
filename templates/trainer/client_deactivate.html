@@ -1,0 +1,24 @@
+{% extends "trainer/base.html" %}
+{% comment %}
+  ESQUELETO MÍNIMO (backend, 2026-11-17): REEMPLAZAR POR frontend-architect.
+  C-03 «Desactivar clienta». Contrato del contexto: docs/contracts/requests.md, «Cuentas: contrato C-01 a C-08».
+  Contexto: client, reasons, errors, form.
+{% endcomment %}
+{% block title %}Desactivar cuenta — ProFit Studio{% endblock %}
+{% block trainer_content %}
+<div class="max-w-md">
+  <h1>Desactivar cuenta</h1>
+  <p>{{ client.display_name }} no podrá iniciar sesión. Su historial, pagos y ficha se conservan. Puedes reactivarla cuando quieras.</p>
+  <form method="post">
+    {% csrf_token %}
+    <label for="reason">Motivo (opcional)</label>
+    <select id="reason" name="reason">
+      <option value="">—</option>
+      {% for code, label in reasons %}<option value="{{ code }}"{% if form.reason == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    {% if errors.reason %}<p role="alert">{{ errors.reason }}</p>{% endif %}
+    <button type="submit">Desactivar</button>
+  </form>
+  <a href="{% url 'trainer_client_detail' client.pk %}">Cancelar</a>
+</div>
+{% endblock %}

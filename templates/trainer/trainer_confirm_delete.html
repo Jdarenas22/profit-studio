@@ -1,0 +1,39 @@
+{% extends "trainer/base.html" %}
+{% comment %}
+  ESQUELETO MÍNIMO (backend, 2026-11-17): REEMPLAZAR POR frontend-architect.
+  C-07 «Eliminar definitivamente a un entrenador/a». Contrato del contexto: docs/contracts/requests.md,
+  «Cuentas: contrato C-01 a C-08».
+  Contexto: trainer_obj, display_name, client_count, in_review_count, targets, reasons,
+  validated_foods_hint, errors, form.
+{% endcomment %}
+{% block title %}Eliminar entrenador/a — ProFit Studio{% endblock %}
+{% block trainer_content %}
+<div class="max-w-md">
+  <h1>Eliminar definitivamente a {{ display_name }}</h1>
+  <p>Su nombre desaparece de la web y del panel. Las rutinas, valoraciones y planes que hizo se conservan como "Cuenta eliminada".</p>
+  {% if validated_foods_hint %}<p>Revisa en Admin &gt; Alimentos si aparece como validador/a.</p>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {% if client_count %}
+    <label for="reassign_to">Elige a quién pasar sus {{ client_count }} clientas</label>
+    <select id="reassign_to" name="reassign_to" required>
+      <option value="">—</option>
+      {% for t in targets %}<option value="{{ t.pk }}"{% if form.reassign_to == t.pk|stringformat:"d" %} selected{% endif %}>{{ t.display_name }}{% if t.is_superuser %} (dueña){% endif %}</option>{% endfor %}
+    </select>
+    {% if errors.reassign_to %}<p role="alert">{{ errors.reassign_to }}</p>{% endif %}
+    {% endif %}
+    {% if in_review_count %}<p>{{ in_review_count }} planes que estaba revisando vuelven a la bandeja.</p>{% endif %}
+    <label for="reason">Motivo</label>
+    <select id="reason" name="reason" required>
+      <option value="">—</option>
+      {% for code, label in reasons %}<option value="{{ code }}"{% if form.reason == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    {% if errors.reason %}<p role="alert">{{ errors.reason }}</p>{% endif %}
+    <label for="confirm_name">Escribe "{{ display_name }}" para confirmar</label>
+    <input id="confirm_name" name="confirm_name" type="text" maxlength="300" autocomplete="off" required>
+    {% if errors.confirm_name %}<p role="alert">{{ errors.confirm_name }}</p>{% endif %}
+    <button type="submit">Eliminar definitivamente</button>
+  </form>
+  <a href="{% url 'trainer_staff_list' %}">Cancelar</a>
+</div>
+{% endblock %}

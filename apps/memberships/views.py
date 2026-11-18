@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from apps.accounts.decorators import trainer_required
 from apps.accounts.form_utils import errors_dict, flash_errors
-from apps.accounts.permissions import get_client_for_trainer
+from apps.accounts.permissions import get_client_for_trainer, reject_if_inactive
 from .forms import ACTIVATE, DEACTIVATE, MembershipManageForm
 from .models import MembershipPlan, Membership
 
@@ -19,6 +19,9 @@ def plans_view(request):
 @trainer_required
 def trainer_membership_manage(request, client_pk):
     client = get_client_for_trainer(request, client_pk)
+    blocked = reject_if_inactive(request, client)
+    if blocked:
+        return blocked
     plans = MembershipPlan.objects.filter(is_active=True)
 
     try:

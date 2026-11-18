@@ -24,7 +24,7 @@ class ClientScopedViewsTests(ScenarioTestCase):
         return {
             'client_detail': reverse('trainer_client_detail', args=[client.pk]),
             'client_edit': reverse('trainer_client_edit', args=[client.pk]),
-            'client_delete': reverse('trainer_client_delete', args=[client.pk]),
+            'client_deactivate': reverse('trainer_client_deactivate', args=[client.pk]),
             'assessment_create': reverse('trainer_assessment_create', args=[client.pk]),
             'assessment_detail': reverse('trainer_assessment_detail', args=[assessment.pk]),
             'measurement_add': reverse('trainer_measurement_add', args=[client.pk]),
@@ -89,11 +89,18 @@ class ForeignClientWritesAreBlockedTests(ScenarioTestCase):
     def setUp(self):
         self.login(self.trainer_a)
 
-    def test_cannot_delete_foreign_client(self):
+    def test_cannot_delete_or_deactivate_foreign_client(self):
         for victim in (self.client_b, self.client_free):
-            response = self.client.post(reverse('trainer_client_delete', args=[victim.pk]))
+            response = self.client.post(reverse('trainer_client_deactivate', args=[victim.pk]))
             self.assertEqual(response.status_code, 404)
-            self.assertTrue(User.objects.filter(pk=victim.pk).exists())
+            self.assertTrue(User.objects.get(pk=victim.pk).is_active)
+
+    def test_regular_trainer_cannot_delete_any_client(self):
+        """Eliminar definitivamente es solo de la superusuaria (docs/contracts/cuentas-eliminar.md, 2a)."""
+        for victim in (self.client_a, self.client_b, self.client_free):
+            response = self.client.post(reverse('trainer_client_delete', args=[victim.pk]))
+            self.assertRedirects(response, reverse('trainer_dashboard'), fetch_redirect_response=False)
+            self.assertIsNone(User.objects.get(pk=victim.pk).erased_at)
 
     def test_cannot_change_foreign_client_password(self):
         before = User.objects.get(pk=self.client_b.pk).password
