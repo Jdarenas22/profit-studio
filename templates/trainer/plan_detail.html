@@ -53,6 +53,10 @@
 </div>
 {% endif %}
 
+<section class="pfs-card pfs-review-intro" aria-label="Guía para revisar el plan">
+  <div><p class="pfs-eyebrow mb-2">Revisión del entrenador</p><h2 class="font-bold text-lg">Revisa, ajusta y después publica</h2><p class="pfs-muted mt-1">Comprueba el objetivo, las opciones y las advertencias antes de aprobar.</p></div>
+  {% if plan.is_pending and client.is_active %}<a href="#review-decision" class="pfs-button pfs-button-secondary">Ir a aprobación <i class="fa fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+</section>
 <div class="grid gap-6 lg:grid-cols-3">
   <div class="lg:col-span-2 space-y-6">
 
@@ -114,36 +118,13 @@
     </div>
   </div>
 
-  <aside class="space-y-6">
-    {% if adaptation %}{% include 'trainer/partials/adaptation_panel.html' %}{% endif %}
-
-    <!-- Resumen de la ficha -->
-    <div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-      <h2 class="text-white font-bold text-sm mb-3">Ficha de la clienta</h2>
-      {% if profile_summary %}
-      <dl class="space-y-1 text-sm">
-        <div class="flex justify-between gap-2"><dt class="text-white/50">Edad</dt><dd class="text-white/90">{{ profile_summary.age }} años</dd></div>
-        <div class="flex justify-between gap-2"><dt class="text-white/50">Meta</dt><dd class="text-white/90 text-right">{{ profile_summary.goal|default:"—" }}</dd></div>
-        <div class="flex justify-between gap-2"><dt class="text-white/50">Experiencia</dt><dd class="text-white/90 text-right">{{ profile_summary.experience }}</dd></div>
-        <div class="flex justify-between gap-2"><dt class="text-white/50">Entrena</dt><dd class="text-white/90 text-right">{{ profile_summary.days }} días × {{ profile_summary.minutes }} min, {{ profile_summary.place|lower }}</dd></div>
-        {% if profile_summary.equipment %}<div class="flex justify-between gap-2"><dt class="text-white/50">Equipo</dt><dd class="text-white/90 text-right">{{ profile_summary.equipment|join:", " }}</dd></div>{% endif %}
-        <div class="flex justify-between gap-2"><dt class="text-white/50">Lesiones</dt><dd class="text-white/90 text-right">{{ profile_summary.injuries|join:", "|default:"Ninguna" }}</dd></div>
-        <div class="flex justify-between gap-2"><dt class="text-white/50">Condiciones</dt><dd class="text-white/90 text-right">{{ profile_summary.conditions|join:", "|default:"Ninguna" }}</dd></div>
-      </dl>
-      {% if profile_summary.needs_confirmation %}<p class="text-yellow-200 text-xs mt-2">La clienta aún no confirma la última corrección de su ficha.</p>{% endif %}
-      {% else %}
-      <p class="text-white/60 text-sm">No hay ficha visible (sin ficha o sin autorización vigente).</p>
-      {% endif %}
-      <a href="{% url 'trainer_health_profile' client.pk %}" class="mt-3 inline-block text-primary text-sm underline underline-offset-2">Ver la ficha completa</a>
-      <a href="{% url 'trainer_client_plans' client.pk %}" class="mt-2 block text-primary text-sm underline underline-offset-2 rounded [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver todos los planes de {% include 'trainer/partials/person_name.html' with person=client %}</a>
-    </div>
-
+  <aside class="space-y-6" aria-label="Acciones de revisión">
     {% if plan.is_pending and client.is_active %}
     <!-- Aprobar -->
-    <form method="POST" action="{% url 'trainer_plan_approve' plan.pk %}" class="rounded-2xl border border-green-500/30 bg-zinc-900 p-5 space-y-3"
+    <form method="POST" action="{% url 'trainer_plan_approve' plan.pk %}" id="review-decision" class="pfs-review-decision rounded-2xl border border-green-500/30 bg-zinc-900 p-5 space-y-3"
           x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
       {% csrf_token %}
-      <h2 class="text-white font-bold text-sm">Aprobar</h2>
+      <h2 class="text-white font-bold text-sm">Publicar el plan revisado</h2>
       {% if approve_errors.general %}<p class="text-red-400 text-xs" role="alert">{{ approve_errors.general }}</p>{% endif %}
       <div>
         <label for="note_for_client" class="block text-white/60 text-xs mb-1">Nota para la clienta (opcional)</label>
@@ -172,6 +153,32 @@
       <p class="text-white/50 text-xs">Al aprobar, la clienta ve {% if is_nutrition %}su plan de alimentación{% else %}la rutina{% endif %} y el plan anterior se reemplaza.</p>
     </form>
 
+    {% endif %}
+    {% if adaptation %}{% include 'trainer/partials/adaptation_panel.html' %}{% endif %}
+
+    <!-- Resumen de la ficha -->
+    <div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+      <h2 class="text-white font-bold text-sm mb-3">Ficha de la clienta</h2>
+      {% if profile_summary %}
+      <dl class="space-y-1 text-sm">
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Edad</dt><dd class="text-white/90">{{ profile_summary.age }} años</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Meta</dt><dd class="text-white/90 text-right">{{ profile_summary.goal|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Experiencia</dt><dd class="text-white/90 text-right">{{ profile_summary.experience }}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Entrena</dt><dd class="text-white/90 text-right">{{ profile_summary.days }} días × {{ profile_summary.minutes }} min, {{ profile_summary.place|lower }}</dd></div>
+        {% if profile_summary.equipment %}<div class="flex justify-between gap-2"><dt class="text-white/50">Equipo</dt><dd class="text-white/90 text-right">{{ profile_summary.equipment|join:", " }}</dd></div>{% endif %}
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Lesiones</dt><dd class="text-white/90 text-right">{{ profile_summary.injuries|join:", "|default:"Ninguna" }}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-white/50">Condiciones</dt><dd class="text-white/90 text-right">{{ profile_summary.conditions|join:", "|default:"Ninguna" }}</dd></div>
+      </dl>
+      {% if profile_summary.needs_confirmation %}<p class="text-yellow-200 text-xs mt-2">La clienta aún no confirma la última corrección de su ficha.</p>{% endif %}
+      {% else %}
+      <p class="text-white/60 text-sm">No hay ficha visible (sin ficha o sin autorización vigente).</p>
+      {% endif %}
+      <a href="{% url 'trainer_health_profile' client.pk %}" class="mt-3 inline-block text-primary text-sm underline underline-offset-2">Ver la ficha completa</a>
+      <a href="{% url 'trainer_client_plans' client.pk %}" class="mt-2 block text-primary text-sm underline underline-offset-2 rounded [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver todos los planes de {% include 'trainer/partials/person_name.html' with person=client %}</a>
+    </div>
+
+    {% if plan.is_pending and client.is_active %}
+    <details class="pfs-disclosure" {% if regenerate_errors %}open{% endif %}><summary>Solicitar otra propuesta</summary><div class="pfs-disclosure-content">
     <!-- Regenerar -->
     <form method="POST" action="{% url 'trainer_plan_regenerate' plan.pk %}" class="rounded-2xl border border-white/10 bg-zinc-900 p-5 space-y-3"
           x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
@@ -190,6 +197,7 @@
         <span x-text="sending ? 'Enviando...' : 'Regenerar'">Regenerar</span>
       </button>
     </form>
+    </div></details>
     {% endif %}
 
     {% if clone %}
@@ -236,6 +244,7 @@
     {% endif %}
 
     {% if plan.is_pending or plan.is_approved %}
+    <details class="pfs-disclosure" {% if archive_errors %}open{% endif %}><summary>Archivar este plan</summary><div class="pfs-disclosure-content">
     <!-- Archivar -->
     <form method="POST" action="{% url 'trainer_plan_archive' plan.pk %}" class="rounded-2xl border border-white/10 bg-zinc-900 p-5 space-y-3"
           x-data="{ sending: false }" @submit="if (!confirm('¿Archivar este plan?{% if plan.is_approved %} La clienta dejará de ver este plan.{% endif %}')) { $event.preventDefault() } else { sending = true }">
@@ -251,6 +260,7 @@
         <i class="fa fa-box-archive mr-1" aria-hidden="true"></i> Archivar
       </button>
     </form>
+    </div></details>
     {% endif %}
 
     {% if plan.is_approved %}

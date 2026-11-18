@@ -53,8 +53,9 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-<body class="bg-black text-white antialiased">
+<body class="bg-black text-white antialiased{% if request.user.is_authenticated %} pfs-app{% if not request.user.is_trainer %} pfs-app-member{% endif %}{% endif %}">
 
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[70] focus:bg-white focus:text-black focus:p-3">Saltar al contenido</a>
   {% include 'partials/navbar.html' %}
 
   <!-- Mensajes flash -->
@@ -76,12 +77,17 @@
   </div>
   {% endif %}
 
-  <main>
+  <main id="main-content" tabindex="-1"{% if request.user.is_authenticated %} class="pfs-main"{% endif %}>
     {% block content %}{% endblock %}
   </main>
 
-  {% include 'partials/footer.html' %}
-  {% include 'partials/whatsapp_btn.html' %}
+  {% if request.user.is_authenticated %}
+    {% if not request.user.is_trainer %}{% include 'partials/member_bottom_nav.html' %}{% endif %}
+    <script src="{% static 'js/workspace.js' %}" defer></script>
+  {% else %}
+    {% include 'partials/footer.html' %}
+    {% include 'partials/whatsapp_btn.html' %}
+  {% endif %}
 
   {% block extra_scripts %}{% endblock %}
 

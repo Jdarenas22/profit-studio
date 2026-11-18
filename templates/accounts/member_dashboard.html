@@ -1,77 +1,34 @@
 {% extends 'base.html' %}
-
-{% block title %}Mi panel — ProFit Studio{% endblock %}
-
+{% block title %}Hoy — ProFit Studio{% endblock %}
 {% block content %}
-<section class="py-10 px-4 max-w-5xl mx-auto">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-10">
-    <div class="flex items-center gap-4">
-      <!-- Foto de perfil -->
-      {% if user.profile_photo %}
-      <img src="{{ user.profile_photo.url }}" alt="Foto"
-           class="w-14 h-14 rounded-2xl object-cover border-2 border-primary/30 shrink-0">
-      {% else %}
-      <div class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-        <span class="text-primary font-black text-2xl">{{ user.first_name|first|upper|default:user.username|first|upper }}</span>
-      </div>
-      {% endif %}
-      <div>
-        <h1 class="text-2xl sm:text-3xl font-black text-white">
-          Hola, <span class="text-primary">{{ user.first_name|default:user.username }}</span> 👋
-        </h1>
-        <p class="text-white/40 text-sm mt-0.5">Aquí están tus rutinas y tu estado de membresía.</p>
-      </div>
+<section class="pfs-workspace" aria-labelledby="today-title">
+  <header class="pfs-heading">
+    <div><p class="pfs-eyebrow mb-3">Tu espacio · {% now "j \d\e F" %}</p>
+      <h1 id="today-title" class="pfs-title">Hola, {{ user.first_name|default:user.username }}.</h1>
+      <p class="pfs-muted mt-2">Tu entrenamiento y alimentación, a un paso.</p>
     </div>
-    <div class="flex items-center gap-2 shrink-0">
-      {% if HEALTH_FEATURES_ENABLED %}
-      <a href="{% url 'member_measurement_list' %}" aria-label="Mis medidas"
-         class="inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
-        <i class="fa fa-weight-scale" aria-hidden="true"></i> <span class="hidden sm:inline">Mis medidas</span>
-      </a>
-      {% endif %}
-      {% if AI_PLANS_ENABLED %}
-      <a href="{% url 'member_plans' %}" aria-label="Mi plan"
-         class="inline-flex items-center justify-center gap-2 min-h-[44px] min-w-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
-        <i class="fa fa-wand-magic-sparkles" aria-hidden="true"></i> <span class="hidden sm:inline">Mi plan</span>
-      </a>
-      {% endif %}
-      <a href="{% url 'member_profile_edit' %}"
-         class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
-        <i class="fa fa-pen"></i> <span class="hidden sm:inline">Editar perfil</span>
-      </a>
-      <a href="{% url 'member_payment_history' %}"
-         class="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
-        <i class="fa fa-receipt"></i> <span class="hidden sm:inline">Mis pagos</span>
-      </a>
-      <form method="post" action="{% url 'logout' %}" class="flex"
-            onsubmit="localStorage.removeItem('pfs_remember'); sessionStorage.removeItem('pfs_browser_session');">
-        {% csrf_token %}
-        <button type="submit" aria-label="Cerrar sesión"
-                class="text-white/30 hover:text-white text-sm transition-colors px-2 py-2">
-          <i class="fa fa-sign-out-alt"></i>
-        </button>
-      </form>
-    </div>
+    <a href="{% url 'member_profile_edit' %}" class="pfs-button pfs-button-secondary"><i class="fa fa-sliders" aria-hidden="true"></i> Mi perfil</a>
+  </header>
+  <div class="pfs-action-grid">
+    <article class="pfs-card pfs-action-card">
+      <span class="pfs-icon"><i class="fa fa-dumbbell" aria-hidden="true"></i></span>
+      <div><p class="pfs-eyebrow mb-2">Entrenamiento</p><h2>Muévete a tu ritmo</h2></div>
+      <p class="pfs-muted">{% if routines %}Consulta tus ejercicios, series y descansos antes de empezar.{% else %}Prepara tu siguiente paso con una rutina adaptada a tu objetivo.{% endif %}</p>
+      {% if user.training_goal %}<span class="pfs-chip">{{ user.get_training_goal_display }}</span>{% endif %}
+      <a href="{% url 'member_routine' %}" class="pfs-button">{% if routines %}Abrir mi rutina{% else %}Ver mis rutinas{% endif %} <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+    </article>
+    {% if AI_PLANS_ENABLED %}
+    <article class="pfs-card pfs-action-card">
+      <span class="pfs-icon"><i class="fa fa-utensils" aria-hidden="true"></i></span>
+      <div><p class="pfs-eyebrow mb-2">Alimentación</p><h2>Elige cómo comer hoy</h2></div>
+      <p class="pfs-muted">Encuentra tus comidas, compara las opciones y lleva tu lista de compras.</p>
+      <span class="pfs-chip">Opciones que se ajustan a tu plan</span>
+      <a href="{% url 'member_nutrition_plan' %}" class="pfs-button pfs-button-secondary">Abrir mi alimentación <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+    </article>
+    {% else %}
+    <article class="pfs-card pfs-action-card"><span class="pfs-icon"><i class="fa fa-chart-line" aria-hidden="true"></i></span><h2>Tu constancia cuenta</h2><p class="pfs-muted">Revisa tus rutinas asignadas y registra los días que completes.</p><a href="{% url 'member_profile_edit' %}" class="pfs-button pfs-button-secondary">Revisar mi objetivo</a></article>
+    {% endif %}
   </div>
-
-  <!-- Membresía -->
-  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-    <div class="flex items-center gap-4">
-      <div class="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
-        <i class="fa fa-shield-alt text-green-400"></i>
-      </div>
-      <div>
-        <p class="text-white font-semibold">Membresía {{ membership.plan.name|default:"activa" }}</p>
-        <p class="text-white/40 text-xs mt-0.5">Vence el {{ membership.end_date|date:"d/m/Y" }}</p>
-      </div>
-    </div>
-    <div class="text-right">
-      <span class="text-green-400 font-black text-2xl">{{ membership.days_remaining }}</span>
-      <span class="text-white/40 text-sm ml-1">días restantes</span>
-    </div>
-  </div>
-
   {# W-03: aviso de los avisos por WhatsApp. whatsapp_status es None con la función apagada (no se dibuja nada). #}
   {% if whatsapp_status == 'pending' or whatsapp_status == 'wrong_number' or whatsapp_status == 'undeliverable' %}
   <div role="status"
@@ -96,82 +53,7 @@
   </div>
   {% endif %}
 
-  <!-- Resumen de mis medidas (solo con la función de salud encendida; si no, sus rutas dan 404) -->
-  {% if HEALTH_FEATURES_ENABLED %}
-  {% with measurements=user.measurements.all|slice:":3" %}
-  <section aria-labelledby="dash-measures-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8">
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <h2 id="dash-measures-title" class="text-white font-bold">Mis medidas</h2>
-      <div class="flex flex-wrap items-center gap-2">
-        {% if measurements %}
-        <a href="{% url 'member_measurement_list' %}"
-           class="inline-flex items-center min-h-[44px] px-3 text-sm text-white/70 hover:text-primary underline underline-offset-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver historial</a>
-        {% endif %}
-        <a href="{% url 'member_measurement_add' %}"
-           class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-4 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
-          <i class="fa fa-plus" aria-hidden="true"></i> Registrar medidas
-        </a>
-      </div>
-    </div>
-    {% if measurements %}
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <caption class="sr-only">Tus tres últimas mediciones</caption>
-        <thead>
-          <tr class="text-white/60 text-xs border-b border-white/10">
-            <th scope="col" class="text-left pb-2 font-medium">Fecha</th>
-            <th scope="col" class="text-right pb-2 font-medium">Peso</th>
-            <th scope="col" class="text-right pb-2 font-medium">IMC</th>
-            <th scope="col" class="text-right pb-2 font-medium">Cintura</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-white/5">
-          {% for m in measurements %}
-          <tr class="text-white/80">
-            <td class="py-2">{{ m.date|date:"d/m/Y" }}</td>
-            <td class="py-2 text-right font-semibold text-white">{{ m.weight }} kg</td>
-            <td class="py-2 text-right">
-              {% if m.imc %}<span class="text-primary font-bold">{{ m.imc }}</span>
-              <span class="text-white/60 text-xs"> {{ m.imc_classification }}</span>{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}
-            </td>
-            <td class="py-2 text-right">{% if m.waist_cm %}{{ m.waist_cm }} cm{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p class="text-white/60 text-sm">Aún no has registrado medidas. Empieza con tu peso para seguir tu progreso.</p>
-    {% endif %}
-    <p class="text-white/60 text-xs leading-relaxed mt-4">
-      <i class="fa fa-shield-halved text-primary mr-1" aria-hidden="true"></i>
-      Tus medidas son datos de salud y se tratan solo con tu autorización.
-      <a href="{% url 'member_consent' 'health_data' %}" class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver o retirar mi autorización</a>.
-    </p>
-  </section>
-  {% endwith %}
-
-  <!-- Ficha de salud y alimentación (misma condición: sin la función encendida sus rutas dan 404) -->
-  <section aria-labelledby="dash-health-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-    <div class="flex items-start gap-4 min-w-0">
-      <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-        <i class="fa fa-notes-medical text-primary" aria-hidden="true"></i>
-      </div>
-      <div class="min-w-0">
-        <h2 id="dash-health-title" class="text-white font-bold">Mi ficha de salud</h2>
-        <p class="text-white/60 text-sm leading-relaxed mt-0.5">
-          Cuéntanos sobre tu salud, tu alimentación y tu entrenamiento para que tu plan se ajuste a ti. Es voluntario.
-        </p>
-      </div>
-    </div>
-    <a href="{% url 'member_health_profile' %}"
-       class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 py-2 rounded-xl transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
-      <i class="fa fa-arrow-right" aria-hidden="true"></i> Abrir mi ficha
-    </a>
-  </section>
-  {% endif %}
-
-  <!-- Rutinas -->
+<details class="pfs-disclosure" id="rutinas"><summary>Explorar mis rutinas asignadas</summary><div class="pfs-disclosure-content">  <!-- Rutinas -->
   {% if routines %}
     {% for routine in routines %}
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-6">
@@ -184,12 +66,12 @@
         {% for day in routine.days.all %}
         <div class="border border-white/5 rounded-xl p-4">
           <!-- Cabecera del día con botón completar -->
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
             <h3 class="text-primary font-semibold text-sm uppercase tracking-wider">{{ day.name }}</h3>
             <form method="POST" action="{% url 'mark_day_complete' day.pk %}">
               {% csrf_token %}
               <button type="submit"
-                      class="inline-flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                      class="inline-flex items-center gap-1.5 min-h-[44px] bg-green-500/10 hover:bg-green-500/20 text-green-200 text-sm font-semibold px-3 py-2 rounded-lg transition-colors">
                 <i class="fa fa-check"></i> Completar hoy
               </button>
             </form>
@@ -250,6 +132,101 @@
       </a>
     </div>
   {% endif %}
+
+</div></details>
+<h2 class="pfs-section-title">Tu progreso y preferencias</h2>
+  <!-- Resumen de mis medidas (solo con la función de salud encendida; si no, sus rutas dan 404) -->
+  {% if HEALTH_FEATURES_ENABLED %}
+  {% with measurements=user.measurements.all|slice:":3" %}
+  <section aria-labelledby="dash-measures-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <h2 id="dash-measures-title" class="text-white font-bold">Mis medidas</h2>
+      <div class="flex flex-wrap items-center gap-2">
+        {% if measurements %}
+        <a href="{% url 'member_measurement_list' %}"
+           class="inline-flex items-center min-h-[44px] px-3 text-sm text-white/70 hover:text-primary underline underline-offset-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver historial</a>
+        {% endif %}
+        <a href="{% url 'member_measurement_add' %}"
+           class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-4 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+          <i class="fa fa-plus" aria-hidden="true"></i> Registrar medidas
+        </a>
+      </div>
+    </div>
+    {% if measurements %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <caption class="sr-only">Tus tres últimas mediciones</caption>
+        <thead>
+          <tr class="text-white/60 text-xs border-b border-white/10">
+            <th scope="col" class="text-left pb-2 font-medium">Fecha</th>
+            <th scope="col" class="text-right pb-2 font-medium">Peso</th>
+            <th scope="col" class="text-right pb-2 font-medium">IMC</th>
+            <th scope="col" class="text-right pb-2 font-medium">Cintura</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for m in measurements %}
+          <tr class="text-white/80">
+            <td class="py-2">{{ m.date|date:"d/m/Y" }}</td>
+            <td class="py-2 text-right font-semibold text-white">{{ m.weight }} kg</td>
+            <td class="py-2 text-right">
+              {% if m.imc %}<span class="text-primary font-bold">{{ m.imc }}</span>
+              <span class="text-white/60 text-xs"> {{ m.imc_classification }}</span>{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}
+            </td>
+            <td class="py-2 text-right">{% if m.waist_cm %}{{ m.waist_cm }} cm{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-white/60 text-sm">Aún no has registrado medidas. Empieza con tu peso para seguir tu progreso.</p>
+    {% endif %}
+    <p class="text-white/60 text-xs leading-relaxed mt-4">
+      <i class="fa fa-shield-halved text-primary mr-1" aria-hidden="true"></i>
+      Tus medidas son datos de salud y se tratan solo con tu autorización.
+      <a href="{% url 'member_consent' 'health_data' %}" class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver o retirar mi autorización</a>.
+    </p>
+  </section>
+  {% endwith %}
+
+  <!-- Ficha de salud y alimentación (misma condición: sin la función encendida sus rutas dan 404) -->
+  <section aria-labelledby="dash-health-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="flex items-start gap-4 min-w-0">
+      <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+        <i class="fa fa-sliders text-primary" aria-hidden="true"></i>
+      </div>
+      <div class="min-w-0">
+        <h2 id="dash-health-title" class="text-white font-bold">Mi perfil para los planes</h2>
+        <p class="text-white/60 text-sm leading-relaxed mt-0.5">
+          Revisa tus preferencias de alimentación, entrenamiento y los datos que autorizaste. Es voluntario.
+        </p>
+      </div>
+    </div>
+    <a href="{% url 'member_health_profile' %}"
+       class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 py-2 rounded-xl transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+      <i class="fa fa-arrow-right" aria-hidden="true"></i> Abrir mi ficha
+    </a>
+  </section>
+  {% endif %}
+
+<h2 class="pfs-section-title">Tu membresía</h2>
+  <!-- Membresía -->
+  <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <div class="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
+        <i class="fa fa-shield-alt text-green-400"></i>
+      </div>
+      <div>
+        <p class="text-white font-semibold">Membresía {{ membership.plan.name|default:"activa" }}</p>
+        <p class="text-white/40 text-xs mt-0.5">Vence el {{ membership.end_date|date:"d/m/Y" }}</p>
+      </div>
+    </div>
+    <div class="text-right">
+      <span class="text-green-400 font-black text-2xl">{{ membership.days_remaining }}</span>
+      <span class="text-white/40 text-sm ml-1">días restantes</span>
+    </div>
+  </div>
 
 </section>
 {% endblock %}
