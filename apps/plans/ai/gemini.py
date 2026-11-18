@@ -1,4 +1,4 @@
-"""Cliente REAL de Google Gemini (modo `live`), por REST con la biblioteca estándar.
+"""Cliente REAL de Google Gemini (modos `live` y demo académica), por REST con la biblioteca estándar.
 
 Sin SDK de Google ni dependencias nuevas (`urllib`): control total del tiempo de espera y de lo
 que se registra. Endpoint `generateContent` de la API de Gemini (v1beta).
@@ -6,10 +6,11 @@ que se registra. Endpoint `generateContent` de la API de Gemini (v1beta).
 Seguridad (contrato, sección 4):
 - La clave va en la cabecera `x-goog-api-key`, nunca en la URL (las URL terminan en registros y
   excepciones) ni en logs.
+- No sigue redirecciones y limita la lectura de respuestas a 2 MiB más un byte de detección.
 - Los errores solo llevan un código corto (`ai_http_429`, `ai_timeout`...): nunca el cuerpo de
   error de Google, el prompt ni la respuesta.
-- Solo `live` con `GEMINI_BILLING_CONFIRMED=true` (lo exige production.py): el nivel gratuito
-  permite que Google use y revise los datos.
+- `live` exige facturación confirmada. La demo usa un cliente restringido a un entorno local
+  separado, perfiles ficticios y nivel gratuito confirmado (ai/demo.py).
 
 El campo del esquema de salida es configurable (`GEMINI_SCHEMA_FIELD`) porque Google lo ha ido
 cambiando de nombre: `responseJsonSchema` (por defecto) o `none` (el formato solo va en la
@@ -30,6 +31,14 @@ SCHEMA_FIELDS = ('responseJsonSchema', 'none')
 BLOCKED_FINISH_REASONS = {'SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'}
 MAX_OUTPUT_TOKENS = 8192
 TEMPERATURE = 0.4
+MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Nunca reenviar la clave ni el contenido a una URL de redirección."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def _int(value):
@@ -51,7 +60,7 @@ class GeminiClient(AIClient):
         self.model_name = model
         self.timeout = timeout
         self.schema_field = schema_field
-        self._open = opener or urllib.request.urlopen
+        self._open = opener or urllib.request.build_opener(_NoRedirect()).open
 
     def __repr__(self):   # nunca mostrar la clave
         return f'GeminiClient(model={self.model_name!r})'
@@ -79,7 +88,7 @@ class GeminiClient(AIClient):
         )
         try:
             with self._open(request, timeout=self.timeout) as response:
-                raw = response.read()
+                raw = response.read(MAX_RESPONSE_BYTES + 1)
         except urllib.error.HTTPError as exc:
             status = exc.code
             retry_after = None
@@ -99,12 +108,14 @@ class GeminiClient(AIClient):
             raise AITransientError('ai_network') from None
         except OSError:
             raise AITransientError('ai_network') from None
+        if len(raw) > MAX_RESPONSE_BYTES:
+            raise AIPermanentError('ai_response_too_large')
         return self.parse_response(raw)
 
     def parse_response(self, raw):
         try:
             body = json.loads(raw)
-        except (ValueError, UnicodeDecodeError):
+        except (ValueError, UnicodeDecodeError, RecursionError):
             raise AIPermanentError('ai_unreadable_response') from None
         if not isinstance(body, dict):
             raise AIPermanentError('ai_unreadable_response')
@@ -132,7 +143,7 @@ class GeminiClient(AIClient):
                             finish_reason=finish)
         try:
             data = json.loads(text)
-        except ValueError:
+        except (ValueError, RecursionError):
             raise AIInvalidOutput('ai_invalid_json') from None
         return AIResult(data=data, usage=usage, model=body.get('modelVersion') or self.model_name,
                         finish_reason=finish)

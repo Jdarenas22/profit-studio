@@ -5,7 +5,8 @@ import mimetypes
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Q, Sum
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -13,14 +14,18 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.memberships.models import MembershipPlan
 from apps.accounts.decorators import trainer_required
+from apps.accounts.pagination import pagination_context
 from apps.accounts.permissions import clients_for_trainer, get_client_for_trainer, reject_if_inactive
 from .forms import ManualPaymentForm
 from .models import Payment, ManualPayment
+from .storage import PrivateReceiptsUnavailable
 from .services import (
     WompiConfigError, apply_transaction_event, compute_integrity_signature, verify_webhook_event,
 )
 
 logger = logging.getLogger(__name__)
+
+MAX_WEBHOOK_BYTES = 1024 * 1024
 
 _CHECKOUT_UNAVAILABLE = 'El pago en línea no está disponible por ahora. Contáctanos por WhatsApp.'
 
@@ -129,8 +134,17 @@ def payment_webhook(request):
         return HttpResponse(status=503)
 
     try:
-        payload = json.loads(request.body.decode('utf-8'))
-    except (json.JSONDecodeError, UnicodeDecodeError):
+        length = int(request.META.get('CONTENT_LENGTH') or 0)
+    except ValueError:
+        length = 0
+    if length > MAX_WEBHOOK_BYTES:
+        return HttpResponse(status=413)
+    raw = request.read(MAX_WEBHOOK_BYTES + 1)
+    if len(raw) > MAX_WEBHOOK_BYTES:
+        return HttpResponse(status=413)
+    try:
+        payload = json.loads(raw.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError, RecursionError):
         logger.error("Wompi webhook: invalid JSON body")
         return HttpResponse(status=400)
     if not isinstance(payload, dict):
@@ -169,16 +183,19 @@ def trainer_manual_payment_list(request):
         visible |= Q(user__erased_at__isnull=False)
     payments = ManualPayment.objects.select_related('user', 'trainer', 'plan').filter(
         visible
-    ).order_by('-payment_date')
+    ).order_by('-payment_date', '-pk')
     client = None
     if client_pk:
         if not client_pk.isdigit():
             raise Http404
         client = get_client_for_trainer(request, int(client_pk))
         payments = payments.filter(user=client)
-    total = sum(p.amount for p in payments)
+    total = payments.aggregate(amount=Sum('amount'))['amount'] or 0
+    page, pagination = pagination_context(request, payments, ('client',))
     return render(request, 'trainer/manual_payment_list.html', {
-        'payments': payments,
+        'payments': page.object_list,
+        **pagination,
+        'payments_count': page.paginator.count,
         'client': client,
         'total': total,
     })
@@ -215,12 +232,17 @@ def trainer_manual_payment_add(request, client_pk):
             )
             if data['receipt']:
                 mp.receipt = data['receipt']
-            mp.save()
-            messages.success(
-                request,
-                f"Pago de ${mp.amount:,} registrado para {client.get_full_name() or client.username}.",
-            )
-            return redirect('trainer_client_detail', pk=client_pk)
+            try:
+                with transaction.atomic():
+                    mp.save()
+            except PrivateReceiptsUnavailable:
+                form.add_error('receipt', 'Los comprobantes no están disponibles. Contacta a la administración.')
+            else:
+                messages.success(
+                    request,
+                    f"Pago de ${mp.amount:,} registrado para {client.get_full_name() or client.username}.",
+                )
+                return redirect('trainer_client_detail', pk=client_pk)
 
         errors = form.error_messages_by_field()
         for field, text in errors.items():
@@ -269,5 +291,6 @@ def payment_receipt(request, pk):
 
 @login_required
 def member_payment_history(request):
-    payments = request.user.manual_payments.select_related('plan', 'trainer').order_by('-payment_date')
-    return render(request, 'accounts/payment_history.html', {'payments': payments})
+    payments = request.user.manual_payments.select_related('plan', 'trainer').order_by('-payment_date', '-pk')
+    page, pagination = pagination_context(request, payments)
+    return render(request, 'accounts/payment_history.html', {'payments': page.object_list, **pagination})

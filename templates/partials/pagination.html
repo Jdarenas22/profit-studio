@@ -1,0 +1,13 @@
+{% if page_obj.has_other_pages %}
+<nav class="flex items-center justify-between mt-6 text-sm" aria-label="Paginación">
+  <span class="text-white/60">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} registros</span>
+  <div class="flex items-center gap-4">
+    {% if page_obj.has_previous %}
+    <a class="text-primary hover:text-white" href="?{{ pagination_query }}page={{ page_obj.previous_page_number }}" rel="prev">Anterior</a>
+    {% endif %}
+    {% if page_obj.has_next %}
+    <a class="text-primary hover:text-white" href="?{{ pagination_query }}page={{ page_obj.next_page_number }}" rel="next">Siguiente</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

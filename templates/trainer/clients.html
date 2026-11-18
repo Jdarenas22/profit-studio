@@ -11,7 +11,7 @@
   <div>
     <h1 class="text-2xl font-black text-white">Clientes</h1>
     <p class="text-white/60 text-sm mt-1">
-      {{ clients|length }} {% if status == 'inactive' %}desactivada{{ clients|length|pluralize:"s" }}{% elif status == 'all' %}en total{% else %}activa{{ clients|length|pluralize:"s" }}{% endif %}
+      {{ page_obj.paginator.count }} {% if status == 'inactive' %}desactivada{{ page_obj.paginator.count|pluralize:"s" }}{% elif status == 'all' %}en total{% else %}activa{{ page_obj.paginator.count|pluralize:"s" }}{% endif %}
     </p>
   </div>
   <a href="{% url 'trainer_add_client' %}"
@@ -144,4 +144,5 @@
   </a>
 </div>
 {% endif %}
+{% include 'partials/pagination.html' %}
 {% endblock %}
