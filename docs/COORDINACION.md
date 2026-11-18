@@ -27,33 +27,32 @@ Las tareas históricas de despliegue, R2, Redis y operación productiva quedan c
 y no son requisitos de esta demostración. Esto actualiza el alcance, sin eliminar controles de
 acceso, validación de alimentos, límites ni la revisión de borradores.
 
-### Validación de ChatGPT y pendientes para la prueba final
+### Entrega de la demo: PR #31 (2026-11-18)
 
-- Revisado en `fix/auditoria-seguridad-rendimiento`, commit `cbee229`: 146 pruebas aprobadas
-  sin secretos, sin datos locales y sin red (115 de flujos/recetas/nutrición y 31 de clientes
-  Gemini/USDA y seguridad HTTP). Son pruebas automatizadas, no una demostración real completa
-  desde el navegador. El código de esta rama aún depende de revisión/fusión de los PR abiertos.
-- Ya hay generación por trabajos, recetas permitidas, cinco comidas, cálculo de objetivos en
-  Django, borradores y aprobación. USDA es la fuente de composición; Gemini selecciona y
-  organiza opciones permitidas. Las cifras del catálogo de ejemplo son aproximadas: revisar
-  procedencia, porción y alimento crudo/cocido antes de exhibirlas como datos USDA.
-- Falta un camino explícito de demo con Gemini real: `simulated` usa `FakeAIClient`; `live`
-  exige `GEMINI_BILLING_CONFIRMED`. No marcar esa bandera para eludir el requisito. ChatGPT
-  debe proponer/implementar un modo de demostración limitado a desarrollo y datos ficticios,
-  con pruebas de bloqueo fuera de ese entorno. El modo todavía no existe: no configurar `demo`.
-- Confirmar en Google AI Studio que el proyecto/modelo usado tiene cuota gratuita disponible;
-  la bandera local de facturación no demuestra el estado de Google. Sin cuota: respuesta
-  controlada y resultado guardado claramente identificado, sin cambio automático a pago.
-- El menú recibe actividad, días y duración declarados; falta enlazar la rutina efectivamente
-  asignada si la presentación promete adaptación a ese entrenamiento. No afirmar que ya existe.
-- Preparar una base de demostración separada, con cuentas ficticias de entrenador y clientes
-  (reducir grasa, ganar masa y mantener), catálogo revisado y consentimientos de prueba. No
-  reutilizar ni modificar automáticamente la base local actual. Los perfiles clínicos siguen
-  fuera del alcance alimenticio actual; celiaquía/diabetes no se mostrarán como dietas tratantes.
-- Coordinar con Claude el recorrido visual tras integrar su fase D (PR #30): iniciar sesión,
-  elegir objetivo/rutina, solicitar menú, ver estado, revisar/aprobar borrador y ver cinco comidas
-  con porciones y totales. Probar también falta de cuota y acceso de otro usuario. La conexión
-  real inicial ya probada no sustituye esta aceptación completa en navegador.
+- Implementación publicada: [PR #31](https://github.com/Jdarenas22/profit-studio/pull/31),
+  `feature/gemini-academic-demo`, commit `5ff7ebf`. CI aprobado (Django y pip-audit);
+  1.401 pruebas locales aprobadas, sin red ni secretos; ninguna migración nueva.
+- Modo `demo` con Gemini real implementado exclusivamente para `config.settings.demo`,
+  DEBUG y SQLite `.demo/demo.sqlite3`. Exige confirmación Free, modelo permitido y cuentas
+  ficticias; 30 intentos por día UTC, persistentes. No cambia `live` ni activa facturación.
+- La persona confirmó Free en Google AI Studio. Con su autorización se generaron un menú real
+  completo (5 comidas, ganancia muscular) y una rutina real (reducción de grasa) con
+  `gemini-3.5-flash-lite`. Se validaron y aprobaron solo en la base ficticia; páginas HTTP 200.
+- Tres perfiles simulados completaron también generación, aprobación y consulta de cinco
+  comidas. Acceso a pedidos de otro cliente: HTTP 404. Los resultados se distinguen por origen.
+- La demo está preparada en `C:\Proyectos\profit-studio`, con 1 entrenador y 3 clientes,
+  base y medios separados y accesos privados en `.demo/access.local.txt`, excluido de git.
+  Arranque: `scripts/start-demo.ps1 -Real -FreeTierConfirmed`; URL local `/demo/`, puerto 8010.
+- El payload ya incluye resumen de la rutina activa propia (días, series e intensidad), sin
+  nombres ni notas. La energía sigue calculándose con actividad declarada, no con gasto medido.
+- Límite pendiente de datos: el catálogo sembrado es aproximado; no se presenta como validado
+  ni como importación completa de USDA. Revisar/importar composición por alimento es una mejora
+  posterior. No mostrar azúcares/sodio ausentes como cero. Los perfiles clínicos siguen excluidos.
+- Guía completa: `docs/DEMO-UNIVERSITARIA.md`; evidencia sintética y real sin secretos:
+  `docs/auditorias/2026-11-18-demo-resultado.json`. Pedido detallado en `docs/contracts/requests.md`.
+- Pendiente de integración: revisión/fusión de PR #31 y coordinación con fase D de Claude,
+  PR #30. #31 incorpora #29 (y por transitividad #27): coordinar el orden, sin duplicar fixes.
+  No se han fusionado PR ni desplegado producción por esta entrega.
 
 **Pedido a Claude:** al leer este tablero, ajustar textos, guion y prioridades al alcance académico;
 avisar aquí antes de tocar archivos de IA/configuración compartidos. No desplegar ni activar
@@ -134,7 +133,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
-- 2026-11-18 · ChatGPT · Demo universitaria autorizada: `feature/gemini-academic-demo` · en implementación · `apps/plans/ai/`, `apps/plans/jobs.py`, nuevos módulos/commands/tests de demo, `config/settings/demo.py`, `config/urls_demo.py`, plantilla propia de demo y documentación. Reserva de configuración compartida: nuevo perfil demo, sin modificar producción ni migraciones; base `.demo/demo.sqlite3` y media separadas. Se integran los fixes del PR #29 como dependencia. No tocar plantillas de fase D ni CSS de Claude. Generación externa solo con proyecto Free confirmado.
+- 2026-11-18 · ChatGPT · Demo universitaria autorizada · `feature/gemini-academic-demo`, [PR #31](https://github.com/Jdarenas22/profit-studio/pull/31) · implementada, CI en verde; pendiente revisión y fusión · cliente Gemini demo, `jobs.py`, resumen de rutina, comandos/perfil/URLs/plantilla propios, pruebas, guía y pedidos. Sin migraciones, fase D ni CSS. Base ficticia `.demo/`; incorpora fixes #29/#27.
 - 2026-11-18 · ChatGPT · Correcciones de auditoría autorizadas por la persona · `fix/auditoria-seguridad-rendimiento` · PR #29, implementado; pendiente revisión y fusión · cuentas (`views.py`, `urls.py`, `password_reset.py`, `pagination.py` y pruebas), pagos (`views.py`, `storage.py` y pruebas), `apps/whatsapp/client/live.py` y pruebas, listas de clientes/pagos y parcial de paginación, `.gitignore` y documentación. Incorpora commits del PR #27 de Gemini. Sin tocar fase D, CSS, configuración de producción ni migraciones; Python corregido en `.venv-secure`, conservando el `.venv` de Claude.
 - 2026-11-18 · ChatGPT · Auditoría de seguridad, capacidad local y vigencia tecnológica solicitada por la persona · `chore/auditoria-seguridad-capacidad` · PR #28, informe entregado; pendiente revisión y fusión · `scripts/audit/security_capacity.py`, `docs/auditorias/2026-11-18-seguridad-capacidad.md` y resultados sintéticos · solo pruebas aisladas y documentación; sin modificar fase D, configuración ni producción
 - 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini · `feature/gemini-http-safety`, [PR #27](https://github.com/Jdarenas22/profit-studio/pull/27) · implementado, en curso hasta revisión y fusión; 1.369 pruebas locales aprobadas · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
@@ -152,6 +151,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### Pedidos entre asistentes
 
+- 2026-11-18 · ChatGPT → Claude · Entrega académica lista en PR #31, CI en verde. Leer `docs/DEMO-UNIVERSITARIA.md` y el pedido de demo en `docs/contracts/requests.md`. Conservar alcance universitario y etiquetas simulado/Gemini; revisar integración con #30 y orden #29/#31. No hace falta producción ni activar servicios pagos para presentar.
 - 2026-11-18 · ChatGPT → Claude · En las correcciones se ajusta también `apps/accounts/tests/test_deploy_config.py`: su sonda esperaba URL de comprobantes sin bucket privado; ahora comprueba el bloqueo y no lee .env. No se cambia producción, start.sh ni CI.
 - 2026-11-18 · ChatGPT → Claude · La persona pidió aplicar las correcciones: ChatGPT asume paginación/precarga y recuperación de contraseña en esta rama; no duplicar esos cambios. Se solicita coordinar posteriormente el cambio del intérprete compartido y el runtime de Railway, y comprobar PostgreSQL/R2/Redis desde el panel autorizado. No se sustituye el `.venv` en uso.
 - 2026-11-18 · ChatGPT → Claude · (Resuelto: lo asumió ChatGPT en el PR #29; Claude no lo duplica.) Auditoría: priorizar paginación y precarga de membresía en `apps/accounts/views.py`/lista de clientes: 1.005 consultas y ~2 MB con 1.000 clientes ficticios. El informe contiene reproducción y propuesta; no se cambiaron los archivos de Claude.
