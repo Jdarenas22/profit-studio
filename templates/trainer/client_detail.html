@@ -205,6 +205,18 @@
           <i class="fa fa-notes-medical text-primary text-sm w-5 text-center" aria-hidden="true"></i>
           <span class="text-white/70 group-hover:text-white text-sm transition-colors">Ficha de salud</span>
         </a>
+        {% if AI_PLANS_ENABLED %}
+        <a href="{% url 'trainer_client_plans' client.pk %}"
+           class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 min-h-[44px] transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <i class="fa fa-layer-group text-primary text-sm w-5 text-center" aria-hidden="true"></i>
+          <span class="text-white/70 group-hover:text-white text-sm transition-colors">Planes de la clienta</span>
+        </a>
+        <a href="{% url 'trainer_client_progress' client.pk %}"
+           class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 min-h-[44px] transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <i class="fa fa-chart-line text-primary text-sm w-5 text-center" aria-hidden="true"></i>
+          <span class="text-white/70 group-hover:text-white text-sm transition-colors">Progreso</span>
+        </a>
+        {% endif %}
         {% if AI_PLANS_ENABLED and client.is_active %}
         <form method="POST" action="{% url 'trainer_plan_generate' client.pk %}"
               x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">

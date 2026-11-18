@@ -54,6 +54,20 @@ class PlanScenarioTestCase(HealthScenarioTestCase):
         self.grant(client, PURPOSE_AI)
         return self.make_profile(client, **profile_overrides)
 
+    def approve(self, plan, actor=None):
+        """Aprueba un plan (se marca como no simulado, como si viniera de Gemini). Con la ficha al día."""
+        Plan.objects.filter(pk=plan.pk).update(is_simulated=False)
+        plan.refresh_from_db()
+        return services.approve_plan(plan, actor or self.boss, note_for_client='Listo',
+                                     warnings_ack=True, stale_ack=True)
+
+    def make_exercise(self, client, approve=False):
+        """Plan de ejercicio de una clienta que YA está lista (no vuelve a guardar la ficha). Lo pide la
+        superusuaria para no gastar el cupo semanal de la clienta."""
+        job, _fake = self.request(client, actor=self.boss)
+        assert job.status == job.STATUS_SUCCEEDED, job.error_code
+        return self.approve(job.plan) if approve else job.plan
+
     @contextmanager
     def fake_ai(self, scenario='ok'):
         """Reemplaza el cliente de IA; devuelve el doble para revisar qué recibió."""
@@ -105,3 +119,9 @@ class NutritionScenarioTestCase(PlanScenarioTestCase):
         Plan.objects.filter(pk=plan.pk).update(is_simulated=False)
         plan.refresh_from_db()
         return services.approve_plan(plan, self.boss, note_for_client='Buen provecho')
+
+    def make_nutrition(self, client, approve=False):
+        """Plan de alimentación de una clienta que YA está lista (no vuelve a guardar la ficha)."""
+        job, _fake = self.request_nutrition(client, actor=self.boss)
+        assert job.status == job.STATUS_SUCCEEDED, job.error_code
+        return self.approve(job.plan) if approve else job.plan

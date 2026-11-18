@@ -1,0 +1,159 @@
+{% comment %}
+D-01: tarjeta de un tipo de plan (ejercicio o alimentación). Espera `group` (un elemento de `groups`),
+`gen` (`generate[group.kind]`), `client`, `client_active` e `inactive_message` del contexto de la página.
+Incluye el botón «Generar borrador» y, por fila, «Clonar a borrador» (D-03) cuando `row.can_clone`.
+{% endcomment %}
+<section aria-labelledby="group-{{ group.kind }}-title" class="min-w-0 rounded-2xl border border-white/10 bg-zinc-900 p-5">
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+    <h2 id="group-{{ group.kind }}-title" class="text-white font-bold flex items-center gap-2">
+      <i class="fa {% if group.kind == 'nutrition' %}fa-utensils{% else %}fa-dumbbell{% endif %} text-primary" aria-hidden="true"></i>
+      {{ group.label }}
+    </h2>
+    <span class="text-white/60 text-xs">{{ group.total }} versi{{ group.total|pluralize:"ón,ones" }}</span>
+  </div>
+
+  <!-- Resumen: vigente y borrador -->
+  <dl class="grid gap-3 sm:grid-cols-2 mb-4">
+    <div class="rounded-xl bg-black/40 p-3">
+      <dt class="text-white/60 text-xs">Lo que ve la clienta</dt>
+      <dd class="mt-1 text-sm text-white">
+        {% if group.current %}
+        <a href="{% url 'trainer_plan_detail' group.current.plan.pk %}" class="font-semibold underline underline-offset-2 hover:text-primary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Versión {{ group.current.plan.version }}</a>
+        <span class="block text-white/60 text-xs mt-0.5">Aprobada el {{ group.current.plan.approved_at|date:"d/m/Y" }}{% if group.current.plan.valid_until %} · vigente hasta el {{ group.current.plan.valid_until|date:"d/m/Y" }}{% endif %}</span>
+        {% if group.current.expired %}<span class="mt-1 inline-flex items-center gap-1 rounded-md bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-100"><i class="fa fa-calendar-xmark" aria-hidden="true"></i> Vencido</span>{% endif %}
+        {% else %}
+        <span class="text-white/70">Sin plan aprobado</span>
+        {% endif %}
+      </dd>
+    </div>
+    <div class="rounded-xl bg-black/40 p-3">
+      <dt class="text-white/60 text-xs">Borrador pendiente</dt>
+      <dd class="mt-1 text-sm text-white">
+        {% if group.draft %}
+        <a href="{% url 'trainer_plan_detail' group.draft.plan.pk %}" class="font-semibold underline underline-offset-2 hover:text-primary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Versión {{ group.draft.plan.version }}</a>
+        <span class="block mt-1">{% include 'trainer/partials/plan_status_badge.html' with status=group.draft.plan.status label=group.draft.status_label %}</span>
+        {% else %}
+        <span class="text-white/70">Ninguno</span>
+        {% endif %}
+      </dd>
+    </div>
+  </dl>
+
+  <!-- Generar borrador con IA -->
+  <div class="rounded-xl border border-white/10 p-4 mb-5">
+    {% if not client_active %}
+    <p class="flex items-start gap-2 text-white/70 text-sm"><i class="fa fa-lock mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ inactive_message }}</span></p>
+    {% elif gen.active_job %}
+    <p role="status" class="flex items-start gap-2 text-white/85 text-sm">
+      <i class="fa fa-spinner fa-spin text-primary mt-0.5 shrink-0" aria-hidden="true"></i>
+      <span>Se está generando un borrador de este tipo. <a href="{% url 'trainer_plan_job' gen.active_job.pk %}" class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver el estado</a></span>
+    </p>
+    {% elif gen.blocked %}
+    <div role="note" class="text-sm">
+      <p class="flex items-start gap-2 text-yellow-100 font-semibold"><i class="fa fa-shield-halved mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ gen.blocked_text }}</span></p>
+      {% if gen.blocked_flags %}
+      <ul class="mt-2 space-y-2">
+        {% for flag in gen.blocked_flags %}
+        <li class="rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2">
+          <p class="text-yellow-100 [overflow-wrap:anywhere]">{{ flag.text }}</p>
+          {% if flag.action %}<p class="text-white/70 text-xs mt-0.5 [overflow-wrap:anywhere]">{{ flag.action }}</p>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% else %}
+    {% if gen.has_pending_draft %}
+    <p role="note" class="mb-3 flex items-start gap-2 text-yellow-100 text-sm"><i class="fa fa-circle-info mt-0.5 shrink-0" aria-hidden="true"></i><span>Ya hay un borrador de este tipo. Revísalo o archívalo antes de pedir otro.</span></p>
+    {% endif %}
+    {% if gen.missing %}
+    <div id="missing-{{ group.kind }}" class="mb-3">
+      <p class="text-white/85 text-sm font-semibold">Falta para poder generar:</p>
+      <ul class="mt-2 space-y-2">
+        {% for item in gen.missing %}
+        <li class="rounded-lg bg-black/40 px-3 py-2 text-sm">
+          <p class="text-white/90 [overflow-wrap:anywhere]">{{ item.text }}</p>
+          <p class="text-white/60 text-xs mt-0.5 [overflow-wrap:anywhere]">{{ item.action }}{% if item.url %} <a href="{{ item.url }}" class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Resolverlo ahora</a>{% endif %}</p>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <form method="POST" action="{% url 'trainer_plan_generate' client.pk %}"
+          x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+      {% csrf_token %}
+      <input type="hidden" name="kind" value="{{ group.kind }}">
+      <input type="hidden" name="request_token" value="{{ gen.request_token }}">
+      <button type="submit" :disabled="sending" {% if not gen.can_request or gen.missing %}disabled{% endif %}
+              {% if gen.missing %}aria-describedby="missing-{{ group.kind }}"{% endif %}
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'" aria-hidden="true"></i>
+        <span x-show="!sending">{{ gen.label }}</span><span x-show="sending" x-cloak>Enviando...</span>
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  <!-- Versiones -->
+  <h3 class="text-white/85 text-sm font-semibold mb-2">Versiones</h3>
+  {% if group.rows %}
+  <ol class="space-y-3">
+    {% for row in group.rows %}
+    {% with plan=row.plan %}
+    <li class="rounded-xl border {% if row.is_current %}border-green-500/40{% elif row.is_pending %}border-yellow-500/40{% else %}border-white/10{% endif %} bg-black/30 p-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="{% url 'trainer_plan_detail' plan.pk %}" class="text-white font-semibold text-sm underline underline-offset-2 hover:text-primary rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Versión {{ plan.version }}</a>
+        {% include 'trainer/partials/plan_status_badge.html' with status=plan.status label=row.status_label %}
+        {% if row.is_current %}<span class="inline-flex items-center gap-1 rounded-md bg-green-500/20 px-2 py-0.5 text-xs font-bold text-green-100"><i class="fa fa-eye" aria-hidden="true"></i> La ve la clienta</span>{% endif %}
+        {% if row.expired %}<span class="inline-flex items-center gap-1 rounded-md bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-100"><i class="fa fa-calendar-xmark" aria-hidden="true"></i> Vencido</span>{% endif %}
+        {% if row.stale %}<span class="inline-flex items-center gap-1 rounded-md bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-100"><i class="fa fa-clock-rotate-left" aria-hidden="true"></i> Generado con una ficha anterior</span>{% endif %}
+        {% if plan.is_simulated %}<span class="inline-flex items-center gap-1 rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-bold text-sky-100"><i class="fa fa-flask" aria-hidden="true"></i> MODO DE PRUEBA</span>{% endif %}
+      </div>
+      <p class="text-white/70 text-xs mt-1.5 [overflow-wrap:anywhere]">
+        <i class="fa {% if row.origin == 'clone' %}fa-copy{% else %}fa-wand-magic-sparkles{% endif %} mr-1" aria-hidden="true"></i>{{ row.origin_label }}
+        · creado el {{ plan.created_at|date:"d/m/Y" }}
+        {% if plan.approved_at %}· aprobado el {{ plan.approved_at|date:"d/m/Y" }}{% if plan.approved_by %} por {% include 'trainer/partials/person_name.html' with person=plan.approved_by %}{% endif %}{% endif %}
+        {% if plan.valid_until %}· vigente hasta el {{ plan.valid_until|date:"d/m/Y" }}{% endif %}
+      </p>
+      {% if row.flags_count %}
+      <p class="text-yellow-100 text-xs mt-1"><i class="fa fa-triangle-exclamation mr-1" aria-hidden="true"></i>{{ row.flags_count }} advertencia{{ row.flags_count|pluralize }} (el texto está en el detalle)</p>
+      {% endif %}
+
+      {% if row.can_clone %}
+      {% if group.draft %}
+      <p class="text-white/60 text-xs mt-2">Para clonar esta versión, primero aprueba o archiva el borrador (<a href="{% url 'trainer_plan_detail' group.draft.plan.pk %}" class="text-primary underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">versión {{ group.draft.plan.version }}</a>): solo puede haber uno por tipo.</p>
+      {% else %}
+      <details class="mt-2">
+        <summary class="inline-flex items-center gap-2 min-h-[44px] cursor-pointer select-none rounded-lg px-3 text-sm font-medium text-white bg-white/10 hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <i class="fa fa-copy" aria-hidden="true"></i> Clonar a borrador
+        </summary>
+        <form method="POST" action="{% url 'trainer_plan_clone' plan.pk %}" class="mt-3 space-y-2"
+              x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+          {% csrf_token %}
+          <label for="clone-reason-{{ plan.pk }}" class="block text-white/70 text-xs">¿Qué quieres cambiar? (opcional, máx. 300 caracteres; no escribas datos personales)</label>
+          <input id="clone-reason-{{ plan.pk }}" name="reason" maxlength="300" autocomplete="off"
+                 aria-describedby="clone-help-{{ plan.pk }}"
+                 class="w-full bg-black/40 border border-white/15 focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
+          <p id="clone-help-{{ plan.pk }}" class="text-white/60 text-xs">
+            Se crea una copia editable.
+            {% if group.current %}{% include 'trainer/partials/person_name.html' with person=client %} sigue viendo la versión {{ group.current.plan.version }} hasta que apruebes la nueva.{% else %}La clienta no verá nada hasta que apruebes la copia.{% endif %}
+            La copia conserva los objetivos y las medidas del plan original. Para recalcularlos, pide un borrador nuevo con IA.
+          </p>
+          <button type="submit" :disabled="sending"
+                  class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+            <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-copy'" aria-hidden="true"></i>
+            <span x-text="sending ? 'Clonando...' : 'Clonar a borrador'">Clonar a borrador</span>
+          </button>
+        </form>
+      </details>
+      {% endif %}
+      {% endif %}
+    </li>
+    {% endwith %}
+    {% endfor %}
+  </ol>
+  {% if group.rows_truncated %}<p class="text-white/60 text-xs mt-2">Se muestran las 15 versiones más recientes de {{ group.total }}.</p>{% endif %}
+  {% else %}
+  <p class="rounded-xl border border-dashed border-white/15 p-4 text-white/60 text-sm">Todavía no hay planes de este tipo.</p>
+  {% endif %}
+</section>

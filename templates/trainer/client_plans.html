@@ -1,0 +1,120 @@
+{% extends 'trainer/base.html' %}
+{% comment %}
+D-01. Planes de una clienta por tipo (versiones y estados), trabajos recientes y «Generar borrador».
+Contexto: docs/contracts/requests.md, bloque «Fase D: contrato D-01 a D-04». La plantilla no calcula
+nada: todos los textos llegan redactados desde apps/plans/overview.py.
+{% endcomment %}
+
+{% block title %}Planes de {% include 'trainer/partials/person_name.html' with person=client %} — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}{% if not client_active %}?status=inactive{% endif %}" class="rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Clientes</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <a href="{% url 'trainer_client_detail' client.pk %}" class="rounded hover:text-primary transition-colors [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{% include 'trainer/partials/person_name.html' with person=client %}</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <span class="text-white/80" aria-current="page">Planes</span>
+</nav>
+
+{% if ai_mode == 'simulated' %}
+<div role="note" class="mb-4 rounded-2xl border border-sky-500/40 bg-sky-500/10 p-4 text-sky-100 text-sm">
+  <i class="fa fa-flask mr-1" aria-hidden="true"></i> <strong>MODO DE PRUEBA:</strong> la IA está simulada. Los borradores salen del generador de ejemplo, no de la IA real.
+</div>
+{% endif %}
+
+{% if not client_active %}
+<div role="note" class="mb-4 flex items-start gap-3 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-yellow-100 text-sm">
+  <i class="fa fa-lock mt-0.5 shrink-0" aria-hidden="true"></i>
+  <span>{{ inactive_message }} Puedes consultar sus planes, pero no generar ni clonar borradores.</span>
+</div>
+{% endif %}
+
+{% if not content_visible %}
+<div role="note" class="mb-4 flex items-start gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-white/80 text-sm">
+  <i class="fa fa-user-shield mt-0.5 shrink-0" aria-hidden="true"></i>
+  <span>La clienta no tiene una autorización vigente para tratar sus datos de salud: se muestran los planes y sus estados, pero no el texto de las advertencias de su ficha.</span>
+</div>
+{% endif %}
+
+<div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+  <div class="min-w-0">
+    <h1 class="text-2xl font-black text-white [overflow-wrap:anywhere]">Planes de {% include 'trainer/partials/person_name.html' with person=client %}</h1>
+    <p class="text-white/60 text-sm mt-1">Ejercicio y alimentación: la versión vigente, los borradores y el historial. La clienta solo ve los planes aprobados.</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'trainer_client_progress' client.pk %}"
+       class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <i class="fa fa-chart-line" aria-hidden="true"></i> Progreso
+    </a>
+    <a href="{% url 'trainer_client_detail' client.pk %}"
+       class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver a la clienta
+    </a>
+  </div>
+</div>
+
+{% if not jobs and not groups.0.rows and not groups.1.rows %}
+<div class="mb-6 rounded-2xl border border-dashed border-white/15 p-6 text-center text-white/70">
+  <i class="fa fa-clipboard-list text-3xl mb-2 text-white/60" aria-hidden="true"></i>
+  <p class="font-semibold text-white">Todavía no hay planes ni pedidos para esta clienta.</p>
+  <p class="text-sm mt-1">Pide el primer borrador con IA desde la tarjeta de ejercicio o de alimentación. La clienta no verá nada hasta que lo apruebes.</p>
+</div>
+{% endif %}
+
+<div class="grid gap-6 lg:grid-cols-2">
+  {% for group in groups %}
+  {% if group.kind == 'nutrition' %}
+  {% include 'trainer/partials/client_plan_group.html' with group=group gen=generate.nutrition %}
+  {% else %}
+  {% include 'trainer/partials/client_plan_group.html' with group=group gen=generate.exercise %}
+  {% endif %}
+  {% endfor %}
+</div>
+
+<!-- Pedidos recientes -->
+<section aria-labelledby="jobs-title" class="mt-8">
+  <h2 id="jobs-title" class="text-white font-bold mb-1">Pedidos recientes a la IA</h2>
+  <p class="text-white/60 text-sm mb-3">Lo que pidieron la clienta o su entrenador/a, el más reciente primero.</p>
+  {% if jobs %}
+  <ul class="space-y-2">
+    {% for item in jobs %}
+    <li class="rounded-xl border border-white/10 bg-zinc-900 p-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-white text-sm font-semibold">{{ item.kind_label }}</p>
+        {% include 'trainer/partials/job_tone_badge.html' with tone=item.tone label=item.status_label %}
+      </div>
+      <p class="text-white/60 text-xs mt-1">
+        Pedido por: {{ item.requested_by_label|default:"—" }} ·
+        <time datetime="{{ item.job.created_at|date:'c' }}">{{ item.job.created_at|date:"d/m/Y H:i" }}</time>
+        {% if item.job.finished_at %}· terminó a las <time datetime="{{ item.job.finished_at|date:'c' }}">{{ item.job.finished_at|date:"H:i" }}</time>{% endif %}
+      </p>
+      <p class="text-white/85 text-sm mt-2 [overflow-wrap:anywhere]">{{ item.summary }}</p>
+      {% if item.flag_texts %}
+      <ul class="mt-2 space-y-1">
+        {% for text in item.flag_texts %}
+        <li class="flex items-start gap-2 text-yellow-100 text-xs [overflow-wrap:anywhere]"><i class="fa fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ text }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if item.technical_code %}
+      <p class="text-white/60 text-xs mt-2">Código técnico: <code class="font-mono text-white/70 [overflow-wrap:anywhere]">{{ item.technical_code }}</code></p>
+      {% endif %}
+      {% if item.status == 'queued' or item.status == 'running' or item.plan_id %}
+      <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {% if item.status == 'queued' or item.status == 'running' %}
+        <a href="{% url 'trainer_plan_job' item.job.pk %}" class="inline-flex items-center gap-1 min-h-[24px] text-primary text-sm underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver el estado</a>
+        {% endif %}
+        {% if item.plan_id %}
+        <a href="{% url 'trainer_plan_detail' item.plan_id %}" class="inline-flex items-center gap-1 min-h-[24px] text-primary text-sm underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Abrir el plan creado</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if jobs_truncated %}<p class="text-white/60 text-xs mt-2">Se muestran los 20 pedidos más recientes.</p>{% endif %}
+  {% else %}
+  <p class="rounded-xl border border-dashed border-white/15 p-4 text-white/60 text-sm">Todavía no hay pedidos a la IA para esta clienta.</p>
+  {% endif %}
+</section>
+{% endblock %}

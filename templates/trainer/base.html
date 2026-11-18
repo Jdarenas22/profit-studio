@@ -40,9 +40,9 @@
       el contador queda vacío en vez de pintar esa página dentro del menú.
     {% endcomment %}
     <a href="{% url 'trainer_plan_inbox' %}"
-       data-active="{% if '/plans/trainer' in request.path %}true{% else %}false{% endif %}"
+       data-active="{% if '/plans/trainer' in request.path and '/plans/trainer/clients/' not in request.path %}true{% else %}false{% endif %}"
        class="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
-              {% if '/plans/trainer' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+              {% if '/plans/trainer' in request.path and '/plans/trainer/clients/' not in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-wand-magic-sparkles"></i>
       <span class="flex items-center">
         Planes por revisar

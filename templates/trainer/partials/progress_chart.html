@@ -1,0 +1,52 @@
+{% comment %}
+D-02: un gráfico de progreso (peso, cintura, cadera o IMC). Espera `chart` (un elemento de `charts`, armado
+por apps/plans/rules/progress.build_chart). La plantilla no calcula nada:
+- `x`, `y`, `polyline` y los ticks son strings con punto decimal: se usan tal cual, SIN filtros de número
+  (Django los localizaría con coma y romperían los atributos SVG).
+- Solo atributos SVG (sin `style` ni scripts). Los colores repiten los tokens del tema
+  (tailwind.config.js y paleta zinc): primario #FF6B00, aviso #FACC15, texto de ejes #A1A1AA
+  (6,8:1 sobre zinc-900), rejilla #3F3F46 (decorativa).
+- Formas distintas además del color: círculo = medida normal, cuadrado = medida del plan (`is_baseline`),
+  triángulo = medida por revisar (`needs_review`). La leyenda está en la página.
+- La tabla de medidas de la página es la alternativa accesible con todos los valores.
+{% endcomment %}
+<figure class="min-w-0 rounded-2xl border border-white/10 bg-zinc-900 p-4">
+  <figcaption class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+    <span class="text-white font-semibold text-sm">{{ chart.label }}{% if chart.unit %} <span class="text-white/60 font-normal">({{ chart.unit }})</span>{% endif %}</span>
+    <span class="text-white/60 text-xs">{{ chart.count }} medici{{ chart.count|pluralize:"ón,ones" }}</span>
+  </figcaption>
+  {% if chart.has_chart %}
+  <svg viewBox="{{ chart.view_box }}" role="img" aria-labelledby="chart-{{ chart.key }}-title chart-{{ chart.key }}-desc"
+       class="block w-full h-auto" preserveAspectRatio="xMidYMid meet">
+    <title id="chart-{{ chart.key }}-title">Gráfico de {{ chart.label }}</title>
+    <desc id="chart-{{ chart.key }}-desc">{{ chart.summary }}</desc>
+    <g aria-hidden="true">
+      {% for tick in chart.y_ticks %}
+      <line x1="{{ chart.plot.left }}" x2="{{ chart.plot.right }}" y1="{{ tick.y }}" y2="{{ tick.y }}" stroke="#3F3F46" stroke-width="1" stroke-dasharray="4 4"></line>
+      <text x="48" y="{{ tick.y }}" text-anchor="end" dominant-baseline="middle" font-size="16" fill="#A1A1AA">{{ tick.label }}</text>
+      {% endfor %}
+      <line x1="{{ chart.plot.left }}" x2="{{ chart.plot.right }}" y1="{{ chart.plot.bottom }}" y2="{{ chart.plot.bottom }}" stroke="#71717A" stroke-width="1"></line>
+      {% for tick in chart.x_ticks %}
+      <text x="{{ tick.x }}" y="226" font-size="16" fill="#A1A1AA"
+            text-anchor="{% if forloop.first and not forloop.last %}start{% elif forloop.last and not forloop.first %}end{% else %}middle{% endif %}">{{ tick.label }}</text>
+      {% endfor %}
+      <polyline points="{{ chart.polyline }}" fill="none" stroke="#FF6B00" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></polyline>
+      {% for p in chart.points %}
+      <g transform="translate({{ p.x }} {{ p.y }})">
+        <title>{{ p.text }}{% if p.is_baseline %} (medida del plan){% endif %}{% if p.needs_review %} (revisar){% endif %}</title>
+        {% if p.is_baseline %}
+        <rect x="-8" y="-8" width="16" height="16" fill="{% if p.needs_review %}#FACC15{% else %}#FFFFFF{% endif %}" stroke="#FF6B00" stroke-width="3"></rect>
+        {% elif p.needs_review %}
+        <polygon points="0,-10 9,7 -9,7" fill="#FACC15" stroke="#18181B" stroke-width="2"></polygon>
+        {% else %}
+        <circle r="6" fill="#FF6B00" stroke="#18181B" stroke-width="2"></circle>
+        {% endif %}
+      </g>
+      {% endfor %}
+    </g>
+  </svg>
+  <p class="text-white/70 text-xs mt-2 [overflow-wrap:anywhere]" aria-hidden="true">{{ chart.summary }}</p>
+  {% else %}
+  <p class="rounded-xl border border-dashed border-white/15 p-4 text-white/70 text-sm [overflow-wrap:anywhere]">{{ chart.summary }}{% if chart.count == 1 %} Con dos mediciones o más se dibuja la línea.{% endif %}</p>
+  {% endif %}
+</figure>

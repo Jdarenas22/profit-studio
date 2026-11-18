@@ -1,6 +1,6 @@
 # Contrato: ficha de salud, medidas de la clienta y planes con IA (ejercicio + alimentación)
 
-- Estado: **APROBADO e implementado** (fases A1, A2, B y C; la fase D está en curso). Este documento conserva el diseño original; la sección 18 («Registro de implementación») lista lo construido y manda sobre cualquier diferencia.
+- Estado: **APROBADO e implementado** (fases A1, A2, B y C; la fase D está en curso). Este documento conserva el diseño original; la sección 18 («Registro de implementación») lista lo construido y manda sobre cualquier diferencia. Lo que falta de la fase D (planes de una clienta, progreso y clonar a borrador) tiene su propio contrato, **APROBADO el 2026-11-18 y con el backend implementado** (plantillas pendientes del frontend): `docs/contracts/plan-ia-fase-d.md`.
 - Fecha: 2026-10-08. Rama: `plan-ia-nutricion`. Autor: arquitecto-backend.
 - Alcance original: diseño de las fases A a D. Las secciones 1 a 17 son el diseño propuesto; las decisiones y diferencias reales están en la sección 18.
 - Aviso: las reglas de salud de este documento (umbrales, banderas, pisos calóricos) son una propuesta técnica y están marcadas **[A VALIDAR]**: deben revisarlas un profesional de la salud/nutrición (y un abogado, en lo legal) antes de producción. No es asesoría médica ni legal.
@@ -798,7 +798,11 @@ Implementado: `trainer_plan_badge` (`GET /plans/trainer/inbox/badge/`), el indic
 
 La bandeja ya lista los trabajos bloqueados y fallidos de los últimos 14 días (`attention_jobs`, hasta 50, con su código y texto amigable) y los pedidos en curso (`active_jobs`). Una pantalla más repetiría esa lista. Si en el futuro hace falta un historial más largo, se reabre. La ruta `trainer_plan_jobs` de la tabla 8.3 queda sin construir.
 
-**Pendiente de la fase D**: clonar a borrador (`trainer_plan_clone`), planes de una clienta (`trainer_client_plans`) y progreso (`trainer_client_progress`).
+### Fase D (resto): planes de una clienta, progreso y clonar (2026-11-18, rama `feature/fase-d`)
+
+Contrato propio, aprobado el 2026-11-18 con las 6 recomendaciones: `docs/contracts/plan-ia-fase-d.md` (registro de implementación y diferencias en su sección 13; pantallas D-01 a D-04 en `requests.md`). **Backend implementado**: `trainer_client_plans` (D-01), `trainer_client_progress` (D-02) y `trainer_plan_clone` (D-03). Sin modelos ni migraciones; la lógica vive en `apps/plans/cloning.py`, `overview.py`, `progress.py` y `rules/progress.py` (puro). Clonar copia el contenido a un borrador `in_review` sin tocar lo que la clienta ve; el progreso usa la misma ventana y los mismos cortes que la adaptación y, sin consentimiento `health_data`, solo muestra los días de rutina marcados. `trainer_plan_jobs` no se construye.
+
+**Pendiente de la fase D**: las plantillas D-01 a D-04 (frontend; ver `requests.md`) y, fuera de esta fase, igualar `trainer/client_detail.html` a la regla de consentimiento del progreso.
 
 ### Ficha básica (2026-11-17, rama `feature/ficha-basica`)
 

@@ -24,10 +24,10 @@ from apps.health.choices import EQUIPMENT_CHOICES, labels_for
 from apps.health.models import PURPOSE_AI, PURPOSE_HEALTH_DATA, HealthAccessLog
 
 from . import adaptation as adaptation_service
-from . import ai, jobs, nutrition, services
+from . import ai, cloning, jobs, nutrition, overview, progress, services, texts
 from .forms import (
-    AlternativeForm, ApproveForm, ArchiveForm, CompleteForm, GenerateForm, MealChoiceForm, PlanRequestForm,
-    RegenerateForm, ReviewOptionForm, parse_option_post,
+    AlternativeForm, ApproveForm, ArchiveForm, CloneForm, CompleteForm, GenerateForm, MealChoiceForm,
+    PlanRequestForm, RegenerateForm, ReviewOptionForm, parse_option_post,
 )
 from .models import KIND_EXERCISE, KIND_NUTRITION, MealOption, Plan, PlanGenerationJob
 from .rules import eligibility as rules_eligibility
@@ -292,7 +292,8 @@ def _profile_summary(request, client, profile):
     }
 
 
-def _plan_detail_context(request, plan, approve_errors=None, regenerate_errors=None, archive_errors=None):
+def _plan_detail_context(request, plan, approve_errors=None, regenerate_errors=None, archive_errors=None,
+                         clone_errors=None):
     client = plan.client
     routine_days = []
     if plan.routine_id:
@@ -324,6 +325,8 @@ def _plan_detail_context(request, plan, approve_errors=None, regenerate_errors=N
         'approve_errors': approve_errors or {},
         'regenerate_errors': regenerate_errors or {},
         'archive_errors': archive_errors or {},
+        'clone': cloning.clone_state(plan),
+        'clone_errors': clone_errors or {},
         'form': request.POST if request.method == 'POST' else {},
         'disclaimer': DISCLAIMER,
         'adaptation': adaptation_service.panel_for_plan(plan),
@@ -431,12 +434,68 @@ def trainer_plan_generate(request, client_pk):
         job, _created = services.request_plan(client, form.cleaned_data['kind'], request.user,
                                               form.cleaned_data['request_token'])
     except services.PlanRequestNotReady as exc:
-        messages.error(request, 'Aún no se puede generar: ' + '; '.join(exc.eligibility.missing_texts))
+        # Textos en voz del entrenador (los de la clienta dicen «tus datos»)
+        messages.error(request, 'Aún no se puede generar: ' + overview.trainer_missing_text(exc.eligibility.missing))
         return back
     except services.PlanError as exc:
         messages.error(request, str(exc))
         return back
     return redirect('trainer_plan_job', pk=job.pk)
+
+
+@plans_feature_required
+@trainer_required
+@require_POST
+def trainer_plan_clone(request, pk):
+    """D-03: copia un plan aprobado, reemplazado o archivado a un borrador nuevo (`in_review`). La clienta
+    sigue viendo su plan vigente hasta que se apruebe la copia."""
+    plan = _trainer_plan(request, pk)
+    form = CloneForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, texts.CLONE_MESSAGES['reason_invalid'])
+        return render(request, 'trainer/plan_detail.html',
+                      _plan_detail_context(request, plan, clone_errors=errors_dict(form)), status=400)
+    try:
+        new, created = cloning.clone_plan(plan, request.user, form.cleaned_data['reason'])
+    except services.PlanError as exc:
+        messages.error(request, str(exc))
+        return redirect('trainer_plan_detail', pk=plan.pk)
+    if not created:
+        messages.info(request, texts.CLONE_MESSAGES['existing'].format(version=new.version))
+        return redirect('trainer_plan_detail', pk=new.pk)
+    current = cloning.current_version(new.client_id, new.kind)
+    messages.success(request, texts.CLONE_MESSAGES['created_with_current' if current else 'created_alone'].format(
+        new=new.version, current=current))
+    warning = cloning.conflicts_message(new)
+    if warning:
+        messages.warning(request, warning)
+    return redirect('trainer_plan_detail', pk=new.pk)
+
+
+@plans_feature_required
+@trainer_required
+@require_GET
+def trainer_client_plans(request, client_pk):
+    """D-01: planes de una clienta por tipo (versiones y estados), trabajos recientes y el botón de
+    generar con lo que falte. Solo lectura; una clienta desactivada se ve."""
+    client = get_client_for_trainer(request, client_pk)
+    context = overview.client_plans_context(client, request.user)
+    return render(request, 'trainer/client_plans.html', {'client': client, **context})
+
+
+@plans_feature_required
+@trainer_required
+@require_GET
+def trainer_client_progress(request, client_pk):
+    """D-02: medidas (tabla y gráficos), línea base y constancia de 4 semanas. Sin el consentimiento
+    `health_data` vigente no salen medidas ni comidas (solo los días de rutina marcados)."""
+    client = get_client_for_trainer(request, client_pk)
+    content_visible = health.trainer_can_see_content(client)
+    context = progress.build_context(client, content_visible=content_visible)
+    return render(request, 'trainer/client_progress.html', {
+        'client': client, 'client_active': bool(client.is_active), 'content_visible': content_visible,
+        **context,
+    })
 
 
 def _trainer_job(request, pk):

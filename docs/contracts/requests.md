@@ -5,7 +5,7 @@ Contrato de referencia: `docs/contracts/plan-ia.md` (propuesta pendiente de apro
 
 ## De arquitecto-backend para frontend-architect
 
-Estado: contrato aprobado. **Fases A1, A2, B y C implementadas en el backend** (la B y la C también con sus plantillas; ver "Fase B: entregada" y "Fase C: entregada" más abajo) (ver "Contrato A1 para el frontend" y "Contrato A2 para el frontend" más abajo; si algo difiere de las filas F-01 a F-05 de las tablas, mandan esos bloques); las demás fases siguen **PENDIENTES** hasta que se construyan. Excepción: de la fase D ya existe `member_meal_complete` (ver «Fase D: marcar comida hecha» más abajo).
+Estado: contrato aprobado. **Fases A1, A2, B y C implementadas en el backend** (la B y la C también con sus plantillas; ver "Fase B: entregada" y "Fase C: entregada" más abajo) (ver "Contrato A1 para el frontend" y "Contrato A2 para el frontend" más abajo; si algo difiere de las filas F-01 a F-05 de las tablas, mandan esos bloques); las demás fases siguen **PENDIENTES** hasta que se construyan. Excepción: de la fase D ya existe `member_meal_complete` (ver «Fase D: marcar comida hecha» más abajo). Lo que falta de la fase D (D-01 a D-04) está **IMPLEMENTADO en el backend** (2026-11-18, rama `feature/fase-d`; las plantillas son del frontend) en «Fase D: contrato D-01 a D-04» (más abajo) y en `docs/contracts/plan-ia-fase-d.md`.
 
 ### Convenciones (igual que las vistas actuales)
 
@@ -65,7 +65,9 @@ Mensajes de éxito/error con `messages` como en el resto del panel.
 | --- | --- | --- | --- |
 | F-15 | Planes de una clienta (entrenador) | `trainer/client_plans.html` | `plans` por tipo con versiones y estados, `jobs` recientes (incluye fallidos y bloqueados con su código y texto amigable), botón "Generar borrador" (`trainer_plan_generate`) con aviso si faltan consentimientos |
 | F-16 | Progreso de la clienta (entrenador) | `trainer/client_progress.html` | `series` (fecha, peso, cintura, cadera, IMC), `adherence` (días de rutina y comidas marcadas en 4 semanas), `baseline` (medición del plan). Gráficos con lo que ya cargue el proyecto; si hace falta una librería nueva, consultarlo antes |
-| F-17 | Trabajos con problemas / contador | `trainer/plan_jobs.html`, fragmento `trainer/partials/plan_badge.html` | Lista de trabajos `failed`/`blocked` de SUS clientes con el código de motivo; contador numérico para el menú (HTMX `hx-get` + `hx-trigger="load, every 60s"`). En la ficha de adherencia de la clienta (F-11): casilla "Cumplí esta comida" (POST `member_meal_complete`) |
+| F-17 | Trabajos con problemas / contador | `trainer/plan_jobs.html` (**no se construye**), fragmento `trainer/partials/plan_badge.html` | Lista de trabajos `failed`/`blocked` de SUS clientes con el código de motivo; contador numérico para el menú (HTMX `hx-get` + `hx-trigger="load, every 60s"`). En la ficha de adherencia de la clienta (F-11): casilla "Cumplí esta comida" (POST `member_meal_complete`) |
+
+**Nota (2026-11-17):** F-15 y F-16 pasan a D-01 y D-02 (bloque «Fase D: contrato D-01 a D-04», más abajo, que manda). F-17: el contador ya está hecho (D1) y `trainer/plan_jobs.html` no se construye (la bandeja ya lista los trabajos con problemas).
 
 ### Piezas transversales
 
@@ -381,6 +383,60 @@ Mensajes: llegan por `messages` y ya están redactados (contrato, sección 13). 
 
 **Pedido del backend al frontend (pendiente):** cuando entreguen C-04, avisen qué `errors.<campo>` pinta para agregarlos a `CLIENT_ERASE_RENDERED` en `apps/accounts/views.py` (hoy está vacía y esos errores se repiten como mensaje arriba). Lo mismo si los esqueletos C-03, C-06 o C-07 dejan de pintar algún campo (`CLIENT_DEACTIVATE_RENDERED`, `TRAINER_DEACTIVATE_RENDERED`, `TRAINER_ERASE_RENDERED`). Las pruebas del backend miran el contexto (`response.context`), no el HTML.
 
+### Fase D: contrato D-01 a D-04 (IMPLEMENTADO por el backend el 2026-11-18, rama `feature/fase-d`; plantillas pendientes del frontend)
+
+Contrato: `docs/contracts/plan-ia-fase-d.md` (secciones 4 a 7 y 10). La persona lo aprobó con todas las recomendaciones (1A a 6A) y el backend ya está construido: **este bloque es el contexto final**, comprobado contra las vistas. Las plantillas reales no existen todavía: las pruebas del backend usan plantillas de reemplazo (entradas `trainer/client_plans.html` y `trainer/client_progress.html` de `_STUBS` en `apps/health/tests/helpers.py`); **al integrar, quitar esas dos entradas**. Sin migraciones ni modelos nuevos. Completa la fase D (ya existen `member_meal_complete` y `trainer_plan_badge`); **F-17 `trainer_plan_jobs` no se construye** (la bandeja ya lista `attention_jobs` y `active_jobs`). Si este bloque difiere de las filas F-15 y F-16 de «Fase D: seguimiento», **manda este bloque**.
+
+**Reglas de siempre:** las tres rutas son solo del panel del entrenador (`trainer/base.html`, bloque `trainer_content`), solo existen con la función encendida (si no, 404), llevan `Cache-Control: no-store` y no ponen datos de salud en la URL. Todo formulario POST lleva `{% csrf_token %}` y su botón se deshabilita mientras envía. Nada de `|safe` ni `innerHTML` con datos; los nombres con `trainer/partials/person_name.html`. Sin scripts ni imágenes de terceros nuevos. Las pruebas del backend miran el **contexto**, no el HTML (mientras la plantilla no exista usan una de reemplazo).
+
+| Id | Plantilla | Vista (nombre de URL) | Qué es |
+| --- | --- | --- | --- |
+| D-01 | `trainer/client_plans.html` (nueva) | `trainer_client_plans` (GET, `/plans/trainer/clients/<client_pk>/`) | Planes de una clienta por tipo, con versiones y estados, trabajos recientes y botón «Generar borrador» |
+| D-02 | `trainer/client_progress.html` (nueva) + `trainer/partials/progress_chart.html` | `trainer_client_progress` (GET, `/plans/trainer/clients/<client_pk>/progress/`) | Medidas (tabla y 4 gráficos), línea base y constancia de 4 semanas |
+| D-03 | `trainer/plan_detail.html` (cambia) y botón en D-01 | `trainer_plan_clone` (POST, `/plans/trainer/<pk>/clone/`) | Clonar un plan a borrador |
+| D-04 | `trainer/client_detail.html` y `trainer/plan_detail.html` (cambian) | n/a | Enlaces a D-01 y D-02 |
+
+**Quién ve qué:** entrenador asignado y superusuaria; otro entrenador 404; clienta 403. Una clienta **desactivada** sí se ve (solo lectura): los botones «Generar borrador» y «Clonar a borrador» se ocultan o se deshabilitan mostrando `inactive_message` / `clone.blocked_reason`. **Sin el consentimiento `health_data` vigente** (`content_visible = False`) no llegan medidas, comidas ni porcentajes (ver cada tabla).
+
+#### D-01. `trainer/client_plans.html`
+
+Contexto: `client`, `client_active` (bool), `inactive_message` (str, `''` si activa), `content_visible` (bool), `ai_mode` (`'simulated'` → franja «MODO DE PRUEBA», o `'live'`), `groups`, `generate`, `jobs`, `jobs_truncated` (bool).
+
+- `groups`: lista de **2** `dict`, siempre ejercicio y luego alimentación. Cada uno: `kind` (`'exercise'`/`'nutrition'`), `label` («Plan de ejercicio» / «Plan de alimentación»), `current` (fila o `None`: el aprobado), `draft` (fila o `None`: el borrador o en revisión más reciente), `rows` (todas las versiones, la más reciente primero, máx. 15), `rows_truncated` (bool), `total` (int).
+- Cada **fila**: `plan` (con `version`, `status`, `created_at`, `approved_at`, `approved_by`, `valid_until`, `is_simulated`), `status_label` («Borrador de la IA», «En revisión», «Aprobado», «Reemplazado», «Archivado»), `is_current`, `is_pending`, `origin` (`'ai'`/`'clone'`), `origin_label` («Generado con IA», «Regenerado con IA (de la versión N)», «Copia de la versión N»), `parent_version` (int o `None`), `flags_count` (int; el texto de las advertencias está en el detalle), `stale` (bool o `None`: solo en pendientes y vigente; «generado con una ficha anterior»), `expired` (bool: aprobado con `valid_until` vencido), `can_clone` (bool). Enlaces: `trainer_plan_detail` (pk del plan) y, si `can_clone`, un formulario POST a `trainer_plan_clone` con el campo opcional `reason`.
+- `generate['exercise']` y `generate['nutrition']`: `label`, `request_token` (UUID nuevo en cada carga; formulario POST a `trainer_plan_generate` con `kind` y `request_token`), `can_request` (bool: habilita el botón), `blocked` (bool), `blocked_text` (str ya redactado), `blocked_flags` (lista `{code, text, action}`; **vacía sin consentimiento**), `missing` (lista `{code, text, action, url}` en voz del entrenador; `url` es `None` si solo la clienta lo puede resolver), `active_job` (trabajo en curso o `None`; enlazar a `trainer_plan_job`), `has_pending_draft` (bool; aviso «Ya hay un borrador de este tipo»). Con `blocked` **no mostrar el botón**: mostrar `blocked_text` y las banderas. Con `missing` no vacío o `can_request` falso, deshabilitar el botón y listar lo que falta con su `action` y, si hay `url`, un enlace.
+- `jobs`: hasta 20, el más reciente primero. Cada uno: `job` (`pk`, `created_at`, `finished_at`, `progress_done`, `progress_total`), `kind_label`, `status` (`queued`/`running`/`succeeded`/`failed`/`blocked`), `status_label`, `tone` (`info`/`good`/`warning`/`danger`: color **y** texto, no solo color), `summary` (frase ya redactada), `flag_texts` (lista de str; vacía sin consentimiento), `technical_code` (str; mostrarlo chico como «Código técnico»), `requested_by_label` («Clienta» / «Entrenador/a»), `plan_id` (int o `None`; enlazar al detalle del borrador creado). Los `queued`/`running` enlazan a `trainer_plan_job`.
+- Estados vacíos: sin planes ni trabajos, `rows == []` y `jobs == []` (mostrar un mensaje claro con el botón de generar).
+
+#### D-02. `trainer/client_progress.html`
+
+Contexto: `client`, `client_active`, `content_visible`, `today` (fecha), `current_plans` (`{'exercise': info o None, 'nutrition': info o None}`; `info` = `{version, approved_on, valid_until, expired}`), `measurements`, `measurements_count`, `measurements_truncated`, `charts`, `baseline`, `last_measurement` (`{date, days_old}` o `None`), `measure_due` (bool), `measure_due_text`, `adherence`.
+
+- **Sin `content_visible`:** mostrar «La clienta no tiene una autorización vigente para tratar sus datos de salud: no se muestran sus medidas ni sus comidas.» en lugar de medidas, gráficos, línea base y comidas (`measurements == []`, `charts == []`, `baseline is None`, `adherence['meals'] is None`). Los días de rutina marcados sí se muestran.
+- `measurements` (máx. 60, la más reciente primero): `pk`, `date`, `weight` (kg), `waist_cm`, `hip_cm`, `body_fat_pct`, `imc`, `imc_classification`, `source` (`'member'`/`'trainer'`), `source_label` («Clienta» / «Entrenador/a»), `needs_review` (mostrar «Revisar»), `is_baseline` (marcarla). **La tabla se muestra siempre** (es la alternativa accesible a los gráficos). Botón «Agregar medición» (`trainer_measurement_add`) solo con `client_active`; si `measure_due`, mostrar `measure_due_text` junto al botón.
+- `charts`: lista de **4** (peso, cintura, cadera, IMC), cada una con `key`, `label`, `unit`, `count`, `has_chart`, `view_box` (`'0 0 640 240'`), `plot` (`{left, right, top, bottom}` strings), `points` (`{x, y, date, value, text, needs_review, is_baseline}`: **`x` e `y` ya son strings con punto decimal**, úsalos tal cual en `cx`/`cy`; no los pases por filtros de número, porque Django los pondría con coma), `polyline` (string para `<polyline points="{{ chart.polyline }}">`), `y_ticks` (3 `{y, label}`; vacío si `count == 0`), `x_ticks` (1 o 2 `{x, label}`; vacío si `count == 0`) y `summary` (frase para `<title>`/`<desc>` y lectores de pantalla). Con `has_chart` falso (menos de 2 puntos) no dibujar línea: mostrar `summary`. Dibujar con un `<svg>` en línea y **solo atributos SVG** (`stroke`, `fill`, `points`, `cx`, `cy`…; sin `style` ni scripts): `role="img"` y `aria-labelledby` hacia `<title>` y `<desc>`. Distinguir los puntos `needs_review` e `is_baseline` con una forma distinta (no solo color). Contraste suficiente en el tema oscuro. Parcial reutilizable: `trainer/partials/progress_chart.html` (recibe un `chart`).
+- `baseline` (o `None`): `plan_kind`, `plan_kind_label`, `plan_version`, `date`, `weight`, `waist_cm`, `hip_cm`, `imc` (referencia), `latest_date`, `days_between`, `same_measurement` (si es `True`, no mostrar cambios: aún no hay una medida nueva) y `delta` (`{weight, waist_cm, hip_cm, imc}`: números con signo o `None`). Mostrar «Desde la medida del plan ({{ baseline.date }}): peso {{ delta.weight }} kg…» solo con los que no sean `None`.
+- `adherence`: `start`, `end`, `days`, `weeks` (lista de 4 `{index, first_day, last_day, training_done, meals_done}`, de la más antigua a la más reciente; `meals_done` es `None` sin consentimiento), `training` y `meals` (`None` sin consentimiento). Cada uno: `done`, `expected` (o `None`), `per_week` (o `None`), `rate` (0 a 100 o `None`), `level` (`'low'`/`'medium'`/`'high'`/`None`), `level_text` (frase ya redactada), `has_plan` (bool), `note` (por qué no hay porcentaje). Mostrar «{done} de {expected}» y el porcentaje solo si `rate` no es `None`; si no, mostrar `note`. Las 4 semanas como barras o como tabla de 4 filas (con texto, no solo color).
+
+#### D-03. Clonar a borrador (`trainer/plan_detail.html` y D-01)
+
+`_plan_detail_context` agrega dos claves; **no cambia ninguna de las que ya existen**:
+
+- `clone`: `None` si el plan es borrador o está en revisión (no mostrar nada de clonar). Si no es `None`: `allowed` (bool), `blocked_reason` (str ya redactada), `existing_draft` (plan o `None`: copia de **este** plan que sigue en borrador; mostrar «Abrir el borrador (versión N)» en lugar del botón), `other_draft` (plan o `None`), `replaces_version` (int o `None`: versión que la copia reemplazaría al aprobarse) y `reason_max` (300).
+- `clone_errors`: `{}` o `{'reason': '...'}` (se pinta junto al campo; HTTP 400 en ese caso).
+
+Pedido a la plantilla: en un plan aprobado, reemplazado o archivado, un formulario `method="post"` a `{% url 'trainer_plan_clone' plan.pk %}` con `{% csrf_token %}`, un campo opcional `reason` («¿Qué quieres cambiar?», máx. `clone.reason_max`) y el botón «Clonar a borrador». Texto de ayuda (con `replaces_version`): «Se crea una copia editable. {{ client }} sigue viendo la versión {{ clone.replaces_version }} hasta que apruebes la nueva.» (sin `replaces_version`: «La clienta no verá nada hasta que apruebes la copia.») y «La copia conserva los objetivos y las medidas del plan original. Para recalcularlos, pide un borrador nuevo con IA.» Si `clone.allowed` es falso, mostrar `clone.blocked_reason` en lugar del botón. Los mensajes de éxito y error llegan por `messages` (ya redactados en el contrato, sección 7.6). El historial del plan ya muestra el evento «Clonado a borrador».
+
+#### D-04. Enlaces
+
+- `trainer/client_detail.html`: dos accesos en el bloque de acciones, dentro de `{% if AI_PLANS_ENABLED %}`: **«Planes de la clienta»** → `{% url 'trainer_client_plans' client.pk %}` y **«Progreso»** → `{% url 'trainer_client_progress' client.pk %}`.
+- `trainer/plan_detail.html`: enlace «Ver todos los planes de {{ client }}» → `trainer_client_plans`, junto al resumen de la ficha.
+- Sin cambios de contexto en ninguna de las dos.
+
+**Pedidos del backend al frontend:** las plantillas D-01 y D-02 (con el parcial), los cambios de D-03 y los enlaces de D-04. Nada de esto se puede empezar a integrar hasta que el contrato esté aprobado; pueden empezar a diseñar contra las tablas de arriba.
+
+**Decisiones de la persona (2026-11-18, sección 11 del contrato):** 1A gráficos con SVG del servidor y tabla siempre visible (sin librerías); 2A sin autorización vigente el entrenador no ve medidas ni comidas, solo los días entrenados; 3A se clona desde aprobado, reemplazado y archivado; 4A las elecciones de comida de la clienta no se traspasan; 5A un solo borrador por tipo; 6A el progreso también da 404 con la IA apagada. Ya no hay preguntas abiertas en este bloque.
+
 ## De frontend-architect para arquitecto-backend
 
 ### Fase A1: plantillas entregadas (F-01, F-02, F-03) y lo que asumen de las vistas
@@ -465,6 +521,17 @@ Plantillas reales: `trainer/client_confirm_delete.html` (C-04, reescrita), `trai
 **RESUELTO (2026-11-17, sesión principal):** `CLIENT_ERASE_RENDERED = ('confirm_name', 'reason', 'ack_payments')`; la prueba `test_wrong_confirmation_changes_nothing` ahora comprueba que el error se pinta en C-04 y no se repite como mensaje.
 
 Notas: el botón «Eliminar definitivamente» de C-04/C-07 usa `aria-disabled` (sigue enfocable) hasta que el nombre coincide, normalizando como `normalize_name` (NFC, espacios, minúsculas; con tildes); el servidor valida igual y sin JavaScript el formulario se envía normal. `reassign_to` y `reason` no tienen opción preseleccionada; `ack_payments` nunca llega marcada.
+
+### Fase D: D-01 a D-04 entregadas (frontend, 2026-11-18, rama `feature/fase-d`)
+
+Plantillas reales contra el bloque «Fase D: contrato D-01 a D-04»: `trainer/client_plans.html` (D-01) con el parcial `trainer/partials/client_plan_group.html` (una tarjeta por tipo: vigente, borrador, «Generar borrador» y versiones con «Clonar a borrador» en un `<details>`); `trainer/client_progress.html` (D-02) con `trainer/partials/progress_chart.html` (SVG en línea, solo atributos SVG, `role="img"` + `aria-labelledby` a `<title>`/`<desc>`; círculo = medida, cuadrado = medida del plan, triángulo = «Revisar») y `trainer/partials/adherence_card.html`; parciales `plan_status_badge.html` y `job_tone_badge.html` (estado con color, icono y texto). D-03 en `trainer/plan_detail.html` (sección «Clonar a borrador» antes de «Archivar»; `blocked_reason`, `existing_draft`/`other_draft`, `clone_errors.reason` junto al campo con `aria-describedby`); D-04 en `trainer/client_detail.html` y `trainer/plan_detail.html`. Se quitaron las dos entradas de fase D de `_STUBS`.
+
+- Con la plantilla real, `response.context` es una `ContextList` (hay `extends` e `include`): en `test_client_plans.py` y `test_client_progress.py` la comprobación de claves pasó a `set(context.keys())` (solo esa línea; sin cambiar lo que se prueba). Los conteos de consultas (35 y 11) no cambiaron.
+- El motivo de clonar y el de archivar se llaman igual (`reason`): el campo de archivar ya no se repuebla cuando el error es de clonar.
+- En D-01, si ya hay un borrador del tipo, la fila no ofrece «Clonar» y enlaza al borrador (regla 5A: uno por tipo); el servidor valida igual.
+- `trainer/base.html`: en `/plans/trainer/clients/...` queda activa solo la pestaña «Clientes» (antes se marcaban dos).
+
+Pedidos al backend: ninguno. Observaciones (no bloquean): sin consentimiento, D-02 sigue mostrando «Agregar medición» (como `client_detail`); y `trainer/client_detail.html` sigue mostrando las últimas mediciones sin mirar el consentimiento (sección 12, punto 6 del contrato).
 
 ## Resueltos
 

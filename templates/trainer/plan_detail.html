@@ -135,6 +135,7 @@
       <p class="text-white/60 text-sm">No hay ficha visible (sin ficha o sin autorización vigente).</p>
       {% endif %}
       <a href="{% url 'trainer_health_profile' client.pk %}" class="mt-3 inline-block text-primary text-sm underline underline-offset-2">Ver la ficha completa</a>
+      <a href="{% url 'trainer_client_plans' client.pk %}" class="mt-2 block text-primary text-sm underline underline-offset-2 rounded [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Ver todos los planes de {% include 'trainer/partials/person_name.html' with person=client %}</a>
     </div>
 
     {% if plan.is_pending and client.is_active %}
@@ -191,6 +192,49 @@
     </form>
     {% endif %}
 
+    {% if clone %}
+    <!-- D-03: Clonar a borrador (aprobado, reemplazado o archivado) -->
+    <section aria-labelledby="clone-title" class="rounded-2xl border border-white/10 bg-zinc-900 p-5 space-y-3">
+      <h2 id="clone-title" class="text-white font-bold text-sm">Clonar a borrador</h2>
+      {% if not clone.allowed and clone.blocked_reason %}
+      <p role="note" class="flex items-start gap-2 text-yellow-100 text-sm"><i class="fa fa-circle-info mt-0.5 shrink-0" aria-hidden="true"></i><span class="[overflow-wrap:anywhere]">{{ clone.blocked_reason }}</span></p>
+      {% endif %}
+      {% if clone.existing_draft %}
+      <a href="{% url 'trainer_plan_detail' clone.existing_draft.pk %}"
+         class="w-full inline-flex items-center justify-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        <i class="fa fa-folder-open" aria-hidden="true"></i> Abrir el borrador (versión {{ clone.existing_draft.version }})
+      </a>
+      {% elif not clone.allowed %}
+      {% if clone.other_draft %}
+      <a href="{% url 'trainer_plan_detail' clone.other_draft.pk %}" class="inline-block text-primary text-sm underline underline-offset-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Abrir el borrador (versión {{ clone.other_draft.version }})</a>
+      {% endif %}
+      {% else %}
+      <form method="POST" action="{% url 'trainer_plan_clone' plan.pk %}" class="space-y-3"
+            x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
+        {% csrf_token %}
+        <div>
+          <label for="clone_reason" class="block text-white/60 text-xs mb-1">¿Qué quieres cambiar? (opcional, máx. {{ clone.reason_max }} caracteres; no escribas datos personales)</label>
+          <input id="clone_reason" name="reason" maxlength="{{ clone.reason_max }}" autocomplete="off"
+                 value="{% if clone_errors %}{{ form.reason|default:'' }}{% endif %}"
+                 aria-describedby="clone_help{% if clone_errors.reason %} clone_reason_error{% endif %}"
+                 {% if clone_errors.reason %}aria-invalid="true"{% endif %}
+                 class="w-full bg-black/40 border {% if clone_errors.reason %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
+          {% if clone_errors.reason %}<p id="clone_reason_error" class="text-red-400 text-xs mt-1" role="alert">{{ clone_errors.reason }}</p>{% endif %}
+        </div>
+        <div id="clone_help" class="space-y-1 text-white/60 text-xs">
+          <p>Se crea una copia editable. {% if clone.replaces_version %}{% include 'trainer/partials/person_name.html' with person=client %} sigue viendo la versión {{ clone.replaces_version }} hasta que apruebes la nueva.{% else %}La clienta no verá nada hasta que apruebes la copia.{% endif %}</p>
+          <p>La copia conserva los objetivos y las medidas del plan original. Para recalcularlos, pide un borrador nuevo con IA.</p>
+        </div>
+        <button type="submit" :disabled="sending"
+                class="w-full inline-flex items-center justify-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-copy'" aria-hidden="true"></i>
+          <span x-text="sending ? 'Clonando...' : 'Clonar a borrador'">Clonar a borrador</span>
+        </button>
+      </form>
+      {% endif %}
+    </section>
+    {% endif %}
+
     {% if plan.is_pending or plan.is_approved %}
     <!-- Archivar -->
     <form method="POST" action="{% url 'trainer_plan_archive' plan.pk %}" class="rounded-2xl border border-white/10 bg-zinc-900 p-5 space-y-3"
@@ -199,7 +243,7 @@
       <h2 class="text-white font-bold text-sm">Archivar</h2>
       <div>
         <label for="reason" class="block text-white/60 text-xs mb-1">Motivo (opcional)</label>
-        <input id="reason" name="reason" maxlength="300" value="{{ form.reason|default:'' }}"
+        <input id="reason" name="reason" maxlength="300" value="{% if not clone_errors %}{{ form.reason|default:'' }}{% endif %}"
                class="w-full bg-black/40 border {% if archive_errors.reason %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-3 py-2 text-white text-sm outline-none">
         {% if archive_errors.reason %}<p class="text-red-400 text-xs mt-1">{{ archive_errors.reason }}</p>{% endif %}
       </div>
