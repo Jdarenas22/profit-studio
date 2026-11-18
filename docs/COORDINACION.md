@@ -104,6 +104,10 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 - (vacío)
 
+### Sin asignar
+
+- 2026-11-18 · Dependabot: alertas abiertas de **Pillow** (varias altas: desbordamiento de memoria con TIFF/libtiff y DoS con EXIF). `pip-audit` del CI aún no las marca. Actualizar Pillow en `requirements/base.txt` en una rama aparte (`chore/pillow`), con la suite completa y la prueba de imágenes WebP. Quien la tome, que se la asigne aquí.
+
 ### Pendientes de la persona
 
 - Cloudflare R2: el token no tiene acceso al bucket `profitstudio-receipts` (error 403 en `check_infra`).
