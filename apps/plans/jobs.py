@@ -408,6 +408,8 @@ def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_name
         'session_minutes': profile.session_minutes,
         'experience_level': profile.experience_level,
     }
+    from .training_context import assigned_training_summary
+    payload['training']['assigned_routine'] = assigned_training_summary(job.client)
     if recipe_options is not None:
         payload['recipe_options'] = recipe_options
         payload['recipe_catalog_version'] = recipes.VERSION

@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-18",
+  "scope": "academic_synthetic_profiles",
+  "automated_tests": {
+    "count": 1401,
+    "passed": true,
+    "network": false
+  },
+  "simulated_acceptance": [
+    {
+      "profile": "demo_grasa",
+      "status": "succeeded",
+      "error": "",
+      "flags": [],
+      "meal_slots": 5,
+      "member_menu_http": 200,
+      "clearly_simulated": true,
+      "foreign_job_http": 404
+    },
+    {
+      "profile": "demo_musculo",
+      "status": "succeeded",
+      "error": "",
+      "flags": [],
+      "meal_slots": 5,
+      "member_menu_http": 200,
+      "clearly_simulated": true,
+      "foreign_job_http": 404
+    },
+    {
+      "profile": "demo_mantenimiento",
+      "status": "succeeded",
+      "error": "",
+      "flags": [],
+      "meal_slots": 5,
+      "member_menu_http": 200,
+      "clearly_simulated": true,
+      "foreign_job_http": 404
+    }
+  ],
+  "real_gemini_acceptance": [
+    {
+      "profile": "demo_musculo",
+      "kind": "nutrition",
+      "job": 4,
+      "plan": 4,
+      "status": "approved",
+      "simulated": false,
+      "model": "gemini-3.5-flash-lite",
+      "tokens_in": 52289,
+      "tokens_out": 1982,
+      "meal_slots": 5,
+      "member_page_http": 200
+    },
+    {
+      "profile": "demo_grasa",
+      "kind": "exercise",
+      "job": 5,
+      "plan": 5,
+      "status": "approved",
+      "simulated": false,
+      "model": "gemini-3.5-flash-lite",
+      "tokens_in": 1147,
+      "tokens_out": 601,
+      "meal_slots": null,
+      "member_page_http": 200
+    }
+  ],
+  "nutrition_catalog": "approximate_seed_not_verified_usda",
+  "energy_basis": "declared_activity_with_assigned_routine_context_not_measured_expenditure"
+}
