@@ -13,6 +13,11 @@
   </nav>
 
   <h1 class="text-2xl font-black text-white mb-3">Pedir mi plan</h1>
+  {% if kind == 'nutrition' %}
+  <p class="text-white/60 text-sm mb-4">Menús de bienestar y entrenamiento con recetas cotidianas e internacionales.
+    El servicio de dietas clínicas está pausado. Puedes distribuir tus comidas entre desayuno,
+    media mañana, almuerzo, merienda y cena según tus preferencias.</p>
+  {% endif %}
   <nav aria-label="Tipo de plan" class="flex flex-wrap gap-2 mb-4">
     {% for k in kinds %}
     <a href="{{ k.url }}" {% if k.selected %}aria-current="page"{% endif %}

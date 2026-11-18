@@ -74,6 +74,7 @@ ERASE_POLICY = {
     'routines.Routine.trainer': KEEP,
     'assessments.InitialAssessment.trainer': KEEP,
     'assessments.BodyMeasurement.trainer': KEEP,
+    'assessments.CardioEvaluation.recorded_by': KEEP,
     'health.HealthAccessLog.actor': KEEP,
     'health.HealthProfile.created_by': KEEP,
     'memberships.Membership.activated_by': KEEP,

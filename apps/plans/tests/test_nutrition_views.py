@@ -181,7 +181,7 @@ class MemberNutritionViewsTests(NutritionScenarioTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('no-store', response['Cache-Control'])
         self.assertEqual([len(entry['options']) for entry in response.context['slots']], [3, 3, 3])
-        self.assertContains(response, 'No reemplaza la valoración')
+        self.assertContains(response, 'Orientación de bienestar y entrenamiento')
         self.assertContains(response, self.option.name)
         self.assertContains(response, 'Buen provecho')                       # nota del entrenador
         self.assertContains(response, 'RETHUS')                              # credencial de quien aprobó
@@ -266,7 +266,7 @@ class MemberNutritionViewsTests(NutritionScenarioTestCase):
         response = self.client.get(reverse('member_exchanges'))
         self.assertContains(response, 'Cereales y derivados')
         self.assertContains(response, 'Arroz blanco cocido')
-        self.assertContains(response, 'No reemplaza la valoración')
+        self.assertContains(response, 'Orientación de bienestar y entrenamiento')
         response = self.client.get(reverse('member_shopping_list'))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['rows'])

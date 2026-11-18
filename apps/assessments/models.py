@@ -33,7 +33,7 @@ def calculate_imc(weight_kg, height_m):
 
 
 def calculate_dixon_index(p0, p1, p2):
-    """IRD = ((P0 + P1 + P2) - 200) / 10"""
+    """Índice de Ruffier histórico (no Dickson). Se conserva por compatibilidad."""
     return ((p0 + p1 + p2) - 200) / 10
 
 
@@ -113,8 +113,8 @@ class DixonTest(models.Model):
     observations = models.TextField(blank=True, verbose_name='Observaciones')
 
     class Meta:
-        verbose_name = 'Test de Ruffier-Dickson'
-        verbose_name_plural = 'Tests de Ruffier-Dickson'
+        verbose_name = 'Índice de Ruffier (registro anterior)'
+        verbose_name_plural = 'Índices de Ruffier (registros anteriores)'
 
     def save(self, *args, **kwargs):
         if self.p0 is not None and self.p1 is not None and self.p2 is not None:
@@ -124,7 +124,34 @@ class DixonTest(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Test de Ruffier-Dickson — {self.assessment.user} — Índice: {self.index_value}"
+        return f"Índice de Ruffier — {self.assessment.user} — Índice: {self.index_value}"
+
+
+class CardioEvaluation(models.Model):
+    """Nueva medición: la API solo agrega filas; no modifica DixonTest ni sus resultados."""
+    assessment = models.ForeignKey(
+        InitialAssessment, on_delete=models.CASCADE, related_name='cardio_evaluations',
+    )
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+',
+    )
+    consent = models.ForeignKey('health.ConsentRecord', on_delete=models.SET_NULL, null=True, related_name='+')
+    request_token = models.UUIDField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    resting_hr_bpm = models.PositiveSmallIntegerField(validators=[MinValueValidator(20), MaxValueValidator(250)])
+    post_exercise_hr_bpm = models.PositiveSmallIntegerField(validators=[MinValueValidator(20), MaxValueValidator(250)])
+    recovery_hr_bpm = models.PositiveSmallIntegerField(validators=[MinValueValidator(20), MaxValueValidator(250)])
+    ruffier_index = models.DecimalField(max_digits=6, decimal_places=2)
+    ruffier_dickson_index = models.DecimalField(max_digits=6, decimal_places=2)
+    formula_version = models.CharField(max_length=40, default='ruffier-dickson/1', editable=False)
+    protocol_version = models.CharField(max_length=50, default='squats-30-45s-recovery-60s/1', editable=False)
+    protocol_confirmed = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-pk']
+        constraints = [
+            models.UniqueConstraint(fields=['assessment', 'request_token'], name='cardio_assessment_request_unique'),
+        ]
 
 
 class BodyMeasurement(models.Model):

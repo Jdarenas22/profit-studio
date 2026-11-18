@@ -509,7 +509,7 @@ def empty_form_values():
         values[name] = [] if name in LIST_FIELDS else (False if name in BOOLEAN_FIELDS else '')
     for name in (*PARQ_FIELDS, *MEAL_TIME_FIELDS):
         values[name] = ''
-    # Casillas que arrancan marcadas: desayuno, almuerzo y cena
-    values['meal_slots'] = list(ch.REQUIRED_MEAL_SLOTS)
+    # Casillas que arrancan marcadas: todas las comidas (menús de bienestar)
+    values['meal_slots'] = [code for code, _label in ch.MEAL_SLOT_CHOICES]
     values['defaulted_fields'] = []
     return values

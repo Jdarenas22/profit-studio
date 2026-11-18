@@ -144,7 +144,7 @@ class MemberViewsTests(PlanViewsTestCase):
         response = self.client.get(reverse('member_plan_request'))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['eligibility']['can_request'])
-        self.assertContains(response, 'No reemplaza la valoración')    # descargo
+        self.assertContains(response, 'Orientación de bienestar y entrenamiento')
 
     def test_status_and_poll_only_for_own_job(self):
         self.login(self.client_a)

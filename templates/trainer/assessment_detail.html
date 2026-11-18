@@ -81,10 +81,13 @@
     </div>
   </div>
 
-  <!-- ─── Test de Ruffier-Dickson ───────────────────────────────────────── -->
+  {% if HEALTH_FEATURES_ENABLED %}
+    {% include 'trainer/partials/cardio_api.html' %}
+  {% endif %}
+  <!-- Registro anterior: índice Ruffier, conservado sin recalcular. -->
   <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
-    <h2 class="text-white font-bold mb-1">Test de Ruffier-Dickson</h2>
-    <p class="text-white/30 text-xs mb-6">IRD = ((P0 + P1 + P2) − 200) / 10</p>
+    <h2 class="text-white font-bold mb-1">Índice de Ruffier (registro anterior)</h2>
+    <p class="text-white/30 text-xs mb-6">IR = ((P0 + P1 + P2) − 200) / 10</p>
 
     {% if dixon %}
     <!-- Resultados guardados -->
@@ -112,7 +115,7 @@
       {% elif dixon.classification == 'Regular' %}bg-orange-500/10 border border-orange-500/20
       {% else %}bg-red-500/10 border border-red-500/20{% endif %}">
       <div>
-        <p class="text-white/40 text-xs mb-0.5">IRD</p>
+        <p class="text-white/40 text-xs mb-0.5">IR</p>
         <p class="font-black text-3xl
           {% if dixon.classification == 'Excelente' or dixon.classification == 'Muy buena' %}text-green-400
           {% elif dixon.classification == 'Buena' %}text-yellow-400
@@ -139,10 +142,10 @@
     </p>
     {% endif %}
 
-    <p class="text-white/20 text-xs mb-4 border-t border-white/5 pt-4">Actualizar Test de Ruffier-Dickson:</p>
+    <p class="text-white/20 text-xs mb-4 border-t border-white/5 pt-4">Actualizar Índice de Ruffier (registro anterior):</p>
     {% endif %}
 
-    <!-- Formulario Test de Ruffier-Dickson -->
+    <!-- Formulario Índice de Ruffier (registro anterior) -->
     <form method="POST"
           x-data="{
             p0: '{% if form %}{{ form.p0|default:''|escapejs }}{% elif dixon %}{{ dixon.p0 }}{% endif %}',
@@ -223,11 +226,11 @@
         <p class="text-red-300 text-xs">Los valores de pulso no pueden ser negativos.</p>
       </div>
 
-      <!-- IRD en tiempo real -->
+      <!-- IR en tiempo real -->
       <div x-show="ird !== null && !dixonNegative" x-cloak
            class="bg-black/30 border border-white/5 rounded-xl px-5 py-4 flex items-center justify-between">
         <div>
-          <p class="text-white/40 text-xs mb-1">IRD calculado</p>
+          <p class="text-white/40 text-xs mb-1">IR calculado</p>
           <span class="font-black text-3xl" :class="irdColor" x-text="ird"></span>
         </div>
         <div class="text-right">
@@ -238,7 +241,7 @@
 
       <!-- Tabla de referencia -->
       <div class="bg-black/20 rounded-xl p-4">
-        <p class="text-white/30 text-xs font-semibold uppercase tracking-wider mb-3">Tabla de referencia IRD</p>
+        <p class="text-white/30 text-xs font-semibold uppercase tracking-wider mb-3">Tabla de referencia IR</p>
         <div class="grid grid-cols-5 gap-1 text-center text-xs">
           <div class="bg-green-500/10 rounded-lg py-2 px-1">
             <p class="text-green-400 font-bold">≤ 0</p>
@@ -275,7 +278,7 @@
               :disabled="dixonNegative"
               :class="dixonNegative ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary-dark'"
               class="bg-primary text-white font-semibold py-2.5 px-6 rounded-xl transition-colors text-sm">
-        <i class="fa fa-check mr-2"></i>{% if dixon %}Actualizar{% else %}Guardar{% endif %} Test de Ruffier-Dickson
+        <i class="fa fa-check mr-2"></i>{% if dixon %}Actualizar{% else %}Guardar{% endif %} Índice de Ruffier (registro anterior)
       </button>
     </form>
   </div>

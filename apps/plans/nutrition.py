@@ -151,6 +151,9 @@ def current_allowed_ids(plan):
     y las banderas rojas vigentes de alimentación."""
     client = plan.client
     profile = health.current_profile(client)
+    from . import wellness
+    if wellness.outside_scope(profile):
+        return frozenset(), (wellness.OUT_OF_SCOPE,)
     if profile is None:
         return None, ()
     report = health.profile_flags(client, profile)
@@ -285,6 +288,9 @@ def review_option(plan, option, actor, action):
 # ─── La clienta: ver, elegir ──────────────────────────────────────────────────
 
 def member_plan(client):
+    from . import wellness
+    if wellness.outside_scope(health.current_profile(client)):
+        return None
     plan = services.approved_plan(client, KIND_NUTRITION)
     if plan is None or not hasattr(plan, 'nutrition'):
         return None
@@ -355,7 +361,9 @@ class OptionNotFound(LookupError):
 
 
 def _member_slot_option(client, slot_pk, option_pk):
-    plan = member_plan(client)
+    # Resolver propiedad para devolver un bloqueo idempotente al pedir otra opción.
+    # Elegir una comida sigue pasando por conflicting_option_ids; el contenido clínico no se muestra.
+    plan = services.approved_plan(client, KIND_NUTRITION)
     if plan is None:
         raise OptionNotFound
     slot = MealSlot.objects.filter(pk=slot_pk, nutrition_plan__plan=plan).first()

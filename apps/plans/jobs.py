@@ -21,6 +21,7 @@ import logging
 import random
 import threading
 import time
+from dataclasses import replace
 from datetime import timedelta
 
 from django.conf import settings
@@ -36,6 +37,7 @@ from .models import KIND_EXERCISE, KIND_NUTRITION, PlanGenerationJob
 from .rules import energy as rules_energy
 from .rules import meal_validate as rules_meal
 from .rules import validate as rules_validate
+from .rules import recipes
 
 logger = logging.getLogger(__name__)
 
@@ -364,7 +366,7 @@ def _run_exercise(job, started):
 # ─── Alimentación ─────────────────────────────────────────────────────────────
 
 def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_names, previous_errors=(),
-                       adaptation=None):
+                       adaptation=None, recipe_options=None):
     """Lo ÚNICO que viaja a la IA para una comida (contrato, 4.4 y 4.5): sin nombre, correo,
     teléfono, usuario, ids de usuario, fecha de nacimiento, entrenador, alergias, diagnósticos ni
     texto libre de la ficha (las restricciones ya se aplicaron al filtrar los alimentos)."""
@@ -395,11 +397,20 @@ def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_name
         ],
         'existing_options': [{'name': option.name, 'food_ids': sorted(option.food_ids)} for option in existing],
         'avoid_repeating_names': list(avoid_names),
-        'trainer_notes': job.trainer_notes or None,
+        'trainer_notes': None,
         'previous_errors': list(previous_errors),
     }
     if adaptation is not None and adaptation.history:
         payload['history'] = adaptation.history      # resumen codificado, sin texto libre (rules/adaptation.py)
+    payload['scope'] = 'wellness_food_choices'
+    payload['training'] = {
+        'days_per_week': profile.training_days_per_week,
+        'session_minutes': profile.session_minutes,
+        'experience_level': profile.experience_level,
+    }
+    if recipe_options is not None:
+        payload['recipe_options'] = recipe_options
+        payload['recipe_catalog_version'] = recipes.VERSION
     return payload
 
 
@@ -416,13 +427,19 @@ def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_optio
                                  existing=existing)
     offered_ids = adaptation.food_ids if adaptation is not None and adaptation.foods is not None \
         else assessment.foods.allowed_ids
+    rules = replace(rules, foods={key: food for key, food in rules.foods.items() if key in offered_ids})
+    recipe_options = recipes.candidates(rules, assessment.profile.cooking_access)
+    if not recipes.select_options(recipe_options, n_options, existing, avoid_names):
+        raise JobFailed('recipes_unavailable')
+    rules = replace(rules, recipes=tuple(recipe_options))
     system = prompts.meal_prompt(adaptation is not None and bool(adaptation.history))[0]
     validation, result = _generate_validated(
         job, started, ai_client, task='meal_slot', system=system,
         make_payload=lambda errors: build_meal_payload(
             job, assessment, slot, n_options=n_options, existing=existing, avoid_names=avoid_names,
-            previous_errors=errors, adaptation=adaptation),
-        make_schema=lambda payload: prompts.meal_schema(offered_ids, slot.code, n_options),
+            previous_errors=errors, adaptation=adaptation, recipe_options=recipe_options),
+        make_schema=lambda payload: prompts.meal_schema(
+            offered_ids, slot.code, n_options, recipe_names=[option['name'] for option in recipe_options]),
         validate=lambda data: rules_meal.validate_meal_slot(data, rules))
     return validation.data['options'], result
 

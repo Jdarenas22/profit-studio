@@ -81,6 +81,13 @@ def sample_meal_slot(payload):
     una proteína, un carbohidrato, una verdura o fruta y a veces una grasa, y se queda con las que
     pasan las mismas reglas que la validación real (energía, proteína, grasa y variedad)."""
     from apps.plans.rules import meal_validate as m
+    if 'recipe_options' in payload:
+        from apps.plans.rules.recipes import select_options
+        existing = tuple(m.ExistingOption(name=o['name'], food_ids=frozenset(o['food_ids']))
+                         for o in payload.get('existing_options', []))
+        options = select_options(payload['recipe_options'], payload['options_requested'], existing,
+                                 payload.get('avoid_repeating_names', []))
+        return {'schema_version': m.MEAL_SCHEMA_VERSION, 'slot_code': payload['slot']['code'], 'options': options}
     foods = _food_items(payload)
     slot = payload['slot']
     wanted = payload['options_requested']

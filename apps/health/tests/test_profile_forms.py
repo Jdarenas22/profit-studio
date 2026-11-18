@@ -317,7 +317,7 @@ class StepsAndValuesTests(SimpleTestCase):
 
     def test_empty_values_default_to_required_meals(self):
         values = empty_form_values()
-        self.assertEqual(values['meal_slots'], ['breakfast', 'lunch', 'dinner'])
+        self.assertEqual(values['meal_slots'], ['breakfast', 'mid_morning', 'lunch', 'snack', 'dinner'])
         self.assertEqual(values['conditions'], [])
         self.assertEqual(set(values), set(form_values_from_post({})))
 

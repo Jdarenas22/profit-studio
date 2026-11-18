@@ -103,7 +103,8 @@ class GenerationTests(NutritionScenarioTestCase):
             self.assertNotIn(secret, sent)
         self.assertEqual(set(payload), {'task', 'schema_version', 'job_ref', 'slot', 'options_requested', 'client',
                                         'allowed_foods', 'existing_options', 'avoid_repeating_names',
-                                        'trainer_notes', 'previous_errors'})
+                                        'trainer_notes', 'previous_errors', 'scope', 'training',
+                                        'recipe_options', 'recipe_catalog_version'})
         self.assertEqual(set(payload['client']), {'age', 'sex', 'goal', 'diet', 'cooking', 'budget', 'conservative'})
         self.assertTrue(payload['client']['conservative'])                    # alergia grave = advertencia Y07
         self.assertEqual(payload['client']['diet'], 'vegetarian')
@@ -123,9 +124,11 @@ class GenerationTests(NutritionScenarioTestCase):
                                  'Mango', 'Manzana', 'Avena en hojuelas (cruda)', 'Chocolate oscuro 70 %'})
 
     def test_hypertension_removes_high_sodium_foods(self):
-        plan = self.nutrition_draft(self.client_a, **hypertension_profile())
-        self.assertIn('Y01_HYPERTENSION', plan.flags)
-        self.assertFalse(plan_foods(plan) & {'Queso fresco campesino', 'Galletas de soda', 'Atún en agua (escurrido)'})
+        self.ready(self.client_a, **hypertension_profile())
+        job, fake = self.request_nutrition(self.client_a)
+        self.assertEqual(job.status, job.STATUS_BLOCKED)
+        self.assertIn('NUTRITION_CLINICAL_PAUSED', job.flags)
+        self.assertEqual(fake.calls, [])
 
     def test_bad_ai_output_retries_once_with_codes_and_saves_nothing(self):
         self.ready(self.client_a, allergies=['peanut'], allergy_severity='mild')
@@ -217,7 +220,7 @@ class GenerationTests(NutritionScenarioTestCase):
             job, _ = services.regenerate_plan(plan, self.trainer_a, 'Más económico', services.new_request_token())
         job.refresh_from_db()
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED)
-        self.assertEqual(fake.calls[0]['payload']['trainer_notes'], 'Más económico')
+        self.assertIsNone(fake.calls[0]['payload']['trainer_notes'])
         plan.refresh_from_db()
         self.assertEqual(plan.status, Plan.STATUS_ARCHIVED)
         self.assertEqual((job.plan.version, job.plan.parent), (2, plan))
@@ -283,7 +286,7 @@ class ApprovalTests(NutritionScenarioTestCase):
         self.assertEqual(Plan.objects.get(pk=plan.pk).status, Plan.STATUS_DRAFT_AI)
 
     def test_warnings_must_be_acknowledged(self):
-        plan = self.nutrition_draft(self.client_a, **hypertension_profile())
+        plan = self.nutrition_draft(self.client_a, allergies=['peanut'], allergy_severity='anaphylaxis')
         Plan.objects.filter(pk=plan.pk).update(is_simulated=False)
         plan.refresh_from_db()
         with self.assertRaises(services.PlanStateError):
@@ -560,7 +563,7 @@ class AlternativeTests(NutritionScenarioTestCase):
         again, created_again, _ = self.ask_blocked()          # otro token, misma bandera roja
         self.assertEqual((self.blocked_alternatives().count(), len(mail.outbox)), (1, 1))
         self.assertEqual((first.pk, created, created_again), (again.pk, True, False))
-        self.assertEqual((first.status, first.flags), (PlanGenerationJob.STATUS_BLOCKED, ['R02_PREGNANCY']))
+        self.assertEqual((first.status, first.flags), (PlanGenerationJob.STATUS_BLOCKED, ['R02_PREGNANCY', 'NUTRITION_CLINICAL_PAUSED']))
         self.assertEqual(fake.calls, [])
         self.assertEqual(PlanGenerationJob.objects.filter(kind='meal_alternative').count(), 1)   # ni otros estados
 
@@ -572,7 +575,7 @@ class AlternativeTests(NutritionScenarioTestCase):
         self.assertTrue(created)
         self.assertNotEqual(first.pk, second.pk)
         self.assertNotEqual(first.flags, second.flags)
-        self.assertEqual(second.flags, ['R03_EATING_DISORDER'])
+        self.assertEqual(second.flags, ['R03_EATING_DISORDER', 'NUTRITION_CLINICAL_PAUSED'])
         self.assertEqual((self.blocked_alternatives().count(), len(mail.outbox)), (2, 2))
 
     def test_blocked_request_after_a_day_creates_a_new_job_and_notice(self):
