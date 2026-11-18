@@ -127,16 +127,17 @@
         <div class="flex-1 border-t border-white/10"></div>
       </div>
 
-      <!-- Archivo de video (solo funciona bien en local) -->
+      <!-- Archivo de video -->
       <div>
-        <label class="block text-white/60 text-xs font-medium mb-2">Video (MP4, WEBM o MOV, máx. 100 MB)</label>
+        <label for="id_video_file" class="block text-white/60 text-xs font-medium mb-2">Video (archivo)</label>
         {% if exercise and exercise.video_file %}
-        <p class="text-white/30 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Video cargado. <span class="text-yellow-400/60">⚠ Se perderá en el próximo redespliegue. Usa YouTube en su lugar.</span></p>
+        <p class="text-white/50 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1" aria-hidden="true"></i>Video cargado.</p>
         {% endif %}
-        <input type="file" name="video_file" accept="video/mp4,video/webm,video/quicktime"
+        <input type="file" name="video_file" id="id_video_file" aria-describedby="video_file_help{% if errors.video_file %} video_file_error{% endif %}"
+               accept="video/mp4,video/webm,video/quicktime"
                class="w-full bg-black/40 border {% if errors.video_file %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
-        {% if errors.video_file %}<p class="text-red-400 text-xs mt-1">{{ errors.video_file }}</p>{% endif %}
-        <p class="text-white/20 text-xs mt-1">Los clientes no podrán descargar el video.</p>
+        {% if errors.video_file %}<p id="video_file_error" class="text-red-400 text-xs mt-1">{{ errors.video_file }}</p>{% endif %}
+        <p id="video_file_help" class="text-white/50 text-xs mt-1">MP4, WEBM o MOV, máx. 100 MB. Si el ejercicio tiene enlace de YouTube, se muestra YouTube en lugar de este archivo.</p>
       </div>
 
       <!-- Imagen de portada -->
