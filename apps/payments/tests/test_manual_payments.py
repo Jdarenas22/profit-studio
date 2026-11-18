@@ -438,10 +438,9 @@ class ReceiptsStorageTests(SimpleTestCase):
             self.assertIn('X-Amz-Signature=', url)        # SigV4 (la única que acepta R2)
             self.assertIn('X-Amz-Expires=300', url)
 
-    def test_with_r2_and_no_receipts_bucket_falls_back_to_media_bucket_but_stays_signed(self):
-        from apps.payments.storage import receipts_storage
+    def test_with_r2_and_no_receipts_bucket_blocks_public_storage(self):
+        from apps.payments.storage import PrivateReceiptsUnavailable, receipts_storage
         with override_settings(RECEIPTS_BUCKET_NAME='', **self.R2):
             storage = receipts_storage()
-            self.assertEqual(storage.bucket_name, 'media-publico')
-            self.assertIsNone(storage.custom_domain)
-            self.assertIn('X-Amz-Signature=', storage.url('receipts/abc.png'))
+            with self.assertRaises(PrivateReceiptsUnavailable):
+                storage.url('receipts/abc.png')

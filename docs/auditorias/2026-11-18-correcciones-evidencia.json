@@ -1,0 +1,425 @@
+{
+  "scope": "isolated-development-profile-no-env",
+  "members": 1000,
+  "python": "3.11.18",
+  "os": "Windows-10-10.0.26300-SP0",
+  "logical_cpus": 12,
+  "security_checks": [
+    {
+      "name": "anonymous_trainer",
+      "status": 302,
+      "expected": [
+        302
+      ],
+      "pass": true
+    },
+    {
+      "name": "member_trainer",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "name": "trainer_foreign_client",
+      "status": 404,
+      "expected": [
+        404
+      ],
+      "pass": true
+    },
+    {
+      "name": "trainer_own_client",
+      "status": 200,
+      "expected": [
+        200
+      ],
+      "pass": true
+    },
+    {
+      "name": "logout_get",
+      "status": 405,
+      "expected": [
+        405
+      ],
+      "pass": true
+    },
+    {
+      "name": "logout_missing_csrf",
+      "status": 403,
+      "expected": [
+        403
+      ],
+      "pass": true
+    },
+    {
+      "name": "api_anonymous",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "pass": true
+    },
+    {
+      "name": "api_foreign",
+      "status": 404,
+      "expected": [
+        404
+      ],
+      "pass": true
+    },
+    {
+      "name": "login_open_redirect",
+      "pass": true,
+      "status": 302
+    },
+    {
+      "name": "stored_html_escaped",
+      "pass": true
+    },
+    {
+      "name": "invalid_host",
+      "status": 400,
+      "expected": [
+        400
+      ],
+      "pass": true
+    },
+    {
+      "name": "wompi_unsigned",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "pass": true
+    },
+    {
+      "name": "wompi_deep_unsigned_json",
+      "status": 400,
+      "expected": [
+        400,
+        401,
+        413
+      ],
+      "pass": true
+    },
+    {
+      "name": "whatsapp_unsigned",
+      "status": 401,
+      "expected": [
+        401
+      ],
+      "pass": true
+    }
+  ],
+  "response_headers": {
+    "Content-Type": "text/html; charset=utf-8",
+    "X-Frame-Options": "DENY",
+    "Vary": "Cookie",
+    "Content-Length": "30349",
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+    "Cross-Origin-Opener-Policy": "same-origin"
+  },
+  "session_cookie_flags": {
+    "expires": "",
+    "path": "/",
+    "comment": "",
+    "domain": "",
+    "max-age": "",
+    "secure": true,
+    "httponly": true,
+    "version": "",
+    "samesite": "Lax"
+  },
+  "reset_emails_for_three_posts": 2,
+  "reset_statuses": [
+    302,
+    302,
+    302
+  ],
+  "query_samples": [
+    {
+      "name": "home",
+      "status": 200,
+      "queries": 1,
+      "bytes": 32454
+    },
+    {
+      "name": "member_dashboard",
+      "status": 200,
+      "queries": 6,
+      "bytes": 30349
+    },
+    {
+      "name": "trainer_list",
+      "status": 200,
+      "queries": 5,
+      "bytes": 64412
+    },
+    {
+      "name": "boss_list",
+      "status": 200,
+      "queries": 6,
+      "bytes": 77845
+    }
+  ],
+  "membership_prefetch_experiment": [
+    {
+      "name": "trainer_list",
+      "status": 200,
+      "queries": 5,
+      "bytes": 64412
+    },
+    {
+      "name": "boss_list",
+      "status": 200,
+      "queries": 6,
+      "bytes": 77845
+    }
+  ],
+  "load": [
+    {
+      "workload": "mixed",
+      "concurrency": 25,
+      "requests": 3316,
+      "duration_target_seconds": 20,
+      "seconds": 20.122,
+      "rps": 164.79,
+      "p50_ms": 147.22,
+      "p95_ms": 190.1,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 50,
+      "requests": 3544,
+      "duration_target_seconds": 20,
+      "seconds": 20.252,
+      "rps": 174.99,
+      "p50_ms": 283.78,
+      "p95_ms": 317.81,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 100,
+      "requests": 3499,
+      "duration_target_seconds": 20,
+      "seconds": 20.556,
+      "rps": 170.21,
+      "p50_ms": 582.77,
+      "p95_ms": 633.73,
+      "errors": 0
+    }
+  ],
+  "load_profile": "Waitress, 2 threads, SQLite, localhost; NO es Railway/Gunicorn",
+  "date": "2026-11-18",
+  "new_regression_tests": {
+    "count": 22,
+    "result": "OK"
+  },
+  "full_suite": {
+    "count": 1391,
+    "seconds": 127.056,
+    "result": "OK",
+    "DeprecationWarning": "error",
+    "parallel": 4,
+    "python": "3.11.18"
+  },
+  "deployment_regression": {
+    "count": 107,
+    "result": "OK"
+  },
+  "pagination_final": {
+    "count": 5,
+    "result": "OK"
+  },
+  "final_checks_after_header_fix": {
+    "scope": "isolated-development-profile-no-env",
+    "members": 1000,
+    "python": "3.11.18",
+    "os": "Windows-10-10.0.26300-SP0",
+    "logical_cpus": 12,
+    "security_checks": [
+      {
+        "name": "anonymous_trainer",
+        "status": 302,
+        "expected": [
+          302
+        ],
+        "pass": true
+      },
+      {
+        "name": "member_trainer",
+        "status": 403,
+        "expected": [
+          403
+        ],
+        "pass": true
+      },
+      {
+        "name": "trainer_foreign_client",
+        "status": 404,
+        "expected": [
+          404
+        ],
+        "pass": true
+      },
+      {
+        "name": "trainer_own_client",
+        "status": 200,
+        "expected": [
+          200
+        ],
+        "pass": true
+      },
+      {
+        "name": "logout_get",
+        "status": 405,
+        "expected": [
+          405
+        ],
+        "pass": true
+      },
+      {
+        "name": "logout_missing_csrf",
+        "status": 403,
+        "expected": [
+          403
+        ],
+        "pass": true
+      },
+      {
+        "name": "api_anonymous",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true
+      },
+      {
+        "name": "api_foreign",
+        "status": 404,
+        "expected": [
+          404
+        ],
+        "pass": true
+      },
+      {
+        "name": "login_open_redirect",
+        "pass": true,
+        "status": 302
+      },
+      {
+        "name": "stored_html_escaped",
+        "pass": true
+      },
+      {
+        "name": "invalid_host",
+        "status": 400,
+        "expected": [
+          400
+        ],
+        "pass": true
+      },
+      {
+        "name": "wompi_unsigned",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true
+      },
+      {
+        "name": "wompi_deep_unsigned_json",
+        "status": 400,
+        "expected": [
+          400,
+          401,
+          413
+        ],
+        "pass": true
+      },
+      {
+        "name": "whatsapp_unsigned",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true
+      }
+    ],
+    "response_headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "X-Frame-Options": "DENY",
+      "Vary": "Cookie",
+      "Content-Length": "30349",
+      "Strict-Transport-Security": "max-age=31536000",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "same-origin",
+      "Cross-Origin-Opener-Policy": "same-origin"
+    },
+    "session_cookie_flags": {
+      "expires": "",
+      "path": "/",
+      "comment": "",
+      "domain": "",
+      "max-age": "",
+      "secure": true,
+      "httponly": true,
+      "version": "",
+      "samesite": "Lax"
+    },
+    "reset_emails_for_three_posts": 2,
+    "reset_statuses": [
+      302,
+      302,
+      302
+    ],
+    "query_samples": [
+      {
+        "name": "home",
+        "status": 200,
+        "queries": 1,
+        "bytes": 32454
+      },
+      {
+        "name": "member_dashboard",
+        "status": 200,
+        "queries": 6,
+        "bytes": 30349
+      },
+      {
+        "name": "trainer_list",
+        "status": 200,
+        "queries": 5,
+        "bytes": 64413
+      },
+      {
+        "name": "boss_list",
+        "status": 200,
+        "queries": 6,
+        "bytes": 77847
+      }
+    ],
+    "membership_prefetch_experiment": [
+      {
+        "name": "trainer_list",
+        "status": 200,
+        "queries": 5,
+        "bytes": 64413
+      },
+      {
+        "name": "boss_list",
+        "status": 200,
+        "queries": 6,
+        "bytes": 77847
+      }
+    ],
+    "load": [],
+    "load_profile": "Waitress, 2 threads, SQLite, localhost; NO es Railway/Gunicorn"
+  }
+}

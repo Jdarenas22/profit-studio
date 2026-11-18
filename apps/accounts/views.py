@@ -30,6 +30,7 @@ from .forms import (
 from .models import User
 from .permissions import clients_for_trainer, get_client_for_trainer, reject_if_inactive
 from .ratelimit import hit
+from .pagination import pagination_context
 
 logger = logging.getLogger(__name__)
 
@@ -379,12 +380,14 @@ def trainer_client_list(request):
     is_super = request.user.is_superuser
     status = _list_status(request)
     accessible = clients_for_trainer(request.user)
-    clients = _filter_status(accessible, status).select_related('assigned_trainer').order_by(
-        'first_name', 'last_name')
+    clients = _filter_status(accessible, status).select_related('assigned_trainer', 'membership').order_by(
+        'first_name', 'last_name', 'pk')
+    page, pagination = pagination_context(request, clients, ('status',))
     unassigned_count = (accessible.filter(is_active=True, assigned_trainer__isnull=True).count()
                         if is_super else 0)
     return render(request, 'trainer/clients.html', {
-        'clients': clients,
+        'clients': page.object_list,
+        **pagination,
         'is_superuser': is_super,
         'unassigned_count': unassigned_count,
         'status': status,
