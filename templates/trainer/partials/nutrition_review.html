@@ -43,7 +43,9 @@ las comidas con sus opciones. Parámetros: plan, nutrition_review, approval_prob
 
 {% for entry in nutrition_review.slots %}
 {% with slot=entry.slot %}
-<div class="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+<details class="pfs-disclosure" {% if forloop.first or approval_problems or nutrition_review.conflicts %}open{% endif %}>
+  <summary><span class="font-bold">{{ slot.name }}</span><span class="pfs-muted ml-2">{{ entry.options|length }} opciones · ≈ {{ slot.kcal_target }} kcal</span></summary>
+  <div class="pfs-disclosure-content">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
     <h3 class="text-white font-bold">{{ slot.name }}{% if slot.time_hint %} <span class="text-white/50 text-sm font-medium">· {{ slot.time_hint }}</span>{% endif %}</h3>
     <p class="text-white/50 text-xs">Objetivo ≈ {{ slot.kcal_target }} kcal · {{ slot.protein_g }} g de proteína · {{ slot.carbs_g }} g de carbohidratos · {{ slot.fat_g }} g de grasa</p>
@@ -92,6 +94,7 @@ las comidas con sus opciones. Parámetros: plan, nutrition_review, approval_prob
     {% endwith %}
     {% endfor %}
   </div>
-</div>
+  </div>
+</details>
 {% endwith %}
 {% endfor %}

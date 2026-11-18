@@ -9,6 +9,14 @@ trainer_mode y flags (entrenador). {% endcomment %}
             {% elif job_blocked %}border-yellow-500/40 bg-yellow-500/10
             {% elif job.status == 'failed' %}border-red-500/40 bg-red-500/10
             {% else %}border-white/10 bg-zinc-900{% endif %}">
+  {% if not job_finished %}
+  <ol class="pfs-job-steps" aria-label="Progreso de tu solicitud">
+    <li {% if job.status == 'queued' %}aria-current="step"{% endif %}>1. Solicitud recibida</li>
+    <li {% if job.status == 'running' %}aria-current="step"{% endif %}>2. Preparando y validando</li>
+    <li>3. Revisión del entrenador</li>
+  </ol>
+  {% if job.status == 'running' and job.progress_total > 1 %}<label for="generation-progress-{{ job.pk }}" class="sr-only">Comidas procesadas</label><progress id="generation-progress-{{ job.pk }}" class="pfs-progress mb-4" max="{{ job.progress_total }}" value="{{ job.progress_done }}">{{ job.progress_done }} de {{ job.progress_total }}</progress>{% endif %}
+  {% endif %}
   <div class="flex gap-3">
     <i class="fa mt-0.5 shrink-0
               {% if job.status == 'succeeded' %}fa-circle-check text-green-400

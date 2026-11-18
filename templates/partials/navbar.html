@@ -20,7 +20,7 @@
        }
      }"
      :style="menu ? 'z-index: 60' : ''"
-     @keydown.escape.window="closeMenu(); account = false"
+     @keydown.escape.window="closeMenu(); account = false; if (open) { open = false; $refs.mobileMenuButton.focus() }"
      class="fixed top-0 left-0 right-0 z-40 bg-black/95 backdrop-blur-sm border-b border-white/10">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
@@ -37,12 +37,21 @@
       </a>
 
       <!-- Nav desktop -->
-      <div class="hidden md:flex items-center gap-8">
+      <div class="pfs-desktop-nav hidden md:flex items-center gap-6">
+        {% if user.is_authenticated and not user.is_trainer %}
+        <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %} class="text-sm text-white/80 hover:text-primary font-medium">Hoy</a>
+        <a href="{% url 'member_routine' %}" {% if '/routines/' in request.path %}aria-current="page"{% endif %} class="text-sm text-white/80 hover:text-primary font-medium">Mi rutina</a>
+        {% if AI_PLANS_ENABLED %}<a href="{% url 'member_nutrition_plan' %}" {% if '/plans/nutrition/' in request.path %}aria-current="page"{% endif %} class="text-sm text-white/80 hover:text-primary font-medium">Mi alimentación</a>{% endif %}
+        {% if HEALTH_FEATURES_ENABLED %}<a href="{% url 'member_measurement_list' %}" {% if '/assessments/measurements' in request.path %}aria-current="page"{% endif %} class="text-sm text-white/80 hover:text-primary font-medium">Mi progreso</a>{% endif %}
+        {% elif user.is_authenticated %}
+        <span class="text-sm text-white/70">Espacio del entrenador</span>
+        {% else %}
         <a href="{% url 'home' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Inicio</a>
         <a href="{% url 'exercises' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Ejercicios</a>
-        <a href="{% url 'plans' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Planes</a>
+        <a href="{% url 'plans' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Membresías</a>
         <a href="{% url 'about' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Nosotros</a>
         <a href="{% url 'contact' %}" class="text-sm text-white/70 hover:text-primary transition-colors font-medium">Contacto</a>
+        {% endif %}
       </div>
 
       <!-- CTA desktop -->
@@ -95,19 +104,32 @@
       </div>
 
       <!-- Hamburger mobile -->
-      <button @click="open = !open" class="md:hidden text-white/70 hover:text-white p-2">
+      <button type="button" x-ref="mobileMenuButton" @click="open = !open" :aria-expanded="open.toString()" aria-expanded="false" aria-controls="main-mobile-menu" aria-label="Abrir o cerrar el menú" class="md:hidden text-white/70 hover:text-white min-h-[44px] min-w-[44px] p-2">
         <i class="fa" :class="open ? 'fa-times' : 'fa-bars'"></i>
       </button>
     </div>
   </div>
 
   <!-- Mobile menu -->
-  <div x-show="open" x-transition class="md:hidden bg-black/98 border-t border-white/10 px-4 py-4 space-y-3 max-h-[calc(100dvh-4rem)] overflow-y-auto">
+  <div id="main-mobile-menu" x-show="open" x-transition class="md:hidden bg-black/98 border-t border-white/10 px-4 py-4 space-y-3 max-h-[calc(100dvh-4rem)] overflow-y-auto">
+    {% if user.is_authenticated %}
+      {% if user.is_trainer %}
+      <a href="{% url 'trainer_dashboard' %}" class="block min-h-[44px] py-3 text-white/80">Panel del entrenador</a>
+      <a href="{% url 'trainer_clients' %}" class="block min-h-[44px] py-3 text-white/80">Clientes</a>
+      {% if AI_PLANS_ENABLED %}<a href="{% url 'trainer_plan_inbox' %}" class="block min-h-[44px] py-3 text-white/80">Planes por revisar</a>{% endif %}
+      {% else %}
+      <a href="{% url 'dashboard' %}" class="block min-h-[44px] py-3 text-white/80">Hoy</a>
+      <a href="{% url 'member_routine' %}" class="block min-h-[44px] py-3 text-white/80">Mi rutina</a>
+      {% if AI_PLANS_ENABLED %}<a href="{% url 'member_nutrition_plan' %}" class="block min-h-[44px] py-3 text-white/80">Mi alimentación</a>{% endif %}
+      {% if HEALTH_FEATURES_ENABLED %}<a href="{% url 'member_measurement_list' %}" class="block min-h-[44px] py-3 text-white/80">Mi progreso</a>{% endif %}
+      {% endif %}
+    {% else %}
     <a href="{% url 'home' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Inicio</a>
     <a href="{% url 'exercises' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Ejercicios</a>
-    <a href="{% url 'plans' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Planes</a>
+    <a href="{% url 'plans' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Membresías</a>
     <a href="{% url 'about' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Nosotros</a>
     <a href="{% url 'contact' %}" @click="open=false" class="block text-white/70 hover:text-primary py-2 font-medium transition-colors">Contacto</a>
+    {% endif %}
     <div class="pt-3 border-t border-white/10 flex flex-col gap-2">
       {% if user.is_authenticated %}
         <!-- Sección «Mi cuenta» -->

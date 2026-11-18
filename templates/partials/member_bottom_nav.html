@@ -1,0 +1,7 @@
+<nav class="pfs-mobile-nav print:hidden" aria-label="Navegación principal del cliente">
+  {% url 'dashboard' as dashboard_url %}{% url 'member_routine' as routine_url %}{% url 'member_profile_edit' as profile_url %}
+  <a href="{{ dashboard_url }}" {% if request.path == dashboard_url %}aria-current="page"{% endif %}><i class="fa fa-house" aria-hidden="true"></i><span>Hoy</span></a>
+  <a href="{{ routine_url }}" {% if '/routines/' in request.path %}aria-current="page"{% endif %}><i class="fa fa-dumbbell" aria-hidden="true"></i><span>Rutina</span></a>
+  {% if AI_PLANS_ENABLED %}<a href="{% url 'member_nutrition_plan' %}" {% if '/plans/nutrition/' in request.path %}aria-current="page"{% endif %}><i class="fa fa-utensils" aria-hidden="true"></i><span>Alimentación</span></a>{% endif %}
+  <a href="{{ profile_url }}" {% if request.path == profile_url %}aria-current="page"{% endif %}><i class="fa fa-user" aria-hidden="true"></i><span>Perfil</span></a>
+</nav>

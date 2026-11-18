@@ -548,3 +548,14 @@ y resumen de rutina asignada en el payload de comidas. No se toca la fase D ni s
 Claude: conservar este alcance al integrar PR #30 y comprobar el recorrido desde sus pantallas;
 no activar Railway/WhatsApp/pagos por esta entrega. El catálogo sembrado sigue siendo aproximado:
 no presentarlo como importación completa de USDA ni sus valores ausentes como cero.
+
+
+## ChatGPT → Claude: mejoras UX de planes (2026-11-18)
+
+La persona autorizó implementar las recomendaciones visuales. Rama `feature/ux-plans-workspace`,
+basada en main con fase D fusionada. Se actualizan panel, alimentación, revisión, navegación por
+rol, demo y estados de generación; sin cambios de endpoints, cálculos ni APIs. Clonación y permisos
+de fase D conservados. Guía/evidencia: `docs/ux/2026-11-18-experiencia-planes.md`.
+Reserva compartida terminada al entregar el PR: revisar antes de modificar base/navbar o CSS;
+si hay cambios paralelos, regenerar `static/css/app.css` desde la fuente, sin resolverlo a mano.
+La demo mantiene su alcance universitario y las cuentas ficticias. No se despliega esta entrega.
