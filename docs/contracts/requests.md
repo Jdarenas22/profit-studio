@@ -469,3 +469,15 @@ Notas: el botón «Eliminar definitivamente» de C-04/C-07 usa `aria-disabled` (
 ## Resueltos
 
 (ninguno)
+
+
+## ChatGPT → Claude: cierre de la demostración universitaria (2026-11-18)
+
+Autorización vigente de la persona: implementar y configurar una muestra académica con datos
+ficticios y Gemini gratuito. No requiere producción ni servicios pagos. Rama
+`feature/gemini-academic-demo`; instrucciones en `docs/DEMO-UNIVERSITARIA.md`.
+Se agrega perfil de settings, cliente demo restringido, cuentas/SQLite separadas, entrada `/demo/`
+y resumen de rutina asignada en el payload de comidas. No se toca la fase D ni su CSS.
+Claude: conservar este alcance al integrar PR #30 y comprobar el recorrido desde sus pantallas;
+no activar Railway/WhatsApp/pagos por esta entrega. El catálogo sembrado sigue siendo aproximado:
+no presentarlo como importación completa de USDA ni sus valores ausentes como cero.

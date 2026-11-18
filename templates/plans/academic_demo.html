@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demostración universitaria · ProFit Studio</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0e1118;color:#e9edf5;font:17px/1.65 system-ui,sans-serif}
+main{max-width:900px;margin:4rem auto;padding:2rem;border:1px solid #303644;border-radius:20px;background:#171c26}
+h1{font-size:clamp(1.8rem,5vw,2.8rem);line-height:1.2;margin-top:0}h2{font-size:1.3rem}
+a{color:#ff9659;text-underline-offset:4px}strong{color:#ff9659}p,li{overflow-wrap:anywhere}
+code{font-size:.9em;background:#252c39;padding:.15rem .4rem;border-radius:5px}li{margin:.7rem 0}
+@media(max-width:640px){main{margin:1rem;padding:1.3rem}}
+</style></head>
+<body><main>
+<h1>ProFit Studio · Demostración universitaria</h1>
+<p><strong>Datos ficticios. Modo: {{ demo_mode }}.</strong>
+{% if demo_mode == 'demo' %}Generación real con Gemini; requiere cuota gratuita disponible.
+{% else %}Generación local simulada, sin llamadas a Gemini.{% endif %}</p>
+<p>Esta muestra presenta rutinas y sugerencias alimenticias; los valores del catálogo inicial son aproximados.
+No se presentan como composición USDA verificada ni como dietas para tratar enfermedades.</p>
+<ol><li>Inicia sesión con una cuenta de <code>.demo/access.local.txt</code>.</li>
+<li>Como cliente, solicita tu plan. Como entrenador, revisa y aprueba el borrador.</li>
+<li>Consulta las cinco comidas, sus porciones y opciones desde la cuenta del cliente.</li></ol>
+<p><a href="{% url 'login' %}">Iniciar sesión</a> · <a href="{% url 'member_plans' %}">Mis planes</a> ·
+<a href="{% url 'trainer_plan_inbox' %}">Revisar borradores</a></p>
+{% if demo_plans %}<h2>Planes de muestra disponibles</h2><ul>{% for plan in demo_plans %}
+<li>{{ plan.client.username }} · {{ plan.get_kind_display }} · {{ plan.get_status_display }} ·
+{% if plan.is_simulated %}simulado{% else %}Gemini real{% endif %}</li>{% endfor %}</ul>{% endif %}
+<p>Si no hay cuota, conserva los planes generados anteriormente o reinicia en modo simulado y anúncialo.
+El sistema no cambia a servicios pagos ni presenta una respuesta simulada como respuesta de Gemini.</p>
+</main></body></html>

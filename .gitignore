@@ -42,3 +42,6 @@ package-lock.json
 
 # Cuentas de prueba locales
 USUARIOS-PRUEBA.local.txt
+
+# Datos y accesos privados de la demostración académica
+.demo/
