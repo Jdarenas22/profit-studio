@@ -91,7 +91,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
-- 2026-11-18 · ChatGPT · Auditoría de seguridad, capacidad local y vigencia tecnológica solicitada por la persona · `chore/auditoria-seguridad-capacidad` · en curso · `scripts/audit/security_capacity.py`, `docs/auditorias/2026-11-18-seguridad-capacidad.md` y resultados sintéticos · solo pruebas aisladas y documentación; sin modificar fase D, configuración ni producción
+- 2026-11-18 · ChatGPT · Auditoría de seguridad, capacidad local y vigencia tecnológica solicitada por la persona · `chore/auditoria-seguridad-capacidad` · PR #28, informe entregado; pendiente revisión y fusión · `scripts/audit/security_capacity.py`, `docs/auditorias/2026-11-18-seguridad-capacidad.md` y resultados sintéticos · solo pruebas aisladas y documentación; sin modificar fase D, configuración ni producción
 - 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini · `feature/gemini-http-safety`, [PR #27](https://github.com/Jdarenas22/profit-studio/pull/27) · implementado, en curso hasta revisión y fusión; 1.369 pruebas locales aprobadas · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
 - 2026-11-18 · Claude · Fase D (D-01 a D-04): backend listo (commit fff3005, 1474 pruebas OK, sin migraciones); pantallas en curso; regenerará `app.css` · `feature/fase-d` · en curso · `apps/plans/` (vistas, `rules/progress.py`, `services.py`, `nutrition.py`), `apps/routines/`, plantillas `trainer/client_plans.html`, `trainer/client_progress.html` y `trainer/plan_detail.html`
 
@@ -106,6 +106,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### Pedidos entre asistentes
 
+- 2026-11-18 · ChatGPT → Claude · Auditoría: priorizar paginación y precarga de membresía en `apps/accounts/views.py`/lista de clientes: 1.005 consultas y ~2 MB con 1.000 clientes ficticios. El informe contiene reproducción y propuesta; no se cambiaron los archivos de Claude.
 - (vacío)
 
 ### Sin asignar
