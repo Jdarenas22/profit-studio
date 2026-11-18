@@ -104,7 +104,7 @@ Variables de entorno requeridas en Railway:
 
 ### Railway: configuración de despliegue
 
-`railway.toml` define el `collectstatic` del build, `startCommand = "bash start.sh"`, el healthcheck `/health/` y la política de reinicio. **Railway deja de leerlo el 2026-12-01** (pasa a Infrastructure as Code, `.railway/railway.ts`). Hay que migrarlo antes de esa fecha: sin esa configuración, el `Procfile` arrancaría gunicorn sin `start.sh` (sin migraciones ni verificaciones). No borrar `railway.toml` hasta haber migrado.
+La configuración del servicio web vive en el **panel** de Railway (proyecto `alluring-dedication`, servicio `profit-studio`): builder Nixpacks, `collectstatic` en el build, arranque `bash start.sh`, healthcheck `/health/` (300 s) y reinicio «On Failure» (10). Los valores están en `docs/DEPLOY.md`, sección 9. `railway.toml` se retiró el 2026-11-17 (Railway deja de leerlo el 2026-12-01) y no se adoptó Infrastructure as Code (`.railway/railway.ts`: exige npm o un SDK en beta, y un `config apply` puede borrar recursos que falten en el archivo). No volver a crear `railway.toml` ni `railway.json` (una prueba lo impide). Red de seguridad: el `Procfile` es `web: bash start.sh`.
 
 ### Integración continua (`.github/workflows/ci.yml`)
 

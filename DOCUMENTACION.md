@@ -93,7 +93,6 @@ profit-studio/                   ← Carpeta raíz del proyecto
 ├── .env.example                 ← Plantilla de variables (sí subir a git)
 ├── .gitignore                   ← Lista de archivos que git ignora
 ├── Procfile                     ← Define cómo iniciar el servidor en Railway/Heroku
-├── railway.toml                 ← Configuración de despliegue en Railway
 ├── requirements/                ← Dependencias de Python
 │   ├── base.txt                 ← Dependencias compartidas (todos los entornos)
 │   ├── development.txt          ← Desarrollo: agrega debug toolbar

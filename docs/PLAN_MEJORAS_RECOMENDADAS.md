@@ -28,7 +28,7 @@ Este plan separa las mejoras ya realizadas durante la auditoría de las que conv
 | --- | --- | --- | --- |
 | P0 | Reemplazar la `SECRET_KEY` local y confirmar la de producción | **Código listo (modo gradual); falta la parte operativa.** Claude no debe leer, imprimir ni cambiar secretos, y la clave de producción debe ser independiente. | Generar una clave local nueva. En Railway, confirmar que `check_infra` muestra `SECRET_KEY` en OK. Después, activar `SECURITY_STRICT_SECRETS=true`. |
 | P0 | Exigir bucket privado separado para comprobantes cuando R2 esté activo | **Código listo (modo gradual).** Por defecto se avisa. Con `SECURITY_STRICT_SECRETS=true`, producción no arranca con R2 si `R2_RECEIPTS_BUCKET_NAME` falta o es igual a `R2_BUCKET_NAME`. Hay pruebas de ausencia, igualdad, configuración válida y sin R2. | Confirmar en Cloudflare que el bucket de comprobantes existe, es distinto y tiene el acceso público apagado. Definir la variable en Railway y activar el modo estricto. |
-| P0 | Migrar la configuración de Railway antes del 2026-12-01 | Railway deja de leer `railway.toml` ese día. Allí están el `collectstatic` del build, `bash start.sh`, el healthcheck `/health/` y la política de reinicio. Sin ellos, el `Procfile` arrancaría gunicorn sin migraciones ni las verificaciones de `start.sh`. | La configuración vive en Infrastructure as Code (`.railway/railway.ts`) o en el panel, y un despliegue de prueba muestra en los logs `>>> migrate OK` y el healthcheck en verde. No borrar `railway.toml` hasta migrar. |
+| ~~P0~~ | ~~Migrar la configuración de Railway antes del 2026-12-01~~ **Hecho el 2026-11-17:** valores en el panel y `railway.toml` retirado (`docs/DEPLOY.md`, sección 9). | Railway deja de leer `railway.toml` ese día. Allí están el `collectstatic` del build, `bash start.sh`, el healthcheck `/health/` y la política de reinicio. Sin ellos, el `Procfile` arrancaría gunicorn sin migraciones ni las verificaciones de `start.sh`. | La configuración vive en Infrastructure as Code (`.railway/railway.ts`) o en el panel, y un despliegue de prueba muestra en los logs `>>> migrate OK` y el healthcheck en verde. No borrar `railway.toml` hasta migrar. |
 | ~~P0~~ | ~~Confirmar HTTPS de extremo a extremo~~ | **Hecho:** Railway redirige con 301 y envía HSTS. | Repetir al conectar el dominio definitivo. |
 | ~~P1~~ | ~~Completar pruebas del flujo de WhatsApp~~ | **Hecho** (pruebas sin red en `apps/whatsapp/tests/`, incluida la firma). | Antes de `live`, validar con el entorno de pruebas de Meta. |
 | ~~P1~~ | ~~Añadir CI con pruebas y auditoría de dependencias~~ | **Hecho:** `.github/workflows/ci.yml`, sin secretos ni despliegue. | Ver el primer resultado en GitHub > Actions tras el push. Opcional: exigirlo antes de fusionar (Settings > Branches). |
@@ -41,7 +41,7 @@ Este plan separa las mejoras ya realizadas durante la auditoría de las que conv
 
 ## Secuencia sugerida
 
-1. **Antes del 2026-12-01:** migrar la configuración de Railway (`railway.toml`).
+1. ~~**Antes del 2026-12-01:** migrar la configuración de Railway (`railway.toml`).~~ Hecho el 2026-11-17.
 2. **Cerrar exposición de archivos y secretos:** confirmar la `SECRET_KEY` y el bucket privado de comprobantes en Railway y Cloudflare. Después, activar `SECURITY_STRICT_SECRETS=true`.
 3. **WhatsApp:** mantener `WHATSAPP_CLOUD_MODE=off` hasta validar el contrato y la configuración real.
 4. **Calidad:** revisar el CI en cada PR y el N+1 del constructor de rutinas.
