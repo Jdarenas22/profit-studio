@@ -777,10 +777,10 @@ python -c "import secrets; print(secrets.token_urlsafe(50))"
 
 ### Paso 5 — Primer despliegue
 
-Railway detecta el `railway.toml` y ejecuta automáticamente:
+Railway arranca el servicio con `bash start.sh` (definido en el panel del servicio; `railway.toml` deja de leerse el 2026-12-01, y el `Procfile` apunta al mismo script como respaldo). `start.sh` espera a la base, ejecuta `migrate` y arranca gunicorn. Detalle en `docs/DEPLOY.md`, sección 9:
 
 ```
-gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+bash start.sh
 ```
 
 Pero antes de que el sitio funcione, necesitas ejecutar los comandos de inicialización. En Railway, ve a tu servicio → **Shell** (o crea un **One-off command**):
