@@ -163,5 +163,5 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### Pendientes de la persona
 
-- Cloudflare R2: el token no tiene acceso al bucket `profitstudio-receipts` (error 403 en `check_infra`).
+- ~~Cloudflare R2: token sin acceso a `profitstudio-receipts`~~ Resuelto: el `check_infra` del despliegue del 2026-11-18 14:36 da OK en los dos buckets (18 OK, 2 AVISO, 0 ERROR). Falta confirmar con `wrangler` que el bucket de comprobantes sigue sin acceso público.
 - Definir `FDC_API_KEY` en Railway si se van a importar alimentos de USDA desde producción.
