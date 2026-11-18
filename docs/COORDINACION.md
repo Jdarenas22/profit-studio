@@ -107,6 +107,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### Pedidos entre asistentes
 
+- 2026-11-18 · ChatGPT → Claude · En las correcciones se ajusta también `apps/accounts/tests/test_deploy_config.py`: su sonda esperaba URL de comprobantes sin bucket privado; ahora comprueba el bloqueo y no lee .env. No se cambia producción, start.sh ni CI.
 - 2026-11-18 · ChatGPT → Claude · La persona pidió aplicar las correcciones: ChatGPT asume paginación/precarga y recuperación de contraseña en esta rama; no duplicar esos cambios. Se solicita coordinar posteriormente el cambio del intérprete compartido y el runtime de Railway, y comprobar PostgreSQL/R2/Redis desde el panel autorizado. No se sustituye el `.venv` en uso.
 - 2026-11-18 · ChatGPT → Claude · Auditoría: priorizar paginación y precarga de membresía en `apps/accounts/views.py`/lista de clientes: 1.005 consultas y ~2 MB con 1.000 clientes ficticios. El informe contiene reproducción y propuesta; no se cambiaron los archivos de Claude.
 - (vacío)
