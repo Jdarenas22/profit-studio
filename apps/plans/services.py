@@ -21,7 +21,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 
 from apps.accounts.permissions import clients_for_trainer
@@ -33,7 +33,9 @@ from apps.health.models import PURPOSE_HEALTH_DATA
 from apps.routines.models import Routine, RoutineDay, RoutineExercise
 
 from . import ai, notifications
-from .models import KIND_EXERCISE, KIND_NUTRITION, Food, Plan, PlanEvent, PlanGenerationJob, TrainerCredential
+from .models import (
+    KIND_EXERCISE, KIND_NUTRITION, Food, MealOption, Plan, PlanEvent, PlanGenerationJob, TrainerCredential,
+)
 from .rules import catalog as rules_catalog
 from .rules import eligibility as rules_eligibility
 from .rules import energy as rules_energy
@@ -347,6 +349,29 @@ def plans_for_trainer(user):
 def get_plan_for_trainer(user, pk):
     """El plan `pk` si su clienta es accesible; si no, `Plan.DoesNotExist` (la vista da 404)."""
     return plans_for_trainer(user).get(pk=pk)
+
+
+def regenerated_plan_ids(user):
+    """Ids de los planes APROBADOS (de clientas accesibles) con alguna opción activa que espera
+    revisión: la clienta pidió «otra opción» (`needs_review`)."""
+    return set(MealOption.objects.filter(
+        slot__nutrition_plan__plan__in=plans_for_trainer(user), is_active=True, needs_review=True,
+        slot__nutrition_plan__plan__status=Plan.STATUS_APPROVED,
+    ).values_list('slot__nutrition_plan__plan_id', flat=True))
+
+
+def pending_review_plans(user, regenerated_ids=None):
+    """Planes por revisar de SUS clientas: borradores de la IA, en revisión y aprobados con una
+    opción nueva por revisar. Única definición: la bandeja y el contador del menú la comparten.
+    `regenerated_ids` evita repetir la consulta si quien llama ya la tiene."""
+    if regenerated_ids is None:
+        regenerated_ids = regenerated_plan_ids(user)
+    return plans_for_trainer(user).filter(Q(status__in=Plan.PENDING_STATUSES) | Q(pk__in=regenerated_ids))
+
+
+def pending_review_count(user, regenerated_ids=None):
+    """Cuántos planes hay por revisar: el número de la bandeja y del contador del menú."""
+    return pending_review_plans(user, regenerated_ids).count()
 
 
 def approved_plan(client, kind):

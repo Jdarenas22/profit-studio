@@ -783,3 +783,19 @@ La señal `liked_food_ids` (`apps/plans/adaptation.py::_completed_meals`, umbral
 **Corrección posterior**
 
 - **«Otra opción» bloqueada se deduplica por día** (2026-10-15, rama `fix-alternativa-bloqueada-duplicada`): `nutrition.request_alternative` creaba un trabajo `blocked` y un correo al entrenador por cada pedido con bandera roja (cada reenvío del formulario trae su propio `request_token` y los bloqueados no consumen cupo). Ahora, igual que `request_plan`, devuelve el trabajo bloqueado de las últimas 24 h de la misma clienta, tipo y banderas rojas (`created=False`, sin trabajo ni aviso nuevos); con banderas distintas, otra clienta o pasado el día, se crea uno nuevo y se avisa. Ambos usan la función `services.recent_blocked_job`. Sin migración; cupos, límites y mensajes no cambiaron.
+
+### Fase D (parcial): contador del menú (2026-10-15, rama `plan-ia-d1-contador`)
+
+Implementado: `trainer_plan_badge` (`GET /plans/trainer/inbox/badge/`), el indicador numérico de «Planes por revisar» que la sección 8.2 reservó para la fase D. **Sin migración** (ningún modelo cambió).
+
+**Qué se construyó**
+
+- La cuenta de «por revisar» vivía embebida en `trainer_plan_inbox`. Ahora está en tres funciones de `services.py`, siempre sobre `plans_for_trainer(user)` (que usa `clients_for_trainer`): `regenerated_plan_ids(user)` (planes `approved` con alguna opción activa `needs_review`, la marca de «otra opción»), `pending_review_plans(user)` (borradores de la IA, en revisión o aprobados con opción por revisar) y `pending_review_count(user)`. **La bandeja (`pending_count` y su lista) y el contador comparten `services.pending_review_count`**: no hay dos consultas que puedan diferir. El contexto de la bandeja no cambió (`rows`, `status`, `status_choices`, `pending_count`, `active_jobs`, `attention_jobs`, `ai_mode`).
+- Vista `trainer_plan_badge`: mismos decoradores que la bandeja (función encendida, entrenador, solo GET), `Cache-Control: no-store`, y renderiza `trainer/partials/plan_badge.html` con `{'count': int}`. Responde siempre 200 (el sondeo del menú es permanente; no usa el 286). El entrenador cuenta solo lo de SUS clientas; la superusuaria, todo lo que puede ver. `count` no se recorta: el «99+» lo pone la plantilla.
+- Pruebas sin red (`apps/plans/tests/test_plan_badge.py`): autorización (anónimo, clienta, 405, función apagada, `no-store`), qué cuenta (cada estado, una opción o varias por revisar cuentan una vez, opción inactiva no cuenta), cada entrenador solo lo suyo, igualdad entre contador y bandeja en un escenario mixto, y número de consultas constante. Prueban el contexto, no el HTML. Pedido a la plantilla: `docs/contracts/requests.md`, «Fase D1: contador del menú».
+
+**Decisión: F-17 «Trabajos con problemas» (`trainer_plan_jobs`) no se construye como pantalla aparte**
+
+La bandeja ya lista los trabajos bloqueados y fallidos de los últimos 14 días (`attention_jobs`, hasta 50, con su código y texto amigable) y los pedidos en curso (`active_jobs`). Una pantalla más repetiría esa lista. Si en el futuro hace falta un historial más largo, se reabre. La ruta `trainer_plan_jobs` de la tabla 8.3 queda sin construir.
+
+**Pendiente de la fase D**: clonar a borrador (`trainer_plan_clone`), planes de una clienta (`trainer_client_plans`) y progreso (`trainer_client_progress`).
