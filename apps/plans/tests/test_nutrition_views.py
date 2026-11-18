@@ -664,3 +664,19 @@ class NutritionSwitchTests(NutritionScenarioTestCase):
                     for method, url in routes:
                         with self.subTest(settings=settings, url=url):
                             self.assertEqual(getattr(self.client, method)(url).status_code, 404)
+
+
+class BasicProfileRequestPageTests(NutritionScenarioTestCase):
+    """FB-04: el requisito D07 llega en `eligibility.missing` con el enlace a la ficha."""
+
+    def test_d07_is_listed_with_a_link_to_the_profile(self):
+        self.ready(self.client_a, basic=True)
+        self.login(self.client_a)
+        response = self.client.get(reverse('member_plan_request'), {'kind': 'nutrition'})
+        missing = response.context['eligibility']['missing']
+        self.assertEqual([item['code'] for item in missing], ['D07_NUTRITION_DETAILS'])
+        self.assertEqual(missing[0]['url'], reverse('member_health_profile') + '?edit=1')
+        self.assertContains(response, 'nivel de actividad diaria')
+        self.assertContains(response, reverse('member_health_profile') + '?edit=1')
+        exercise = self.client.get(reverse('member_plan_request'), {'kind': 'exercise'})
+        self.assertTrue(exercise.context['eligibility']['can_request'])

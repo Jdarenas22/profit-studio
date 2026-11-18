@@ -799,3 +799,7 @@ Implementado: `trainer_plan_badge` (`GET /plans/trainer/inbox/badge/`), el indic
 La bandeja ya lista los trabajos bloqueados y fallidos de los últimos 14 días (`attention_jobs`, hasta 50, con su código y texto amigable) y los pedidos en curso (`active_jobs`). Una pantalla más repetiría esa lista. Si en el futuro hace falta un historial más largo, se reabre. La ruta `trainer_plan_jobs` de la tabla 8.3 queda sin construir.
 
 **Pendiente de la fase D**: clonar a borrador (`trainer_plan_clone`), planes de una clienta (`trainer_client_plans`) y progreso (`trainer_client_progress`).
+
+### Ficha básica (2026-11-17, rama `feature/ficha-basica`)
+
+Contrato propio: `docs/contracts/ficha-basica.md` (aprobado con 1A a 7A; registro en su sección 10). Afecta a este contrato así: la ficha pide lo mínimo y lo médico y alimentario se despliegan con dos preguntas Sí/No (`health_screen`, `food_screen`; migración `health` **0005**); el motor pasa a `flags/2` con `I03_HEALTH_SCREEN_NO`, `I04_DEFAULTS`, `M10_NO_ACTIVITY` y el requisito nuevo `D07_NUTRITION_DETAILS` (solo alimentación, después de `D04_INCOHERENT`). La IA no recibe ningún dato nuevo.

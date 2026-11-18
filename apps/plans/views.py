@@ -66,6 +66,8 @@ def _requirement_url(code, next_url):
         rules_eligibility.D02_PROFILE_CONFIRM: reverse('member_health_profile'),
         rules_eligibility.D03_MEASURE: reverse('member_measurement_add'),
         rules_eligibility.D04_INCOHERENT: reverse('member_health_profile') + '?edit=1',
+        # Ficha básica: falta el nivel de actividad («Más detalles» de la ficha)
+        rules_eligibility.D07_NUTRITION_DETAILS: reverse('member_health_profile') + '?edit=1',
     }
     return links.get(code)
 
@@ -272,7 +274,9 @@ def _profile_summary(request, client, profile):
         'age': profile.age,
         'goal': client.get_training_goal_display(),
         'experience': profile.get_experience_level_display(),
-        'activity': profile.get_activity_level_display(),
+        # Ficha básica: si no la declaró, se usó «sedentaria» por defecto (no se presenta como dato)
+        'activity': ('No indicado' if profile.is_defaulted('activity_level')
+                     else profile.get_activity_level_display()),
         'days': profile.training_days_per_week,
         'minutes': profile.session_minutes,
         'place': profile.get_training_place_display(),

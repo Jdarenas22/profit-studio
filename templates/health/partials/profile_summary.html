@@ -1,5 +1,7 @@
 {% comment %} Contenido de la ficha, solo lectura. Lo usan la clienta (profile_detail) y el entrenador (health_profile).
-   Contexto: profile, goal_label. Parámetro: for_trainer (muestra el conteo del cuestionario). Todo texto va escapado. {% endcomment %}
+   Contexto: profile, goal_label. Parámetro: for_trainer (muestra el conteo del cuestionario y redacta para el entrenador).
+   Ficha básica (FB-02): con «No» en salud o alimentación no se muestra el detalle; lo no declarado (`defaulted_fields`)
+   sale como «No indicado». Todo texto va escapado. {% endcomment %}
 <div class="space-y-5">
 
   <section aria-labelledby="sum-basics" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
@@ -8,12 +10,19 @@
       {% include 'health/partials/summary_item.html' with label='Edad' value=profile.age suffix='años' %}
       {% include 'health/partials/summary_item.html' with label='Sexo para el cálculo' value=profile.sex_label %}
       {% include 'health/partials/summary_item.html' with label='Meta' value=goal_label empty='Sin definir' %}
-      {% include 'health/partials/summary_item.html' with label='Peso meta' value=profile.target_weight_kg suffix='kg' empty='Sin definir' %}
+      {% include 'health/partials/summary_item.html' with label='Peso meta' value=profile.target_weight_kg suffix='kg' empty='No indicado' %}
     </dl>
   </section>
 
   <section aria-labelledby="sum-health" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
     <h2 id="sum-health" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Salud</h2>
+    {% if profile.health_declared_none %}
+    <p class="flex gap-2 text-white/90 text-sm leading-relaxed">
+      <i class="fa fa-circle-check text-green-400 mt-0.5 shrink-0" aria-hidden="true"></i>
+      <span class="min-w-0">{% if for_trainer %}Respondió No a la pregunta general de salud: no vio el cuestionario detallado.{% else %}No indicaste problemas de salud.{% endif %}</span>
+    </p>
+    {% if not for_trainer %}<p class="text-white/60 text-xs leading-relaxed mt-2">Si algo cambia (una lesión, un medicamento, un embarazo), corrige tu ficha y responde «Sí».</p>{% endif %}
+    {% else %}
     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
       {% include 'health/partials/summary_list.html' with label='Condiciones de salud' items=profile.conditions_labels extra=profile.other_condition_text %}
       {% if profile.conditions %}
@@ -31,8 +40,10 @@
       {% endif %}
       {% include 'health/partials/summary_item.html' with label='Antecedentes de trastornos de la conducta alimentaria' value=profile.get_eating_disorder_history_display %}
     </dl>
+    {% endif %}
   </section>
 
+  {% if not profile.health_declared_none %}
   <section aria-labelledby="sum-parq" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
     <h2 id="sum-parq" class="text-white font-bold text-sm uppercase tracking-wider mb-1">Cuestionario de aptitud</h2>
     {% if for_trainer %}
@@ -51,17 +62,28 @@
       {% endfor %}
     </ol>
   </section>
+  {% endif %}
 
   <section aria-labelledby="sum-food" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
     <h2 id="sum-food" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Alimentación</h2>
     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+      {% if profile.food_declared_none %}
+      <div class="min-w-0 sm:col-span-2">
+        <dt class="text-white/60 text-xs mb-0.5">Alergias, intolerancias y dieta</dt>
+        <dd class="flex gap-2 text-white/90 text-sm">
+          <i class="fa fa-circle-check text-green-400 mt-0.5 shrink-0" aria-hidden="true"></i>
+          <span class="min-w-0">{% if for_trainer %}Respondió No: sin alergias, intolerancias ni dieta especial.{% else %}Sin alergias, intolerancias ni dieta especial.{% endif %}</span>
+        </dd>
+      </div>
+      {% else %}
       {% include 'health/partials/summary_item.html' with label='Tipo de alimentación' value=profile.get_diet_type_display %}
-      {% include 'health/partials/summary_item.html' with label='Posibilidad de cocinar' value=profile.get_cooking_access_display %}
       {% include 'health/partials/summary_list.html' with label='Alergias' items=profile.allergies_labels %}
       {% if profile.allergies %}
       {% include 'health/partials/summary_item.html' with label='Gravedad de la reacción' value=profile.get_allergy_severity_display %}
       {% endif %}
       {% include 'health/partials/summary_list.html' with label='Intolerancias' items=profile.intolerances_labels %}
+      {% endif %}
+      {% include 'health/partials/summary_item.html' with label='Posibilidad de cocinar' value=profile.get_cooking_access_display defaulted_field='cooking_access' %}
       <div class="min-w-0 sm:col-span-2">
         <dt class="text-white/60 text-xs mb-1">Comidas del día</dt>
         <dd>
@@ -72,8 +94,8 @@
           </ul>
         </dd>
       </div>
-      {% include 'health/partials/summary_item.html' with label='Presupuesto' value=profile.get_budget_level_display %}
-      {% include 'health/partials/summary_item.html' with label='Comidas fuera de casa por semana' value=profile.eats_out_per_week %}
+      {% include 'health/partials/summary_item.html' with label='Presupuesto' value=profile.get_budget_level_display defaulted_field='budget_level' %}
+      {% include 'health/partials/summary_item.html' with label='Comidas fuera de casa por semana' value=profile.eats_out_per_week defaulted_field='eats_out_per_week' %}
       {% include 'health/partials/summary_item.html' with label='Alimentos que no gustan o no se comen' value=profile.disliked_foods_text empty='Ninguno indicado' %}
       {% include 'health/partials/summary_item.html' with label='Alimentos favoritos' value=profile.liked_foods_text empty='Ninguno indicado' %}
     </dl>
@@ -86,11 +108,11 @@
       {% include 'health/partials/summary_item.html' with label='Duración de cada sesión' value=profile.session_minutes suffix='minutos' %}
       {% include 'health/partials/summary_item.html' with label='Lugar de entrenamiento' value=profile.get_training_place_display %}
       {% if profile.training_place == 'home' %}
-      {% include 'health/partials/summary_list.html' with label='Equipo en casa' items=profile.equipment_labels %}
+      {% include 'health/partials/summary_list.html' with label='Equipo en casa' items=profile.equipment_labels defaulted_field='equipment' %}
       {% endif %}
       {% include 'health/partials/summary_item.html' with label='Experiencia entrenando' value=profile.get_experience_level_display %}
-      {% include 'health/partials/summary_item.html' with label='Nivel de actividad diaria' value=profile.get_activity_level_display %}
-      {% include 'health/partials/summary_item.html' with label='Horas de sueño por noche' value=profile.sleep_hours suffix='horas' %}
+      {% include 'health/partials/summary_item.html' with label='Nivel de actividad diaria' value=profile.get_activity_level_display defaulted_field='activity_level' %}
+      {% include 'health/partials/summary_item.html' with label='Horas de sueño por noche' value=profile.sleep_hours suffix='horas' empty='No indicado' %}
     </dl>
   </section>
 </div>

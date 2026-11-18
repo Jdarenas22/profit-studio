@@ -22,6 +22,7 @@ D04_INCOHERENT = 'D04_INCOHERENT'
 D05_QUOTA = 'D05_QUOTA'
 D06_FEW_EXERCISES = 'D06_FEW_EXERCISES'
 D06_FEW_FOODS = 'D06_FEW_FOODS'
+D07_NUTRITION_DETAILS = 'D07_NUTRITION_DETAILS'   # ficha básica: falta el nivel de actividad
 
 # Textos para la clienta (sin diagnósticos)
 REQUIREMENT_TEXTS = {
@@ -35,6 +36,8 @@ REQUIREMENT_TEXTS = {
     D05_QUOTA: 'Ya pediste varios planes esta semana. Podrás pedir otro en unos días.',
     D06_FEW_EXERCISES: 'Por ahora no hay suficientes ejercicios compatibles contigo. Tu entrenador armará tu plan.',
     D06_FEW_FOODS: 'Por ahora no hay suficientes alimentos compatibles contigo. Tu entrenador armará tu guía de alimentación.',
+    D07_NUTRITION_DETAILS: ('Para armar tu plan de alimentación necesitamos tu nivel de actividad diaria. '
+                            'Complétalo en "Más detalles" de tu ficha.'),
 }
 
 # Mensaje genérico ante una bandera roja (contrato 3.3): sin diagnósticos
@@ -51,9 +54,10 @@ _MISSING_TO_REQUIREMENT = {
     'M03_NO_HEIGHT': D03_MEASURE,
     'M08_INCOHERENT': D04_INCOHERENT,
     'M09_NO_AI_CONSENT': D01_CONSENT_AI,
+    'M10_NO_ACTIVITY': D07_NUTRITION_DETAILS,     # su alcance es solo `nutrition`
 }
 _ORDER = (D00_NOT_AVAILABLE, D01_CONSENT_HEALTH, D01_CONSENT_AI, D02_PROFILE, D02_PROFILE_CONFIRM,
-          D03_MEASURE, D04_INCOHERENT, D05_QUOTA)
+          D03_MEASURE, D04_INCOHERENT, D07_NUTRITION_DETAILS, D05_QUOTA)
 
 
 @dataclass(frozen=True)

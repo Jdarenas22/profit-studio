@@ -13,7 +13,9 @@ from apps.health import dates, services
 from apps.health.models import PURPOSE_AI, PURPOSE_HEALTH_DATA, HealthAccessLog, HealthProfile
 from apps.memberships.models import Membership
 
-from .helpers import HealthScenarioTestCase, cleaned_profile, stub_missing_templates, valid_post
+from .helpers import (
+    HealthScenarioTestCase, basic_post, cleaned_profile, stub_missing_templates, valid_post,
+)
 
 MEMBER_ROUTES = [
     ('GET', 'member_health_profile', []),
@@ -186,8 +188,8 @@ class MemberProfileFlowTests(ViewTestCase):
         self.assertTemplateUsed(response, 'health/profile_form.html')
         ctx = response.context
         self.assertEqual(set(ctx['errors']), {'parq_q2', 'session_minutes', 'meal_slots', 'liked_foods_text'})
-        self.assertEqual(ctx['error_steps'], [3, 4, 5])
-        self.assertEqual(ctx['first_error_step'], 3)
+        self.assertEqual(ctx['error_steps'], [2, 4, 5])          # salud, entrenamiento, más detalles
+        self.assertEqual(ctx['first_error_step'], 2)
         self.assertEqual(ctx['form']['conditions'], ['asthma', 'ibs'])    # la lista completa, no el último
         self.assertEqual(ctx['form']['session_minutes'], '5')
         self.assertEqual(ctx['form']['meal_slots'], ['lunch'])
@@ -595,11 +597,12 @@ class TrainerEditTests(ViewTestCase):
     def test_invalid_post_rerenders_with_errors_and_saves_nothing(self):
         self.make_profile(self.client_a)
         response = self.client.post(self.url, valid_post(
-            birth_date=(dates.today() - timedelta(days=365 * 16)).isoformat(), parq_q7=None))
+            birth_date=(dates.today() - timedelta(days=365 * 16)).isoformat(),
+            health_screen='yes', injuries=['knee'], parq_q7=None))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'trainer/health_profile_form.html')
         self.assertEqual(set(response.context['errors']), {'birth_date', 'parq_q7'})
-        self.assertEqual(response.context['error_steps'], [1, 3])
+        self.assertEqual(response.context['error_steps'], [1, 2])
         self.assertEqual(response.context['mode'], 'trainer')
         self.assertEqual(HealthProfile.objects.filter(user=self.client_a).count(), 1)
         self.assertFalse(HealthAccessLog.objects.filter(action='edit').exists())
@@ -628,3 +631,136 @@ class TrainerEditTests(ViewTestCase):
         response = self.client.post(reverse('trainer_health_profile_edit', args=[self.client_free.pk]), valid_post())
         self.assertEqual(response.status_code, 302)
         self.assertEqual(services.current_profile(self.client_free).created_by, self.boss)
+
+
+# ─── Ficha básica (contrato ficha-basica.md, sección 8: vistas) ───────────────
+
+@stub_missing_templates()
+class BasicProfileMemberViewTests(ViewTestCase):
+    def setUp(self):
+        self.login(self.client_a)
+
+    def test_new_form_context_has_the_basic_profile_keys(self):
+        self.grant(self.client_a)
+        ctx = self.client.get(reverse('member_health_profile')).context
+        self.assertEqual(ctx['choices']['screen'], [('yes', 'Sí, hay algo que contar'), ('no', 'No, ninguna me aplica')])
+        self.assertEqual((ctx['form']['health_screen'], ctx['form']['food_screen']), ('', ''))
+        self.assertEqual(ctx['form']['defaulted_fields'], [])
+        self.assertIs(ctx['screen_was_yes'], False)
+        self.assertIs(ctx['food_screen_was_yes'], False)
+        self.assertEqual([s['key'] for s in ctx['steps']], ['basics', 'health', 'food', 'training', 'details'])
+
+    def test_rendered_wizards_send_both_questions(self):
+        # Sin estos campos el servidor no puede guardar la ficha (vale para cualquier versión del asistente)
+        self.make_profile(self.client_a)
+        member = self.client.get(reverse('member_health_profile') + '?edit=1')
+        self.login(self.trainer_a)
+        trainer = self.client.get(reverse('trainer_health_profile_edit', args=[self.client_a.pk]))
+        for response in (member, trainer):
+            self.assertEqual(response.status_code, 200)
+            for name in ('health_screen', 'food_screen'):
+                self.assertContains(response, f'name="{name}" value="yes"')
+                self.assertContains(response, f'name="{name}" value="no"')
+
+    def test_minimal_profile_is_saved(self):
+        self.grant(self.client_a)
+        response = self.client.post(reverse('member_health_profile'), basic_post())
+        self.assertRedirects(response, reverse('member_health_profile'), fetch_redirect_response=False)
+        self.assertIn('no-store', response['Cache-Control'])
+        profile = services.current_profile(self.client_a)
+        self.assertEqual((profile.health_screen, profile.food_screen), ('no', 'no'))
+        self.assertIn('activity_level', profile.defaulted_fields)
+        self.assertIsNotNone(profile.confirmed_by_client_at)
+        # El resumen de la clienta se abre con la ficha básica
+        detail = self.client.get(reverse('member_health_profile'))
+        self.assertEqual(detail.status_code, 200)
+        self.assertTrue(detail.context['profile'].health_declared_none)
+
+    def test_hidden_medical_fields_sent_with_no_are_never_saved(self):
+        self.grant(self.client_a)
+        self.client.post(reverse('member_health_profile'), basic_post(
+            conditions=['cancer_active'], parq_q1='yes', other_condition_text='SECRETO', pregnancy_status='pregnant'))
+        profile = services.current_profile(self.client_a)
+        self.assertEqual((profile.conditions, profile.other_condition_text, profile.pregnancy_status),
+                         ([], '', 'none'))
+        self.assertFalse(profile.parq['q1'])
+
+    def test_yes_without_details_rerenders_on_step_2(self):
+        self.grant(self.client_a)
+        response = self.client.post(reverse('member_health_profile'), basic_post(
+            health_screen='yes', recent_surgery='none', pregnancy_status='none', eating_disorder_history='no',
+            **{f'parq_q{i}': 'no' for i in range(1, 8)}))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['errors']), ['health_screen'])
+        self.assertEqual(response.context['first_error_step'], 2)
+        self.assertEqual(response.context['form']['health_screen'], 'yes')
+        self.assertFalse(HealthProfile.objects.exists())
+
+    def test_edit_shows_unanswered_details_empty_and_the_warning_flag(self):
+        self.make_profile(self.client_a, injuries=['knee'], activity_level='', budget_level='')
+        ctx = self.client.get(reverse('member_health_profile') + '?edit=1').context
+        self.assertIs(ctx['screen_was_yes'], True)
+        self.assertIs(ctx['food_screen_was_yes'], False)
+        self.assertEqual(ctx['form']['health_screen'], 'yes')
+        self.assertEqual(ctx['form']['food_screen'], 'no')
+        self.assertEqual((ctx['form']['activity_level'], ctx['form']['budget_level']), ('', ''))
+        self.assertEqual(ctx['form']['defaulted_fields'], ['budget_level', 'activity_level'])
+
+    def test_changing_to_no_saves_a_neutral_version(self):
+        self.make_profile(self.client_a, injuries=['knee'])
+        self.client.post(reverse('member_health_profile'), basic_post(injuries=['knee']))
+        versions = HealthProfile.objects.filter(user=self.client_a).order_by('version')
+        self.assertEqual([(p.version, p.injuries) for p in versions], [(1, ['knee']), (2, [])])
+
+    def test_minor_and_missing_consent_still_apply(self):
+        response = self.client.post(reverse('member_health_profile'), basic_post())
+        self.assertIn('/health/consent/health_data/', response['Location'])
+        InitialAssessment.objects.filter(user=self.client_a).update(age=15)
+        self.grant(self.client_a)
+        response = self.client.post(reverse('member_health_profile'), basic_post())
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(HealthProfile.objects.exists())
+
+
+@stub_missing_templates()
+class BasicProfileTrainerViewTests(ViewTestCase):
+    def setUp(self):
+        self.login(self.trainer_a)
+        self.url = reverse('trainer_health_profile_edit', args=[self.client_a.pk])
+
+    def make_legacy(self, **overrides):
+        profile = self.make_profile(self.client_a, **overrides)
+        HealthProfile.objects.filter(pk=profile.pk).update(health_screen='legacy', food_screen='legacy')
+        profile.refresh_from_db()
+        return profile
+
+    def test_trainer_corrects_a_legacy_profile(self):
+        self.make_legacy(injuries=['knee'])
+        ctx = self.client.get(self.url).context
+        self.assertEqual((ctx['form']['health_screen'], ctx['form']['food_screen']), ('yes', 'no'))
+        self.assertIs(ctx['screen_was_yes'], True)
+        self.assertEqual(ctx['form']['injuries'], ['knee'])
+        response = self.client.post(self.url, valid_post(injuries=['knee', 'hip']))
+        self.assertEqual(response.status_code, 302)
+        profile = services.current_profile(self.client_a)
+        self.assertEqual((profile.version, profile.created_by_role, profile.health_screen), (2, 'trainer', 'yes'))
+        self.assertIsNone(profile.confirmed_by_client_at)
+
+    def test_trainer_can_answer_no_for_the_client_and_she_must_confirm(self):
+        self.make_legacy()
+        response = self.client.post(self.url, basic_post())
+        self.assertEqual(response.status_code, 302)
+        profile = services.current_profile(self.client_a)
+        self.assertEqual((profile.health_screen, profile.created_by_role), ('no', 'trainer'))
+        self.assertIsNone(profile.confirmed_by_client_at)
+
+    def test_trainer_view_shows_the_new_flags(self):
+        self.make_profile(self.client_a, basic=True)
+        response = self.client.get(reverse('trainer_health_profile', args=[self.client_a.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('no-store', response['Cache-Control'])
+        flags = response.context['flags']
+        self.assertEqual({f.code for f in flags.info} & {'I03_HEALTH_SCREEN_NO', 'I04_DEFAULTS'},
+                         {'I03_HEALTH_SCREEN_NO', 'I04_DEFAULTS'})
+        self.assertIn('M10_NO_ACTIVITY', [f.code for f in flags.missing])
+        self.assertEqual(response.context['profile'].defaulted_labels[-1], 'Nivel de actividad diaria')
