@@ -127,7 +127,7 @@ class ProgressContextTests(ProgressTestCase):
     def test_exact_shape(self):
         add_measurement(self.client_a, 20, 62, waist_cm=80, hip_cm=100)
         context = self.context()
-        self.assertTrue(CONTEXT_KEYS <= {key for layer in context for key in layer})
+        self.assertTrue(CONTEXT_KEYS <= set(context.keys()))  # ContextList: la plantilla real usa extends e include
         built = progress.build_context(self.client_a, content_visible=True)
         self.assertEqual(set(built), CONTEXT_KEYS - {'client', 'client_active', 'content_visible'})
         self.assertEqual(set(built['measurements'][0]), MEASUREMENT_KEYS)

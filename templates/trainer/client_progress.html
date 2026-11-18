@@ -1,0 +1,242 @@
+{% extends 'trainer/base.html' %}
+{% comment %}
+D-02. Progreso de la clienta: planes vigentes, medidas (tabla siempre visible + 4 gráficos SVG del
+servidor), cambios desde la medida del plan y constancia de 4 semanas.
+Contexto: docs/contracts/requests.md, bloque «Fase D: contrato D-01 a D-04». Sin `content_visible`
+no llegan medidas, gráficos, línea base ni comidas: se muestra el aviso literal del contrato.
+{% endcomment %}
+
+{% block title %}Progreso de {% include 'trainer/partials/person_name.html' with person=client %} — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}{% if not client_active %}?status=inactive{% endif %}" class="rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Clientes</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <a href="{% url 'trainer_client_detail' client.pk %}" class="rounded hover:text-primary transition-colors [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{% include 'trainer/partials/person_name.html' with person=client %}</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <span class="text-white/80" aria-current="page">Progreso</span>
+</nav>
+
+{% if not client_active %}
+<div role="note" class="mb-4 flex items-start gap-3 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-yellow-100 text-sm">
+  <i class="fa fa-lock mt-0.5 shrink-0" aria-hidden="true"></i>
+  <span>Esta cuenta está desactivada: puedes consultar su progreso, pero no registrar medidas. Reactívala desde su ficha para hacer cambios.</span>
+</div>
+{% endif %}
+
+<div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+  <div class="min-w-0">
+    <h1 class="text-2xl font-black text-white [overflow-wrap:anywhere]">Progreso de {% include 'trainer/partials/person_name.html' with person=client %}</h1>
+    <p class="text-white/60 text-sm mt-1">Datos al <time datetime="{{ today|date:'Y-m-d' }}">{{ today|date:"d/m/Y" }}</time>.</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'trainer_client_plans' client.pk %}"
+       class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <i class="fa fa-clipboard-list" aria-hidden="true"></i> Planes de la clienta
+    </a>
+    <a href="{% url 'trainer_client_detail' client.pk %}"
+       class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver a la clienta
+    </a>
+  </div>
+</div>
+
+<!-- Planes vigentes -->
+<section aria-labelledby="current-title" class="mb-6">
+  <h2 id="current-title" class="sr-only">Planes vigentes</h2>
+  <dl class="grid gap-3 sm:grid-cols-2">
+    {% with info=current_plans.exercise %}
+    <div class="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+      <dt class="text-white/60 text-xs flex items-center gap-2"><i class="fa fa-dumbbell text-primary" aria-hidden="true"></i> Plan de ejercicio vigente</dt>
+      <dd class="mt-1 text-sm text-white">
+        {% if info %}
+        <span class="font-semibold">Versión {{ info.version }}</span>
+        <span class="block text-white/60 text-xs mt-0.5">Aprobada el {{ info.approved_on|date:"d/m/Y" }}{% if info.valid_until %} · vigente hasta el {{ info.valid_until|date:"d/m/Y" }}{% endif %}</span>
+        {% if info.expired %}<span class="mt-1 inline-flex items-center gap-1 rounded-md bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-100"><i class="fa fa-calendar-xmark" aria-hidden="true"></i> Vencido</span>{% endif %}
+        {% else %}
+        <span class="text-white/70">Sin plan aprobado</span>
+        {% endif %}
+      </dd>
+    </div>
+    {% endwith %}
+    {% with info=current_plans.nutrition %}
+    <div class="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+      <dt class="text-white/60 text-xs flex items-center gap-2"><i class="fa fa-utensils text-primary" aria-hidden="true"></i> Plan de alimentación vigente</dt>
+      <dd class="mt-1 text-sm text-white">
+        {% if info %}
+        <span class="font-semibold">Versión {{ info.version }}</span>
+        <span class="block text-white/60 text-xs mt-0.5">Aprobada el {{ info.approved_on|date:"d/m/Y" }}{% if info.valid_until %} · vigente hasta el {{ info.valid_until|date:"d/m/Y" }}{% endif %}</span>
+        {% if info.expired %}<span class="mt-1 inline-flex items-center gap-1 rounded-md bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-100"><i class="fa fa-calendar-xmark" aria-hidden="true"></i> Vencido</span>{% endif %}
+        {% else %}
+        <span class="text-white/70">Sin plan aprobado</span>
+        {% endif %}
+      </dd>
+    </div>
+    {% endwith %}
+  </dl>
+</section>
+
+<!-- Medidas -->
+<section aria-labelledby="measures-title" class="mb-8">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+    <h2 id="measures-title" class="text-white font-bold">Medidas</h2>
+    {% if client_active %}
+    <div class="flex flex-wrap items-center gap-3">
+      {% if measure_due and measure_due_text %}
+      <p id="measure-due" class="flex items-center gap-2 text-yellow-100 text-sm"><i class="fa fa-clock" aria-hidden="true"></i> {{ measure_due_text }}</p>
+      {% endif %}
+      <a href="{% url 'trainer_measurement_add' client.pk %}"
+         {% if measure_due and measure_due_text %}aria-describedby="measure-due"{% endif %}
+         class="inline-flex items-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+        <i class="fa fa-plus" aria-hidden="true"></i> Agregar medición
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not content_visible %}
+  <div role="note" class="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 text-white/85 text-sm">
+    <i class="fa fa-user-shield mt-0.5 shrink-0" aria-hidden="true"></i>
+    <p>La clienta no tiene una autorización vigente para tratar sus datos de salud: no se muestran sus medidas ni sus comidas.</p>
+  </div>
+  {% else %}
+
+  {% if last_measurement %}
+  <p class="text-white/70 text-sm mb-4">Última medida: <time datetime="{{ last_measurement.date|date:'Y-m-d' }}">{{ last_measurement.date|date:"d/m/Y" }}</time>{% if last_measurement.days_old == 0 %} (hoy){% else %} (hace {{ last_measurement.days_old }} día{{ last_measurement.days_old|pluralize }}){% endif %}.</p>
+  {% endif %}
+
+  <!-- Cambios desde la medida del plan -->
+  {% if baseline %}
+  <div class="mb-5 rounded-2xl border border-primary/30 bg-zinc-900 p-4">
+    <h3 class="text-white font-semibold text-sm flex items-center gap-2">
+      <svg viewBox="-10 -10 20 20" width="14" height="14" aria-hidden="true"><rect x="-8" y="-8" width="16" height="16" fill="#FFFFFF" stroke="#FF6B00" stroke-width="3"></rect></svg>
+      Medida del {{ baseline.plan_kind_label|lower }} (versión {{ baseline.plan_version }})
+    </h3>
+    <p class="text-white/70 text-sm mt-1">
+      Tomada el <time datetime="{{ baseline.date|date:'Y-m-d' }}">{{ baseline.date|date:"d/m/Y" }}</time>:
+      {% if baseline.weight is not None %}peso {{ baseline.weight }} kg{% endif %}{% if baseline.waist_cm is not None %} · cintura {{ baseline.waist_cm }} cm{% endif %}{% if baseline.hip_cm is not None %} · cadera {{ baseline.hip_cm }} cm{% endif %}{% if baseline.imc is not None %} · IMC {{ baseline.imc }}{% endif %}.
+    </p>
+    {% if baseline.same_measurement %}
+    <p class="text-white/60 text-sm mt-2">Todavía no hay una medida nueva y confiable después de esta: los cambios aparecerán con la próxima medición.</p>
+    {% else %}
+    <p class="text-white/85 text-sm mt-2">Desde la medida del plan ({{ baseline.date|date:"d/m/Y" }}) hasta la del {{ baseline.latest_date|date:"d/m/Y" }}{% if baseline.days_between is not None %}, {{ baseline.days_between }} día{{ baseline.days_between|pluralize }}{% endif %}:</p>
+    <ul class="mt-2 flex flex-wrap gap-2 text-sm">
+      {% if baseline.delta.weight is not None %}<li class="rounded-lg bg-black/40 px-3 py-1.5 text-white">Peso {% if baseline.delta.weight > 0 %}+{% endif %}{{ baseline.delta.weight|floatformat:1 }} kg</li>{% endif %}
+      {% if baseline.delta.waist_cm is not None %}<li class="rounded-lg bg-black/40 px-3 py-1.5 text-white">Cintura {% if baseline.delta.waist_cm > 0 %}+{% endif %}{{ baseline.delta.waist_cm|floatformat:1 }} cm</li>{% endif %}
+      {% if baseline.delta.hip_cm is not None %}<li class="rounded-lg bg-black/40 px-3 py-1.5 text-white">Cadera {% if baseline.delta.hip_cm > 0 %}+{% endif %}{{ baseline.delta.hip_cm|floatformat:1 }} cm</li>{% endif %}
+      {% if baseline.delta.imc is not None %}<li class="rounded-lg bg-black/40 px-3 py-1.5 text-white">IMC {% if baseline.delta.imc > 0 %}+{% endif %}{{ baseline.delta.imc|floatformat:1 }}</li>{% endif %}
+    </ul>
+    <p class="text-white/60 text-xs mt-2">Los cambios usan la última medida sin la marca «Revisar».</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Gráficos -->
+  {% if charts %}
+  <ul class="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-white/70 text-xs" aria-label="Leyenda de los gráficos">
+    <li class="flex items-center gap-1.5"><svg viewBox="-10 -10 20 20" width="14" height="14" aria-hidden="true"><circle r="6" fill="#FF6B00"></circle></svg> Medición</li>
+    <li class="flex items-center gap-1.5"><svg viewBox="-10 -10 20 20" width="14" height="14" aria-hidden="true"><rect x="-8" y="-8" width="16" height="16" fill="#FFFFFF" stroke="#FF6B00" stroke-width="3"></rect></svg> Medida del plan</li>
+    <li class="flex items-center gap-1.5"><svg viewBox="-10 -10 20 20" width="14" height="14" aria-hidden="true"><polygon points="0,-10 9,7 -9,7" fill="#FACC15"></polygon></svg> Por revisar (posible error de digitación)</li>
+  </ul>
+  <div class="grid gap-4 md:grid-cols-2 mb-6">
+    {% for chart in charts %}
+    {% include 'trainer/partials/progress_chart.html' with chart=chart %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Tabla de medidas (siempre visible: alternativa accesible a los gráficos) -->
+  <div class="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+    <h3 class="text-white font-semibold text-sm mb-3">Todas las medidas</h3>
+    {% if measurements %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm min-w-[40rem]">
+        <caption class="sr-only">Medidas corporales de la clienta, la más reciente primero</caption>
+        <thead>
+          <tr class="text-white/60 text-xs border-b border-white/10">
+            <th scope="col" class="text-left pb-2 pr-3 font-medium">Fecha</th>
+            <th scope="col" class="text-right pb-2 px-3 font-medium">Peso</th>
+            <th scope="col" class="text-right pb-2 px-3 font-medium">Cintura</th>
+            <th scope="col" class="text-right pb-2 px-3 font-medium">Cadera</th>
+            <th scope="col" class="text-right pb-2 px-3 font-medium">% grasa</th>
+            <th scope="col" class="text-right pb-2 px-3 font-medium">IMC</th>
+            <th scope="col" class="text-left pb-2 px-3 font-medium">Registró</th>
+            <th scope="col" class="text-left pb-2 pl-3 font-medium">Marcas</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for m in measurements %}
+          <tr class="text-white/85{% if m.is_baseline %} bg-primary/5{% endif %}">
+            <td class="py-2 pr-3 whitespace-nowrap"><time datetime="{{ m.date|date:'Y-m-d' }}">{{ m.date|date:"d/m/Y" }}</time></td>
+            <td class="py-2 px-3 text-right font-medium text-white whitespace-nowrap">{% if m.weight is not None %}{{ m.weight }} kg{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>
+            <td class="py-2 px-3 text-right whitespace-nowrap">{% if m.waist_cm is not None %}{{ m.waist_cm }} cm{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>
+            <td class="py-2 px-3 text-right whitespace-nowrap">{% if m.hip_cm is not None %}{{ m.hip_cm }} cm{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>
+            <td class="py-2 px-3 text-right whitespace-nowrap">{% if m.body_fat_pct is not None %}{{ m.body_fat_pct }} %{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>
+            <td class="py-2 px-3 text-right whitespace-nowrap">{% if m.imc is not None %}{{ m.imc }}{% if m.imc_classification %} <span class="text-white/60 text-xs">{{ m.imc_classification }}</span>{% endif %}{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>
+            <td class="py-2 px-3 whitespace-nowrap">{{ m.source_label|default:"—" }}</td>
+            <td class="py-2 pl-3">
+              <div class="flex flex-wrap gap-1">
+                {% if m.is_baseline %}<span class="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary-light whitespace-nowrap"><svg viewBox="-10 -10 20 20" width="10" height="10" aria-hidden="true"><rect x="-8" y="-8" width="16" height="16" fill="#FFFFFF" stroke="#FF6B00" stroke-width="3"></rect></svg> Medida del plan</span>{% endif %}
+                {% if m.needs_review %}<span class="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-semibold text-yellow-200 whitespace-nowrap" title="El peso cambió mucho frente a la medición anterior. Revisa si hay un error de digitación."><svg viewBox="-10 -10 20 20" width="10" height="10" aria-hidden="true"><polygon points="0,-10 9,7 -9,7" fill="#FACC15"></polygon></svg> Revisar</span>{% endif %}
+                {% if not m.is_baseline and not m.needs_review %}<span aria-hidden="true" class="text-white/50">—</span><span class="sr-only">ninguna</span>{% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if measurements_truncated %}<p class="text-white/60 text-xs mt-3">Se muestran las 60 medidas más recientes de {{ measurements_count }}.</p>{% endif %}
+    {% else %}
+    <p class="rounded-xl border border-dashed border-white/15 p-4 text-white/70 text-sm">Todavía no tiene medidas registradas.{% if client_active %} Registra la primera con «Agregar medición».{% endif %}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<!-- Constancia -->
+<section aria-labelledby="adherence-title">
+  <h2 id="adherence-title" class="text-white font-bold">Constancia de las últimas 4 semanas</h2>
+  <p class="text-white/60 text-sm mt-1 mb-4">Del <time datetime="{{ adherence.start|date:'Y-m-d' }}">{{ adherence.start|date:"d/m/Y" }}</time> al <time datetime="{{ adherence.end|date:'Y-m-d' }}">{{ adherence.end|date:"d/m/Y" }}</time> ({{ adherence.days }} día{{ adherence.days|pluralize }}). Cuenta lo que la clienta marcó como hecho.</p>
+
+  <div class="grid gap-4 md:grid-cols-2 mb-4">
+    {% include 'trainer/partials/adherence_card.html' with block=adherence.training title='Entrenamiento' unit='días de rutina' icon='fa-dumbbell' %}
+    {% if adherence.meals %}
+    {% include 'trainer/partials/adherence_card.html' with block=adherence.meals title='Comidas' unit='comidas' icon='fa-utensils' %}
+    {% else %}
+    <div class="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+      <h3 class="text-white font-semibold text-sm flex items-center gap-2"><i class="fa fa-utensils text-primary" aria-hidden="true"></i> Comidas</h3>
+      <p class="text-white/70 text-sm mt-2">No se muestran las comidas: falta la autorización vigente de la clienta para tratar sus datos de salud.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <caption class="text-left text-white font-semibold text-sm mb-3">Semana a semana</caption>
+        <thead>
+          <tr class="text-white/60 text-xs border-b border-white/10">
+            <th scope="col" class="text-left pb-2 pr-3 font-medium">Semana</th>
+            <th scope="col" class="text-right pb-2 px-3 font-medium">Días entrenados</th>
+            {% if adherence.meals %}<th scope="col" class="text-right pb-2 pl-3 font-medium">Comidas marcadas</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for week in adherence.weeks %}
+          <tr class="text-white/85">
+            <th scope="row" class="py-2 pr-3 text-left font-normal whitespace-nowrap">
+              <span class="text-white">Semana {{ week.index }}</span>
+              <span class="block text-white/60 text-xs">{{ week.first_day|date:"d/m" }} al {{ week.last_day|date:"d/m" }}</span>
+            </th>
+            <td class="py-2 px-3 text-right font-semibold text-white">{{ week.training_done }}</td>
+            {% if adherence.meals %}<td class="py-2 pl-3 text-right font-semibold text-white">{% if week.meals_done is not None %}{{ week.meals_done }}{% else %}<span aria-hidden="true">—</span><span class="sr-only">sin dato</span>{% endif %}</td>{% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="text-white/60 text-xs mt-3">La semana 4 es la más reciente y termina hoy.</p>
+  </div>
+</section>
+{% endblock %}

@@ -522,6 +522,17 @@ Plantillas reales: `trainer/client_confirm_delete.html` (C-04, reescrita), `trai
 
 Notas: el botón «Eliminar definitivamente» de C-04/C-07 usa `aria-disabled` (sigue enfocable) hasta que el nombre coincide, normalizando como `normalize_name` (NFC, espacios, minúsculas; con tildes); el servidor valida igual y sin JavaScript el formulario se envía normal. `reassign_to` y `reason` no tienen opción preseleccionada; `ack_payments` nunca llega marcada.
 
+### Fase D: D-01 a D-04 entregadas (frontend, 2026-11-18, rama `feature/fase-d`)
+
+Plantillas reales contra el bloque «Fase D: contrato D-01 a D-04»: `trainer/client_plans.html` (D-01) con el parcial `trainer/partials/client_plan_group.html` (una tarjeta por tipo: vigente, borrador, «Generar borrador» y versiones con «Clonar a borrador» en un `<details>`); `trainer/client_progress.html` (D-02) con `trainer/partials/progress_chart.html` (SVG en línea, solo atributos SVG, `role="img"` + `aria-labelledby` a `<title>`/`<desc>`; círculo = medida, cuadrado = medida del plan, triángulo = «Revisar») y `trainer/partials/adherence_card.html`; parciales `plan_status_badge.html` y `job_tone_badge.html` (estado con color, icono y texto). D-03 en `trainer/plan_detail.html` (sección «Clonar a borrador» antes de «Archivar»; `blocked_reason`, `existing_draft`/`other_draft`, `clone_errors.reason` junto al campo con `aria-describedby`); D-04 en `trainer/client_detail.html` y `trainer/plan_detail.html`. Se quitaron las dos entradas de fase D de `_STUBS`.
+
+- Con la plantilla real, `response.context` es una `ContextList` (hay `extends` e `include`): en `test_client_plans.py` y `test_client_progress.py` la comprobación de claves pasó a `set(context.keys())` (solo esa línea; sin cambiar lo que se prueba). Los conteos de consultas (35 y 11) no cambiaron.
+- El motivo de clonar y el de archivar se llaman igual (`reason`): el campo de archivar ya no se repuebla cuando el error es de clonar.
+- En D-01, si ya hay un borrador del tipo, la fila no ofrece «Clonar» y enlaza al borrador (regla 5A: uno por tipo); el servidor valida igual.
+- `trainer/base.html`: en `/plans/trainer/clients/...` queda activa solo la pestaña «Clientes» (antes se marcaban dos).
+
+Pedidos al backend: ninguno. Observaciones (no bloquean): sin consentimiento, D-02 sigue mostrando «Agregar medición» (como `client_detail`); y `trainer/client_detail.html` sigue mostrando las últimas mediciones sin mirar el consentimiento (sección 12, punto 6 del contrato).
+
 ## Resueltos
 
 (ninguno)

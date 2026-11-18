@@ -1,0 +1,5 @@
+{% comment %}
+Estado de un trabajo de generación con color, icono y texto. Espera `tone` (info/good/warning/danger) y
+`label` (texto ya redactado, p. ej. `item.status_label`).
+{% endcomment %}<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold whitespace-nowrap
+  {% if tone == 'good' %}bg-green-500/20 text-green-100{% elif tone == 'warning' %}bg-yellow-500/20 text-yellow-100{% elif tone == 'danger' %}bg-red-500/20 text-red-100{% else %}bg-sky-500/20 text-sky-100{% endif %}"><i class="fa {% if tone == 'good' %}fa-circle-check{% elif tone == 'warning' %}fa-shield-halved{% elif tone == 'danger' %}fa-circle-xmark{% else %}fa-hourglass-half{% endif %}" aria-hidden="true"></i>{{ label }}</span>

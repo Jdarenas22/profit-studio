@@ -1,0 +1,5 @@
+{% comment %}
+Estado de un plan con color, icono y texto (nunca solo color). Espera `status` (código del plan) y `label`
+(texto ya redactado, p. ej. `row.status_label`). Colores con contraste AA sobre zinc-900.
+{% endcomment %}<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold whitespace-nowrap
+  {% if status == 'draft_ai' %}bg-primary/20 text-primary-light{% elif status == 'in_review' %}bg-yellow-500/20 text-yellow-100{% elif status == 'approved' %}bg-green-500/20 text-green-100{% else %}bg-white/10 text-white/80{% endif %}"><i class="fa {% if status == 'draft_ai' %}fa-wand-magic-sparkles{% elif status == 'in_review' %}fa-pen{% elif status == 'approved' %}fa-circle-check{% elif status == 'superseded' %}fa-clock-rotate-left{% else %}fa-box-archive{% endif %}" aria-hidden="true"></i>{{ label }}</span>

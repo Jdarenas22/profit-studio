@@ -1,0 +1,27 @@
+{% comment %}
+D-02: tarjeta de constancia. Espera `block` (`adherence.training` o `adherence.meals`), `title`, `unit`
+(«días de rutina» / «comidas») e `icon` (clase de Font Awesome). El nivel va con color, icono y texto.
+Sin `rate` no hay porcentaje: se muestra `note` (por qué) y, si hay marcas, el número hecho.
+{% endcomment %}
+<div class="rounded-2xl border border-white/10 bg-zinc-900 p-4">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h3 class="text-white font-semibold text-sm flex items-center gap-2"><i class="fa {{ icon }} text-primary" aria-hidden="true"></i> {{ title }}</h3>
+    {% if block.level %}
+    <span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold
+                 {% if block.level == 'high' %}bg-green-500/20 text-green-100{% elif block.level == 'medium' %}bg-yellow-500/20 text-yellow-100{% else %}bg-red-500/20 text-red-100{% endif %}">
+      <i class="fa {% if block.level == 'high' %}fa-arrow-trend-up{% elif block.level == 'medium' %}fa-minus{% else %}fa-arrow-trend-down{% endif %}" aria-hidden="true"></i>
+      Constancia {% if block.level == 'high' %}alta{% elif block.level == 'medium' %}media{% else %}baja{% endif %}
+    </span>
+    {% endif %}
+  </div>
+  {% if block.rate is not None %}
+  <p class="mt-3 text-white">
+    <span class="text-3xl font-black">{{ block.rate }} %</span>
+    <span class="block text-white/70 text-sm mt-1">{{ block.done }} de {{ block.expected }} {{ unit }}{% if block.per_week %} (meta: {{ block.per_week }} por semana){% endif %}</span>
+  </p>
+  {% if block.level_text %}<p class="text-white/70 text-sm mt-2">{{ block.level_text }}</p>{% endif %}
+  {% else %}
+  <p class="mt-3 text-white text-sm"><span class="text-2xl font-black">{{ block.done }}</span> {{ unit }} marcad{% if unit == 'comidas' %}as{% else %}os{% endif %}</p>
+  {% if block.note %}<p class="text-white/70 text-sm mt-2">{{ block.note }}</p>{% endif %}
+  {% endif %}
+</div>

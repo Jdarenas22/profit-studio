@@ -113,7 +113,7 @@ class ClientPlansContextTests(ClientPlansTestCase):
         approved = self.make_exercise(self.client_a, approve=True)
         make_job(self.client_a, KIND_EXERCISE, PlanGenerationJob.STATUS_FAILED, error_code='timeout')
         context = self.context()
-        self.assertTrue(CONTEXT_KEYS <= {key for layer in context for key in layer})
+        self.assertTrue(CONTEXT_KEYS <= set(context.keys()))  # ContextList: la plantilla real usa extends e include
         built = overview.client_plans_context(self.client_a, self.trainer_a)
         self.assertEqual(set(built), CONTEXT_KEYS - {'client'})
         self.assertEqual(['exercise', 'nutrition'], [g['kind'] for g in built['groups']])
