@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.decorators import member_required, trainer_required
 from apps.accounts.form_utils import errors_dict, flash_errors
 from apps.accounts.permissions import (
-    clients_for_trainer, ensure_client_access, get_client_for_trainer,
+    clients_for_trainer, ensure_client_access, get_client_for_trainer, reject_if_inactive,
 )
 from apps.health import services as health_services
 from apps.health.decorators import health_feature_required
@@ -42,6 +42,9 @@ def assessment_list(request):
 @trainer_required
 def trainer_assessment_create(request, client_pk):
     client = get_client_for_trainer(request, client_pk)
+    blocked = reject_if_inactive(request, client)
+    if blocked:
+        return blocked
 
     if request.method == 'POST':
         form = InitialAssessmentForm(request.POST)
@@ -97,6 +100,9 @@ def trainer_assessment_detail(request, pk):
         dixon = None
 
     if request.method == 'POST':
+        blocked = reject_if_inactive(request, assessment.user)
+        if blocked:
+            return blocked
         form = DixonTestForm(request.POST)
         if form.is_valid():
             data = form.cleaned_data
@@ -132,6 +138,9 @@ def trainer_assessment_detail(request, pk):
 @trainer_required
 def trainer_measurement_add(request, client_pk):
     client = get_client_for_trainer(request, client_pk)
+    blocked = reject_if_inactive(request, client)
+    if blocked:
+        return blocked
 
     if request.method == 'POST':
         form = BodyMeasurementForm(request.POST)
@@ -176,6 +185,9 @@ def _get_measurement_for_trainer(request, pk):
 def trainer_measurement_edit(request, pk):
     m = _get_measurement_for_trainer(request, pk)
     client = m.user
+    blocked = reject_if_inactive(request, client)
+    if blocked:
+        return blocked
 
     if request.method == 'POST':
         form = BodyMeasurementForm(request.POST)
@@ -199,6 +211,9 @@ def trainer_measurement_edit(request, pk):
 @require_POST
 def trainer_measurement_delete(request, pk):
     m = _get_measurement_for_trainer(request, pk)
+    blocked = reject_if_inactive(request, m.user)
+    if blocked:
+        return blocked
     client_pk = m.user_id
     m.delete()
     messages.success(request, 'Medición eliminada.')

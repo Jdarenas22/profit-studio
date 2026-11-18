@@ -12,6 +12,8 @@ from decimal import Decimal
 
 from django.db import transaction
 
+from apps.accounts.permissions import ensure_client_active
+
 from .models import BodyMeasurement, InitialAssessment
 
 MEMBER_DAILY_LIMIT = 3                     # mediciones que una clienta puede registrar por día
@@ -139,6 +141,7 @@ def create_member_measurement(user, data, height):
 
 
 def create_trainer_measurement(client, trainer, data):
+    ensure_client_active(client)   # una clienta desactivada es de solo lectura
     return BodyMeasurement.objects.create(
         user=client,
         trainer=trainer,
@@ -154,6 +157,7 @@ def create_trainer_measurement(client, trainer, data):
 
 def update_measurement(measurement, data):
     """Corrección por el entrenador. Se conserva `source` (quién la registró originalmente)."""
+    ensure_client_active(measurement.user)   # una clienta desactivada es de solo lectura
     measurement.weight = data['weight']
     measurement.height = data['height']
     measurement.waist_cm = data['waist_cm']

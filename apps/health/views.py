@@ -21,7 +21,7 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.accounts.decorators import member_required, trainer_required
 from apps.accounts.form_utils import errors_dict, flash_errors
 from apps.accounts.models import User
-from apps.accounts.permissions import get_client_for_trainer
+from apps.accounts.permissions import get_client_for_trainer, reject_if_inactive
 from apps.assessments.services import latest_anthropometrics, latest_height
 from apps.plans.rules.flags import add_months
 
@@ -362,6 +362,9 @@ def trainer_health_profile_edit(request, client_pk):
     if request.method not in ('GET', 'HEAD', 'POST'):
         return HttpResponse(status=405)
     client = get_client_for_trainer(request, client_pk)
+    blocked = reject_if_inactive(request, client)   # desactivada: solo lectura
+    if blocked:
+        return blocked
     back = redirect('trainer_health_profile', client_pk=client.pk)
     profile = services.current_profile(client)
     if profile is None:

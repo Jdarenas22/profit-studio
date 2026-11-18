@@ -17,7 +17,7 @@
     <h2 class="text-white font-bold mb-3"><i class="fa fa-dumbbell text-primary mr-2" aria-hidden="true"></i>Plan de ejercicio</h2>
     {% if exercise_plan %}
       <p class="text-white/80 text-sm">
-        Aprobado el {{ exercise_plan.approved_at|date:"d/m/Y" }}{% if exercise_plan.approved_by %} por {{ exercise_plan.approved_by.get_full_name|default:exercise_plan.approved_by.username }}{% endif %}{% if exercise_plan.reviewer_credential %} ({{ exercise_plan.reviewer_credential }}){% endif %}.
+        Aprobado el {{ exercise_plan.approved_at|date:"d/m/Y" }}{% if exercise_plan.approved_by and not exercise_plan.approved_by.is_erased %} por {{ exercise_plan.approved_by.display_name }}{% endif %}{% if exercise_plan.reviewer_credential %} ({{ exercise_plan.reviewer_credential }}){% endif %}.
         {% if valid_until %}Vigente hasta el {{ valid_until|date:"d/m/Y" }}.{% endif %}
       </p>
       {% if exercise_plan.note_for_client %}
@@ -51,7 +51,7 @@
     <h2 class="text-white font-bold mb-3"><i class="fa fa-utensils text-primary mr-2" aria-hidden="true"></i>Plan de alimentación</h2>
     {% if nutrition_plan %}
       <p class="text-white/80 text-sm">
-        Aprobado el {{ nutrition_plan.approved_at|date:"d/m/Y" }}{% if nutrition_plan.approved_by %} por {{ nutrition_plan.approved_by.get_full_name|default:nutrition_plan.approved_by.username }}{% endif %}{% if nutrition_plan.reviewer_credential %} ({{ nutrition_plan.reviewer_credential }}){% endif %}.
+        Aprobado el {{ nutrition_plan.approved_at|date:"d/m/Y" }}{% if nutrition_plan.approved_by and not nutrition_plan.approved_by.is_erased %} por {{ nutrition_plan.approved_by.display_name }}{% endif %}{% if nutrition_plan.reviewer_credential %} ({{ nutrition_plan.reviewer_credential }}){% endif %}.
         {% if nutrition_valid_until %}Vigente hasta el {{ nutrition_valid_until|date:"d/m/Y" }}.{% endif %}
       </p>
       <a href="{% url 'member_nutrition_plan' %}"

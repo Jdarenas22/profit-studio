@@ -630,6 +630,11 @@ def trainer_meal_option_edit(request, pk, opt_pk):
     if request.method not in ('GET', 'HEAD', 'POST'):
         return HttpResponse(status=405)
     plan, option = _trainer_option(request, pk, opt_pk)
+    try:
+        services.check_client_active(plan.client)   # desactivada: solo lectura
+    except services.PlanClientInactive as exc:
+        messages.error(request, str(exc))
+        return redirect('trainer_plan_detail', pk=plan.pk)
     assessment = services.assess(plan.client, KIND_NUTRITION, request.user, check_quota=False)
     if assessment.foods is None:
         messages.error(request, 'No se puede editar ahora: faltan requisitos de la clienta o su ficha requiere '

@@ -5,6 +5,7 @@ import mimetypes
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -12,7 +13,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.memberships.models import MembershipPlan
 from apps.accounts.decorators import trainer_required
-from apps.accounts.permissions import clients_for_trainer, get_client_for_trainer
+from apps.accounts.permissions import clients_for_trainer, get_client_for_trainer, reject_if_inactive
 from .forms import ManualPaymentForm
 from .models import Payment, ManualPayment
 from .services import (
@@ -161,9 +162,13 @@ def payment_webhook(request):
 @trainer_required
 def trainer_manual_payment_list(request):
     client_pk = request.GET.get('client')
-    # Solo pagos de clientes accesibles (superusuaria: todos; entrenador: los suyos)
+    # Solo pagos de clientes accesibles (superusuaria: todos; entrenador: los suyos). La
+    # superusuaria ve además los de cuentas eliminadas (C-08: «Cuenta eliminada», sin enlace).
+    visible = Q(user__in=clients_for_trainer(request.user))
+    if request.user.is_superuser:
+        visible |= Q(user__erased_at__isnull=False)
     payments = ManualPayment.objects.select_related('user', 'trainer', 'plan').filter(
-        user__in=clients_for_trainer(request.user)
+        visible
     ).order_by('-payment_date')
     client = None
     if client_pk:
@@ -190,6 +195,9 @@ _FIELD_LABELS = {'method': 'Método de pago', 'plan': 'Plan', 'receipt': 'Compro
 @trainer_required
 def trainer_manual_payment_add(request, client_pk):
     client = get_client_for_trainer(request, client_pk)
+    blocked = reject_if_inactive(request, client)
+    if blocked:
+        return blocked
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
 
     if request.method == 'POST':
@@ -234,12 +242,14 @@ def payment_receipt(request, pk):
     """
     Entrega un comprobante solo a quien corresponde: el propio cliente, o el
     entrenador con acceso a ese cliente (la superusuaria, a todos). Otro caso: 404.
+    El comprobante de una cuenta eliminada se conserva por obligación contable y solo lo abre la
+    superusuaria (docs/contracts/cuentas-eliminar.md, respuesta 1a).
     """
-    mp = get_object_or_404(ManualPayment, pk=pk)
+    mp = get_object_or_404(ManualPayment.objects.select_related('user'), pk=pk)
     user = request.user
     allowed = mp.user_id == user.pk or (
         user.is_trainer and clients_for_trainer(user).filter(pk=mp.user_id).exists()
-    )
+    ) or (user.is_trainer and user.is_superuser and mp.user.is_erased)
     if not allowed or not mp.receipt:
         raise Http404
 
