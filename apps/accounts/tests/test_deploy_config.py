@@ -44,13 +44,17 @@ CLEAN_ENV = {
 }
 
 PROBE = (
-    "import json, django, os;"
+    "import json, django, os, environ;"
+    "environ.Env.read_env = lambda *a, **kw: None;"
     "os.environ['DJANGO_SETTINGS_MODULE']='config.settings.production';"
     "django.setup();"
     "from django.conf import settings;"
     "from django.core.files.storage import default_storage;"
     "from django.contrib.staticfiles.storage import staticfiles_storage;"
     "from apps.payments.models import ManualPayment;"
+    "from apps.payments.storage import UnavailableReceiptsStorage;"
+    "receipt_store = ManualPayment._meta.get_field('receipt').storage;"
+    "receipt_blocked = isinstance(receipt_store, UnavailableReceiptsStorage);"
     "qual = lambda o: o.__class__.__module__ + '.' + o.__class__.__qualname__;"
     "print(json.dumps({'hosts': settings.ALLOWED_HOSTS, 'csrf': settings.CSRF_TRUSTED_ORIGINS,"
     " 'default_storage': qual(default_storage), 'static_storage': qual(staticfiles_storage),"
@@ -64,7 +68,8 @@ PROBE = (
     " 'custom_domain': getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None),"
     " 'url_protocol': getattr(settings, 'AWS_S3_URL_PROTOCOL', None),"
     " 'file_url': default_storage.url('exercises/images/a.jpg'),"
-    " 'receipt_url': ManualPayment._meta.get_field('receipt').storage.url('receipts/x.png')}))"
+    " 'receipt_url': None if receipt_blocked else receipt_store.url('receipts/x.png'),"
+    " 'receipt_blocked': receipt_blocked}))"
 )
 
 
@@ -117,6 +122,7 @@ class ProductionSettingsTests(SimpleTestCase):
         code, data, err = load_production(R2_RECEIPTS_BUCKET_NAME='recibos-privado', **self.R2_ENV)
         self.assertEqual(code, 0, err)
         self.assertEqual(data['receipts_bucket'], 'recibos-privado')
+        self.assertFalse(data['receipt_blocked'])
         self.assertNotIn('R2_RECEIPTS_BUCKET_NAME', err)
 
     def test_r2_without_receipts_bucket_warns_that_receipts_share_the_media_bucket(self):
@@ -159,11 +165,11 @@ class ProductionSettingsTests(SimpleTestCase):
         self.assertTrue(url.startswith('https://acc123.r2.cloudflarestorage.com/recibos-privado/receipts/x.png'), url)
         self.assertIn('X-Amz-Signature=', url)
 
-    def test_receipts_stay_private_even_without_a_receipts_bucket(self):
+    def test_receipts_are_blocked_without_a_private_receipts_bucket(self):
         code, data, err = load_production(**self.R2_ENV)
         self.assertEqual(code, 0, err)
-        self.assertNotIn('pub-xxxx.r2.dev', data['receipt_url'])
-        self.assertIn('X-Amz-Signature=', data['receipt_url'])
+        self.assertTrue(data['receipt_blocked'])
+        self.assertIsNone(data['receipt_url'])
 
     def test_r2_without_public_url_keeps_the_api_endpoint_fallback(self):
         code, data, err = load_production(**{**self.R2_ENV, 'R2_PUBLIC_URL': ''})
@@ -256,6 +262,8 @@ class ProductionSettingsTests(SimpleTestCase):
     def test_r2_receipts_bucket_equal_to_media_bucket_warns_by_default(self):
         code, data, err = load_production(R2_RECEIPTS_BUCKET_NAME='media-publico', **self.R2_ENV)
         self.assertEqual(code, 0, err)
+        self.assertTrue(data['receipt_blocked'])
+        self.assertIsNone(data['receipt_url'])
         self.assertIn('R2_RECEIPTS_BUCKET_NAME', err)
         self.assertIn('RuntimeWarning', err)
 

@@ -16,6 +16,12 @@ from .base import SendResult, WhatsAppAPIError, WhatsAppClient
 
 GRAPH_ROOT = 'https://graph.facebook.com'
 MAX_RETRY_AFTER = 3600
+MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def _meta_code(raw):
@@ -23,7 +29,7 @@ def _meta_code(raw):
         body = json.loads(raw or b'{}')
         code = (body.get('error') or {}).get('code')
         return int(code) if code is not None and not isinstance(code, bool) else None
-    except (ValueError, TypeError, AttributeError):
+    except (ValueError, TypeError, AttributeError, OverflowError, RecursionError):
         return None
 
 
@@ -43,7 +49,7 @@ class CloudAPIClient(WhatsAppClient):
         self.phone_number_id = phone_number_id
         self.graph_version = graph_version
         self.timeout = timeout
-        self._open = opener or urllib.request.urlopen
+        self._open = opener or urllib.request.build_opener(_NoRedirect()).open
 
     def __repr__(self):   # nunca mostrar el token
         return f'CloudAPIClient(phone_number_id={self.phone_number_id!r}, version={self.graph_version!r})'
@@ -62,15 +68,17 @@ class CloudAPIClient(WhatsAppClient):
         request = urllib.request.Request(url, method=method, data=data, headers=headers)
         try:
             with self._open(request, timeout=self.timeout) as response:
-                raw = response.read()
+                raw = response.read(MAX_RESPONSE_BYTES + 1)
         except urllib.error.HTTPError as exc:
             status = exc.code
             try:
-                raw_error = exc.read()
+                raw_error = exc.read(MAX_RESPONSE_BYTES + 1)
             except Exception:  # noqa: BLE001
                 raw_error = b''
             retry_after = _retry_after(exc.headers)
             exc.close()
+            if len(raw_error) > MAX_RESPONSE_BYTES:
+                raise WhatsAppAPIError('response_too_large', http_status=status) from None
             meta = _meta_code(raw_error)
             code = f'meta_{meta}' if meta is not None else f'http_{status}'
             raise WhatsAppAPIError(code, meta_code=meta, http_status=status, retry_after=retry_after) from None
@@ -82,10 +90,15 @@ class CloudAPIClient(WhatsAppClient):
             raise WhatsAppAPIError('network') from None
         except OSError:
             raise WhatsAppAPIError('network') from None
+        if len(raw) > MAX_RESPONSE_BYTES:
+            raise WhatsAppAPIError('response_too_large', http_status=502)
         try:
-            return json.loads(raw or b'{}')
-        except (ValueError, UnicodeDecodeError):
+            data = json.loads(raw or b'{}')
+        except (ValueError, UnicodeDecodeError, RecursionError):
             raise WhatsAppAPIError('unreadable_response', http_status=502) from None
+        if not isinstance(data, dict):
+            raise WhatsAppAPIError('unreadable_response', http_status=502)
+        return data
 
     # ── Envíos ──────────────────────────────────────────────────────────────
 

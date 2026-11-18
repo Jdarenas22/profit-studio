@@ -17,7 +17,7 @@
   <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
     <p class="text-white/40 text-xs uppercase tracking-wider mb-1">Total recaudado</p>
     <p class="text-3xl font-black text-primary">${{ total|floatformat:0 }}</p>
-    <p class="text-white/30 text-xs mt-1">COP · {{ payments|length }} pago{{ payments|length|pluralize:"s" }}</p>
+    <p class="text-white/30 text-xs mt-1">COP · {{ payments_count }} pago{{ payments_count|pluralize:"s" }}</p>
   </div>
   {% if client %}
   <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 flex items-center justify-between">
@@ -97,4 +97,5 @@
   </div>
   {% endif %}
 </div>
+{% include 'partials/pagination.html' %}
 {% endblock %}
