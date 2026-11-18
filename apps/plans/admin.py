@@ -41,7 +41,8 @@ class FoodAdmin(SuperuserOnlyAdmin):
     las cifras (nutricionista-dietista) lo marca aquí."""
     list_display = ('name', 'group', 'kcal100', 'protein100', 'carbs100', 'fat100', 'is_active', 'validated_by')
     list_filter = ('group', 'is_active', 'is_common')
-    search_fields = ('name',)
+    search_fields = ('name', 'fdc_id')
+    readonly_fields = ('fdc_id', 'source_snapshot', 'source_hash', 'source_imported_at')
     actions = ('mark_validated', 'clear_validation')
 
     @admin.action(description='Marcar como validados (a nombre de quien lo hace)')

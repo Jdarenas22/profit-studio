@@ -18,8 +18,10 @@ ya validado (convertido en `Routine` o en opciones de comida). Solo `TrainerCred
 están en el admin (solo la superusuaria).
 """
 import uuid
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -294,11 +296,23 @@ class Food(models.Model):
     usa en DEBUG: un profesional debe validar las cifras antes de usarlas con clientas reales."""
     name = models.CharField(max_length=120, unique=True, verbose_name='Nombre')
     group = models.CharField(max_length=20, choices=GROUP_CHOICES, verbose_name='Grupo')
-    kcal100 = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='kcal por 100 g')
-    protein100 = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Proteína (g) por 100 g')
-    carbs100 = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Carbohidratos (g) por 100 g')
-    fat100 = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Grasa (g) por 100 g')
-    fiber100 = models.DecimalField(max_digits=5, decimal_places=1, default=0, verbose_name='Fibra (g) por 100 g')
+    kcal100 = models.DecimalField(max_digits=9, decimal_places=3, verbose_name='kcal por 100 g')
+    protein100 = models.DecimalField(max_digits=8, decimal_places=3, verbose_name='Proteína (g) por 100 g')
+    carbs100 = models.DecimalField(max_digits=8, decimal_places=3, verbose_name='Carbohidratos (g) por 100 g')
+    fat100 = models.DecimalField(max_digits=8, decimal_places=3, verbose_name='Grasa (g) por 100 g')
+    fiber100 = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True, verbose_name='Fibra (g) por 100 g')
+    sugars100 = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True, verbose_name='Azúcares totales (g) por 100 g')
+    added_sugars100 = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True, verbose_name='Azúcares añadidos (g) por 100 g')
+    saturated_fat100 = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True, verbose_name='Grasa saturada (g) por 100 g')
+    sodium_mg100 = models.DecimalField(max_digits=9, decimal_places=3, null=True, blank=True, verbose_name='Sodio (mg) por 100 g')
+    fdc_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True, verbose_name='Identificador USDA FDC')
+    preparation_state = models.CharField(max_length=20, default='unknown', choices=[
+        ('unknown', 'Sin confirmar'), ('raw', 'Crudo'), ('cooked', 'Cocido'),
+        ('as_sold', 'Como se vende'), ('prepared', 'Preparación lista'),
+    ], verbose_name='Estado del alimento')
+    source_snapshot = models.JSONField(default=dict, blank=True, verbose_name='Registro de origen')
+    source_hash = models.CharField(max_length=64, blank=True)
+    source_imported_at = models.DateTimeField(null=True, blank=True)
     household_unit = models.CharField(
         max_length=60, blank=True, verbose_name='Medida casera (singular)', help_text='Ej.: taza cocida')
     household_unit_plural = models.CharField(
@@ -323,6 +337,40 @@ class Food(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        errors = {}
+        limits = {'kcal100': 1000, 'sodium_mg100': 100000,
+                  **{field: 100 for field in ('protein100', 'carbs100', 'fat100', 'fiber100',
+                                              'sugars100', 'added_sugars100', 'saturated_fat100')}}
+        for field, maximum in limits.items():
+            value = getattr(self, field)
+            if value is None:
+                continue
+            try:
+                value = Decimal(str(value))
+                if not value.is_finite() or not 0 <= value <= maximum:
+                    errors[field] = 'Valor fuera del intervalo válido por 100 g.'
+            except (InvalidOperation, ValueError):
+                errors[field] = 'Valor numérico inválido.'
+        if not errors:
+            if self.added_sugars100 is not None and self.sugars100 is not None and self.added_sugars100 > self.sugars100:
+                errors['added_sugars100'] = 'Los azúcares añadidos no pueden superar los totales.'
+            if self.saturated_fat100 is not None and self.fat100 is not None and self.saturated_fat100 > self.fat100:
+                errors['saturated_fat100'] = 'La grasa saturada no puede superar la grasa total.'
+        if errors:
+            raise ValidationError(errors)
+
+
+class FoodImportRevision(models.Model):
+    """Evidencia del dato externo, separada de su uso en planes de personas."""
+    food = models.ForeignKey(Food, on_delete=models.CASCADE, related_name='import_revisions')
+    source_hash = models.CharField(max_length=64)
+    snapshot = models.JSONField()
+    imported_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['food', 'source_hash'], name='food_source_revision_unique')]
 
 
 class NutritionPlan(models.Model):
@@ -383,6 +431,7 @@ class MealOption(models.Model):
     position = models.PositiveSmallIntegerField(verbose_name='Posición (1 a 3)')
     name = models.CharField(max_length=120, verbose_name='Nombre')
     preparation = models.CharField(max_length=500, blank=True, verbose_name='Preparación')
+    nutrient_snapshot = models.JSONField(default=dict, blank=True, verbose_name='Tabla nutricional al guardar')
     # Calculados por Python desde `Food` (nunca los escribe la IA)
     kcal = models.DecimalField(max_digits=6, decimal_places=1, verbose_name='kcal')
     protein_g = models.DecimalField(max_digits=5, decimal_places=1, verbose_name='Proteína (g)')

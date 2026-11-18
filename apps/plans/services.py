@@ -187,6 +187,8 @@ def food_items():
     return [
         rules_foods.FoodItem(
             id=row.id, name=row.name, group=row.group, kcal100=row.kcal100, protein100=row.protein100,
+            sugars100=row.sugars100, added_sugars100=row.added_sugars100,
+            saturated_fat100=row.saturated_fat100, sodium_mg100=row.sodium_mg100,
             carbs100=row.carbs100, fat100=row.fat100, fiber100=row.fiber100,
             household_unit=row.household_unit, household_unit_plural=row.household_unit_plural,
             household_grams=row.household_grams, allergen_tags=tuple(row.allergen_tags or ()),

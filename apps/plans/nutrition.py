@@ -69,12 +69,14 @@ def _dec1(value):
 
 
 def _save_option(slot, position, data, *, origin, needs_review=False, replaces=None, out_of_band=False):
+    from . import nutrient_tables
     totals = data['totals']
     option = MealOption.objects.create(
         slot=slot, position=position, name=data['name'][:120], preparation=data['preparation'][:500],
         kcal=_dec1(totals.kcal), protein_g=_dec1(totals.protein), carbs_g=_dec1(totals.carbs),
         fat_g=_dec1(totals.fat), origin=origin, needs_review=needs_review, replaces=replaces,
         out_of_band=out_of_band,
+        nutrient_snapshot=nutrient_tables.capture(data['items'], expected_totals=totals),
     )
     MealOptionItem.objects.bulk_create([
         MealOptionItem(option=option, food_id=item['food_id'], grams=item['grams'], order=order)
@@ -126,9 +128,11 @@ def create_nutrition_draft(job, assessment, generated, *, model_name, prompt_ver
 # ─── Lectura con medidas caseras ──────────────────────────────────────────────
 
 def _option_view(option):
+    from . import nutrient_tables
     items = [{'food': item.food, 'grams': item.grams,
               'household': rules_foods.household_text(item.food, item.grams)} for item in option.items.all()]
-    return {'option': option, 'items': items, 'letter': 'ABC'[option.position - 1] if option.position in (1, 2, 3) else ''}
+    return {'option': option, 'items': items, 'nutrients': nutrient_tables.option_table(option),
+            'letter': 'ABC'[option.position - 1] if option.position in (1, 2, 3) else ''}
 
 
 def plan_slots(plan, only_active=True):
@@ -241,6 +245,8 @@ def edit_option(plan, option, actor, name, preparation, items):
         raise OptionInvalid(result.errors)
     with transaction.atomic():
         option = MealOption.objects.select_for_update().get(pk=option.pk)
+        from . import nutrient_tables
+        option.nutrient_snapshot = nutrient_tables.capture(result.items, expected_totals=result.totals)
         option.items.all().delete()
         MealOptionItem.objects.bulk_create([
             MealOptionItem(option=option, food_id=item['food_id'], grams=item['grams'], order=order)
@@ -322,6 +328,7 @@ def alternatives_left(client, slot):
 
 
 def day_view(client, plan, on_date):
+    from . import nutrient_tables
     """Comidas con 3 opciones, lo elegido ese día y el total estimado contra el objetivo."""
     slots = plan_slots(plan, only_active=True)
     conflicts = conflicting_option_ids(plan)
@@ -346,7 +353,7 @@ def day_view(client, plan, on_date):
             picked += 1
             completed += entry['completed']
             option = choice.option
-            total = total + rules_foods.Totals(option.kcal, option.protein_g, option.carbs_g, option.fat_g)
+            total = total + nutrient_tables.option_totals(option)
     nutrition = plan.nutrition
     return {
         'slots': slots, 'chosen_count': picked, 'completed_count': completed, 'slot_count': len(slots),
