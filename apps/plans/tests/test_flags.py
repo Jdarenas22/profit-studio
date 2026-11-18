@@ -56,7 +56,7 @@ class BaselineTests(FlagTestCase):
 
     def test_every_documented_code_exists(self):
         expected = ([f'R{i:02d}' for i in range(1, 16)] + [f'Y{i:02d}' for i in range(1, 14)]
-                    + ['I01', 'I02'] + [f'M{i:02d}' for i in range(1, 10)])
+                    + ['I01', 'I02', 'I03', 'I04'] + [f'M{i:02d}' for i in range(1, 11)])
         known = {code.split('_')[0] for code in flags._TEXTS}
         self.assertTrue(set(expected) <= known, set(expected) - known)
 
@@ -374,3 +374,58 @@ class PureModuleTests(TestCase):
                 'sys.exit(1 if bad else 0)')
         result = subprocess.run([sys.executable, '-c', code], cwd=self.ROOT, capture_output=True, timeout=60)
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
+
+
+# ─── Ficha básica (contrato ficha-basica.md, 6.1 y 6.2) ───────────────────────
+
+NEUTRAL = dict(parq=parq(), conditions=(), medications=(), injuries=(), recent_surgery='none',
+               pregnancy_status='none', eating_disorder_history='no')
+
+
+class BasicProfileFlagTests(FlagTestCase):
+    def test_ruleset_version(self):
+        self.assertEqual(flags.RULESET_VERSION, 'flags/2')
+
+    def test_no_gives_the_legacy_all_no_report_plus_i03(self):
+        # Incluye banderas que NO dependen de lo médico (edad, IMC, meta): siguen igual
+        for extra in ({}, dict(age=75), dict(age=82), dict(goal='rehab'), dict(weight_kg=D('36') * 4, height_m=D('2.0')),
+                      dict(sleep_hours=D('4'), assessment_age=40)):
+            legacy = self.report(health_screen='legacy', **NEUTRAL, **extra)
+            answered_no = self.report(health_screen='no', **NEUTRAL, **extra)
+            self.assertEqual(answered_no.red, legacy.red, extra)
+            self.assertEqual(answered_no.yellow, legacy.yellow, extra)
+            self.assertEqual(answered_no.missing, legacy.missing, extra)
+            self.assertEqual((answered_no.blocked_scopes, answered_no.yellow_scopes),
+                             (legacy.blocked_scopes, legacy.yellow_scopes), extra)
+            self.assertEqual([f.code for f in answered_no.info],
+                             [f.code for f in legacy.info] + ['I03_HEALTH_SCREEN_NO'], extra)
+
+    def test_i03_only_when_the_answer_is_no(self):
+        self.assertFlag('I03_HEALTH_SCREEN_NO', health_screen='no')
+        for value in ('yes', 'legacy'):
+            self.assertNoFlag('I03_HEALTH_SCREEN_NO', health_screen=value)
+        flag = [f for f in self.report(health_screen='no').info if f.code == 'I03_HEALTH_SCREEN_NO'][0]
+        self.assertEqual((flag.severity, flag.blocks), ('info', ()))
+        self.assertIn('no vio el cuestionario detallado', flag.text)
+
+    def test_i04_lists_the_labels(self):
+        report = self.report(defaulted_fields=('cooking_access', 'activity_level'),
+                             defaulted_labels=('Posibilidad de cocinar', 'Nivel de actividad diaria'))
+        flag = [f for f in report.info if f.code == 'I04_DEFAULTS'][0]
+        self.assertEqual(flag.text, 'Datos que no declaró (se usó un valor por defecto): '
+                                    'Posibilidad de cocinar, Nivel de actividad diaria.')
+        self.assertEqual(flag.action, 'Opcional: pregúntaselos.')
+        self.assertFalse(report.has_red)
+        self.assertNoFlag('I04_DEFAULTS')
+        # Sin etiquetas (llamada directa al motor) usa los códigos
+        fallback = [f for f in self.report(defaulted_fields=('budget_level',)).info if f.code == 'I04_DEFAULTS'][0]
+        self.assertIn('budget_level', fallback.text)
+
+    def test_m10_only_for_nutrition_and_never_blocks(self):
+        report = self.report(defaulted_fields=('activity_level',))
+        flag = [f for f in report.missing if f.code == 'M10_NO_ACTIVITY'][0]
+        self.assertEqual((flag.severity, flag.scopes), ('missing', ('nutrition',)))
+        self.assertEqual(report.blocked_scopes, frozenset())
+        # Contraprueba: otros datos por defecto no producen M10
+        self.assertNoFlag('M10_NO_ACTIVITY', defaulted_fields=('cooking_access', 'budget_level', 'equipment'))
+        self.assertNoFlag('M10_NO_ACTIVITY')

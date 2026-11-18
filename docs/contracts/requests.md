@@ -310,6 +310,56 @@ Mensajes de éxito y error que llegan por `messages` (ya redactados):
 
 **Reglas de siempre:** sin `|safe` ni `innerHTML` con datos, no poner el teléfono en la URL y no cargar scripts nuevos de terceros.
 
+### Ficha básica: FB-01 a FB-04 (APROBADO el 2026-11-17; backend listo en `feature/ficha-basica`)
+
+Contrato: `docs/contracts/ficha-basica.md` (secciones 2 a 4 y 7; contexto exacto en la sección 10). La persona aprobó todas las recomendaciones (1A a 7A). Rama `feature/ficha-basica`. **Si este bloque difiere del «Contrato A2 para el frontend» en la ficha, manda este bloque.** El resto de A2 no cambia: rutas, acceso, `no-store`, `errors`, `form` y la regla de no usar `x-if`.
+
+- **FB-01. Asistente** (`health/partials/profile_wizard.html`; lo usan la clienta y el entrenador). Tiene 5 pasos (`steps`):
+  1. Datos básicos y meta: `birth_date`, `sex_for_calculation`, `training_goal`. El peso meta pasa al paso 5.
+  2. Salud: radio `health_screen` (`choices.screen`; texto exacto en la sección 3.1 del contrato, con la lista de casos visible; ninguno marcado al empezar). Con «Sí» se despliegan las 7 preguntas `parq_q*` y todo el detalle médico actual. Con «No» no se muestra nada médico.
+  3. Alimentación: radio `food_screen` (texto en la sección 3.2). Con «Sí» se despliegan `diet_type` (sin preselección), `allergies`, `allergy_severity` e `intolerances`, con la nota «Si eres celíaca, márcalo también en Salud».
+  4. Entrenamiento: `training_days_per_week`, `session_minutes`, `training_place` y `experience_level`. Desde aquí ya se puede guardar.
+  5. «Más detalles (opcional)»: `target_weight_kg`, comidas y horarios, `cooking_access`, `budget_level`, `eats_out_per_week`, gustos, `equipment` (solo si entrena en casa), `activity_level` y `sleep_hours`. Ningún radio marcado al empezar. Aviso: «Si quieres un plan de alimentación, cuéntanos al menos tu nivel de actividad diaria».
+
+  Reglas para el asistente:
+  - Lo desplegado se oculta con `x-show`. El servidor descarta lo médico si llega «No», así que no hace falta limpiar campos en el navegador.
+  - Si `screen_was_yes` es verdadero y la persona cambia a «No», mostrar antes de guardar: «Al responder No se quitarán de tu ficha los datos de salud que habías registrado.»
+  - Errores nuevos posibles: `health_screen` y `food_screen` (incluido «Marcaste que sí, pero no indicaste qué…»).
+  - El aviso fijo de arriba pasa a ser: «Solo te pedimos lo necesario para entrenar. Si tienes algún tema de salud o de alimentación, cuéntanoslo y se abrirán más preguntas.»
+- **FB-02. Resumen de la clienta** (`health/partials/profile_summary.html`, `profile_detail.html`):
+  - Con `profile.health_declared_none`: «No indicaste problemas de salud», sin la lista médica ni el cuestionario.
+  - Con `profile.food_declared_none`: «Sin alergias, intolerancias ni dieta especial».
+  - Campos de `profile.defaulted_fields`: «No indicado». Además, un enlace «Completar más detalles» a `{% url 'member_health_profile' %}?edit=1`.
+- **FB-03. Ficha del entrenador** (`trainer/health_profile.html`):
+  - Mostrar la respuesta a cada pregunta: «Salud: respondió No (no vio el cuestionario detallado)», «Respondió Sí» o, si es `legacy`, «Cuestionario completo».
+  - Mostrar `profile.defaulted_labels` como «No declarado por la clienta».
+  - Las banderas nuevas (`I03_HEALTH_SCREEN_NO`, `I04_DEFAULTS` y `M10_NO_ACTIVITY`) llegan en `flags`, en los grupos que ya existen: no hace falta código nuevo, solo comprobar que se ven.
+- **FB-04. Pedido de plan** (`plans/request.html`): el requisito nuevo `D07_NUTRITION_DETAILS` llega en `missing_texts`, que ya existe. Comprobar que el texto se ve junto al enlace a la ficha.
+
+Pedidos al frontend: los cuatro de arriba (ya se pueden construir). Contexto nuevo en el formulario:
+- `form.health_screen` y `form.food_screen` (`'yes'` | `'no'` | `''`).
+- `form.defaulted_fields` (lista).
+- `choices.screen`.
+- `screen_was_yes` (bool).
+
+**Contexto exacto implementado (2026-11-17).** Lo que no aparece aquí no cambió respecto al «Contrato A2».
+
+- **FB-01** (`health/profile_form.html` y `trainer/health_profile_form.html`, que incluyen `health/partials/profile_wizard.html`):
+  - `steps`: 5 diccionarios `{number, key, title, optional}`; `key` = `basics`, `health`, `food`, `training`, `details`; títulos «Datos básicos y meta», «Salud», «Alimentación», «Entrenamiento», «Más detalles (opcional)»; `optional` solo es `True` en el 5.
+  - `choices.screen` = `[('yes', 'Sí, hay algo que contar'), ('no', 'No, ninguna me aplica')]` (para las dos preguntas). El resto de `choices` no cambió.
+  - `form.health_screen` / `form.food_screen`: `''` en una ficha nueva (ninguna marcada); al editar, la respuesta guardada, y en una ficha `legacy`, la preselección de la sección 5 del contrato.
+  - `form.defaulted_fields`: lista de códigos entre `cooking_access`, `budget_level`, `eats_out_per_week`, `equipment`, `activity_level`. Esos campos llegan vacíos en `form` (sin radio marcado).
+  - Al editar una ficha con «No», llegan vacías las preguntas que la clienta nunca vio: `parq_q1`..`parq_q7`, `recent_surgery`, `pregnancy_status`, `eating_disorder_history` y, con «No» en alimentación, `diet_type`.
+  - `screen_was_yes` (bool): la versión vigente tiene datos médicos; mostrar el aviso de la regla de arriba si cambia a «No». **Nuevo:** `food_screen_was_yes` (bool), lo mismo para dieta, alergias e intolerancias: «Al responder No se quitarán de tu ficha la dieta, las alergias y las intolerancias que habías registrado.»
+  - Pasos de los errores (`error_steps`): `health_screen`, `parq_q*` y todo lo médico = 2; `food_screen`, `diet_type`, `allergies`, `allergy_severity`, `intolerances` = 3; `training_days_per_week`, `session_minutes`, `training_place`, `experience_level` = 4; `target_weight_kg`, comidas, horarios, `cooking_access`, `budget_level`, `eats_out_per_week`, gustos, `equipment`, `activity_level`, `sleep_hours` = 5.
+  - Mensajes nuevos que pueden llegar en `errors`: `health_screen` («Cuéntanos si tienes algún problema de salud (Sí o No).» o «Marcaste que sí, pero no indicaste qué. Márcalo abajo o cambia tu respuesta a No.») y `food_screen` («Cuéntanos si tienes alergias, intolerancias o una dieta especial (Sí o No).» o «Marcaste que sí, pero no indicaste cuál. Márcalo o cambia tu respuesta a No.»).
+  - Con sexo masculino y «Sí» en salud, la pregunta de embarazo se puede ocultar: el servidor guarda `none`.
+  - **Ajuste temporal del backend:** el asistente actual tiene dos radios marcados «REEMPLAZAR POR frontend-architect (FB-01)» para poder guardar mientras tanto. Reemplazarlos con el diseño de FB-01.
+- **FB-02** (`health/profile_detail.html` / `profile_summary.html`): `profile.health_declared_none`, `profile.food_declared_none`, `profile.defaulted_fields` (lista de códigos: usar `{% if 'activity_level' in profile.defaulted_fields %}`) y `profile.defaulted_labels` (lista de etiquetas en español). El resto del contexto no cambió.
+- **FB-03** (`trainer/health_profile.html`): `profile.health_screen` / `profile.food_screen` (`'yes'` | `'no'` | `'legacy'`; también `profile.get_health_screen_display`), `profile.defaulted_labels`. En `flags.info` llegan `I03_HEALTH_SCREEN_NO` e `I04_DEFAULTS` (su `text` ya trae las etiquetas); en `flags.missing`, `M10_NO_ACTIVITY`.
+- **FB-04** (`plans/request.html`): con `kind=nutrition`, `eligibility.missing` puede traer `{'code': 'D07_NUTRITION_DETAILS', 'text': 'Para armar tu plan de alimentación necesitamos tu nivel de actividad diaria. Complétalo en "Más detalles" de tu ficha.', 'url': '/health/profile/?edit=1'}`. La plantilla actual ya pinta el texto y el enlace «Ir ahora»; solo hay que comprobarlo. Opcional para FB-01: si quieren que ese enlace abra directamente el paso 5, pídanlo aquí (hoy el asistente abre en el primer paso con errores o en el 1).
+- En el resumen del entrenador del plan (`trainer/plan_detail.html`, `profile_summary.activity`) ya llega «No indicado» cuando no la declaró.
+
 ## De frontend-architect para arquitecto-backend
 
 ### Fase A1: plantillas entregadas (F-01, F-02, F-03) y lo que asumen de las vistas

@@ -59,9 +59,32 @@ def adult_birth_date(years=30):
     return today.replace(year=today.year - years, day=1) - timedelta(days=10)
 
 
+# Valor neutro de cada campo médico / alimentario en un POST (lo que manda el navegador cuando la
+# clienta no marca nada)
+_HEALTH_POST_NEUTRAL = {
+    'conditions': [], 'condition_controlled': '', 'medical_clearance': '', 'clearance_date': '',
+    'medications': [], 'injuries': [], 'recent_surgery': 'none', 'pregnancy_status': 'none',
+    'eating_disorder_history': 'no', 'other_condition_text': '', 'medications_text': '',
+    'injuries_text': '', **{f'parq_q{number}': 'no' for number in range(1, 8)},
+}
+_FOOD_POST_NEUTRAL = {'diet_type': 'omnivore', 'allergies': [], 'allergy_severity': '', 'intolerances': []}
+
+
+def _screen_for(overrides, neutral):
+    """'yes' si `overrides` trae algún dato distinto del neutro; si no, 'no'."""
+    for name, value in overrides.items():
+        if name in neutral and value is not None and value != neutral[name]:
+            return 'yes'
+    return 'no'
+
+
 def valid_post(**overrides):
-    """POST completo y válido de la ficha (como lo enviaría el navegador). Con `clave=None` se
-    quita el campo; las listas van como listas."""
+    """POST completo y válido de la ficha (como lo enviaría el navegador), con TODOS los datos
+    opcionales declarados. Con `clave=None` se quita el campo; las listas van como listas.
+
+    Ficha básica: si no se pasan `health_screen` / `food_screen`, se deducen como lo haría la
+    clienta: 'yes' si las sobrescrituras traen algún dato médico (o alimentario) distinto del
+    neutro, y 'no' si no. Así `valid_post(conditions=['asthma'])` responde «Sí» y lo marca."""
     data = {
         'birth_date': adult_birth_date(30).isoformat(),
         'sex_for_calculation': 'F',
@@ -81,13 +104,35 @@ def valid_post(**overrides):
     }
     for number in range(1, 8):
         data[f'parq_q{number}'] = 'no'
+    data['health_screen'] = _screen_for(overrides, _HEALTH_POST_NEUTRAL)
+    data['food_screen'] = _screen_for(overrides, _FOOD_POST_NEUTRAL)
     data.update(overrides)
     return {key: value for key, value in data.items() if value is not None}
 
 
-def cleaned_profile(known_height=None, **overrides):
-    """`cleaned_data` de un POST válido (falla la prueba si el formulario lo rechaza)."""
-    form = HealthProfileForm(valid_post(**overrides), known_height=known_height)
+def basic_post(**overrides):
+    """Ficha básica MÍNIMA (contrato ficha-basica, sección 2): solo los pasos 1 a 4, con «No» en
+    salud y en alimentación y sin abrir «Más detalles». Las comidas obligatorias llegan siempre
+    (campos ocultos del asistente)."""
+    data = {
+        'birth_date': adult_birth_date(30).isoformat(),
+        'sex_for_calculation': 'F',
+        'training_goal': 'toning',
+        'health_screen': 'no',
+        'food_screen': 'no',
+        'training_days_per_week': '3', 'session_minutes': '45', 'training_place': 'gym',
+        'experience_level': 'beginner',
+        'meal_slots': ['breakfast', 'lunch', 'dinner'],
+    }
+    data.update(overrides)
+    return {key: value for key, value in data.items() if value is not None}
+
+
+def cleaned_profile(known_height=None, basic=False, **overrides):
+    """`cleaned_data` de un POST válido (falla la prueba si el formulario lo rechaza). Con
+    `basic=True` parte de la ficha básica mínima (`basic_post`)."""
+    post = basic_post(**overrides) if basic else valid_post(**overrides)
+    form = HealthProfileForm(post, known_height=known_height)
     assert form.is_valid(), form.errors.as_json()
     return form.cleaned_data
 
@@ -116,11 +161,12 @@ class HealthScenarioTestCase(ScenarioTestCase):
             purpose=purpose, version=last.version + 1, body=body, is_current=True,
         )
 
-    def make_profile(self, user, actor=None, grant=True, **overrides):
-        """Guarda una ficha (versión nueva) por el servicio, como lo haría la vista."""
+    def make_profile(self, user, actor=None, grant=True, basic=False, **overrides):
+        """Guarda una ficha (versión nueva) por el servicio, como lo haría la vista. Con
+        `basic=True`, la ficha básica mínima."""
         if grant and not services.has_health_consent(user):
             self.grant(user)
-        return services.save_profile(user, cleaned_profile(**overrides), actor=actor or user)
+        return services.save_profile(user, cleaned_profile(basic=basic, **overrides), actor=actor or user)
 
     @staticmethod
     def new_member(username, with_membership=True, plan=None):
@@ -135,4 +181,4 @@ class HealthScenarioTestCase(ScenarioTestCase):
 
 
 __all__ = ['HealthScenarioTestCase', 'stub_missing_templates', 'PURPOSE_AI', 'PURPOSE_HEALTH_DATA',
-           'valid_post', 'cleaned_profile', 'adult_birth_date']
+           'valid_post', 'basic_post', 'cleaned_profile', 'adult_birth_date']

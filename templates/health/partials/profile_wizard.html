@@ -84,6 +84,9 @@
         </p>
       </div>
 
+      {# REEMPLAZAR POR frontend-architect (FB-01): ajuste mínimo del backend para que el asistente actual pueda guardar con la ficha básica. #}
+      {% include 'health/partials/radio_group.html' with name='health_screen' legend='¿Tienes algún problema de salud, lesión o tomas medicamentos?' options=choices.screen value=form.health_screen required=True help='Si respondes No, no se guardará nada de lo que marques en este paso.' %}
+
       {% include 'health/partials/check_group.html' with name='conditions' legend='Condiciones de salud' options=choices.conditions selected=form.conditions help='Marca las que te haya diagnosticado un profesional de la salud. Si no tienes ninguna, déjalo en blanco.' %}
       {% include 'health/partials/input_field.html' with name='other_condition_text' label='Si marcaste «Otra condición», ¿cuál?' value=form.other_condition_text maxlength='300' %}
 
@@ -161,6 +164,9 @@
         <p class="text-primary text-xs font-bold uppercase tracking-wider">Paso 4 de {{ steps|length }}</p>
         <h2 id="step-title-4" tabindex="-1" x-ref="title4" class="text-xl font-black text-white scroll-mt-24 focus:outline-none">{{ steps.3.title }}</h2>
       </div>
+
+      {# REEMPLAZAR POR frontend-architect (FB-01): ajuste mínimo del backend (ver paso 2). #}
+      {% include 'health/partials/radio_group.html' with name='food_screen' legend='¿Tienes alergias, intolerancias o una dieta especial?' options=choices.screen value=form.food_screen required=True help='Si respondes No, no se guardará la dieta ni las alergias que marques aquí.' %}
 
       {% include 'health/partials/select_field.html' with name='diet_type' label='¿Cómo describirías tu alimentación?' options=choices.diet value=form.diet_type required=True %}
 
