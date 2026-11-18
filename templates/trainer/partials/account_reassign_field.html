@@ -1,0 +1,37 @@
+{% comment %}
+  C-06 y C-07: a quién pasan las clientas del entrenador (`reassign_to`) y aviso de los planes que vuelven
+  a la bandeja. Espera `client_count`, `in_review_count`, `targets`, `form`, `errors`. El select es
+  obligatorio y NO tiene opción preseleccionada (la superusuaria elige a conciencia).
+{% endcomment %}
+{% if client_count %}
+<div>
+  <label for="acct-reassign_to" class="block text-white/90 text-sm font-semibold mb-2">
+    Elige a quién pasar {% if client_count == 1 %}su clienta{% else %}sus {{ client_count }} clientas{% endif %} <span class="text-red-300" aria-hidden="true">*</span>
+  </label>
+  <select id="acct-reassign_to" name="reassign_to" required
+          aria-describedby="acct-reassign-help{% if errors.reassign_to %} acct-reassign_to-error{% endif %}"{% if errors.reassign_to %} aria-invalid="true"{% endif %}
+          class="w-full min-h-[48px] bg-zinc-950 [color-scheme:dark] border {% if errors.reassign_to %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-base sm:text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+    <option value="">Elige un entrenador/a</option>
+    {% for t in targets %}<option value="{{ t.pk }}"{% if form.reassign_to == t.pk|stringformat:"d" %} selected{% endif %}>{{ t.display_name }}{% if t.is_superuser %} (dueña){% endif %}</option>{% endfor %}
+  </select>
+  {% if errors.reassign_to %}
+  <p id="acct-reassign_to-error" class="mt-2 flex items-start gap-1.5 text-red-300 text-sm">
+    <i class="fa fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ errors.reassign_to }}</span>
+  </p>
+  {% endif %}
+  <p id="acct-reassign-help" class="mt-2 text-white/60 text-xs leading-relaxed">
+    Pasan todas, también las desactivadas. Solo aparecen entrenadores con la cuenta activa.
+  </p>
+</div>
+{% else %}
+<p class="flex items-start gap-2 text-white/70 text-sm">
+  <i class="fa fa-users-slash mt-0.5 text-white/60" aria-hidden="true"></i>
+  <span>No tiene clientas asignadas: no hay nada que reasignar.</span>
+</p>
+{% endif %}
+{% if in_review_count %}
+<p role="note" class="flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sky-100 text-sm">
+  <i class="fa fa-inbox mt-0.5 shrink-0" aria-hidden="true"></i>
+  <span>{{ in_review_count }} plan{{ in_review_count|pluralize:"es" }} que estaba revisando vuelve{{ in_review_count|pluralize:"n" }} a la bandeja «Planes por revisar».</span>
+</p>
+{% endif %}

@@ -1,24 +1,73 @@
 {% extends "trainer/base.html" %}
 {% comment %}
-  ESQUELETO MÍNIMO (backend, 2026-11-17): REEMPLAZAR POR frontend-architect.
-  C-03 «Desactivar clienta». Contrato del contexto: docs/contracts/requests.md, «Cuentas: contrato C-01 a C-08».
-  Contexto: client, reasons, errors, form.
+  C-03 «Desactivar la cuenta de una clienta» (el entrenador con sus clientas, o la superusuaria).
+  Contrato: docs/contracts/requests.md, «Cuentas: contrato C-01 a C-08». Contexto: client, reasons, errors,
+  form. Error pintado junto al campo: reason. Es reversible: estilo de advertencia, no de peligro.
 {% endcomment %}
 {% block title %}Desactivar cuenta — ProFit Studio{% endblock %}
+
 {% block trainer_content %}
-<div class="max-w-md">
-  <h1>Desactivar cuenta</h1>
-  <p>{{ client.display_name }} no podrá iniciar sesión. Su historial, pagos y ficha se conservan. Puedes reactivarla cuando quieras.</p>
-  <form method="post">
+<div class="max-w-xl">
+
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'trainer_clients' %}" class="rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Clientes</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <a href="{% url 'trainer_client_detail' client.pk %}" class="rounded hover:text-primary transition-colors [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ client.display_name }}</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Desactivar</span>
+  </nav>
+
+  <header class="flex items-start gap-4 mb-6">
+    <div class="w-12 h-12 shrink-0 rounded-2xl bg-yellow-500/15 flex items-center justify-center">
+      <i class="fa fa-user-slash text-yellow-300 text-xl" aria-hidden="true"></i>
+    </div>
+    <div class="min-w-0">
+      <h1 class="text-2xl font-black text-white [overflow-wrap:anywhere]">Desactivar la cuenta de {{ client.display_name }}</h1>
+      <p class="text-white/80 text-sm leading-relaxed mt-2">
+        {{ client.display_name }} no podrá iniciar sesión. Su historial, pagos y ficha se conservan. Puedes reactivarla cuando quieras.
+      </p>
+    </div>
+  </header>
+
+  {% include 'trainer/partials/account_error_summary.html' %}
+
+  {% if not client.is_active %}
+  <p role="note" class="mb-6 flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sky-100 text-sm">
+    <i class="fa fa-circle-info mt-0.5 shrink-0" aria-hidden="true"></i>
+    <span>Esta cuenta ya está desactivada{% if client.deactivated_at %} desde el {{ client.deactivated_at|date:"d/m/Y" }}{% endif %}.</span>
+  </p>
+  {% endif %}
+
+  <section aria-labelledby="deactivate-effects-title" class="mb-6 rounded-2xl border border-white/10 bg-zinc-900 p-5">
+    <h2 id="deactivate-effects-title" class="text-white font-bold text-sm uppercase tracking-wider mb-3">Mientras esté desactivada</h2>
+    <ul class="space-y-2 text-sm text-white/80">
+      <li class="flex items-start gap-2"><i class="fa fa-right-from-bracket mt-0.5 w-4 text-white/60" aria-hidden="true"></i><span>Se cierran sus sesiones abiertas.</span></li>
+      <li class="flex items-start gap-2"><i class="fa fa-lock mt-0.5 w-4 text-white/60" aria-hidden="true"></i><span>Su información queda de solo lectura en el panel.</span></li>
+      <li class="flex items-start gap-2"><i class="fa fa-bell-slash mt-0.5 w-4 text-white/60" aria-hidden="true"></i><span>No recibe avisos de WhatsApp y sus pedidos de planes en espera se cancelan.</span></li>
+      <li class="flex items-start gap-2"><i class="fa fa-calendar mt-0.5 w-4 text-white/60" aria-hidden="true"></i><span>La membresía no se congela: sus fechas siguen corriendo.</span></li>
+    </ul>
+  </section>
+
+  <form method="post" action="{% url 'trainer_client_deactivate' client.pk %}"
+        aria-labelledby="deactivate-form-title"
+        x-data="{ sending: false }" @submit="if (sending) { $event.preventDefault() } else { sending = true }" @pageshow.window="sending = false"
+        class="rounded-2xl border border-white/10 bg-zinc-900 p-5 sm:p-6 space-y-5">
     {% csrf_token %}
-    <label for="reason">Motivo (opcional)</label>
-    <select id="reason" name="reason">
-      <option value="">—</option>
-      {% for code, label in reasons %}<option value="{{ code }}"{% if form.reason == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
-    </select>
-    {% if errors.reason %}<p role="alert">{{ errors.reason }}</p>{% endif %}
-    <button type="submit">Desactivar</button>
+    <h2 id="deactivate-form-title" class="sr-only">Confirmar la desactivación</h2>
+
+    {% include 'trainer/partials/account_reason_field.html' with required=False %}
+
+    <div class="pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center gap-3">
+      <button type="submit" :aria-disabled="sending.toString()"
+              class="inline-flex items-center justify-center gap-2 min-h-[48px] bg-yellow-400 hover:bg-yellow-300 text-black text-sm font-bold px-6 rounded-xl transition-colors aria-disabled:opacity-60 aria-disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-user-slash'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Desactivando...' : 'Desactivar'">Desactivar</span>
+      </button>
+      <a href="{% url 'trainer_client_detail' client.pk %}"
+         class="inline-flex items-center justify-center min-h-[48px] bg-white/10 hover:bg-white/20 text-white text-sm font-semibold px-6 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        Cancelar
+      </a>
+    </div>
   </form>
-  <a href="{% url 'trainer_client_detail' client.pk %}">Cancelar</a>
 </div>
 {% endblock %}

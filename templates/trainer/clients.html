@@ -3,16 +3,24 @@
 {% block title %}Clientes — ProFit Studio{% endblock %}
 
 {% block trainer_content %}
-<div class="flex items-center justify-between mb-8">
+{% comment %}
+  C-01 (docs/contracts/requests.md, «Cuentas: contrato C-01 a C-08»): pestañas Activas / Desactivadas /
+  Todas con `status` y `counts`; etiqueta «Desactivada» en cada fila inactiva. Las eliminadas nunca llegan.
+{% endcomment %}
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
   <div>
     <h1 class="text-2xl font-black text-white">Clientes</h1>
-    <p class="text-white/40 text-sm mt-1">{{ clients|length }} miembro{{ clients|length|pluralize:"s" }} registrado{{ clients|length|pluralize:"s" }}</p>
+    <p class="text-white/60 text-sm mt-1">
+      {{ clients|length }} {% if status == 'inactive' %}desactivada{{ clients|length|pluralize:"s" }}{% elif status == 'all' %}en total{% else %}activa{{ clients|length|pluralize:"s" }}{% endif %}
+    </p>
   </div>
   <a href="{% url 'trainer_add_client' %}"
-     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
-    <i class="fa fa-user-plus"></i> Agregar cliente
+     class="inline-flex items-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+    <i class="fa fa-user-plus" aria-hidden="true"></i> Agregar cliente
   </a>
 </div>
+
+{% include 'trainer/partials/account_status_tabs.html' with masculine=False %}
 
 {% if is_superuser and unassigned_count %}
 <div class="mb-6 flex items-center gap-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-5 py-4">
@@ -35,24 +43,29 @@
   {% for client in clients %}
 
   {% with no_trainer=client.assigned_trainer|default:None %}
-  <div class="bg-zinc-900 border {% if is_superuser and not client.assigned_trainer %}border-yellow-500/20 hover:border-yellow-500/40{% else %}border-white/10 hover:border-primary/40{% endif %} rounded-2xl overflow-hidden transition-all duration-200 group">
+  <div class="bg-zinc-900 border {% if not client.is_active %}border-white/10 border-dashed hover:border-white/30{% elif is_superuser and not client.assigned_trainer %}border-yellow-500/20 hover:border-yellow-500/40{% else %}border-white/10 hover:border-primary/40{% endif %} rounded-2xl overflow-hidden transition-all duration-200 group">
 
     <!-- Área principal clickeable -->
-    <a href="{% url 'trainer_client_detail' client.pk %}" class="block p-5">
+    <a href="{% url 'trainer_client_detail' client.pk %}" class="block p-5 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
       <div class="flex items-center gap-4 mb-4">
-        <div class="w-12 h-12 {% if is_superuser and not client.assigned_trainer %}bg-yellow-500/10{% else %}bg-primary/10 group-hover:bg-primary/20{% endif %} rounded-2xl flex items-center justify-center shrink-0 transition-colors">
+        <div class="w-12 h-12 {% if not client.is_active %}bg-white/10{% elif is_superuser and not client.assigned_trainer %}bg-yellow-500/10{% else %}bg-primary/10 group-hover:bg-primary/20{% endif %} rounded-2xl flex items-center justify-center shrink-0 transition-colors">
           {% if client.profile_photo %}
-          <img src="{{ client.profile_photo.url }}" class="w-12 h-12 rounded-2xl object-cover">
+          <img src="{{ client.profile_photo.url }}" alt="" width="48" height="48" loading="lazy" class="w-12 h-12 rounded-2xl object-cover{% if not client.is_active %} grayscale opacity-70{% endif %}">
           {% else %}
-          <span class="{% if is_superuser and not client.assigned_trainer %}text-yellow-400{% else %}text-primary{% endif %} font-black text-lg">
+          <span class="{% if not client.is_active %}text-white/70{% elif is_superuser and not client.assigned_trainer %}text-yellow-400{% else %}text-primary{% endif %} font-black text-lg">
             {{ client.first_name|first|upper|default:client.username|first|upper }}
           </span>
           {% endif %}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-white font-bold truncate">{{ client.get_full_name|default:client.username }}</p>
-          <p class="text-white/40 text-xs truncate">{{ client.email|default:"Sin email" }}</p>
+          <p class="text-white font-bold truncate">{{ client.display_name }}</p>
+          <p class="text-white/60 text-xs truncate">{{ client.email|default:"Sin email" }}</p>
         </div>
+        {% if not client.is_active %}
+        <span class="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white/80">
+          <i class="fa fa-user-slash" aria-hidden="true"></i> Desactivada
+        </span>
+        {% endif %}
       </div>
 
       <!-- Estado membresía -->
@@ -83,8 +96,8 @@
     <div class="border-t {% if not client.assigned_trainer %}border-yellow-500/15 bg-yellow-500/5{% else %}border-white/5{% endif %} px-5 py-3 flex items-center justify-between">
       {% if client.assigned_trainer %}
       <span class="text-white/30 text-xs flex items-center gap-1.5">
-        <i class="fa fa-user-tie text-white/20"></i>
-        {{ client.assigned_trainer.first_name }} {{ client.assigned_trainer.last_name }}
+        <i class="fa fa-user-tie text-white/20" aria-hidden="true"></i>
+        {% include 'trainer/partials/person_name.html' with person=client.assigned_trainer %}
       </span>
       <a href="{% url 'trainer_assign_client' client.pk %}"
          class="text-white/20 hover:text-primary text-xs font-medium transition-colors">
@@ -105,6 +118,18 @@
   </div>
   {% endwith %}
   {% endfor %}
+</div>
+{% elif status == 'inactive' or counts.all %}
+<div class="text-center py-16 bg-zinc-900 border border-white/10 rounded-2xl px-4">
+  <div class="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+    <i class="fa {% if status == 'inactive' %}fa-user-slash{% else %}fa-users{% endif %} text-white/40 text-xl" aria-hidden="true"></i>
+  </div>
+  <h2 class="text-white font-bold text-lg mb-1">
+    {% if status == 'inactive' %}No hay clientas desactivadas{% else %}No hay clientas activas{% endif %}
+  </h2>
+  <p class="text-white/60 text-sm">
+    {% if status == 'inactive' %}Las cuentas que desactives aparecerán aquí y podrás reactivarlas.{% else %}Revisa la pestaña «Desactivadas» o «Todas».{% endif %}
+  </p>
 </div>
 {% else %}
 <div class="text-center py-24 bg-zinc-900 border border-white/10 rounded-2xl">

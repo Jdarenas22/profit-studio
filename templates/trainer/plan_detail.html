@@ -18,6 +18,13 @@
 </div>
 {% endif %}
 
+{% if not client.is_active %}
+<div role="note" class="mb-4 flex items-start gap-3 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-yellow-100 text-sm">
+  <i class="fa fa-lock mt-0.5 shrink-0" aria-hidden="true"></i>
+  <span>La cuenta de esta clienta está desactivada{% if client.deactivated_at %} desde el {{ client.deactivated_at|date:"d/m/Y" }}{% endif %}: no se puede tomar, editar, aprobar ni regenerar el plan. Puedes archivarlo. Reactívala desde su ficha para hacer cambios.</span>
+</div>
+{% endif %}
+
 <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
   <div class="min-w-0">
     <h1 class="text-2xl font-black text-white [overflow-wrap:anywhere]">{{ plan.get_kind_display }}: {{ client.get_full_name|default:client.username }}</h1>
@@ -28,7 +35,7 @@
                    {% if plan.status == 'draft_ai' %}bg-primary/20 text-primary{% elif plan.status == 'in_review' %}bg-yellow-500/20 text-yellow-100{% elif plan.status == 'approved' %}bg-green-500/20 text-green-100{% else %}bg-white/10 text-white/70{% endif %}">{{ plan.get_status_display }}</span>
     </p>
   </div>
-  {% if plan.routine_id and plan.is_pending %}
+  {% if plan.routine_id and plan.is_pending and client.is_active %}
   <form method="POST" action="{% url 'trainer_plan_take' plan.pk %}">
     {% csrf_token %}
     <input type="hidden" name="then" value="builder">
@@ -101,7 +108,7 @@
       <h2 class="text-white font-bold text-sm mb-3">Historial</h2>
       <ul class="space-y-1 text-sm">
         {% for event in events %}
-        <li class="text-white/70">{{ event.at|date:"d/m/Y H:i" }} — {{ event.get_action_display }}{% if event.actor %} ({{ event.actor.get_full_name|default:event.actor.username }}){% endif %}{% if event.note %}: <span class="text-white/50 [overflow-wrap:anywhere]">{{ event.note }}</span>{% endif %}</li>
+        <li class="text-white/70">{{ event.at|date:"d/m/Y H:i" }} — {{ event.get_action_display }}{% if event.actor %} ({% include 'trainer/partials/person_name.html' with person=event.actor %}){% endif %}{% if event.note %}: <span class="text-white/50 [overflow-wrap:anywhere]">{{ event.note }}</span>{% endif %}</li>
         {% endfor %}
       </ul>
     </div>
@@ -130,7 +137,7 @@
       <a href="{% url 'trainer_health_profile' client.pk %}" class="mt-3 inline-block text-primary text-sm underline underline-offset-2">Ver la ficha completa</a>
     </div>
 
-    {% if plan.is_pending %}
+    {% if plan.is_pending and client.is_active %}
     <!-- Aprobar -->
     <form method="POST" action="{% url 'trainer_plan_approve' plan.pk %}" class="rounded-2xl border border-green-500/30 bg-zinc-900 p-5 space-y-3"
           x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
@@ -204,7 +211,7 @@
 
     {% if plan.is_approved %}
     <div class="rounded-2xl border border-green-500/30 bg-green-500/5 p-5 text-sm text-white/80">
-      Aprobado el {{ plan.approved_at|date:"d/m/Y H:i" }}{% if plan.approved_by %} por {{ plan.approved_by.get_full_name|default:plan.approved_by.username }}{% endif %}.
+      Aprobado el {{ plan.approved_at|date:"d/m/Y H:i" }}{% if plan.approved_by %} por {% include 'trainer/partials/person_name.html' with person=plan.approved_by %}{% endif %}.
       {% if plan.valid_until %}Vigente hasta el {{ plan.valid_until|date:"d/m/Y" }}.{% endif %}
     </div>
     {% endif %}

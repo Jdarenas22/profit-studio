@@ -53,9 +53,13 @@
         <tr class="hover:bg-white/2 transition-colors">
           <td class="px-6 py-4 text-white/60">{{ p.payment_date|date:"d/m/Y" }}</td>
           <td class="px-6 py-4">
-            <a href="{% url 'trainer_client_detail' p.user.pk %}" class="text-white hover:text-primary transition-colors font-medium">
-              {{ p.user.get_full_name|default:p.user.username }}
-            </a>
+            {% if p.user.is_erased %}
+            {# C-08: lápida, sin enlace (el detalle daría 404) #}
+            <span class="inline-flex items-center gap-1.5 text-white/70 italic"><i class="fa fa-user-xmark not-italic text-white/50" aria-hidden="true"></i>{{ p.user.display_name }}</span>
+            {% else %}
+            <a href="{% url 'trainer_client_detail' p.user.pk %}" class="rounded text-white hover:text-primary transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{% include 'trainer/partials/person_name.html' with person=p.user %}</a>
+            {% endif %}
+            {% if p.trainer %}<span class="block text-white/60 text-xs mt-0.5">Registró: {% include 'trainer/partials/person_name.html' with person=p.trainer %}</span>{% endif %}
           </td>
           <td class="px-6 py-4 text-white/50">{{ p.plan.name|default:"—" }}</td>
           <td class="px-6 py-4">
@@ -64,9 +68,12 @@
           <td class="px-6 py-4 text-right font-black text-primary">${{ p.amount|floatformat:0 }}</td>
           <td class="px-6 py-4">
             {% if p.receipt %}
-            <a href="{% url 'payment_receipt' p.pk %}" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-primary-dark text-xs">
-              <i class="fa fa-paperclip mr-1" aria-hidden="true"></i>Ver
+            <a href="{% url 'payment_receipt' p.pk %}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center min-h-[24px] rounded text-primary hover:text-primary-light text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <i class="fa fa-paperclip mr-1" aria-hidden="true"></i>Ver<span class="sr-only"> el comprobante (se abre en otra pestaña)</span>
             </a>
+            {% if p.receipt_retained %}
+            <span class="block mt-1 text-white/60 text-xs leading-snug"><i class="fa fa-box-archive mr-1" aria-hidden="true"></i>Conservado por obligación contable</span>
+            {% endif %}
             {% else %}
             <span class="text-white/20 text-xs">—</span>
             {% endif %}

@@ -385,6 +385,23 @@ Solo plantillas: `partials/navbar.html` (botón con foto/inicial + nombre que ab
 
 Plantillas reales en lugar de los esqueletos: `accounts/whatsapp_settings.html`, `trainer/whatsapp_settings.html` y `accounts/partials/whatsapp_settings_body.html` (W-01); enlace «Avisos por WhatsApp» en `partials/account_menu_items.html` con `WHATSAPP_NOTICES_ENABLED` (W-02); aviso en `accounts/member_dashboard.html` para `pending`, `wrong_number` y `undeliverable` (W-03). Usan solo el contexto y las rutas de este contrato. Los mensajes de `messages` los sigue pintando `base.html`. «Activar avisos» y los botones de envío usan `aria-disabled` (no `disabled`) para seguir enfocables; el servidor valida igual. Pedidos al backend: ninguno.
 
+### Cuentas: C-01 a C-08 entregadas (frontend, 2026-11-17)
+
+Plantillas reales: `trainer/client_confirm_delete.html` (C-04, reescrita), `trainer/client_deactivate.html` (C-03), `trainer/trainer_deactivate.html` (C-06) y `trainer/trainer_confirm_delete.html` (C-07) en lugar de los esqueletos; cambios en `trainer/clients.html` (C-01), `trainer/client_detail.html` (C-02), `trainer/trainer_list.html` (C-05) y `trainer/manual_payment_list.html` (C-08). Parciales nuevos en `trainer/partials/`: `account_status_tabs`, `account_error_summary`, `account_reason_field`, `account_reassign_field`, `account_confirm_name_field` y `person_name` (C-08: `display_name` + «(desactivado/a)»). C-08 también en `trainer/plan_detail.html`, `trainer/assign_trainer.html`, `trainer/clients.html` y, del lado de la clienta, `plans/member_plans.html`, `plans/member_nutrition.html` y `routines/member_routine.html` (ahí, si quien aprobó está eliminado, no se nombra a nadie; la clienta no ve «(desactivado/a)»). Con la clienta desactivada se ocultan además las acciones de escritura de `trainer/plan_detail.html` y `trainer/partials/nutrition_review.html` (tomar, aprobar, regenerar, editar o revisar opciones; archivar sigue) y «Corregir» de `trainer/health_profile.html`. Solo usan el contexto de este contrato.
+
+**Pedido al backend: errores que las plantillas pintan junto al campo** (agregarlos a las listas `*_RENDERED` de `apps/accounts/views.py` para que no se repitan como mensaje arriba; hoy C-04 los muestra dos veces porque `CLIENT_ERASE_RENDERED` está vacía):
+
+| Pantalla | Lista | Campos pintados junto al campo (y en el resumen de errores de arriba) |
+| --- | --- | --- |
+| C-04 | `CLIENT_ERASE_RENDERED` | `confirm_name`, `reason`, `ack_payments` |
+| C-03 | `CLIENT_DEACTIVATE_RENDERED` | `reason` (sin cambio) |
+| C-06 | `TRAINER_DEACTIVATE_RENDERED` | `reason`, `reassign_to` (sin cambio) |
+| C-07 | `TRAINER_ERASE_RENDERED` | `confirm_name`, `reason`, `reassign_to` (sin cambio; `ack_payments` sobra ahí, C-07 no tiene esa casilla, pero no hace daño) |
+
+`ack_payments` solo se pinta cuando `needs_ack` es verdadero; si el backend devolviera ese error con `needs_ack` falso (no debería pasar), se perdería: conviene dejarlo fuera de la lista en ese caso o no emitirlo. Cualquier otra clave (p. ej. `__all__`) no se pinta y debe seguir saliendo por `messages`.
+
+Notas: el botón «Eliminar definitivamente» de C-04/C-07 usa `aria-disabled` (sigue enfocable) hasta que el nombre coincide, normalizando como `normalize_name` (NFC, espacios, minúsculas; con tildes); el servidor valida igual y sin JavaScript el formulario se envía normal. `reassign_to` y `reason` no tienen opción preseleccionada; `ack_payments` nunca llega marcada.
+
 ## Resueltos
 
 (ninguno)

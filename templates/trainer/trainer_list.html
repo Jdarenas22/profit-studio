@@ -2,91 +2,132 @@
 {% block title %}Entrenadores — ProFit Studio{% endblock %}
 
 {% block trainer_content %}
-<div class="flex items-center justify-between mb-8">
+{% comment %}
+  C-05 (docs/contracts/requests.md, «Cuentas: contrato C-01 a C-08»). Contexto: trainers (con client_count
+  anotado; la superusuaria primero), status, counts. La superusuaria lleva «Dueña» y ningún botón de cuenta.
+  Desactivar y Eliminar definitivamente son enlaces a sus confirmaciones (C-06, C-07); Reactivar es un POST.
+{% endcomment %}
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
   <div>
     <h1 class="text-2xl font-black text-white">Entrenadores</h1>
-    <p class="text-white/40 text-sm mt-1">{{ trainers|length }} entrenador{{ trainers|length|pluralize:"es" }} en el equipo</p>
+    <p class="text-white/60 text-sm mt-1">
+      {{ trainers|length }} {% if status == 'inactive' %}desactivado{{ trainers|length|pluralize:"s" }}{% elif status == 'all' %}en total{% else %}en el equipo{% endif %}
+    </p>
   </div>
   <a href="{% url 'trainer_create_trainer' %}"
-     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
-    <i class="fa fa-user-plus"></i> Agregar entrenador/a
+     class="inline-flex items-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+    <i class="fa fa-user-plus" aria-hidden="true"></i> Agregar entrenador/a
   </a>
 </div>
 
+{% include 'trainer/partials/account_status_tabs.html' with masculine=True %}
+
 {% if trainers %}
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+<ul class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
   {% for trainer in trainers %}
-  <div class="bg-zinc-900 border {% if trainer.is_superuser %}border-primary/30{% else %}border-white/10{% endif %} rounded-2xl overflow-hidden">
+  <li class="flex flex-col bg-zinc-900 border {% if trainer.is_superuser %}border-primary/30{% elif not trainer.is_active %}border-white/10 border-dashed{% else %}border-white/10{% endif %} rounded-2xl overflow-hidden">
 
     <!-- Foto o avatar -->
     <div class="relative h-40 bg-zinc-800 flex items-center justify-center overflow-hidden">
       {% if trainer.profile_photo %}
-      <img src="{{ trainer.profile_photo.url }}"
-           alt="{{ trainer.get_full_name }}"
-           class="w-full h-full object-cover object-top">
+      <img src="{{ trainer.profile_photo.url }}" alt="" width="400" height="160" loading="lazy"
+           class="w-full h-full object-cover object-top{% if not trainer.is_active %} grayscale opacity-60{% endif %}">
       {% else %}
       <div class="flex flex-col items-center gap-2">
         <div class="w-16 h-16 {% if trainer.is_superuser %}bg-primary/20{% else %}bg-white/10{% endif %} rounded-2xl flex items-center justify-center">
-          <span class="{% if trainer.is_superuser %}text-primary{% else %}text-white/50{% endif %} font-black text-2xl">
+          <span class="{% if trainer.is_superuser %}text-primary{% else %}text-white/70{% endif %} font-black text-2xl">
             {{ trainer.first_name|first|upper|default:trainer.username|first|upper }}
           </span>
         </div>
-        <p class="text-white/20 text-xs">Sin foto de perfil</p>
+        <p class="text-white/60 text-xs">Sin foto de perfil</p>
       </div>
       {% endif %}
 
-      {% if trainer.is_superuser %}
-      <span class="absolute top-3 left-3 text-xs bg-primary text-white px-2.5 py-1 rounded-full font-bold">
-        Principal
-      </span>
-      {% endif %}
-
-      <!-- Botón editar flotante -->
-      <a href="{% url 'trainer_edit_trainer' trainer.pk %}"
-         class="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-primary border border-white/10 hover:border-primary rounded-xl flex items-center justify-center transition-all group"
-         title="Editar perfil">
-        <i class="fa fa-pen text-white/60 group-hover:text-white text-xs"></i>
-      </a>
+      <div class="absolute top-3 left-3 flex flex-wrap gap-1.5">
+        {% if trainer.is_superuser %}
+        <span class="text-xs bg-primary text-black px-2.5 py-1 rounded-full font-bold">Dueña</span>
+        {% endif %}
+        {% if not trainer.is_active %}
+        <span class="inline-flex items-center gap-1.5 text-xs bg-black/80 border border-white/20 text-white px-2.5 py-1 rounded-full font-semibold">
+          <i class="fa fa-user-slash" aria-hidden="true"></i> Desactivado/a
+        </span>
+        {% endif %}
+      </div>
     </div>
 
     <!-- Info -->
-    <div class="p-5">
-      <div class="flex items-start justify-between mb-1">
-        <div>
-          <p class="text-white font-bold text-lg leading-tight">{{ trainer.first_name }}</p>
-          <p class="font-bold text-base leading-tight" style="color:#FF6B00;">{{ trainer.last_name }}</p>
-        </div>
-      </div>
-      <p class="text-white/40 text-xs mb-3">{{ trainer.email|default:"Sin email" }}</p>
+    <div class="p-5 flex-1 flex flex-col">
+      <h2 class="leading-tight [overflow-wrap:anywhere]">
+        <span class="block text-white font-bold text-lg">{{ trainer.first_name|default:trainer.display_name }}</span>
+        {% if trainer.last_name %}<span class="block font-bold text-base text-primary">{{ trainer.last_name }}</span>{% endif %}
+      </h2>
+      <p class="text-white/60 text-xs mt-1 mb-3 [overflow-wrap:anywhere]">{{ trainer.email|default:"Sin email" }}</p>
 
       {% if trainer.bio %}
-      <p class="text-white/40 text-xs leading-relaxed mb-4 line-clamp-2">{{ trainer.bio }}</p>
+      <p class="text-white/60 text-xs leading-relaxed mb-4 line-clamp-2">{{ trainer.bio }}</p>
       {% else %}
-      <p class="text-white/20 text-xs italic mb-4">Sin descripción — agrega una bio desde Editar</p>
+      <p class="text-white/50 text-xs italic mb-4">Sin descripción — agrega una bio desde Editar</p>
       {% endif %}
 
-      <div class="flex items-center justify-between text-xs text-white/30 pt-4 border-t border-white/5">
-        <span><i class="fa fa-users mr-1"></i> {{ trainer.assigned_clients.count }} cliente{{ trainer.assigned_clients.count|pluralize:"s" }}</span>
+      <div class="mt-auto flex items-center justify-between text-xs text-white/60 pt-4 border-t border-white/5">
+        <span><i class="fa fa-users mr-1" aria-hidden="true"></i> {{ trainer.client_count }} cliente{{ trainer.client_count|pluralize:"s" }}</span>
         <a href="{% url 'trainer_edit_trainer' trainer.pk %}"
-           class="text-primary hover:text-primary-dark font-semibold transition-colors">
-          <i class="fa fa-pen mr-1"></i>Editar
+           aria-label="Editar el perfil de {{ trainer.display_name }}"
+           class="inline-flex items-center min-h-[44px] px-2 -mr-2 rounded-lg text-primary hover:text-primary-light font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <i class="fa fa-pen mr-1" aria-hidden="true"></i>Editar
         </a>
       </div>
+
+      {% if not trainer.is_superuser %}
+      <!-- Acciones de cuenta (nunca sobre la dueña) -->
+      <div class="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-2">
+        {% if trainer.is_active %}
+        <a href="{% url 'trainer_staff_deactivate' trainer.pk %}"
+           aria-label="Desactivar a {{ trainer.display_name }}"
+           class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <i class="fa fa-user-slash" aria-hidden="true"></i> Desactivar
+        </a>
+        {% else %}
+        <form method="POST" action="{% url 'trainer_staff_reactivate' trainer.pk %}"
+              x-data="{ sending: false }" @submit="if (sending) { $event.preventDefault() } else { sending = true }" @pageshow.window="sending = false">
+          {% csrf_token %}
+          <button type="submit" :aria-disabled="sending.toString()" aria-label="Reactivar a {{ trainer.display_name }}"
+                  class="inline-flex items-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black text-xs font-bold px-3 rounded-xl transition-colors aria-disabled:opacity-60 aria-disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+            <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-user-check'" aria-hidden="true"></i>
+            <span x-text="sending ? 'Reactivando...' : 'Reactivar'">Reactivar</span>
+          </button>
+        </form>
+        {% endif %}
+        <a href="{% url 'trainer_staff_delete' trainer.pk %}"
+           aria-label="Eliminar definitivamente a {{ trainer.display_name }}"
+           class="inline-flex items-center gap-2 min-h-[44px] border border-red-500/50 bg-red-500/10 hover:bg-red-600 text-red-200 hover:text-white text-xs font-semibold px-3 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+          <i class="fa fa-trash-can" aria-hidden="true"></i> Eliminar definitivamente
+        </a>
+      </div>
+      {% endif %}
     </div>
 
-  </div>
+  </li>
   {% endfor %}
+</ul>
+{% elif status == 'inactive' %}
+<div class="text-center py-16 bg-zinc-900 border border-white/10 rounded-2xl px-4">
+  <div class="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+    <i class="fa fa-user-slash text-white/40 text-xl" aria-hidden="true"></i>
+  </div>
+  <h2 class="text-white font-bold text-lg mb-1">No hay entrenadores desactivados</h2>
+  <p class="text-white/60 text-sm">Los que desactives aparecerán aquí y podrás reactivarlos.</p>
 </div>
 {% else %}
-<div class="text-center py-24 bg-zinc-900 border border-white/10 rounded-2xl">
+<div class="text-center py-24 bg-zinc-900 border border-white/10 rounded-2xl px-4">
   <div class="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-5">
-    <i class="fa fa-user-tie text-white/20 text-2xl"></i>
+    <i class="fa fa-user-tie text-white/40 text-2xl" aria-hidden="true"></i>
   </div>
-  <h3 class="text-white font-bold text-xl mb-2">Aún no hay otros entrenadores</h3>
-  <p class="text-white/40 text-sm mb-7">Agrega entrenadores al equipo para que puedan gestionar sus propios clientes.</p>
+  <h2 class="text-white font-bold text-xl mb-2">Aún no hay otros entrenadores</h2>
+  <p class="text-white/60 text-sm mb-7">Agrega entrenadores al equipo para que puedan gestionar sus propios clientes.</p>
   <a href="{% url 'trainer_create_trainer' %}"
-     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors">
-    <i class="fa fa-user-plus"></i> Agregar primer entrenador/a
+     class="inline-flex items-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-white font-semibold px-6 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+    <i class="fa fa-user-plus" aria-hidden="true"></i> Agregar primer entrenador/a
   </a>
 </div>
 {% endif %}
