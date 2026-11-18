@@ -89,11 +89,11 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
-- 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini: bloquear redirecciones, limitar respuestas y controlar JSON demasiado anidado · `feature/gemini-http-safety` · en curso · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
 - 2026-11-17 · Claude · Fase D (D-01 a D-04), contrato aprobado por la persona · `feature/fase-d` · en curso · `apps/plans/` (vistas, `rules/progress.py`, `services.py`, `nutrition.py`), `apps/routines/`, plantillas `trainer/client_plans.html`, `trainer/client_progress.html` y `trainer/plan_detail.html`
 
 ### Hecho
 
+- 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini: bloquear redirecciones, limitar respuestas y controlar JSON demasiado anidado · `feature/gemini-http-safety` · PR #27, implementado; pendiente de revisión y fusión · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
 - 2026-11-17 · ChatGPT · Integración USDA FoodData Central · PR #26 · migración `plans/0005`
 - 2026-11-17 · Claude · Railway sin `railway.toml` (configuración en el panel) · PR #25
 
