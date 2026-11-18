@@ -540,6 +540,94 @@ class RailwayBuildConfigTests(SimpleTestCase):
         self.assertGreaterEqual(deploy['healthcheckTimeout'], 60)
 
 
+class ProcfileTests(SimpleTestCase):
+    """Procfile: si Railway no tiene comando de arranque (railway.toml deja de leerse el
+    2026-12-01 y el panel quedó vacío), Nixpacks y Railpack usan la línea `web` del Procfile.
+    Debe pasar por start.sh: esperar a la base, migrate (si falla no arranca) y gunicorn."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.raw = (BASE_DIR / 'Procfile').read_bytes()
+        cls.text = cls.raw.decode('utf-8')
+        cls.start = (BASE_DIR / 'start.sh').read_text(encoding='utf-8')
+
+    def _processes(self):
+        processes = {}
+        for line in self.text.splitlines():
+            if not line.strip() or line.lstrip().startswith('#'):
+                continue
+            name, sep, command = line.partition(':')
+            self.assertTrue(sep, f'Línea sin «tipo: comando»: {line!r}')
+            self.assertNotIn(name.strip(), processes, f'Proceso repetido: {name.strip()}')
+            processes[name.strip()] = command.strip()
+        return processes
+
+    def test_the_only_process_is_web_and_it_runs_start_sh(self):
+        self.assertEqual(self._processes(), {'web': 'bash start.sh'})
+
+    def test_does_not_skip_start_sh_by_calling_gunicorn_or_django_directly(self):
+        for skipped in ('gunicorn', 'manage.py', 'migrate'):
+            self.assertNotIn(skipped, self.text, skipped)
+
+    def test_start_sh_serves_on_the_port_railway_gives(self):
+        self.assertIn('PORT="${PORT:-8000}"', self.start)
+        self.assertRegex(self.start, r'exec gunicorn config\.wsgi:application \\\n\s+--bind 0\.0\.0\.0:\$PORT')
+
+    def test_same_start_command_as_railway_toml_while_it_exists(self):
+        path = BASE_DIR / 'railway.toml'
+        if not path.exists():
+            self.skipTest('railway.toml ya se retiró')
+        try:
+            import tomllib
+        except ImportError:  # Python < 3.11
+            self.skipTest('tomllib no está disponible')
+        start_command = tomllib.loads(path.read_text(encoding='utf-8'))['deploy']['startCommand']
+        self.assertEqual(self._processes()['web'], start_command)
+
+    def test_unix_line_endings(self):
+        # Con CRLF, Linux leería «start.sh\r» y el arranque fallaría con «No such file».
+        self.assertNotIn(b'\r', self.raw)
+        attributes = (BASE_DIR / '.gitattributes').read_text()
+        self.assertIn('Procfile text eol=lf', attributes)
+
+
+class RailwayPanelGuideTests(SimpleTestCase):
+    """docs/DEPLOY.md (sección 9) dice qué poner en el panel de Railway cuando railway.toml deje
+    de leerse. Mientras railway.toml exista, la guía debe repetir exactamente sus valores."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        text = (BASE_DIR / 'docs' / 'DEPLOY.md').read_text(encoding='utf-8')
+        start = text.index('## 9. ')
+        end = text.find('\n## ', start + 1)
+        cls.section = text[start:end if end != -1 else len(text)]
+
+    def test_guide_repeats_the_values_of_railway_toml(self):
+        path = BASE_DIR / 'railway.toml'
+        if not path.exists():
+            self.skipTest('railway.toml ya se retiró')
+        try:
+            import tomllib
+        except ImportError:  # Python < 3.11
+            self.skipTest('tomllib no está disponible')
+        config = tomllib.loads(path.read_text(encoding='utf-8'))
+        deploy = config['deploy']
+        expected = [
+            config['build']['buildCommand'],
+            deploy['startCommand'],
+            deploy['healthcheckPath'],
+            str(deploy['healthcheckTimeout']),
+            str(deploy['restartPolicyMaxRetries']),
+        ]
+        expected += [f'{name}={value}' for name, value in config['build'].get('env', {}).items()]
+        for value in expected:
+            with self.subTest(value=value):
+                self.assertIn(f'`{value}`', self.section)
+        self.assertIn('On Failure', self.section)
+
+
 
 class HealthEndpointTests(TestCase):
     """Railway sondea /health/ mientras corren check_infra y load_* en segundo plano."""
