@@ -1,0 +1,813 @@
+{
+  "date": "2026-11-18",
+  "timezone": "America/Bogota",
+  "code_base_commit": "55120d644851eaad078f4ce2c08418eb990f21ef",
+  "full_suite": {
+    "tests": 1365,
+    "seconds": 344.236,
+    "result": "OK",
+    "settings": "config.settings.development"
+  },
+  "security_and_query_experiments": {
+    "scope": "isolated-development-profile-no-env",
+    "members": 1000,
+    "python": "3.11.15",
+    "os": "Windows-10-10.0.26300-SP0",
+    "logical_cpus": 12,
+    "security_checks": [
+      {
+        "name": "anonymous_trainer",
+        "status": 302,
+        "expected": [
+          302
+        ],
+        "pass": true
+      },
+      {
+        "name": "member_trainer",
+        "status": 403,
+        "expected": [
+          403
+        ],
+        "pass": true
+      },
+      {
+        "name": "trainer_foreign_client",
+        "status": 404,
+        "expected": [
+          404
+        ],
+        "pass": true
+      },
+      {
+        "name": "trainer_own_client",
+        "status": 200,
+        "expected": [
+          200
+        ],
+        "pass": true
+      },
+      {
+        "name": "logout_get",
+        "status": 405,
+        "expected": [
+          405
+        ],
+        "pass": true
+      },
+      {
+        "name": "logout_missing_csrf",
+        "status": 403,
+        "expected": [
+          403
+        ],
+        "pass": true
+      },
+      {
+        "name": "api_anonymous",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true
+      },
+      {
+        "name": "api_foreign",
+        "status": 404,
+        "expected": [
+          404
+        ],
+        "pass": true
+      },
+      {
+        "name": "login_open_redirect",
+        "pass": true,
+        "status": 302
+      },
+      {
+        "name": "stored_html_escaped",
+        "pass": true
+      },
+      {
+        "name": "invalid_host",
+        "status": 400,
+        "expected": [
+          400
+        ],
+        "pass": true
+      },
+      {
+        "name": "wompi_unsigned",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true
+      },
+      {
+        "name": "wompi_deep_unsigned_json",
+        "status": 500,
+        "expected": [
+          400,
+          401,
+          413
+        ],
+        "pass": false
+      },
+      {
+        "name": "whatsapp_unsigned",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true
+      }
+    ],
+    "response_headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "X-Frame-Options": "DENY",
+      "Vary": "Cookie",
+      "Content-Length": "30349",
+      "Strict-Transport-Security": "max-age=31536000",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "same-origin",
+      "Cross-Origin-Opener-Policy": "same-origin"
+    },
+    "session_cookie_flags": {
+      "expires": "",
+      "path": "/",
+      "comment": "",
+      "domain": "",
+      "max-age": "",
+      "secure": true,
+      "httponly": true,
+      "version": "",
+      "samesite": "Lax"
+    },
+    "reset_emails_for_three_posts": 3,
+    "reset_statuses": [
+      302,
+      302,
+      302
+    ],
+    "query_samples": [
+      {
+        "name": "home",
+        "status": 200,
+        "queries": 1,
+        "bytes": 32454
+      },
+      {
+        "name": "member_dashboard",
+        "status": 200,
+        "queries": 6,
+        "bytes": 30349
+      },
+      {
+        "name": "trainer_list",
+        "status": 200,
+        "queries": 504,
+        "bytes": 800679
+      },
+      {
+        "name": "boss_list",
+        "status": 200,
+        "queries": 1005,
+        "bytes": 2078817
+      }
+    ],
+    "membership_prefetch_experiment": [
+      {
+        "name": "trainer_list",
+        "status": 200,
+        "queries": 4,
+        "bytes": 800679
+      },
+      {
+        "name": "boss_list",
+        "status": 200,
+        "queries": 5,
+        "bytes": 2078817
+      }
+    ],
+    "load": [],
+    "load_profile": "Waitress, 2 threads, SQLite, localhost; NO es Railway/Gunicorn"
+  },
+  "load_smoke": [
+    {
+      "workload": "health",
+      "concurrency": 1,
+      "requests": 60,
+      "seconds": 0.234,
+      "rps": 256.56,
+      "p50_ms": 1.15,
+      "p95_ms": 11.95,
+      "errors": 0
+    },
+    {
+      "workload": "health",
+      "concurrency": 5,
+      "requests": 60,
+      "seconds": 0.084,
+      "rps": 713.35,
+      "p50_ms": 3.65,
+      "p95_ms": 28.76,
+      "errors": 0
+    },
+    {
+      "workload": "health",
+      "concurrency": 10,
+      "requests": 60,
+      "seconds": 0.045,
+      "rps": 1321.43,
+      "p50_ms": 6.9,
+      "p95_ms": 7.99,
+      "errors": 0
+    },
+    {
+      "workload": "health",
+      "concurrency": 25,
+      "requests": 100,
+      "seconds": 0.076,
+      "rps": 1316.72,
+      "p50_ms": 17.06,
+      "p95_ms": 19.06,
+      "errors": 0
+    },
+    {
+      "workload": "health",
+      "concurrency": 50,
+      "requests": 200,
+      "seconds": 0.151,
+      "rps": 1326.2,
+      "p50_ms": 34.74,
+      "p95_ms": 37.26,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 1,
+      "requests": 60,
+      "seconds": 2.184,
+      "rps": 27.47,
+      "p50_ms": 8.31,
+      "p95_ms": 269.83,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 5,
+      "requests": 60,
+      "seconds": 1.958,
+      "rps": 30.64,
+      "p50_ms": 41.6,
+      "p95_ms": 260.66,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 10,
+      "requests": 60,
+      "seconds": 1.87,
+      "rps": 32.09,
+      "p50_ms": 104.69,
+      "p95_ms": 265.08,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 25,
+      "requests": 100,
+      "seconds": 3.304,
+      "rps": 30.26,
+      "p50_ms": 714.22,
+      "p95_ms": 1205.24,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 50,
+      "requests": 200,
+      "seconds": 6.681,
+      "rps": 29.93,
+      "p50_ms": 1478.36,
+      "p95_ms": 1600.9,
+      "errors": 0
+    },
+    {
+      "workload": "trainer_list",
+      "concurrency": 1,
+      "requests": 60,
+      "seconds": 17.451,
+      "rps": 3.44,
+      "p50_ms": 281.04,
+      "p95_ms": 326.19,
+      "errors": 0
+    },
+    {
+      "workload": "trainer_list",
+      "concurrency": 5,
+      "requests": 60,
+      "seconds": 17.193,
+      "rps": 3.49,
+      "p50_ms": 1397.72,
+      "p95_ms": 1718.63,
+      "errors": 0
+    },
+    {
+      "workload": "trainer_list",
+      "concurrency": 10,
+      "requests": 60,
+      "seconds": 17.903,
+      "rps": 3.35,
+      "p50_ms": 2897.44,
+      "p95_ms": 3370.6,
+      "errors": 0
+    }
+  ],
+  "load_extended": [
+    {
+      "workload": "mixed",
+      "concurrency": 25,
+      "requests": 552,
+      "duration_target_seconds": 20,
+      "seconds": 21.628,
+      "rps": 25.52,
+      "p50_ms": 974.64,
+      "p95_ms": 1767.09,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 50,
+      "requests": 582,
+      "duration_target_seconds": 20,
+      "seconds": 21.921,
+      "rps": 26.55,
+      "p50_ms": 1827.09,
+      "p95_ms": 2159.46,
+      "errors": 0
+    },
+    {
+      "workload": "mixed",
+      "concurrency": 100,
+      "requests": 567,
+      "duration_target_seconds": 20,
+      "seconds": 24.115,
+      "rps": 23.51,
+      "p50_ms": 4034.56,
+      "p95_ms": 4426.79,
+      "errors": 0
+    }
+  ],
+  "load_disclaimer": "Windows, SQLite, Waitress dos hilos; cliente y servidor en el mismo equipo. No es Railway.",
+  "packages_and_cdn": {
+    "packages": [
+      {
+        "name": "Django",
+        "pinned": "5.2.19",
+        "latest": "6.1.3",
+        "latest_requires_python": ">=3.12"
+      },
+      {
+        "name": "psycopg2-binary",
+        "pinned": "2.9.9",
+        "latest": "2.9.13",
+        "latest_requires_python": ">=3.10"
+      },
+      {
+        "name": "django-environ",
+        "pinned": "0.11.2",
+        "latest": "0.14.0",
+        "latest_requires_python": "<4,>=3.9"
+      },
+      {
+        "name": "Pillow",
+        "pinned": "13.0.0",
+        "latest": "13.0.0",
+        "latest_requires_python": ">=3.11"
+      },
+      {
+        "name": "boto3",
+        "pinned": "1.34.131",
+        "latest": "1.44.5",
+        "latest_requires_python": ">=3.10"
+      },
+      {
+        "name": "django-storages",
+        "pinned": "1.14.6",
+        "latest": "1.14.6",
+        "latest_requires_python": ">=3.7"
+      },
+      {
+        "name": "django-htmx",
+        "pinned": "1.23.2",
+        "latest": "1.29.0",
+        "latest_requires_python": ">=3.10"
+      },
+      {
+        "name": "redis",
+        "pinned": "5.0.7",
+        "latest": "8.1.0",
+        "latest_requires_python": ">=3.10"
+      },
+      {
+        "name": "django-redis",
+        "pinned": "6.0.0",
+        "latest": "7.0.0",
+        "latest_requires_python": ">=3.10"
+      },
+      {
+        "name": "gunicorn",
+        "pinned": "22.0.0",
+        "latest": "27.0.1",
+        "latest_requires_python": ">=3.10"
+      },
+      {
+        "name": "whitenoise",
+        "pinned": "6.12.0",
+        "latest": "6.12.0",
+        "latest_requires_python": ">=3.10"
+      },
+      {
+        "name": "django-axes",
+        "pinned": "8.3.1",
+        "latest": "9.0.0",
+        "latest_requires_python": ">=3.11"
+      }
+    ],
+    "cdn_integrity": [
+      {
+        "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css",
+        "integrity_matches": true,
+        "bytes": 102526
+      },
+      {
+        "url": "https://unpkg.com/alpinejs@3.17.5/dist/cdn.min.js",
+        "integrity_matches": true,
+        "bytes": 55935
+      },
+      {
+        "url": "https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js",
+        "integrity_matches": true,
+        "bytes": 47755
+      }
+    ]
+  },
+  "pip_audit_requirements": {
+    "dependencies": [
+      {
+        "name": "django",
+        "version": "5.2.19",
+        "vulns": []
+      },
+      {
+        "name": "psycopg2-binary",
+        "version": "2.9.9",
+        "vulns": []
+      },
+      {
+        "name": "django-environ",
+        "version": "0.11.2",
+        "vulns": []
+      },
+      {
+        "name": "pillow",
+        "version": "13.0.0",
+        "vulns": []
+      },
+      {
+        "name": "boto3",
+        "version": "1.34.131",
+        "vulns": []
+      },
+      {
+        "name": "django-storages",
+        "version": "1.14.6",
+        "vulns": []
+      },
+      {
+        "name": "django-htmx",
+        "version": "1.23.2",
+        "vulns": []
+      },
+      {
+        "name": "redis",
+        "version": "5.0.7",
+        "vulns": []
+      },
+      {
+        "name": "django-redis",
+        "version": "6.0.0",
+        "vulns": []
+      },
+      {
+        "name": "gunicorn",
+        "version": "22.0.0",
+        "vulns": []
+      },
+      {
+        "name": "whitenoise",
+        "version": "6.12.0",
+        "vulns": []
+      },
+      {
+        "name": "django-axes",
+        "version": "8.3.1",
+        "vulns": []
+      },
+      {
+        "name": "botocore",
+        "version": "1.34.162",
+        "vulns": []
+      },
+      {
+        "name": "jmespath",
+        "version": "1.1.0",
+        "vulns": []
+      },
+      {
+        "name": "python-dateutil",
+        "version": "2.9.0.post0",
+        "vulns": []
+      },
+      {
+        "name": "s3transfer",
+        "version": "0.10.4",
+        "vulns": []
+      },
+      {
+        "name": "urllib3",
+        "version": "2.8.0",
+        "vulns": []
+      },
+      {
+        "name": "asgiref",
+        "version": "3.13.0",
+        "vulns": []
+      },
+      {
+        "name": "six",
+        "version": "1.17.0",
+        "vulns": []
+      },
+      {
+        "name": "sqlparse",
+        "version": "0.6.1",
+        "vulns": []
+      },
+      {
+        "name": "tzdata",
+        "version": "2026.6",
+        "vulns": []
+      }
+    ],
+    "fixes": []
+  },
+  "pip_audit_installed": {
+    "dependencies": [
+      {
+        "name": "asgiref",
+        "version": "3.13.0",
+        "vulns": []
+      },
+      {
+        "name": "boto3",
+        "version": "1.34.131",
+        "vulns": []
+      },
+      {
+        "name": "botocore",
+        "version": "1.34.162",
+        "vulns": []
+      },
+      {
+        "name": "django",
+        "version": "5.2.19",
+        "vulns": []
+      },
+      {
+        "name": "django-axes",
+        "version": "8.3.1",
+        "vulns": []
+      },
+      {
+        "name": "django-debug-toolbar",
+        "version": "6.1.0",
+        "vulns": []
+      },
+      {
+        "name": "django-environ",
+        "version": "0.11.2",
+        "vulns": []
+      },
+      {
+        "name": "django-htmx",
+        "version": "1.23.2",
+        "vulns": []
+      },
+      {
+        "name": "django-redis",
+        "version": "6.0.0",
+        "vulns": []
+      },
+      {
+        "name": "django-storages",
+        "version": "1.14.6",
+        "vulns": []
+      },
+      {
+        "name": "gunicorn",
+        "version": "22.0.0",
+        "vulns": []
+      },
+      {
+        "name": "jmespath",
+        "version": "1.1.0",
+        "vulns": []
+      },
+      {
+        "name": "packaging",
+        "version": "26.3",
+        "vulns": []
+      },
+      {
+        "name": "pillow",
+        "version": "13.0.0",
+        "vulns": []
+      },
+      {
+        "name": "psycopg2-binary",
+        "version": "2.9.9",
+        "vulns": []
+      },
+      {
+        "name": "python-dateutil",
+        "version": "2.9.0.post0",
+        "vulns": []
+      },
+      {
+        "name": "redis",
+        "version": "5.0.7",
+        "vulns": []
+      },
+      {
+        "name": "s3transfer",
+        "version": "0.10.4",
+        "vulns": []
+      },
+      {
+        "name": "six",
+        "version": "1.17.0",
+        "vulns": []
+      },
+      {
+        "name": "sqlparse",
+        "version": "0.6.1",
+        "vulns": []
+      },
+      {
+        "name": "tzdata",
+        "version": "2026.6",
+        "vulns": []
+      },
+      {
+        "name": "urllib3",
+        "version": "2.8.0",
+        "vulns": []
+      },
+      {
+        "name": "whitenoise",
+        "version": "6.12.0",
+        "vulns": []
+      }
+    ],
+    "fixes": []
+  },
+  "bandit": {
+    "tool_version": "1.9.4",
+    "errors": [],
+    "findings": [
+      {
+        "filename": "apps\\accounts\\services.py",
+        "line_number": 282,
+        "test_id": "B112",
+        "issue_severity": "LOW",
+        "issue_confidence": "HIGH",
+        "issue_text": "Try, Except, Continue detected."
+      },
+      {
+        "filename": "apps\\assessments\\api.py",
+        "line_number": 52,
+        "test_id": "B105",
+        "issue_severity": "LOW",
+        "issue_confidence": "MEDIUM",
+        "issue_text": "Possible hardcoded password: 'Se requiere un UUID válido para evitar envíos duplicados.'"
+      },
+      {
+        "filename": "apps\\plans\\ai\\fake.py",
+        "line_number": 114,
+        "test_id": "B311",
+        "issue_severity": "LOW",
+        "issue_confidence": "HIGH",
+        "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes."
+      },
+      {
+        "filename": "apps\\plans\\ai\\prompts.py",
+        "line_number": 70,
+        "test_id": "B101",
+        "issue_severity": "LOW",
+        "issue_confidence": "HIGH",
+        "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code."
+      },
+      {
+        "filename": "apps\\plans\\jobs.py",
+        "line_number": 268,
+        "test_id": "B311",
+        "issue_severity": "LOW",
+        "issue_confidence": "HIGH",
+        "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes."
+      },
+      {
+        "filename": "apps\\plans\\rules\\recipes.py",
+        "line_number": 144,
+        "test_id": "B311",
+        "issue_severity": "LOW",
+        "issue_confidence": "HIGH",
+        "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes."
+      },
+      {
+        "filename": "apps\\plans\\rules\\validate.py",
+        "line_number": 49,
+        "test_id": "B613",
+        "issue_severity": "HIGH",
+        "issue_confidence": "MEDIUM",
+        "issue_text": "A Python source file contains bidirectional control characters ('\\u200f')."
+      },
+      {
+        "filename": "apps\\public\\management\\commands\\check_infra.py",
+        "line_number": 406,
+        "test_id": "B110",
+        "issue_severity": "LOW",
+        "issue_confidence": "HIGH",
+        "issue_text": "Try, Except, Pass detected."
+      },
+      {
+        "filename": "apps\\public\\management\\commands\\check_infra.py",
+        "line_number": 736,
+        "test_id": "B110",
+        "issue_severity": "LOW",
+        "issue_confidence": "HIGH",
+        "issue_text": "Try, Except, Pass detected."
+      },
+      {
+        "filename": "apps\\whatsapp\\queue.py",
+        "line_number": 201,
+        "test_id": "B311",
+        "issue_severity": "LOW",
+        "issue_confidence": "HIGH",
+        "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes."
+      },
+      {
+        "filename": "config\\checks.py",
+        "line_number": 23,
+        "test_id": "B105",
+        "issue_severity": "LOW",
+        "issue_confidence": "MEDIUM",
+        "issue_text": "Possible hardcoded password: ''"
+      },
+      {
+        "filename": "config\\security.py",
+        "line_number": 22,
+        "test_id": "B105",
+        "issue_severity": "LOW",
+        "issue_confidence": "MEDIUM",
+        "issue_text": "Possible hardcoded password: 'django-insecure-'"
+      },
+      {
+        "filename": "config\\security.py",
+        "line_number": 86,
+        "test_id": "B105",
+        "issue_severity": "LOW",
+        "issue_confidence": "MEDIUM",
+        "issue_text": "Possible hardcoded password: 'Genera una clave nueva (python -c \"import secrets; print(secrets.token_urlsafe(60))\") y cámbiala en Railway > Variables > SECRET_KEY. Cambiarla cierra las sesiones abiertas.'"
+      },
+      {
+        "filename": "config\\settings\\development.py",
+        "line_number": 4,
+        "test_id": "B104",
+        "issue_severity": "MEDIUM",
+        "issue_confidence": "MEDIUM",
+        "issue_text": "Possible binding to all interfaces."
+      }
+    ]
+  },
+  "full_suite_strict": {
+    "tests": 1365,
+    "seconds": 434.098,
+    "result": "OK",
+    "DeprecationWarning": "error",
+    "env_file_reading": "disabled",
+    "database": "in-memory test database"
+  }
+}
