@@ -1,6 +1,7 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
+from .password_reset import RateLimitedPasswordResetView
 
 urlpatterns = [
     # ── Auth básico ────────────────────────────────────────────────────────────
@@ -13,7 +14,7 @@ urlpatterns = [
 
     # ── Recuperación de contraseña ─────────────────────────────────────────────
     path('password-reset/',
-         auth_views.PasswordResetView.as_view(
+         RateLimitedPasswordResetView.as_view(
              template_name='accounts/password_reset.html',
              email_template_name='accounts/password_reset_email.txt',
              subject_template_name='accounts/password_reset_subject.txt',
