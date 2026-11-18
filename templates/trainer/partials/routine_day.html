@@ -64,8 +64,11 @@
                 class="w-full bg-zinc-900 border border-white/10 focus:border-primary rounded-xl px-4 py-2.5 text-white text-sm outline-none transition-colors">
           <option value="">— Selecciona —</option>
           {% for ex in exercises %}
+          {# Texto en data-*, nunca dentro de la expresión JS: un nombre con comillas no puede inyectar código #}
           <option value="{{ ex.pk }}"
-                  x-show="filterText === '' || '{{ ex.name|lower }}'.includes(filterText.toLowerCase()) || '{% if ex.category %}{{ ex.category.name|lower }}{% endif %}'.includes(filterText.toLowerCase())">
+                  data-name="{{ ex.name|lower }}"
+                  data-category="{% if ex.category %}{{ ex.category.name|lower }}{% endif %}"
+                  x-show="filterText === '' || $el.dataset.name.includes(filterText.toLowerCase()) || $el.dataset.category.includes(filterText.toLowerCase())">
             {{ ex.name }}{% if ex.category %} ({{ ex.category.name }}){% endif %}
           </option>
           {% endfor %}

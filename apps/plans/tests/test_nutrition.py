@@ -910,3 +910,32 @@ class CompleteChoiceTests(NutritionScenarioTestCase):
         view = nutrition.day_view(self.client_a, self.plan, self.today)
         entry = [e for e in view['slots'] if e['slot'].code == 'lunch'][0]
         self.assertEqual((entry['completed'], entry['can_complete'], view['completed_count']), (True, False, 1))
+
+
+# ─── Ficha básica (contrato ficha-basica.md, 6.3 y sección 8: planes) ─────────
+
+class BasicProfileNutritionTests(NutritionScenarioTestCase):
+    def test_without_activity_level_nutrition_creates_no_job(self):
+        self.ready(self.client_a, basic=True)
+        for actor in (self.client_a, self.trainer_a):
+            with self.assertRaises(services.PlanRequestNotReady) as ctx:
+                self.request_nutrition(self.client_a, actor=actor)
+            self.assertEqual(ctx.exception.eligibility.missing, ('D07_NUTRITION_DETAILS',))
+            self.assertIn('nivel de actividad diaria', ctx.exception.eligibility.missing_texts[0])
+        self.assertFalse(PlanGenerationJob.objects.exists())
+        # El de ejercicio sí se puede pedir con la misma ficha
+        self.assertTrue(services.assess(self.client_a, 'exercise', self.client_a).eligibility.can_request)
+
+    def test_counterproof_with_activity_declared_the_plan_is_generated_without_new_data(self):
+        self.ready(self.client_a, basic=True, activity_level='light')
+        job, fake = self.request_nutrition(self.client_a)
+        self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
+        payload = fake.calls[0]['payload']
+        self.assertEqual((payload['client']['diet'], payload['client']['cooking'], payload['client']['budget']),
+                         ('omnivore', 'basic', 'medium'))
+        self.assertFalse(payload['client']['conservative'])
+        self.assertEqual(set(payload['client']), {'age', 'sex', 'goal', 'diet', 'cooking', 'budget', 'conservative'})
+        for call in fake.calls:
+            sent = json.dumps(call['payload'], ensure_ascii=False)
+            for word in ('health_screen', 'food_screen', 'defaulted_fields', 'legacy', 'no declar', 'Nivel de actividad'):
+                self.assertNotIn(word, sent)

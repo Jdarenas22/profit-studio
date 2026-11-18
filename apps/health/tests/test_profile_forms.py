@@ -1,18 +1,24 @@
-"""Validación de la ficha de salud (formulario): listas cerradas, rangos, coherencias, textos."""
+"""Validación de la ficha de salud (formulario): listas cerradas, rangos, coherencias, textos.
+
+Incluye la ficha básica (docs/contracts/ficha-basica.md, secciones 4 y 8): las dos preguntas que
+despliegan, el descarte de lo médico con «No», «Sí» sin nada marcado y `defaulted_fields`.
+"""
 from datetime import date, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest import mock
 
 from django.http import QueryDict
 from django.test import SimpleTestCase
 
-from apps.health import dates
+from apps.health import choices as ch
+from apps.health import dates, screening
 from apps.health.forms import (
-    SECTION_FIELDS, HealthProfileForm, empty_form_values, error_steps, first_error_step,
-    form_values_from_post, form_values_from_profile,
+    FOOD_FORM_FIELDS, HEALTH_FORM_FIELDS, SECTION_FIELDS, HealthProfileForm, empty_form_values,
+    error_steps, first_error_step, form_values_from_post, form_values_from_profile,
 )
 
-from .helpers import adult_birth_date, valid_post
+from .helpers import adult_birth_date, basic_post, valid_post
 
 
 def run(known_height=None, **overrides):
@@ -62,15 +68,32 @@ class ValidProfileTests(SimpleTestCase):
 
 
 class RequiredAndClosedListTests(SimpleTestCase):
-    REQUIRED = ['birth_date', 'sex_for_calculation', 'training_goal', 'recent_surgery',
-                'pregnancy_status', 'eating_disorder_history', 'diet_type', 'cooking_access',
-                'budget_level', 'training_days_per_week', 'session_minutes', 'training_place',
-                'experience_level', 'activity_level'] + [f'parq_q{i}' for i in range(1, 8)]
+    # Siempre obligatorios (pasos 1 a 4)
+    REQUIRED = ['birth_date', 'sex_for_calculation', 'training_goal', 'health_screen', 'food_screen',
+                'training_days_per_week', 'session_minutes', 'training_place', 'experience_level']
+    # Obligatorios solo con «Sí» en salud / en alimentación
+    REQUIRED_WITH_HEALTH_YES = (['recent_surgery', 'pregnancy_status', 'eating_disorder_history']
+                                + [f'parq_q{i}' for i in range(1, 8)])
+    REQUIRED_WITH_FOOD_YES = ['diet_type']
+    # Paso 5 «Más detalles»: opcionales (toman un valor por defecto)
+    OPTIONAL_DETAILS = ['cooking_access', 'budget_level', 'activity_level', 'eats_out_per_week',
+                        'sleep_hours', 'target_weight_kg']
 
     def test_each_required_field_is_enforced(self):
         for name in self.REQUIRED:
             form = run(**{name: None})
             self.assertIn(name, form.errors, name)
+        for name in self.REQUIRED_WITH_HEALTH_YES:
+            form = run(health_screen='yes', injuries=['knee'], **{name: None})
+            self.assertIn(name, form.errors, name)
+        for name in self.REQUIRED_WITH_FOOD_YES:
+            form = run(food_screen='yes', allergies=['peanut'], allergy_severity='mild', **{name: None})
+            self.assertIn(name, form.errors, name)
+
+    def test_details_are_optional(self):
+        for name in self.OPTIONAL_DETAILS:
+            form = run(**{name: None})
+            self.assertTrue(form.is_valid(), (name, form.errors))
 
     def test_unknown_codes_are_rejected(self):
         for name, value in [('sex_for_calculation', 'X'), ('training_goal', 'volar'),
@@ -78,7 +101,9 @@ class RequiredAndClosedListTests(SimpleTestCase):
                             ('eating_disorder_history', 'tal_vez'), ('diet_type', 'carnivora'),
                             ('cooking_access', 'mucho'), ('budget_level', 'infinito'),
                             ('training_place', 'luna'), ('experience_level', 'dios'),
-                            ('activity_level', 'extrema'), ('parq_q3', 'tal vez')]:
+                            ('activity_level', 'extrema'), ('parq_q3', 'tal vez'),
+                            ('health_screen', 'quizas'), ('health_screen', 'legacy'),
+                            ('food_screen', 'tal_vez'), ('food_screen', 'legacy')]:
             self.assertIn(name, run(**{name: value}).errors, name)
 
     def test_unknown_codes_in_lists_are_rejected(self):
@@ -146,13 +171,13 @@ class CoherenceTests(SimpleTestCase):
         self.assertEqual(ok.cleaned_data['clearance_date'], dates.today() - timedelta(days=30))
 
     def test_clearance_date_is_dropped_without_clearance(self):
-        form = run(medical_clearance='', clearance_date='2025-01-01')
+        form = run(medical_clearance='', clearance_date='2025-01-01', injuries=['knee'])
         self.assertTrue(form.is_valid(), form.errors)
         self.assertIsNone(form.cleaned_data['clearance_date'])
         self.assertFalse(form.cleaned_data['medical_clearance'])
 
     def test_condition_controlled_is_cleared_without_conditions(self):
-        form = run(conditions=[], condition_controlled='on')
+        form = run(conditions=[], condition_controlled='on', injuries=['knee'])
         self.assertTrue(form.is_valid(), form.errors)
         self.assertFalse(form.cleaned_data['condition_controlled'])
         kept = run(conditions=['asthma'], condition_controlled='on')
@@ -161,12 +186,16 @@ class CoherenceTests(SimpleTestCase):
     def test_allergy_severity_only_with_allergies(self):
         self.assertIn('allergy_severity', run(allergies=['peanut'], allergy_severity='').errors)
         self.assertNotIn('allergy_severity', run(allergies=['peanut'], allergy_severity='mild').errors)
-        form = run(allergies=[], allergy_severity='anaphylaxis')
+        form = run(allergies=[], allergy_severity='anaphylaxis', diet_type='vegan')
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['allergy_severity'], '')
 
     def test_equipment_rules(self):
-        self.assertIn('equipment', run(training_place='home', equipment=[]).errors)
+        # Ficha básica (6A): en casa y sin responder = «Ninguno», marcado como no declarado
+        home = run(training_place='home', equipment=[])
+        self.assertTrue(home.is_valid(), home.errors)
+        self.assertEqual(home.cleaned_data['equipment'], ['none'])
+        self.assertIn('equipment', home.cleaned_data['defaulted_fields'])
         self.assertIn('equipment', run(training_place='home', equipment=['none', 'bands']).errors)
         self.assertTrue(run(training_place='home', equipment=['none']).is_valid())
         form = run(training_place='home', equipment=['mat', 'dumbbells', 'mat'])
@@ -187,8 +216,13 @@ class CoherenceTests(SimpleTestCase):
 class MealSlotTests(SimpleTestCase):
     def test_breakfast_lunch_and_dinner_are_always_required(self):
         for slots in (['breakfast', 'lunch'], ['lunch', 'dinner'], ['breakfast', 'dinner'],
-                      ['breakfast', 'snack', 'dinner'], ['mid_morning', 'snack', 'lunch'], []):
+                      ['breakfast', 'snack', 'dinner'], ['mid_morning', 'snack', 'lunch']):
             self.assertIn('meal_slots', run(meal_slots=slots).errors, slots)
+        # Sin ninguna comida (no llegaron los campos ocultos): las tres obligatorias, sin marcarlo
+        empty = run(meal_slots=[])
+        self.assertTrue(empty.is_valid(), empty.errors)
+        self.assertEqual(empty.cleaned_data['meal_slots'], ['breakfast', 'lunch', 'dinner'])
+        self.assertNotIn('meal_slots', empty.cleaned_data['defaulted_fields'])
 
     def test_optional_slots_and_canonical_order(self):
         for extra in (['snack'], ['mid_morning'], ['mid_morning', 'snack']):
@@ -254,14 +288,18 @@ class StepsAndValuesTests(SimpleTestCase):
         self.assertEqual(error_steps({}), [])
         self.assertIsNone(first_error_step({}))
         errors = {'training_days_per_week': 'x', 'birth_date': 'x', 'parq_q4': 'x', 'meal_slots': 'x'}
-        self.assertEqual(error_steps(errors), [1, 3, 4, 5])
+        self.assertEqual(error_steps(errors), [1, 2, 4, 5])
         self.assertEqual(first_error_step(errors), 1)
-        self.assertEqual(error_steps({'meal_time_lunch': 'x'}), [4])
+        self.assertEqual(error_steps({'meal_time_lunch': 'x'}), [5])
+        self.assertEqual(error_steps({'health_screen': 'x'}), [2])
+        self.assertEqual(error_steps({'food_screen': 'x', 'diet_type': 'x'}), [3])
+        self.assertEqual(error_steps({'target_weight_kg': 'x', 'activity_level': 'x'}), [5])
         self.assertEqual(error_steps({'general': 'x'}), [1])
 
     def test_form_errors_map_to_steps(self):
-        form = run(parq_q2=None, session_minutes='5', meal_slots=['lunch'])
-        self.assertEqual(error_steps({name: 'x' for name in form.errors}), [3, 4, 5])
+        form = run(health_screen='yes', injuries=['knee'], parq_q2=None, session_minutes='5',
+                   meal_slots=['lunch'])
+        self.assertEqual(error_steps({name: 'x' for name in form.errors}), [2, 4, 5])
 
     def test_values_from_post_have_stable_shape(self):
         post = QueryDict(mutable=True)
@@ -306,3 +344,314 @@ class StepsAndValuesTests(SimpleTestCase):
         # El formulario acepta de vuelta lo que publicó
         again = HealthProfileForm({k: v for k, v in values.items() if v not in ('', False)})
         self.assertTrue(again.is_valid(), again.errors)
+
+
+# ─── Ficha básica (contrato ficha-basica.md, sección 8: formulario) ───────────
+
+def basic(**overrides):
+    form = HealthProfileForm(basic_post(**overrides))
+    form.is_valid()
+    return form
+
+
+def as_post(values):
+    """Lo que el navegador volvería a enviar con estos valores (sin vacíos ni casillas apagadas)."""
+    return {key: value for key, value in values.items()
+            if key != 'defaulted_fields' and value not in ('', False, [])}
+
+
+# Datos médicos "basura" (códigos inventados, respuestas raras, HTML) que llegan en campos ocultos
+MEDICAL_GARBAGE = dict(
+    conditions=['inventado', 'asthma'], medications=['pocion'], injuries=['knee', 'ala'],
+    condition_controlled='on', medical_clearance='on', clearance_date='no-es-fecha',
+    recent_surgery='ayer', pregnancy_status='pregnant', eating_disorder_history='tal_vez',
+    other_condition_text='<script>alert(1)</script>', medications_text='<b>x</b>',
+    injuries_text='a' * 5000, parq_q1='yes', parq_q2='quizas', parq_q3='yes',
+)
+FOOD_GARBAGE = dict(diet_type='carnivora', allergies=['peanut', 'kriptonita'], allergy_severity='mucha',
+                    intolerances=['todo'])
+
+
+class BasicProfileTests(SimpleTestCase):
+    def test_minimal_profile_is_valid_with_exact_neutral_and_default_values(self):
+        form = basic()
+        self.assertTrue(form.is_valid(), form.errors)
+        data = form.cleaned_data
+        self.assertEqual((data['health_screen'], data['food_screen']), ('no', 'no'))
+        # 4.1: valores neutros explícitos
+        self.assertEqual(data['parq'], {f'q{i}': False for i in range(1, 8)})
+        for name in ('conditions', 'medications', 'injuries'):
+            self.assertEqual(data[name], [], name)
+        self.assertIs(data['condition_controlled'], False)
+        self.assertIs(data['medical_clearance'], False)
+        self.assertIsNone(data['clearance_date'])
+        self.assertEqual((data['recent_surgery'], data['pregnancy_status'], data['eating_disorder_history']),
+                         ('none', 'none', 'no'))
+        for name in ('other_condition_text', 'medications_text', 'injuries_text'):
+            self.assertEqual(data[name], '', name)
+        # 4.2
+        self.assertEqual((data['diet_type'], data['allergies'], data['allergy_severity'], data['intolerances']),
+                         ('omnivore', [], '', []))
+        # 4.3: valores por defecto y «no declarados»
+        self.assertIsNone(data['target_weight_kg'])
+        self.assertEqual(data['meal_slots'], ['breakfast', 'lunch', 'dinner'])
+        self.assertEqual(data['meal_times'], {})
+        self.assertEqual((data['cooking_access'], data['budget_level'], data['eats_out_per_week']), ('basic', 'medium', 0))
+        self.assertEqual((data['liked_foods_text'], data['disliked_foods_text']), ('', ''))
+        self.assertEqual(data['equipment'], [])                                  # gimnasio
+        self.assertEqual(data['activity_level'], 'sedentary')
+        self.assertIsNone(data['sleep_hours'])
+        self.assertEqual(data['defaulted_fields'],
+                         ['cooking_access', 'budget_level', 'eats_out_per_week', 'activity_level'])
+        self.assertFalse(any(name.startswith('parq_') for name in data))
+
+    def test_minimal_profile_at_home_trains_without_equipment(self):
+        form = basic(training_place='home')
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['equipment'], ['none'])
+        self.assertIn('equipment', form.cleaned_data['defaulted_fields'])
+
+    def test_minimal_profile_does_not_need_the_meal_fields(self):
+        form = basic(meal_slots=None)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['meal_slots'], ['breakfast', 'lunch', 'dinner'])
+
+
+class HealthScreenTests(SimpleTestCase):
+    def test_no_discards_medical_garbage_without_errors(self):
+        form = basic(**MEDICAL_GARBAGE)
+        self.assertTrue(form.is_valid(), form.errors)
+        data = form.cleaned_data
+        for name, value in screening.health_neutral_values().items():
+            self.assertEqual(data[name], value, name)
+        dump = repr(data)
+        for secret in ('script', 'inventado', 'pocion', 'quizas', 'pregnant', 'aaaa'):
+            self.assertNotIn(secret, dump, secret)
+        for name in HEALTH_FORM_FIELDS:
+            self.assertNotIn(name, form.errors, name)
+
+    def test_counterproof_yes_validates_the_same_garbage(self):
+        form = basic(health_screen='yes', **MEDICAL_GARBAGE)
+        self.assertFalse(form.is_valid())
+        for name in ('conditions', 'medications', 'injuries', 'clearance_date', 'recent_surgery',
+                     'eating_disorder_history', 'other_condition_text', 'medications_text', 'injuries_text',
+                     'parq_q2', 'parq_q4'):
+            self.assertIn(name, form.errors, name)
+        self.assertEqual(error_steps(form.errors), [2])
+
+    def test_yes_requires_the_seven_questions_on_step_2(self):
+        form = basic(health_screen='yes', injuries=['knee'], recent_surgery='none', pregnancy_status='none',
+                     eating_disorder_history='no')
+        self.assertEqual(set(form.errors), {f'parq_q{i}' for i in range(1, 8)})
+        self.assertEqual(error_steps(form.errors), [2])
+
+    def test_yes_with_nothing_marked_is_an_error_on_the_question(self):
+        neutral_yes = dict(health_screen='yes', recent_surgery='none', pregnancy_status='none',
+                           eating_disorder_history='no', **{f'parq_q{i}': 'no' for i in range(1, 8)})
+        form = basic(**neutral_yes)
+        self.assertEqual(list(form.errors), ['health_screen'])
+        self.assertEqual(form.errors['health_screen'], [screening.HEALTH_YES_EMPTY])
+        self.assertEqual(error_steps(form.errors), [2])
+        # Una casilla de «condiciones controladas» sin condiciones no cuenta como dato
+        self.assertIn('health_screen', basic(condition_controlled='on', **neutral_yes).errors)
+
+    def test_yes_with_a_single_item_is_valid(self):
+        neutral_yes = dict(health_screen='yes', recent_surgery='none', pregnancy_status='none',
+                           eating_disorder_history='no', **{f'parq_q{i}': 'no' for i in range(1, 8)})
+        today = dates.today()
+        for single in (dict(parq_q3='yes'), dict(conditions=['asthma']), dict(medications=['insulin']),
+                       dict(injuries=['knee']), dict(recent_surgery='over_12m'),
+                       dict(pregnancy_status='lactating'), dict(eating_disorder_history='prefer_not_say'),
+                       dict(other_condition_text='Rinitis'), dict(medications_text='Vitamina D'),
+                       dict(injuries_text='Esguince viejo'),
+                       dict(medical_clearance='on', clearance_date=(today - timedelta(days=10)).isoformat())):
+            form = basic(**{**neutral_yes, **single})
+            self.assertTrue(form.is_valid(), (single, form.errors))
+            self.assertEqual(form.cleaned_data['health_screen'], 'yes')
+
+    def test_yes_keeps_the_current_coherence_rules(self):
+        base = dict(health_screen='yes', recent_surgery='none', eating_disorder_history='no',
+                    **{f'parq_q{i}': 'no' for i in range(1, 8)})
+        # Sexo masculino: el embarazo no se pregunta y se guarda 'none'; otro valor sigue siendo error
+        male = basic(sex_for_calculation='M', injuries=['knee'], **base)
+        self.assertTrue(male.is_valid(), male.errors)
+        self.assertEqual(male.cleaned_data['pregnancy_status'], 'none')
+        self.assertIn('pregnancy_status', basic(sex_for_calculation='M', pregnancy_status='pregnant', **base).errors)
+        # Con sexo femenino, el embarazo es obligatorio
+        self.assertIn('pregnancy_status', basic(injuries=['knee'], **base).errors)
+        # Autorización médica sin fecha
+        self.assertIn('clearance_date', basic(pregnancy_status='none', medical_clearance='on', **base).errors)
+
+    def test_missing_or_unknown_answer_is_an_error_without_flooding_the_screen(self):
+        for value in (None, '', 'legacy', 'quizas', 'YES', 'si'):
+            form = basic(health_screen=value)
+            self.assertEqual(list(form.errors), ['health_screen'], value)
+            self.assertEqual(form.errors['health_screen'], [screening.HEALTH_SCREEN_REQUIRED])
+
+    def test_answer_does_not_depend_on_the_order_of_the_post(self):
+        post = QueryDict(mutable=True)
+        for key, value in basic_post(injuries=['knee']).items():
+            post.setlist(key, value if isinstance(value, list) else [value])
+        post.setlist('health_screen', ['yes', 'no'])          # el último manda, como en Django
+        form = HealthProfileForm(post)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['injuries'], [])
+
+
+class FoodScreenTests(SimpleTestCase):
+    def test_no_discards_food_garbage_without_errors(self):
+        form = basic(**FOOD_GARBAGE)
+        self.assertTrue(form.is_valid(), form.errors)
+        for name, value in screening.food_neutral_values().items():
+            self.assertEqual(form.cleaned_data[name], value, name)
+
+    def test_counterproof_yes_validates_the_same_garbage(self):
+        form = basic(food_screen='yes', **FOOD_GARBAGE)
+        self.assertEqual(set(form.errors), {'diet_type', 'allergies', 'allergy_severity', 'intolerances'})
+        self.assertEqual(error_steps(form.errors), [3])
+
+    def test_yes_requires_a_diet_type(self):
+        form = basic(food_screen='yes', allergies=['peanut'], allergy_severity='mild')
+        self.assertEqual(list(form.errors), ['diet_type'])
+        self.assertEqual(error_steps(form.errors), [3])
+
+    def test_yes_with_nothing_is_an_error(self):
+        form = basic(food_screen='yes', diet_type='omnivore')
+        self.assertEqual(list(form.errors), ['food_screen'])
+        self.assertEqual(form.errors['food_screen'], [screening.FOOD_YES_EMPTY])
+
+    def test_yes_with_a_single_item_is_valid(self):
+        for single in (dict(diet_type='vegan'), dict(diet_type='omnivore', intolerances=['lactose']),
+                       dict(diet_type='omnivore', allergies=['peanut'], allergy_severity='anaphylaxis')):
+            form = basic(food_screen='yes', **single)
+            self.assertTrue(form.is_valid(), (single, form.errors))
+
+    def test_yes_allergy_needs_severity(self):
+        self.assertIn('allergy_severity', basic(food_screen='yes', diet_type='omnivore', allergies=['milk']).errors)
+
+    def test_missing_or_unknown_answer_is_an_error(self):
+        for value in (None, '', 'legacy', 'tal_vez'):
+            form = basic(food_screen=value)
+            self.assertEqual(list(form.errors), ['food_screen'], value)
+            self.assertEqual(form.errors['food_screen'], [screening.FOOD_SCREEN_REQUIRED])
+
+
+class DefaultedFieldsTests(SimpleTestCase):
+    def test_an_empty_detail_is_listed_and_a_sent_one_is_not(self):
+        for name, value in (('activity_level', 'light'), ('cooking_access', 'none'), ('budget_level', 'low'),
+                            ('eats_out_per_week', '0')):
+            form = basic(**{name: value})
+            self.assertTrue(form.is_valid(), form.errors)
+            self.assertNotIn(name, form.cleaned_data['defaulted_fields'], name)
+            self.assertIn(name, basic().cleaned_data['defaulted_fields'], name)
+        self.assertEqual(basic(activity_level='light').cleaned_data['activity_level'], 'light')
+
+    def test_full_profile_has_nothing_defaulted(self):
+        self.assertEqual(run().cleaned_data['defaulted_fields'], [])
+
+    def test_none_at_home_counts_as_declared(self):
+        form = basic(training_place='home', equipment=['none'])
+        self.assertEqual(form.cleaned_data['equipment'], ['none'])
+        self.assertNotIn('equipment', form.cleaned_data['defaulted_fields'])
+
+    def test_at_the_gym_equipment_is_never_listed(self):
+        for equipment in ([], ['bands'], ['none']):
+            form = basic(training_place='gym', equipment=equipment)
+            self.assertTrue(form.is_valid(), form.errors)
+            self.assertEqual(form.cleaned_data['equipment'], [])
+            self.assertNotIn('equipment', form.cleaned_data['defaulted_fields'])
+
+    def test_only_known_codes_and_canonical_order(self):
+        data = basic(training_place='home').cleaned_data
+        self.assertEqual(data['defaulted_fields'], list(screening.ordered_defaulted(data['defaulted_fields'])))
+        self.assertTrue(set(data['defaulted_fields']) <= set(screening.DEFAULTABLE_FIELDS))
+
+
+class BasicStepsTests(SimpleTestCase):
+    def test_five_steps_with_the_contract_keys(self):
+        self.assertEqual([s['key'] for s in ch.WIZARD_STEPS], ['basics', 'health', 'food', 'training', 'details'])
+        self.assertEqual([s['number'] for s in ch.WIZARD_STEPS], sorted(SECTION_FIELDS))
+        self.assertEqual([s['optional'] for s in ch.WIZARD_STEPS], [False, False, False, False, True])
+
+    def test_each_field_belongs_to_exactly_one_step(self):
+        names = [name for fields in SECTION_FIELDS.values() for name in fields]
+        self.assertEqual(len(names), len(set(names)))
+        self.assertTrue(set(HEALTH_FORM_FIELDS) | {'health_screen'} <= set(SECTION_FIELDS[2]))
+        self.assertTrue(set(FOOD_FORM_FIELDS) | {'food_screen'} <= set(SECTION_FIELDS[3]))
+        self.assertIn('activity_level', SECTION_FIELDS[5])
+        self.assertIn('target_weight_kg', SECTION_FIELDS[5])
+
+    def test_bound_form_with_no_still_maps_every_field(self):
+        form = basic()
+        belonging = {name for names in SECTION_FIELDS.values() for name in names}
+        self.assertTrue(set(form.fields) <= belonging)
+
+
+def profile_like(**attrs):
+    """Objeto con la interfaz de lectura de `HealthProfile` (sin base de datos)."""
+    form = HealthProfileForm(valid_post())
+    assert form.is_valid(), form.errors
+    values = dict(form.cleaned_data)
+    values.update(attrs)
+    return SimpleNamespace(**values)
+
+
+class BasicFormValuesTests(SimpleTestCase):
+    def test_values_from_a_basic_profile_leave_unanswered_fields_empty(self):
+        form = basic(training_place='home')
+        profile = SimpleNamespace(**form.cleaned_data)
+        values = form_values_from_profile(profile, 'toning')
+        self.assertEqual((values['health_screen'], values['food_screen']), ('no', 'no'))
+        for name in ('cooking_access', 'budget_level', 'eats_out_per_week', 'activity_level'):
+            self.assertEqual(values[name], '', name)
+        self.assertEqual(values['equipment'], [])
+        self.assertEqual(values['defaulted_fields'], ['cooking_access', 'budget_level', 'eats_out_per_week',
+                                                      'equipment', 'activity_level'])
+        # Lo que nunca vio (respondió No) vuelve sin responder
+        for name in ('recent_surgery', 'pregnancy_status', 'eating_disorder_history', 'diet_type',
+                     *[f'parq_q{i}' for i in range(1, 8)]):
+            self.assertEqual(values[name], '', name)
+        # Guardar de nuevo sin tocar nada no convierte nada en «declarado»
+        again = HealthProfileForm(as_post(values))
+        self.assertTrue(again.is_valid(), again.errors)
+        self.assertEqual(again.cleaned_data['defaulted_fields'], values['defaulted_fields'])
+        self.assertEqual(again.cleaned_data['activity_level'], 'sedentary')
+
+    def test_declared_values_come_back(self):
+        profile = SimpleNamespace(**basic(activity_level='active', budget_level='low').cleaned_data)
+        values = form_values_from_profile(profile)
+        self.assertEqual((values['activity_level'], values['budget_level']), ('active', 'low'))
+        self.assertEqual(values['cooking_access'], '')
+
+    def test_legacy_preselection(self):
+        neutral = profile_like(health_screen='legacy', food_screen='legacy', defaulted_fields=[])
+        values = form_values_from_profile(neutral)
+        self.assertEqual((values['health_screen'], values['food_screen']), ('no', 'no'))
+        self.assertEqual(values['parq_q1'], 'no')                 # en legacy sí respondió las 7
+        self.assertEqual(values['recent_surgery'], 'none')
+        self.assertEqual(values['diet_type'], 'omnivore')
+        self.assertEqual(values['activity_level'], 'light')       # legacy: todo declarado
+        for attrs in (dict(injuries=['knee']), dict(parq={**neutral.parq, 'q5': True}),
+                      dict(recent_surgery='over_12m'), dict(eating_disorder_history='prefer_not_say'),
+                      dict(medications_text='algo'), dict(pregnancy_status='lactating')):
+            legacy = profile_like(health_screen='legacy', food_screen='legacy', **attrs)
+            self.assertEqual(form_values_from_profile(legacy)['health_screen'], 'yes', attrs)
+        for attrs in (dict(diet_type='vegan'), dict(allergies=['egg'], allergy_severity='mild'),
+                      dict(intolerances=['lactose'])):
+            legacy = profile_like(health_screen='legacy', food_screen='legacy', **attrs)
+            self.assertEqual(form_values_from_profile(legacy)['food_screen'], 'yes', attrs)
+
+    def test_saved_yes_is_kept(self):
+        values = form_values_from_profile(profile_like(health_screen='yes', food_screen='yes', injuries=['hip'],
+                                                       diet_type='vegan'))
+        self.assertEqual((values['health_screen'], values['food_screen']), ('yes', 'yes'))
+        self.assertEqual(values['injuries'], ['hip'])
+
+    def test_values_from_post_and_empty_values_have_the_new_keys(self):
+        values = form_values_from_post(QueryDict('health_screen=no&food_screen=yes&training_place=home'))
+        self.assertEqual((values['health_screen'], values['food_screen']), ('no', 'yes'))
+        self.assertEqual(values['defaulted_fields'], ['cooking_access', 'budget_level', 'eats_out_per_week',
+                                                      'equipment', 'activity_level'])
+        empty = empty_form_values()
+        self.assertEqual((empty['health_screen'], empty['food_screen'], empty['defaulted_fields']), ('', '', []))
+        self.assertEqual(set(empty), set(values))

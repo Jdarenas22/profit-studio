@@ -224,7 +224,7 @@ def review_context(plan):
 def edit_option(plan, option, actor, name, preparation, items):
     """El entrenador cambia alimentos y gramos de una opción de un borrador. Bloquean los errores
     de forma, catálogo, texto y alérgenos; la energía/proteína fuera de banda solo avisa."""
-    services._check_trainer(plan, actor)
+    services._check_writable(plan, actor)
     if plan.kind != KIND_NUTRITION or not (plan.is_pending or (plan.is_approved and option.needs_review)):
         raise services.PlanStateError('Solo se editan las opciones de un borrador, de un plan en revisión o '
                                       'una opción nueva pedida por la clienta.')
@@ -261,7 +261,7 @@ def edit_option(plan, option, actor, name, preparation, items):
 def review_option(plan, option, actor, action):
     """El entrenador revisa una opción nueva pedida por la clienta: `keep` la deja (queda revisada)
     o `revert` la quita y vuelve a activar la que la clienta había rechazado."""
-    services._check_trainer(plan, actor)
+    services._check_writable(plan, actor)
     if plan.kind != KIND_NUTRITION or option.slot.nutrition_plan.plan_id != plan.pk:
         raise services.PlanStateError('Esa opción no es de este plan.')
     if not (option.is_active and option.needs_review):

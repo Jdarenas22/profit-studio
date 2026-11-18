@@ -33,9 +33,11 @@ class Payment(models.Model):
         (STATUS_ERROR, 'Error'),
     ]
 
+    # PROTECT: un pago nunca se borra con la cuenta (conservación contable). Al eliminar una cuenta
+    # queda apuntando a la lápida (docs/contracts/cuentas-eliminar.md, sección 7.1, punto 11).
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         related_name='payments',
         verbose_name='Usuario',
@@ -106,9 +108,10 @@ class ManualPayment(models.Model):
         (METHOD_OTHER,     'Otro'),
     ]
 
+    # PROTECT: ver Payment.user (sección 7.1, punto 10 del contrato de cuentas).
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='manual_payments',
         verbose_name='Cliente',
     )
@@ -139,6 +142,11 @@ class ManualPayment(models.Model):
         verbose_name='Comprobante (foto o PDF)',
     )
     notes = models.TextField(blank=True, verbose_name='Notas')
+    # Al eliminar la cuenta de la clienta el comprobante se conserva por obligación contable
+    # (respuesta 1a, [A VALIDAR por contador]); desde entonces solo lo abre la superusuaria.
+    receipt_retained_at = models.DateTimeField(
+        null=True, blank=True, verbose_name='Comprobante conservado por obligación contable desde',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -147,8 +155,12 @@ class ManualPayment(models.Model):
         ordering = ['-payment_date', '-created_at']
 
     def __str__(self):
-        name = self.user.get_full_name() or self.user.username
-        return f"{name} — ${self.amount:,} — {self.payment_date}"
+        return f"{self.user.display_name} — ${self.amount:,} — {self.payment_date}"
+
+    @property
+    def receipt_retained(self):
+        """El comprobante se conserva solo por obligación contable (la cuenta se eliminó)."""
+        return self.receipt_retained_at is not None
 
     @property
     def method_label(self):

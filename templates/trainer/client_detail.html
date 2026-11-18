@@ -1,44 +1,75 @@
 {% extends 'trainer/base.html' %}
 
-{% block title %}{{ client.get_full_name|default:client.username }} — ProFit Studio{% endblock %}
+{% block title %}{{ client.display_name }} — ProFit Studio{% endblock %}
 
 {% block trainer_content %}
+{% comment %}
+  C-02 (docs/contracts/requests.md, «Cuentas: contrato C-01 a C-08»). Con la cuenta desactivada se ocultan
+  los botones que escriben (el servidor igual los rechaza) y se muestra la franja con «Reactivar».
+  Desactivar / Eliminar definitivamente van al final, separados, según can_deactivate / can_erase.
+{% endcomment %}
 
 <!-- Breadcrumb -->
-<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
-  <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
-  <i class="fa fa-chevron-right text-xs"></i>
-  <span class="text-white/60">{{ client.get_full_name|default:client.username }}</span>
+<nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+  <a href="{% url 'trainer_clients' %}{% if not client.is_active %}?status=inactive{% endif %}" class="rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Clientes</a>
+  <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+  <span class="text-white/80 [overflow-wrap:anywhere]" aria-current="page">{{ client.display_name }}</span>
 </nav>
 
 <!-- Header cliente -->
-<div class="flex items-start justify-between mb-8">
-  <div class="flex items-center gap-4">
+<div class="flex flex-wrap items-start justify-between gap-4 mb-8">
+  <div class="flex items-center gap-4 min-w-0">
     {% if client.profile_photo %}
-    <img src="{{ client.profile_photo.url }}" alt="Foto"
-         class="w-16 h-16 rounded-2xl object-cover border-2 border-primary/30 shrink-0">
+    <img src="{{ client.profile_photo.url }}" alt=""
+         class="w-16 h-16 rounded-2xl object-cover border-2 border-primary/30 shrink-0{% if not client.is_active %} grayscale opacity-70{% endif %}">
     {% else %}
-    <div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-      <span class="text-primary font-black text-2xl">{{ client.first_name|first|upper|default:client.username|first|upper }}</span>
+    <div class="w-16 h-16 {% if client.is_active %}bg-primary/10{% else %}bg-white/10{% endif %} rounded-2xl flex items-center justify-center shrink-0">
+      <span class="{% if client.is_active %}text-primary{% else %}text-white/70{% endif %} font-black text-2xl">{{ client.first_name|first|upper|default:client.username|first|upper }}</span>
     </div>
     {% endif %}
-    <div>
-      <h1 class="text-2xl font-black text-white">{{ client.get_full_name|default:client.username }}</h1>
-      <p class="text-white/40 text-sm">{{ client.email|default:"Sin email" }}{% if client.phone %} · {{ client.phone }}{% endif %}</p>
-      <p class="text-white/30 text-xs mt-1">Miembro desde {{ client.date_joined|date:"d/m/Y" }}</p>
+    <div class="min-w-0">
+      <h1 class="text-2xl font-black text-white [overflow-wrap:anywhere]">
+        {{ client.display_name }}
+        {% if not client.is_active %}<span class="align-middle ml-1 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-white/80"><i class="fa fa-user-slash" aria-hidden="true"></i> Desactivada</span>{% endif %}
+      </h1>
+      <p class="text-white/60 text-sm [overflow-wrap:anywhere]">{{ client.email|default:"Sin email" }}{% if client.phone %} · {{ client.phone }}{% endif %}</p>
+      <p class="text-white/60 text-xs mt-1">Miembro desde {{ client.date_joined|date:"d/m/Y" }}</p>
     </div>
   </div>
-  <div class="flex items-center gap-2">
-    <a href="{% url 'trainer_client_edit' client.pk %}"
-       class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-2 rounded-xl transition-colors">
-      <i class="fa fa-pen"></i> Editar
-    </a>
-    <a href="{% url 'trainer_client_delete' client.pk %}"
-       class="inline-flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium px-3 py-2 rounded-xl transition-colors">
-      <i class="fa fa-trash"></i> Eliminar
-    </a>
-  </div>
+  {% if client.is_active %}
+  <a href="{% url 'trainer_client_edit' client.pk %}"
+     class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+    <i class="fa fa-pen" aria-hidden="true"></i> Editar
+  </a>
+  {% endif %}
 </div>
+
+{% if not client.is_active %}
+<!-- C-02: cuenta desactivada = solo lectura -->
+<section aria-labelledby="client-inactive-title"
+         class="mb-8 flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-4 sm:px-5">
+  <div class="flex items-start gap-3 flex-1 min-w-0">
+    <i class="fa fa-lock text-yellow-300 mt-1 shrink-0" aria-hidden="true"></i>
+    <div>
+      <h2 id="client-inactive-title" class="text-yellow-100 text-sm font-bold">
+        Cuenta desactivada{% if client.deactivated_at %} el {{ client.deactivated_at|date:"d/m/Y" }}{% endif %}
+      </h2>
+      <p class="text-yellow-50 text-sm leading-relaxed mt-0.5">No puede iniciar sesión y su información es de solo lectura. Reactívala para hacer cambios.</p>
+    </div>
+  </div>
+  {% if can_reactivate %}
+  <form method="POST" action="{% url 'trainer_client_reactivate' client.pk %}" class="shrink-0"
+        x-data="{ sending: false }" @submit="if (sending) { $event.preventDefault() } else { sending = true }" @pageshow.window="sending = false">
+    {% csrf_token %}
+    <button type="submit" :aria-disabled="sending.toString()"
+            class="inline-flex w-full sm:w-auto items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black text-sm font-bold px-5 rounded-xl transition-colors aria-disabled:opacity-60 aria-disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+      <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-user-check'" aria-hidden="true"></i>
+      <span x-text="sending ? 'Reactivando...' : 'Reactivar cuenta'">Reactivar cuenta</span>
+    </button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -86,19 +117,23 @@
           </div>
           {% endif %}
         </div>
+        {% if client.is_active %}
         <a href="{% url 'trainer_membership_manage' client.pk %}"
            class="block w-full text-center bg-primary hover:bg-primary-dark text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
           Gestionar membresía
         </a>
+        {% endif %}
       {% else %}
         <div class="text-center py-6 text-white/20 mb-4">
           <i class="fa fa-shield-halved text-3xl mb-2"></i>
           <p class="text-sm">Sin membresía</p>
         </div>
+        {% if client.is_active %}
         <a href="{% url 'trainer_membership_manage' client.pk %}"
            class="block w-full text-center bg-primary hover:bg-primary-dark text-white text-sm font-semibold py-2.5 rounded-xl transition-colors">
           <i class="fa fa-plus mr-1"></i> Activar membresía
         </a>
+        {% endif %}
       {% endif %}
     </div>
 
@@ -117,7 +152,7 @@
         </div>
         {% endif %}
         <div>
-          <p class="text-white font-semibold text-sm">{{ client.assigned_trainer.get_full_name|default:client.assigned_trainer.username }}</p>
+          <p class="text-white font-semibold text-sm">{% include 'trainer/partials/person_name.html' with person=client.assigned_trainer %}</p>
           <p class="text-white/30 text-xs">@{{ client.assigned_trainer.username }}</p>
         </div>
       </div>
@@ -144,7 +179,11 @@
     <!-- Acciones rápidas -->
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
       <h2 class="text-white font-bold mb-4">Acciones</h2>
+      {% if not client.is_active %}
+      <p class="text-white/70 text-sm leading-relaxed mb-3">Las acciones que cambian datos están en pausa mientras la cuenta esté desactivada.</p>
+      {% endif %}
       <div class="space-y-2">
+        {% if client.is_active %}
         <a href="{% url 'trainer_assessment_create' client.pk %}"
            class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 transition-colors group">
           <i class="fa fa-stethoscope text-primary text-sm w-5 text-center"></i>
@@ -160,12 +199,13 @@
           <i class="fa fa-weight text-primary text-sm w-5 text-center"></i>
           <span class="text-white/70 group-hover:text-white text-sm transition-colors">Agregar medición</span>
         </a>
+        {% endif %}
         <a href="{% url 'trainer_health_profile' client.pk %}"
            class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 min-h-[44px] transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
           <i class="fa fa-notes-medical text-primary text-sm w-5 text-center" aria-hidden="true"></i>
           <span class="text-white/70 group-hover:text-white text-sm transition-colors">Ficha de salud</span>
         </a>
-        {% if AI_PLANS_ENABLED %}
+        {% if AI_PLANS_ENABLED and client.is_active %}
         <form method="POST" action="{% url 'trainer_plan_generate' client.pk %}"
               x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
           {% csrf_token %}
@@ -189,11 +229,13 @@
           </button>
         </form>
         {% endif %}
+        {% if client.is_active %}
         <a href="{% url 'trainer_manual_payment_add' client.pk %}"
            class="flex items-center gap-3 bg-black/40 hover:bg-primary/10 rounded-xl px-3 py-2.5 transition-colors group">
           <i class="fa fa-money-bill-wave text-primary text-sm w-5 text-center"></i>
           <span class="text-white/70 group-hover:text-white text-sm transition-colors">Registrar pago</span>
         </a>
+        {% endif %}
       </div>
     </div>
 
@@ -206,10 +248,12 @@
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-white font-bold">Valoraciones</h2>
+        {% if client.is_active %}
         <a href="{% url 'trainer_assessment_create' client.pk %}"
            class="text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
           <i class="fa fa-plus mr-1"></i> Nueva
         </a>
+        {% endif %}
       </div>
 
       {% if assessments %}
@@ -277,10 +321,12 @@
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-white font-bold">Pagos registrados</h2>
+        {% if client.is_active %}
         <a href="{% url 'trainer_manual_payment_add' client.pk %}"
            class="text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
           <i class="fa fa-plus mr-1"></i> Registrar
         </a>
+        {% endif %}
       </div>
 
       {% with payments=client.manual_payments.all|slice:":5" %}
@@ -320,13 +366,48 @@
 <section aria-labelledby="client-measures-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mt-6">
   <div class="flex items-center justify-between mb-4">
     <h2 id="client-measures-title" class="text-white font-bold">Mediciones</h2>
+    {% if client.is_active %}
     <a href="{% url 'trainer_measurement_add' client.pk %}"
        class="inline-flex items-center min-h-[44px] px-2 text-primary hover:text-primary-dark text-xs font-semibold transition-colors">
       <i class="fa fa-plus mr-1" aria-hidden="true"></i> Nueva
     </a>
+    {% endif %}
   </div>
-  {% include 'trainer/partials/measurement_history_table.html' with show_actions=True %}
+  {% include 'trainer/partials/measurement_history_table.html' with show_actions=client.is_active %}
 </section>
 {% endif %}
 {% endwith %}
+
+{% if can_deactivate or can_erase %}
+<!-- C-02: acciones sobre la cuenta, separadas del resto -->
+<section aria-labelledby="client-account-title" class="mt-10 rounded-2xl border border-white/10 bg-zinc-900 p-5 sm:p-6">
+  <h2 id="client-account-title" class="text-white font-bold">Cuenta</h2>
+  <div class="mt-4 divide-y divide-white/10">
+    {% if can_deactivate %}
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 pb-4">
+      <div class="flex-1">
+        <p class="text-white text-sm font-semibold">Desactivar la cuenta</p>
+        <p class="text-white/60 text-xs leading-relaxed mt-0.5">No podrá iniciar sesión. Se conserva todo y puedes reactivarla cuando quieras.</p>
+      </div>
+      <a href="{% url 'trainer_client_deactivate' client.pk %}"
+         class="inline-flex items-center justify-center gap-2 min-h-[44px] shrink-0 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        <i class="fa fa-user-slash" aria-hidden="true"></i> Desactivar
+      </a>
+    </div>
+    {% endif %}
+    {% if can_erase %}
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3{% if can_deactivate %} pt-4{% endif %}">
+      <div class="flex-1">
+        <p class="text-red-200 text-sm font-semibold">Eliminar definitivamente</p>
+        <p class="text-white/60 text-xs leading-relaxed mt-0.5">Borra sus datos para siempre. Los pagos se conservan sin datos personales. No se puede deshacer.</p>
+      </div>
+      <a href="{% url 'trainer_client_delete' client.pk %}"
+         class="inline-flex items-center justify-center gap-2 min-h-[44px] shrink-0 border border-red-500/50 bg-red-500/10 hover:bg-red-600 text-red-200 hover:text-white text-sm font-semibold px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+        <i class="fa fa-trash-can" aria-hidden="true"></i> Eliminar definitivamente
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}

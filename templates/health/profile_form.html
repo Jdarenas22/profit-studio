@@ -22,13 +22,13 @@
   <h1 class="text-2xl font-black text-white mb-2">{% if is_edit %}Corregir mi ficha de salud{% else %}Mi ficha de salud y alimentación{% endif %}</h1>
   <p class="text-white/60 text-sm mb-5 leading-relaxed">
     Cuéntanos un poco sobre ti para que tu entrenamiento y tu alimentación se ajusten a lo que necesitas.
-    Tarda unos 5 minutos y puedes cambiarla cuando quieras.
+    Son 4 pasos cortos y uno opcional; puedes cambiarla cuando quieras.
   </p>
 
   <aside class="mb-6 flex gap-3 rounded-2xl border border-white/10 bg-zinc-900/60 p-4" aria-label="Aviso sobre tus respuestas">
     <i class="fa fa-shield-halved text-primary mt-0.5 shrink-0" aria-hidden="true"></i>
     <p class="text-white/70 text-sm leading-relaxed min-w-0">
-      Responder sobre salud es voluntario; sin esta información tu entrenador armará el plan manualmente.
+      <strong class="text-white font-semibold">Solo te pedimos lo necesario para entrenar. Si tienes algún tema de salud o de alimentación, cuéntanoslo y se abrirán más preguntas.</strong>
       Tus respuestas son datos de salud: las tratamos solo con tu autorización y puedes retirarla cuando quieras desde
       <a href="{% url 'member_consent' 'health_data' %}"
          class="text-primary underline underline-offset-2 hover:text-primary-light rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">tu autorización de datos de salud</a>.

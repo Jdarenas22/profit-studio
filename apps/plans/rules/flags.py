@@ -17,13 +17,19 @@ Alcances: `exercise` (plan de ejercicio) y `nutrition` (plan de alimentación).
 Los rojos que bloquean un solo alcance (R03, R04, R08, R10) dejan el otro alcance en amarillo.
 
 Estas banderas son SOLO para el entrenador: nunca se muestran a la clienta.
+
+Ficha básica (docs/contracts/ficha-basica.md, sección 6; `flags/2`): con `health_screen == 'no'`
+la ficha trae los valores neutros, así que ninguna bandera médica se activa; se agrega la
+informativa `I03_HEALTH_SCREEN_NO` para que el entrenador sepa que la clienta no vio el
+cuestionario detallado. `I04_DEFAULTS` lista lo que no declaró, y `M10_NO_ACTIVITY` (solo
+alimentación) impide calcular calorías con un nivel de actividad supuesto.
 """
 import calendar
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-RULESET_VERSION = 'flags/1'
+RULESET_VERSION = 'flags/2'
 
 SCOPE_EXERCISE = 'exercise'
 SCOPE_NUTRITION = 'nutrition'
@@ -129,6 +135,11 @@ class Facts:
     weight_kg: Decimal | None = None
     height_m: Decimal | None = None
     measurement_days_old: int | None = None      # None = sin medida
+    # Ficha básica: respuesta a las dos preguntas ('yes' | 'no' | 'legacy') y datos no declarados
+    health_screen: str = 'legacy'
+    food_screen: str = 'legacy'
+    defaulted_fields: tuple = ()                 # códigos ('activity_level', ...)
+    defaulted_labels: tuple = ()                 # sus etiquetas en español (para el texto de I04)
     has_profile: bool = True
     profile_confirmed: bool = True
     ai_consent: bool = True
@@ -234,6 +245,11 @@ _TEXTS = {
                        'Corregir peso, estatura o fecha de nacimiento.'),
     'M09_NO_AI_CONSENT': ('La clienta no ha autorizado el envío sin identificar a la IA.',
                           'Pedirle la autorización (se puede armar el plan a mano sin ella).'),
+    'I03_HEALTH_SCREEN_NO': ('Respondió No a la pregunta general de salud: no vio el cuestionario detallado.',
+                             'Si en la valoración notas algo, corrige la ficha (la clienta deberá confirmarlo).'),
+    'I04_DEFAULTS': ('Datos que no declaró (se usó un valor por defecto).', 'Opcional: pregúntaselos.'),
+    'M10_NO_ACTIVITY': ('No declaró su nivel de actividad diaria; sin él no se calculan las calorías.',
+                        'La clienta debe completarlo en "Más detalles".'),
 }
 _TEXTS['M04_PROFILE_UNCONFIRMED'] = (
     'La ficha fue corregida por el entrenador y la clienta aún no la confirma.',
@@ -276,7 +292,6 @@ def evaluate(facts):
 
     value_bmi = bmi(facts)
     coherent = bmi_is_coherent(value_bmi)
-    age_ok = facts.age is not None and ADULT_AGE <= facts.age <= MAX_REASONABLE_AGE
 
     # ── Datos faltantes ──
     if not facts.has_profile:
@@ -300,6 +315,9 @@ def evaluate(facts):
         missing.append(_flag('M05_NO_GOAL', SEVERITY_MISSING, BOTH))
     if facts.sleep_hours is None:
         missing.append(_flag('M07_NO_SLEEP', SEVERITY_MISSING))
+    if 'activity_level' in facts.defaulted_fields:
+        # Solo alimentación: el ejercicio usa 'sedentary', que es lo prudente
+        missing.append(_flag('M10_NO_ACTIVITY', SEVERITY_MISSING, (N,)))
     if (value_bmi is not None and not coherent) or (facts.age is not None and facts.age > MAX_REASONABLE_AGE):
         missing.append(_flag('M08_INCOHERENT', SEVERITY_MISSING, BOTH))
 
@@ -386,6 +404,12 @@ def evaluate(facts):
     if (facts.assessment_age is not None and facts.age is not None
             and abs(facts.assessment_age - facts.age) >= AGE_MISMATCH_YEARS):
         info.append(_flag('I02_AGE_MISMATCH', SEVERITY_INFO))
+    if facts.health_screen == 'no':
+        info.append(_flag('I03_HEALTH_SCREEN_NO', SEVERITY_INFO))
+    if facts.defaulted_fields:
+        labels = facts.defaulted_labels or facts.defaulted_fields
+        info.append(_flag('I04_DEFAULTS', SEVERITY_INFO,
+                          text=f'Datos que no declaró (se usó un valor por defecto): {", ".join(labels)}.'))
 
     return _report(red, yellow, info, missing)
 

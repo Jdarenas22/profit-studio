@@ -38,7 +38,7 @@
           <i class="fa fa-pen"></i> Editar
         </a>
         <form method="POST" action="{% url 'trainer_routine_delete' routine.pk %}"
-              onsubmit="return confirm('¿Eliminar la rutina {{ routine.name }}?')">
+              onsubmit="return confirm('¿Eliminar la rutina {{ routine.name|escapejs }}?')">
           {% csrf_token %}
           <button type="submit"
                   class="w-8 h-8 bg-white/5 hover:bg-red-600/20 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 transition-colors">

@@ -26,7 +26,7 @@
           {% endif %}
           {% if routine.plan and routine.plan.is_approved %}
           <p class="text-white/60 text-xs mt-2">
-            Plan revisado y aprobado por {{ routine.plan.approved_by.get_full_name|default:routine.plan.approved_by.username|default:"tu entrenador" }}{% if routine.plan.reviewer_credential %} ({{ routine.plan.reviewer_credential }}){% endif %}{% if routine.plan.valid_until %} · vigente hasta el {{ routine.plan.valid_until|date:"d/m/Y" }}{% endif %}.
+            Plan revisado y aprobado por {% if routine.plan.approved_by and not routine.plan.approved_by.is_erased %}{{ routine.plan.approved_by.display_name }}{% else %}tu entrenador{% endif %}{% if routine.plan.reviewer_credential %} ({{ routine.plan.reviewer_credential }}){% endif %}{% if routine.plan.valid_until %} · vigente hasta el {{ routine.plan.valid_until|date:"d/m/Y" }}{% endif %}.
           </p>
           <p class="text-white/40 text-xs mt-2 max-w-3xl leading-relaxed">{{ plan_disclaimer }}</p>
           {% endif %}

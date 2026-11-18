@@ -16,6 +16,11 @@ Ficha de salud y alimentación (fase A2, secciones 2.2, 2.3, 9 y 13 del contrato
 - Una ficha corregida por el entrenador queda sin confirmar hasta que la clienta la confirme.
 - Ver, exportar y borrar la ficha propia no exigen consentimiento (son derechos de la titular).
 - `HealthAccessLog` registra qué hizo el entrenador (ver/editar) y la clienta (exportar/borrar).
+
+Ficha básica (docs/contracts/ficha-basica.md, 4.4): el servicio es la última defensa. Exige
+`health_screen` / `food_screen` en `yes` o `no`, vuelve a imponer los valores neutros cuando la
+respuesta es `no` (aunque el diccionario llegue «sucio»), solo acepta códigos conocidos en
+`defaulted_fields` y pone `['none']` como equipo en casa si llega vacío.
 """
 import logging
 
@@ -25,13 +30,16 @@ from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from apps.accounts.permissions import clients_for_trainer
+from apps.accounts.permissions import (
+    INACTIVE_CLIENT_MESSAGE, ClientInactiveError, clients_for_trainer, ensure_client_active,
+)
 from apps.assessments.models import BodyMeasurement, InitialAssessment
 from apps.assessments.services import latest_anthropometrics
 from apps.plans.rules import flags as rules_flags
 
 from . import choices as ch
 from . import dates
+from . import screening
 from .models import (
     HEALTH_PURPOSES, PURPOSE_AI, PURPOSE_CHOICES, PURPOSE_HEALTH_DATA, ConsentRecord, ConsentTextVersion,
     HealthAccessLog, HealthProfile,
@@ -201,6 +209,7 @@ PROFILE_FIELDS = (
     'cooking_access', 'budget_level', 'eats_out_per_week',
     'training_days_per_week', 'session_minutes', 'training_place', 'equipment',
     'experience_level', 'activity_level', 'sleep_hours',
+    'health_screen', 'food_screen', 'defaulted_fields',
 )
 MAX_AGE = 100
 EXPORT_LOG_LIMIT = 500
@@ -256,10 +265,30 @@ def log_access(actor, client, action, profile_version=None):
 
 
 def _check_profile_data(data):
-    """Última defensa en el servicio (el formulario ya validó lo demás)."""
+    """Última defensa en el servicio (el formulario ya validó lo demás). Devuelve una COPIA
+    normalizada de `data` (no modifica el diccionario recibido)."""
     missing = [name for name in (*PROFILE_FIELDS, 'training_goal') if name not in data]
     if missing:
         raise ProfileInvalid('Faltan datos de la ficha.')
+    data = dict(data)
+    if data['health_screen'] not in screening.SCREEN_ANSWERS or data['food_screen'] not in screening.SCREEN_ANSWERS:
+        raise ProfileInvalid('Responde las preguntas de salud y de alimentación (Sí o No).')
+    # Con «No», lo médico (o lo alimentario) es neutro, llegue lo que llegue
+    if data['health_screen'] == screening.SCREEN_NO:
+        data.update(screening.health_neutral_values())
+    if data['food_screen'] == screening.SCREEN_NO:
+        data.update(screening.food_neutral_values())
+    defaulted = data['defaulted_fields']
+    if (not isinstance(defaulted, (list, tuple)) or not all(isinstance(name, str) for name in defaulted)
+            or len(set(defaulted)) != len(defaulted)
+            or not set(defaulted) <= set(screening.DEFAULTABLE_FIELDS)):
+        raise ProfileInvalid('Revisa los datos opcionales de la ficha.')
+    data['defaulted_fields'] = screening.ordered_defaulted(defaulted)
+    # En casa sin equipo declarado: solo ejercicios sin equipo (lo prudente)
+    if data['training_place'] == 'home' and not data['equipment']:
+        data['equipment'] = list(screening.DEFAULT_VALUES['equipment'])
+        if 'equipment' not in data['defaulted_fields']:
+            data['defaulted_fields'] = screening.ordered_defaulted([*data['defaulted_fields'], 'equipment'])
     age = dates.age_today(data['birth_date'])
     if age < ADULT_AGE:
         raise ProfileInvalid('La ficha en línea es solo para mayores de 18 años.')
@@ -272,6 +301,7 @@ def _check_profile_data(data):
         raise ProfileInvalid('Las comidas deben incluir desayuno, almuerzo y cena (de 3 a 5 en total).')
     if data['training_goal'] not in dict(get_user_model().GOAL_CHOICES):
         raise ProfileInvalid('Elige una meta válida.')
+    return data
 
 
 def save_profile(user, data, actor):
@@ -284,7 +314,7 @@ def save_profile(user, data, actor):
     - Actualiza la meta en `User.training_goal` (no se duplica en la ficha).
     Devuelve la `HealthProfile` nueva.
     """
-    _check_profile_data(data)
+    data = _check_profile_data(data)
     if actor.pk == user.pk:
         if user.is_trainer:
             raise ProfileNotAllowed('Este usuario no tiene ficha de salud.')
@@ -292,6 +322,10 @@ def save_profile(user, data, actor):
     elif actor.is_trainer:
         if not clients_for_trainer(actor).filter(pk=user.pk).exists():
             raise ProfileNotAllowed('No tienes acceso a esta clienta.')
+        try:
+            ensure_client_active(user)   # una clienta desactivada es de solo lectura
+        except ClientInactiveError:
+            raise ProfileNotAllowed(INACTIVE_CLIENT_MESSAGE) from None
         role = HealthProfile.ROLE_TRAINER
     else:
         raise ProfileNotAllowed('No tienes acceso a esta ficha.')
@@ -454,6 +488,10 @@ def build_facts(user, profile):
         allergy_severity=profile.allergy_severity,
         intolerances=tuple(profile.intolerances or ()),
         sleep_hours=profile.sleep_hours,
+        health_screen=profile.health_screen,
+        food_screen=profile.food_screen,
+        defaulted_fields=tuple(screening.ordered_defaulted(profile.defaulted_fields)),
+        defaulted_labels=tuple(profile.defaulted_labels),
         has_profile=True,
         profile_confirmed=profile.confirmed_by_client_at is not None,
         **common,

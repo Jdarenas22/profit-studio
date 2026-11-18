@@ -21,10 +21,12 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 
-from apps.accounts.permissions import clients_for_trainer
+from apps.accounts.permissions import (
+    INACTIVE_CLIENT_MESSAGE, ClientInactiveError, clients_for_trainer, ensure_client_active,
+)
 from apps.assessments.services import latest_anthropometrics
 from apps.exercises.models import Exercise
 from apps.health import dates as health_dates
@@ -33,7 +35,9 @@ from apps.health.models import PURPOSE_HEALTH_DATA
 from apps.routines.models import Routine, RoutineDay, RoutineExercise
 
 from . import ai, notifications
-from .models import KIND_EXERCISE, KIND_NUTRITION, Food, Plan, PlanEvent, PlanGenerationJob, TrainerCredential
+from .models import (
+    KIND_EXERCISE, KIND_NUTRITION, Food, MealOption, Plan, PlanEvent, PlanGenerationJob, TrainerCredential,
+)
 from .rules import catalog as rules_catalog
 from .rules import eligibility as rules_eligibility
 from .rules import energy as rules_energy
@@ -57,6 +61,17 @@ class PlanError(Exception):
 
 class PlanNotAllowed(PlanError):
     pass
+
+
+class PlanClientInactive(PlanError):
+    """La clienta está desactivada o eliminada: su ficha es de solo lectura (cuentas-eliminar.md)."""
+
+
+def check_client_active(client):
+    try:
+        ensure_client_active(client)
+    except ClientInactiveError:
+        raise PlanClientInactive(INACTIVE_CLIENT_MESSAGE) from None
 
 
 class PlanRequestNotReady(PlanError):
@@ -245,7 +260,9 @@ def assess(client, kind, actor, check_quota=True):
 # ─── Pedidos (crean trabajos) ─────────────────────────────────────────────────
 
 def _check_actor(client, actor):
-    """La clienta pide para sí misma; un entrenador, solo para clientas que puede ver."""
+    """La clienta pide para sí misma; un entrenador, solo para clientas que puede ver. Nadie pide
+    para una cuenta desactivada o eliminada."""
+    check_client_active(client)
     if actor.pk == client.pk:
         if client.is_trainer:
             raise PlanNotAllowed('Este usuario no tiene planes.')
@@ -354,6 +371,29 @@ def plans_for_trainer(user):
 def get_plan_for_trainer(user, pk):
     """El plan `pk` si su clienta es accesible; si no, `Plan.DoesNotExist` (la vista da 404)."""
     return plans_for_trainer(user).get(pk=pk)
+
+
+def regenerated_plan_ids(user):
+    """Ids de los planes APROBADOS (de clientas accesibles) con alguna opción activa que espera
+    revisión: la clienta pidió «otra opción» (`needs_review`)."""
+    return set(MealOption.objects.filter(
+        slot__nutrition_plan__plan__in=plans_for_trainer(user), is_active=True, needs_review=True,
+        slot__nutrition_plan__plan__status=Plan.STATUS_APPROVED,
+    ).values_list('slot__nutrition_plan__plan_id', flat=True))
+
+
+def pending_review_plans(user, regenerated_ids=None):
+    """Planes por revisar de SUS clientas: borradores de la IA, en revisión y aprobados con una
+    opción nueva por revisar. Única definición: la bandeja y el contador del menú la comparten.
+    `regenerated_ids` evita repetir la consulta si quien llama ya la tiene."""
+    if regenerated_ids is None:
+        regenerated_ids = regenerated_plan_ids(user)
+    return plans_for_trainer(user).filter(Q(status__in=Plan.PENDING_STATUSES) | Q(pk__in=regenerated_ids))
+
+
+def pending_review_count(user, regenerated_ids=None):
+    """Cuántos planes hay por revisar: el número de la bandeja y del contador del menú."""
+    return pending_review_plans(user, regenerated_ids).count()
 
 
 def approved_plan(client, kind):
@@ -474,9 +514,15 @@ def _check_trainer(plan, actor):
         raise PlanNotAllowed('No tienes acceso a este plan.')
 
 
+def _check_writable(plan, actor):
+    """Acceso + clienta activa. Archivar no lo exige (limpiar la bandeja no escribe datos de ella)."""
+    _check_trainer(plan, actor)
+    check_client_active(plan.client)
+
+
 def take_for_review(plan, actor):
     """`draft_ai` -> `in_review` (al abrir para editar o con "Tomar para revisión")."""
-    _check_trainer(plan, actor)
+    _check_writable(plan, actor)
     updated = Plan.objects.filter(pk=plan.pk, status=Plan.STATUS_DRAFT_AI).update(
         status=Plan.STATUS_IN_REVIEW, reviewed_by=actor)
     if updated:
@@ -508,7 +554,7 @@ def archive_plan(plan, actor, reason=''):
 
 def approve_plan(plan, actor, *, note_for_client='', warnings_ack=False, stale_ack=False):
     """Aprueba un borrador: la clienta lo ve desde ahora. Reemplaza al aprobado anterior."""
-    _check_trainer(plan, actor)
+    _check_writable(plan, actor)
     if plan.status not in Plan.PENDING_STATUSES:
         raise PlanStateError('Solo se puede aprobar un borrador o un plan en revisión.')
     if plan.is_simulated and not settings.DEBUG:
@@ -563,7 +609,7 @@ def approve_plan(plan, actor, *, note_for_client='', warnings_ack=False, stale_a
 
 def regenerate_plan(plan, actor, notes, request_token):
     """Pide un borrador nuevo con las notas del entrenador; al terminar, el actual queda archivado."""
-    _check_trainer(plan, actor)
+    _check_writable(plan, actor)
     if plan.status not in Plan.PENDING_STATUSES:
         raise PlanStateError('Solo se regenera un borrador o un plan en revisión.')
     job, created = request_plan(plan.client, plan.kind, actor, request_token,

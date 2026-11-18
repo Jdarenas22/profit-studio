@@ -8,7 +8,7 @@ from datetime import timedelta
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 
-from apps.plans import nutrition, services
+from apps.plans import services
 from apps.plans.ai import fake
 from apps.plans.ai import prompts as p
 from apps.plans.models import MealChoice, PlanGenerationJob

@@ -77,7 +77,7 @@ def client_plan_approved(plan):
     from apps.whatsapp import services as whatsapp
     whatsapp.notify_plan_approved(plan)
     client = plan.client
-    if not client.email:
+    if not client.email or not client.is_active:   # no se escribe a una cuenta desactivada
         return False
     body = ('Tu entrenador revisó y aprobó tu plan.\n\n'
             f'Míralo al iniciar sesión, en Mi plan ({reverse("member_plans")}).')

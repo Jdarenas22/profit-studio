@@ -456,3 +456,95 @@ class CommandTests(TestCase):
         self.assertEqual(broken.status, ci.ERROR)
         self.assertNotIn(SECRETS['SECRET_KEY'], all_text(results))
         self.assertTrue(any(c.area == 'Base de datos' for c in results))
+
+
+class SecretStrengthAndStrictModeChecks(TestCase):
+    """SECRET_KEY con los criterios de security.W009 y el modo SECURITY_STRICT_SECRETS."""
+
+    def secret_check(self, **settings_kw):
+        return by_name(ci.check_secret_key_and_hosts(make_ctx(make_settings(**settings_kw))), 'SECRET_KEY')
+
+    def test_pocos_caracteres_distintos_es_aviso_sin_mostrar_la_clave(self):
+        weak = 'abcd' * 15
+        result = self.secret_check(SECRET_KEY=weak)
+        self.assertEqual(result.status, ci.WARN)
+        self.assertIn('security.W009', result.detail)
+        self.assertNotIn(weak, all_text([result]))
+        self.assertIn('SECURITY_STRICT_SECRETS', result.action)
+
+    def test_clave_debil_en_modo_estricto_es_error(self):
+        result = self.secret_check(SECRET_KEY='corta-pero-no-obvia', SECURITY_STRICT_SECRETS=True)
+        self.assertEqual(result.status, ci.ERROR)
+
+    def test_clave_fuerte_es_ok_en_ambos_modos(self):
+        for strict in (False, True):
+            self.assertEqual(self.secret_check(SECURITY_STRICT_SECRETS=strict).status, ci.OK)
+
+    def test_se_informa_si_el_modo_estricto_esta_activo(self):
+        off = by_name(ci.check_secret_key_and_hosts(make_ctx()), 'SECURITY_STRICT_SECRETS')
+        self.assertEqual(off.status, ci.OK)
+        self.assertIn('Inactivo', off.detail)
+        on = by_name(ci.check_secret_key_and_hosts(make_ctx(make_settings(SECURITY_STRICT_SECRETS=True))),
+                     'SECURITY_STRICT_SECRETS')
+        self.assertIn('Activo', on.detail)
+
+
+REDIS_URL_FAKE = 'redis://default:clave-redis-inventada-5555@redis-secreto.railway.internal:6379'
+REDIS_CACHES = {'default': {'BACKEND': 'django_redis.cache.RedisCache', 'LOCATION': REDIS_URL_FAKE}}
+LOCMEM_CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+
+
+class CacheChecks(TestCase):
+    """Redis es opcional: sin él solo se avisa en producción (el despliegue no depende de Redis)."""
+
+    def test_sin_redis_en_produccion_es_aviso_y_explica_axes_y_sesiones(self):
+        ping = mock.Mock()
+        result = ci.check_cache(make_ctx(make_settings(CACHES=LOCMEM_CACHES), redis_ping=ping))[0]
+        self.assertEqual(result.status, ci.WARN)
+        self.assertIn('REDIS_URL', result.detail)
+        self.assertIn('django-axes', result.detail)
+        self.assertIn('por proceso', result.detail)
+        ping.assert_not_called()
+
+    def test_sin_redis_en_desarrollo_es_ok(self):
+        ctx = make_ctx(make_settings(SETTINGS_MODULE='config.settings.development', DEBUG=True,
+                                     CACHES=LOCMEM_CACHES))
+        self.assertEqual(ci.check_cache(ctx)[0].status, ci.OK)
+
+    def test_sin_caches_definidas_se_trata_como_memoria_local(self):
+        self.assertEqual(ci.check_cache(make_ctx())[0].status, ci.WARN)
+
+    def test_redis_que_responde_es_ok(self):
+        ping = mock.Mock(return_value=True)
+        ctx = make_ctx(make_settings(CACHES=REDIS_CACHES), env={'REDIS_URL': REDIS_URL_FAKE}, redis_ping=ping)
+        self.assertEqual(ci.check_cache(ctx)[0].status, ci.OK)
+        ping.assert_called_once_with(REDIS_URL_FAKE)
+
+    def test_redis_caido_es_error_sin_mostrar_la_url(self):
+        ping = mock.Mock(side_effect=ConnectionError(f'no se pudo conectar a {REDIS_URL_FAKE}'))
+        ctx = make_ctx(make_settings(CACHES=REDIS_CACHES), env={'REDIS_URL': REDIS_URL_FAKE}, redis_ping=ping)
+        result = ci.check_cache(ctx)[0]
+        self.assertEqual(result.status, ci.ERROR)
+        self.assertIn('ConnectionError', result.detail)
+        self.assertNotIn('clave-redis-inventada', all_text([result]))
+        self.assertNotIn('redis-secreto', all_text([result]))
+
+    def test_redis_sin_biblioteca_o_sin_pong_es_error(self):
+        for ping in (mock.Mock(side_effect=ImportError), mock.Mock(return_value=False)):
+            ctx = make_ctx(make_settings(CACHES=REDIS_CACHES), env={'REDIS_URL': REDIS_URL_FAKE}, redis_ping=ping)
+            self.assertEqual(ci.check_cache(ctx)[0].status, ci.ERROR)
+
+    def test_el_comando_incluye_la_cache_y_no_filtra_redis_url(self):
+        out = StringIO()
+        ping = mock.Mock(side_effect=OSError(REDIS_URL_FAKE))
+        with override_settings(SETTINGS_MODULE='config.settings.production', DEBUG=False,
+                               ALLOWED_HOSTS=['profit.up.railway.app'], CACHES=REDIS_CACHES), \
+                mock.patch.dict('os.environ', {'REDIS_URL': REDIS_URL_FAKE}), \
+                mock.patch.object(ci, 'default_redis_ping', ping):
+            with self.assertRaises(CommandError):
+                call_command('check_infra', '--json', stdout=out)
+        data = json.loads(out.getvalue())
+        cache = next(c for c in data['checks'] if c['area'] == 'Caché')
+        self.assertEqual(cache['status'], 'ERROR')
+        self.assertNotIn('clave-redis-inventada', out.getvalue())
+        self.assertNotIn('redis-secreto', out.getvalue())

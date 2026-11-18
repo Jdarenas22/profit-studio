@@ -137,7 +137,6 @@ def activate_membership(payment):
     (start_date = hoy, end_date = hoy + duración). Si sigue vigente, se extiende
     desde su fecha de fin actual (no se pierden días ya pagados).
     """
-    from django.db import transaction
     from apps.memberships.models import Membership
 
     plan = payment.plan
@@ -164,6 +163,11 @@ def activate_membership(payment):
     return membership
 
 
+def _reduce_webhook(payload):
+    from apps.accounts.services import reduce_webhook
+    return reduce_webhook(payload)
+
+
 def _whatsapp_payment_approved(payment_id):
     from apps.whatsapp import services as whatsapp
     whatsapp.notify_payment_approved(payment_id)
@@ -181,6 +185,8 @@ def apply_transaction_event(payload: dict) -> str:
       'mismatch'           monto o moneda no coinciden con el Payment
       'transaction_reused' ese id de transacción de Wompi ya pertenece a otro Payment
       'cannot_activate'    pago aprobado pero sin usuario o plan (revisión manual)
+      'erased_account'     pago aprobado de una cuenta eliminada: se guarda el estado (sin datos
+                           personales) y NO se activa membresía (revisión manual para devolver)
 
     Si la activación de la membresía lanza una excepción, ésta SE PROPAGA y la
     transacción se revierte: el llamador debe responder 5xx para que Wompi reintente.
@@ -207,10 +213,14 @@ def apply_transaction_event(payload: dict) -> str:
         # Bloqueo de fila: dos entregas simultáneas del mismo evento se serializan
         # (en PostgreSQL; SQLite ignora el bloqueo pero serializa las escrituras).
         try:
-            payment = Payment.objects.select_for_update().get(reference=reference)
+            payment = Payment.objects.select_for_update().select_related('user').get(reference=reference)
         except Payment.DoesNotExist:
             logger.warning(f"Wompi webhook: unknown reference {reference!r}")
             return 'unknown_reference'
+        # Cuenta eliminada (docs/contracts/cuentas-eliminar.md, sección 10): el cuerpo del evento se
+        # guarda reducido a la lista blanca, sin correo, nombre ni teléfono.
+        erased = payment.user is not None and payment.user.is_erased
+        stored_payload = _reduce_webhook(payload) if erased else payload
 
         # Idempotencia: un pago aprobado es terminal
         if payment.status == Payment.STATUS_APPROVED:
@@ -235,7 +245,7 @@ def apply_transaction_event(payload: dict) -> str:
                 payment.status = Payment.STATUS_ERROR
                 payment.wompi_transaction_id = wompi_id
                 payment.payment_method_type = method_type
-                payment.raw_webhook = payload
+                payment.raw_webhook = stored_payload
                 payment.save()
             return 'mismatch'
 
@@ -248,9 +258,15 @@ def apply_transaction_event(payload: dict) -> str:
 
         payment.wompi_transaction_id = wompi_id
         payment.payment_method_type = method_type
-        payment.raw_webhook = payload
+        payment.raw_webhook = stored_payload
 
         if wompi_status == 'APPROVED':
+            if erased:
+                payment.status = Payment.STATUS_APPROVED
+                payment.save()
+                logger.warning(f"Wompi webhook: pago aprobado de una cuenta eliminada {reference} "
+                               "— revisión manual")
+                return 'erased_account'
             if not payment.user_id or not payment.plan_id:
                 logger.error(f"Wompi webhook: pago aprobado {reference} sin usuario o plan — revisión manual")
                 payment.status = Payment.STATUS_ERROR

@@ -12,6 +12,8 @@ from django.core.exceptions import ValidationError
 
 from apps.memberships.models import MembershipPlan
 
+from . import choices
+from . import services as account_services
 from .form_utils import SafeImageField
 from .models import User
 
@@ -321,3 +323,93 @@ class TrainerEditForm(_PersonForm):
 
     def __init__(self, *args, trainer, **kwargs):
         super().__init__(*args, exclude_pk=trainer.pk, **kwargs)
+
+
+# ─── Desactivar y eliminar cuentas (docs/contracts/cuentas-eliminar.md, sección 4.1) ─────────
+
+CONFIRM_NAME_MAX = 300
+CONFIRM_NAME_MESSAGE = 'El nombre no coincide. Escríbelo tal como aparece arriba.'
+ACK_PAYMENTS_MESSAGE = 'Confirma que revisaste la membresía y los pagos en curso.'
+# Mismos textos que usa el servicio cuando detecta el problema dentro de la transacción
+REASON_MESSAGE = account_services.REASON_REQUIRED_MESSAGE
+REASSIGN_REQUIRED_MESSAGE = account_services.REASSIGN_REQUIRED_MESSAGE
+REASSIGN_UNAVAILABLE_MESSAGE = account_services.REASSIGN_UNAVAILABLE_MESSAGE
+_PK_PATTERN = re.compile(r'^[0-9]{1,18}$')
+
+
+def _reason_field(required):
+    return forms.ChoiceField(
+        label='Motivo', required=required, choices=[('', '—')] + choices.REASON_CHOICES,
+        error_messages={'required': REASON_MESSAGE, 'invalid_choice': REASON_MESSAGE},
+    )
+
+
+class DeactivateAccountForm(forms.Form):
+    """Desactivar una clienta: solo el motivo, opcional."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['reason'] = _reason_field(required=False)
+
+
+class EraseAccountForm(forms.Form):
+    """Eliminar definitivamente: escribir el nombre tal como aparece, motivo obligatorio y, si
+    hace falta, confirmar la membresía vigente o el pago en curso."""
+
+    confirm_name = forms.CharField(
+        label='Nombre', max_length=CONFIRM_NAME_MAX, strip=False,
+        error_messages={'required': CONFIRM_NAME_MESSAGE, 'max_length': CONFIRM_NAME_MESSAGE},
+    )
+    ack_payments = forms.BooleanField(label='Revisé la membresía y los pagos', required=False)
+
+    def __init__(self, *args, expected_name, needs_ack=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.expected_name = expected_name
+        self.needs_ack = needs_ack
+        self.fields['reason'] = _reason_field(required=True)
+
+    def clean_confirm_name(self):
+        value = self.cleaned_data['confirm_name']
+        if not account_services.name_matches(value, self.expected_name):
+            raise ValidationError(CONFIRM_NAME_MESSAGE)
+        return value
+
+    def clean_ack_payments(self):
+        value = self.cleaned_data.get('ack_payments', False)
+        if self.needs_ack and not value:
+            raise ValidationError(ACK_PAYMENTS_MESSAGE)
+        return value
+
+
+class _ReassignMixin:
+    """`reassign_to`: obligatorio si el entrenador tiene clientas; debe ser uno de `targets`
+    (entrenadores activos, menos él). Cualquier otro valor es un error de campo, nunca un 500."""
+
+    def _setup_reassign(self, client_count, targets):
+        self.client_count = client_count
+        self.targets = targets
+        self.fields['reassign_to'] = forms.CharField(label='Pasar sus clientas a', required=False,
+                                                     max_length=20)
+
+    def clean_reassign_to(self):
+        if not self.client_count:
+            return None
+        value = (self.cleaned_data.get('reassign_to') or '').strip()
+        if not _PK_PATTERN.match(value):
+            raise ValidationError(REASSIGN_REQUIRED_MESSAGE)
+        target = self.targets.filter(pk=int(value)).first()
+        if target is None:
+            raise ValidationError(REASSIGN_UNAVAILABLE_MESSAGE)
+        return target
+
+
+class TrainerDeactivateForm(_ReassignMixin, DeactivateAccountForm):
+    def __init__(self, *args, client_count, targets, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._setup_reassign(client_count, targets)
+
+
+class TrainerEraseForm(_ReassignMixin, EraseAccountForm):
+    def __init__(self, *args, client_count, targets, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._setup_reassign(client_count, targets)

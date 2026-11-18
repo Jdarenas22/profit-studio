@@ -87,6 +87,12 @@ Variables de entorno requeridas en Railway:
 
 - `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`
 - `SECRET_KEY` y `ALLOWED_HOSTS` son OBLIGATORIAS: `production.py` no arranca si faltan, si ALLOWED_HOSTS tiene `*` o si SECRET_KEY es un valor de ejemplo
+- `SECURITY_STRICT_SECRETS` (opcional, `false` por defecto; un valor distinto de true/false detiene el arranque). Reglas en `config/security.py`. Por defecto solo AVISA cuando:
+  - la `SECRET_KEY` no cumple `security.W009` (50+ caracteres, 5+ distintos, sin `django-insecure-`): chequeo `profit.W001`;
+  - con R2, `R2_RECEIPTS_BUCKET_NAME` falta o es igual a `R2_BUCKET_NAME`: chequeo `profit.W002`, `RuntimeWarning` y `check_infra`.
+
+  Los chequeos `profit.*` (`config/checks.py`) solo salen con `check --deploy`. Con `true`, `production.py` lanza `ImproperlyConfigured` y no arranca. Activarla en Railway solo después de ver `SECRET_KEY` y "Bucket de comprobantes" en OK en `check_infra`. Los mensajes nombran variables, nunca valores
+- `REDIS_URL` (opcional): sin ella la caché es memoria por proceso de gunicorn. Solo el límite del registro de cuentas (`apps/accounts/ratelimit.py`) se cuenta por proceso; las sesiones y `django-axes` usan la base de datos. `check_infra` lo avisa en producción (área "Caché"). Con Redis, las sesiones viven allí: si Redis cae, nadie inicia sesión (`check_infra` hace un PING y da ERROR)
 - `TRAINER_INITIAL_PASSWORD` (opcional; también se acepta el nombre antiguo `TRAINER_PASSWORD`): si existe, `start.sh` crea la superusuaria `yiseth` con esa contraseña. Sin ella no se crea la cuenta. Nunca hay contraseña por defecto en el código
 - R2: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL`, `R2_PUBLIC_URL`, `R2_RECEIPTS_BUCKET_NAME` (bucket PRIVADO para comprobantes)
 - Wompi: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`
@@ -95,6 +101,19 @@ Variables de entorno requeridas en Railway:
 - Planes con IA (opcionales): `AI_PLANS_MODE` (`off` por defecto en producción, `simulated` en desarrollo, `live` = Gemini). En `live`, `production.py` NO arranca sin `GEMINI_API_KEY`, `GEMINI_MODEL` y `GEMINI_BILLING_CONFIRMED=true` (la clave debe ser de un proyecto con facturación: el nivel gratuito permite que Google use los datos). Otras: `GEMINI_TIMEOUT_SECONDS`, `GEMINI_SCHEMA_FIELD` (`responseJsonSchema` o `none`), `AI_PLANS_CLIENT_WEEKLY_LIMIT`, `AI_PLANS_TRAINER_DAILY_LIMIT`, `AI_PLANS_DAILY_JOB_LIMIT`, `AI_PLANS_ALT_SLOT_WEEKLY_LIMIT`, `AI_PLANS_ALT_DAILY_LIMIT` ("otra opción"), `AI_PLANS_RUN_INLINE` (pruebas)
 - Avisos por WhatsApp (opcionales; NO confundir con `WHATSAPP_NUMBER`/`WHATSAPP_LINK`): `WHATSAPP_CLOUD_MODE` (`off` por defecto en producción, `simulated` en desarrollo, `live` = Meta). En `live`, `production.py` NO arranca sin `WHATSAPP_CLOUD_ACCESS_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `WHATSAPP_CLOUD_WABA_ID`, `WHATSAPP_CLOUD_APP_SECRET`, `WHATSAPP_CLOUD_VERIFY_TOKEN` (32+ caracteres) y `WHATSAPP_CLOUD_GRAPH_VERSION` (`vNN.N`). Pendientes legales (en `live` no se envía nada sin ellos): `WHATSAPP_CLOUD_SITE_URL` (https), `WHATSAPP_CLOUD_LEGAL_REVIEWED=true`, `PRIVACY_POLICY_URL` y texto `whatsapp_notices` sin marcadores. Otras: `WHATSAPP_CLOUD_TEMPLATE_LANG` (`es_CO`), `WHATSAPP_CLOUD_TIMEOUT_SECONDS`, `WHATSAPP_CLOUD_DAILY_LIMIT`, `WHATSAPP_CLOUD_EXPIRING_DAYS`, `WHATSAPP_CLOUD_PAYMENT_NOTICE`, `WHATSAPP_CLOUD_SEND_INLINE` (pruebas)
 - `HEALTH_FEATURES_ENABLED` (opcional): enciende las pantallas de salud de la clienta ("Mis medidas", consentimiento). **Apagada por defecto en producción** (las rutas responden 404) hasta que un abogado apruebe los textos de consentimiento y la superusuaria publique la versión definitiva (Admin > Textos de consentimiento); `development.py` la enciende. `PRIVACY_POLICY_URL` (opcional): enlace público a la política de tratamiento de datos que se muestra junto al consentimiento
+
+### Railway: configuración de despliegue
+
+`railway.toml` define el `collectstatic` del build, `startCommand = "bash start.sh"`, el healthcheck `/health/` y la política de reinicio. **Railway deja de leerlo el 2026-12-01** (pasa a Infrastructure as Code, `.railway/railway.ts`). Hay que migrarlo antes de esa fecha: sin esa configuración, el `Procfile` arrancaría gunicorn sin `start.sh` (sin migraciones ni verificaciones). No borrar `railway.toml` hasta haber migrado.
+
+### Integración continua (`.github/workflows/ci.yml`)
+
+En cada push y pull request, sin secretos ni despliegue (`permissions: contents: read`):
+
+- Job "pruebas": Python 3.11 con caché de pip, `requirements/development.txt`, `check`, `makemigrations --check --dry-run` y `python -W error::DeprecationWarning manage.py test`. Node 24 con `actions/setup-node` para que la prueba de Tailwind compile con `npx` (sigue sin `package.json`).
+- Job "dependencias": `pip-audit` sobre `requirements/base.txt`, `development.txt` y `local.txt`.
+
+La suite no necesita variables de entorno: sin `.env`, development.py usa sus valores por defecto. Si una prueba nueva necesita una, se define en el workflow con un valor ficticio.
 
 ### Almacenamiento de archivos media
 
@@ -192,6 +211,8 @@ Prompts meal/3 y meal/4; las notas libres de alimentación no se envían al prov
 - Con `AI_PLANS_REQUIRE_PROFESSIONAL=true`, aprobar un plan de alimentación exige `TrainerCredential.can_validate_nutrition` (la superusuaria la asigna en el admin; quién puede tenerla es una decisión legal) y que hoy no haya bandera roja ni alimentos incompatibles con la ficha. El entrenador edita opciones con `trainer_meal_option_edit` (solo alimentos permitidos a la clienta).
 - La clienta (`member_nutrition_plan`, solo plan `approved` y suyo) elige una opción por comida y día (`MealChoice`, ventana de hoy + 6 días), puede pedir **«otra opción»** (`nutrition.request_alternative`: reemplaza una opción, queda `needs_review` para el entrenador, cupos por comida y por día) y ve intercambios y lista de compras. Opciones con un alimento que ya no le corresponde se marcan y no se pueden elegir.
 - Pruebas: `test_nutrition_rules.py` (puras), `test_nutrition.py`, `test_nutrition_views.py`, `test_foods_admin.py`; el escenario `NutritionScenarioTestCase` (`tests/helpers.py`) carga el catálogo validado y da la credencial a la superusuaria.
+- Marcar comidas (`member_meal_complete`, `POST /plans/nutrition/choices/<pk>/complete/`): la clienta marca «Cumplí esta comida» con `done=1` o `0` (idempotente; solo hoy o días anteriores y con opciones compatibles con su ficha; desmarcar siempre se permite). Es lo que escribe `MealChoice.completed_at`. La adaptación solo cuenta las comidas marcadas sobre opciones **activas** (lo que la clienta ve es lo que cuenta).
+- Pedidos bloqueados por bandera roja (plan completo y «otra opción»): un solo trabajo y un solo aviso al entrenador por día, misma clienta, tipo y banderas (`services.recent_blocked_job`).
 
 ### Avisos por WhatsApp (`docs/contracts/whatsapp.md`)
 
@@ -200,3 +221,12 @@ Prompts meal/3 y meal/4; las notas libres de alimentación no se envían al prov
 - Cola en la base (`WhatsAppMessage`, idempotente por `dedupe_key`; solo ids, códigos y fechas): intento inmediato en hilo para avisos por acción y **cron de Railway** como respaldo: servicio aparte con `python manage.py process_whatsapp_queue` y Cron Schedule `*/15 12-23 * * 1-6` (UTC). Ventana Ley 2300 (L-V 7-19, sáb 8-15, sin domingos ni festivos de Colombia, `apps/whatsapp/calendar.py`). Errores de Meta por clase (`client/base.py`): de cuenta/token pausan el canal y avisan a la superusuaria; de plantilla pausan esa plantilla. `python manage.py check_whatsapp [--resume]`, `whatsapp_register_number`.
 - Webhook `/whatsapp/webhook/` (`@csrf_exempt` solo ahí): firma `X-Hub-Signature-256` sobre el cuerpo crudo, cuenta y número propios, idempotente. Nunca se guarda ni registra el texto de los mensajes, teléfonos completos ni tokens.
 - Pruebas sin red (`FakeWhatsAppClient`, `apps/whatsapp/tests/`). Pantallas: esqueletos `accounts/whatsapp_settings.html` y `trainer/whatsapp_settings.html` hasta que el frontend entregue las reales (`docs/contracts/requests.md`, "contrato W-01 a W-03").
+
+### Desactivar y eliminar cuentas (`docs/contracts/cuentas-eliminar.md`)
+
+- Tres estados: **activa**, **desactivada** (`is_active=False` + `deactivated_at`; reversible; no inicia sesión) y **eliminada** (lápida: la fila de `User` vaciada, `erased_at`, usuario `cuenta-eliminada-<pk>`, contraseña inutilizable). Todo pasa por `apps/accounts/services.py` (`deactivate_account`, `reactivate_account`, `erase_account`), en una transacción con `select_for_update()` y con la auditoría `AccountAuditLog` (solo ids, rol, acción, motivo de lista cerrada y conteos; admin de solo lectura para la superusuaria).
+- Permisos: nunca sobre una superusuaria, ni sobre la propia cuenta, ni sobre una eliminada; siempre queda al menos una superusuaria activa. Un entrenador común **desactiva y reactiva** a sus clientas; **eliminar** es solo de la superusuaria, igual que todo lo de entrenadores. Al desactivar o eliminar un entrenador sus clientas pasan a `reassign_to` y sus planes `in_review` vuelven a la bandeja (`PlanEvent` `released`).
+- Una clienta desactivada es de **solo lectura**: las vistas que escriben usan `permissions.reject_if_inactive` y los servicios `ensure_client_active`. `clients_for_trainer` excluye las lápidas (las desactivadas sí se ven, con `?status=inactive|all` en las listas).
+- Eliminar borra los datos de la persona y conserva, sin datos personales y apuntando a la lápida, pagos (`ManualPayment.user` y `Payment.user` son `PROTECT`; `raw_webhook` queda en una lista blanca), comprobantes (bucket privado, solo la superusuaria, `receipt_retained_at`), consentimientos (retirados), registro de accesos a la ficha y auditoría. La foto se borra con `transaction.on_commit`. **Toda clave foránea nueva a `User` debe clasificarse en `services.ERASE_POLICY`** (una prueba falla si no).
+- El admin de usuarios no borra (sin botón ni acción masiva) y deja `is_active`/`is_superuser` de solo lectura. `python manage.py purge_orphan_files [--delete]` cuenta o borra fotos y comprobantes que ninguna fila usa.
+- Pantallas C-01 a C-08 entregadas (`docs/contracts/requests.md`); parciales comunes en `templates/trainer/partials/account_*.html` y `person_name.html`. Los errores que una plantilla pinta junto al campo van en las listas `*_RENDERED` de `apps/accounts/views.py` para no repetirlos arriba.

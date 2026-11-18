@@ -4,12 +4,15 @@ from datetime import timedelta
 from unittest import mock
 
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
 from django.contrib import admin
+from django.test import TransactionTestCase
 
 from apps.accounts.models import User
+from apps.accounts.tests.helpers import make_user
 from apps.assessments.models import BodyMeasurement, InitialAssessment
-from apps.health import dates, services
+from apps.health import dates, screening, services
 from apps.health.models import (
     PURPOSE_AI, PURPOSE_HEALTH_DATA, HealthAccessLog, HealthProfile,
 )
@@ -399,12 +402,16 @@ class ModelAndAdminTests(HealthScenarioTestCase):
         profile.clearance_date = today
         self.assertFalse(profile.clearance_is_valid())
 
-    def test_deleting_the_account_removes_profile_and_log(self):
+    def test_erasing_the_account_removes_profile_and_keeps_the_log(self):
+        """Eliminar la cuenta (docs/contracts/cuentas-eliminar.md, lápida) borra la ficha y conserva el
+        registro de accesos como constancia, ahora con el borrado hecho por la superusuaria."""
+        from apps.accounts.services import erase_account
         self.make_profile(self.client_a)
         services.export_data(self.client_a)
-        User.objects.filter(pk=self.client_a.pk).delete()
+        erase_account(self.client_a, self.boss, 'holder_request')
         self.assertFalse(HealthProfile.objects.exists())
-        self.assertFalse(HealthAccessLog.objects.exists())
+        self.assertEqual(set(HealthAccessLog.objects.values_list('action', 'actor')),
+                         {('export', self.client_a.pk), ('delete', self.boss.pk)})
 
     def test_trainer_deleted_keeps_the_log_entry(self):
         self.make_profile(self.client_a)
@@ -424,3 +431,189 @@ class ModelAndAdminTests(HealthScenarioTestCase):
         self.assertFalse(cards['health_data']['active'])
         self.assertTrue(cards['health_data']['outdated'])
         self.assertEqual(cards['health_data']['current_version'], 2)
+
+
+# ─── Ficha básica (contrato ficha-basica.md, sección 8: servicio y modelo) ────
+
+class BasicProfileServiceTests(HealthScenarioTestCase):
+    def test_minimal_profile_is_saved_with_answers_defaults_and_labels(self):
+        profile = self.make_profile(self.client_a, basic=True)
+        profile.refresh_from_db()
+        self.assertEqual((profile.health_screen, profile.food_screen), ('no', 'no'))
+        self.assertTrue(profile.health_declared_none)
+        self.assertTrue(profile.food_declared_none)
+        self.assertFalse(profile.has_health_details)
+        self.assertFalse(profile.has_food_details)
+        self.assertEqual(profile.defaulted_fields,
+                         ['cooking_access', 'budget_level', 'eats_out_per_week', 'activity_level'])
+        self.assertEqual(profile.defaulted_labels, ['Posibilidad de cocinar', 'Presupuesto',
+                                                    'Comidas fuera por semana', 'Nivel de actividad diaria'])
+        self.assertTrue(profile.is_defaulted('activity_level'))
+        self.assertEqual(profile.activity_level, 'sedentary')
+        self.assertEqual(profile.parq, {f'q{i}': False for i in range(1, 8)})
+        self.assertIsNotNone(profile.confirmed_by_client_at)
+
+    def test_full_profile_answers_yes_and_has_details(self):
+        profile = self.make_profile(self.client_a, injuries=['knee'], diet_type='vegan')
+        self.assertEqual((profile.health_screen, profile.food_screen), ('yes', 'yes'))
+        self.assertFalse(profile.health_declared_none)
+        self.assertTrue(profile.has_health_details)
+        self.assertTrue(profile.has_food_details)
+        self.assertEqual(profile.defaulted_fields, [])
+        self.assertEqual(profile.defaulted_labels, [])
+
+    def test_service_reimposes_the_neutral_values_with_a_dirty_dict(self):
+        self.grant(self.client_a)
+        data = cleaned_profile(basic=True)
+        dirty = dict(conditions=['cancer_active'], medications=['insulin'], injuries=['knee'],
+                     parq={f'q{i}': True for i in range(1, 8)}, condition_controlled=True,
+                     medical_clearance=True, clearance_date=dates.today(), recent_surgery='under_6m',
+                     pregnancy_status='pregnant', eating_disorder_history='yes',
+                     other_condition_text='SECRETO', medications_text='SECRETO', injuries_text='SECRETO',
+                     diet_type='vegan', allergies=['peanut'], allergy_severity='anaphylaxis',
+                     intolerances=['lactose'])
+        data.update(dirty)
+        profile = services.save_profile(self.client_a, data, actor=self.client_a)
+        profile.refresh_from_db()
+        for name, value in {**screening.health_neutral_values(), **screening.food_neutral_values()}.items():
+            self.assertEqual(getattr(profile, name), value, name)
+        self.assertEqual(data['conditions'], ['cancer_active'])        # no modifica el diccionario recibido
+        self.assertFalse(services.profile_flags(self.client_a).has_red)
+
+    def test_service_only_accepts_yes_or_no_and_known_defaulted_codes(self):
+        self.grant(self.client_a)
+        cases = [('health_screen', 'legacy'), ('health_screen', 'quizas'), ('health_screen', ''),
+                 ('food_screen', 'legacy'), ('food_screen', None),
+                 ('defaulted_fields', ['sleep_hours']), ('defaulted_fields', ['activity_level', 'activity_level']),
+                 ('defaulted_fields', 'activity_level'), ('defaulted_fields', None),
+                 ('defaulted_fields', [['activity_level']])]
+        for name, value in cases:
+            data = cleaned_profile(basic=True)
+            data[name] = value
+            with self.assertRaises(services.ProfileInvalid, msg=(name, value)):
+                services.save_profile(self.client_a, data, actor=self.client_a)
+        data = cleaned_profile(basic=True)
+        del data['defaulted_fields']
+        with self.assertRaises(services.ProfileInvalid):
+            services.save_profile(self.client_a, data, actor=self.client_a)
+        self.assertFalse(HealthProfile.objects.exists())
+
+    def test_service_gives_home_training_no_equipment_when_empty(self):
+        self.grant(self.client_a)
+        data = cleaned_profile(basic=True, training_place='home')
+        data.update(equipment=[], defaulted_fields=[])
+        profile = services.save_profile(self.client_a, data, actor=self.client_a)
+        self.assertEqual(profile.equipment, ['none'])
+        self.assertEqual(profile.defaulted_fields, ['equipment'])
+
+    def test_database_rejects_no_with_medical_data(self):
+        profile = self.make_profile(self.client_a, basic=True)
+        for change in (dict(recent_surgery='under_6m'), dict(pregnancy_status='pregnant'),
+                       dict(eating_disorder_history='prefer_not_say'), dict(medical_clearance=True),
+                       dict(condition_controlled=True), dict(clearance_date=dates.today())):
+            with self.assertRaises(IntegrityError, msg=change), transaction.atomic():
+                HealthProfile.objects.filter(pk=profile.pk).update(**change)
+        for change in (dict(diet_type='vegan'), dict(allergy_severity='mild')):
+            with self.assertRaises(IntegrityError, msg=change), transaction.atomic():
+                HealthProfile.objects.filter(pk=profile.pk).update(**change)
+        # Contraprueba: con «Sí» (o legacy) la base no restringe esos valores
+        HealthProfile.objects.filter(pk=profile.pk).update(health_screen='yes', recent_surgery='under_6m')
+        HealthProfile.objects.filter(pk=profile.pk).update(food_screen='legacy', diet_type='vegan')
+
+    def test_trainer_can_answer_no_and_it_stays_unconfirmed(self):
+        first = self.make_profile(self.client_a, injuries=['knee'], parq_q5='yes')
+        corrected = services.save_profile(self.client_a, cleaned_profile(basic=True), actor=self.trainer_a)
+        self.assertEqual((corrected.version, corrected.created_by_role), (2, 'trainer'))
+        self.assertIsNone(corrected.confirmed_by_client_at)
+        self.assertEqual((corrected.health_screen, corrected.injuries), ('no', []))
+        first.refresh_from_db()
+        self.assertEqual(first.injuries, ['knee'])                   # la versión anterior se conserva
+        self.assertIn('M04_PROFILE_UNCONFIRMED', services.profile_flags(self.client_a).codes)
+
+    def test_changing_yes_to_no_keeps_previous_versions(self):
+        self.make_profile(self.client_a, conditions=['asthma'], condition_controlled='on')
+        latest = self.make_profile(self.client_a, basic=True)
+        self.assertEqual(latest.conditions, [])
+        self.assertEqual(HealthProfile.objects.get(user=self.client_a, version=1).conditions, ['asthma'])
+
+    def test_export_includes_the_three_new_fields(self):
+        self.make_profile(self.client_a, basic=True, training_place='home')
+        payload = services.export_data(self.client_a)
+        exported = payload['health_profiles'][0]
+        self.assertEqual((exported['health_screen'], exported['food_screen']), ('no', 'no'))
+        self.assertEqual(exported['defaulted_fields'],
+                         ['cooking_access', 'budget_level', 'eats_out_per_week', 'equipment', 'activity_level'])
+        json.dumps(payload, cls=DjangoJSONEncoder)
+
+    def test_facts_carry_the_answers_and_flags_follow_the_contract(self):
+        profile = self.make_profile(self.client_a, basic=True)
+        facts = services.build_facts(self.client_a, profile)
+        self.assertEqual((facts.health_screen, facts.food_screen), ('no', 'no'))
+        self.assertEqual(facts.defaulted_fields, ('cooking_access', 'budget_level', 'eats_out_per_week',
+                                                  'activity_level'))
+        self.assertIn('Nivel de actividad diaria', facts.defaulted_labels)
+        report = services.profile_flags(self.client_a, profile)
+        self.assertIn('I03_HEALTH_SCREEN_NO', report.codes)
+        self.assertIn('I04_DEFAULTS', report.codes)
+        self.assertIn('M10_NO_ACTIVITY', report.codes)
+        self.assertEqual(report.red, ())
+        self.assertEqual(report.yellow, ())
+        i04 = [flag for flag in report.info if flag.code == 'I04_DEFAULTS'][0]
+        self.assertIn('Nivel de actividad diaria', i04.text)
+
+    def test_legacy_profile_keeps_working(self):
+        profile = self.make_profile(self.client_a, injuries=['knee'])
+        HealthProfile.objects.filter(pk=profile.pk).update(health_screen='legacy', food_screen='legacy')
+        profile.refresh_from_db()
+        self.assertFalse(profile.health_declared_none)
+        self.assertTrue(profile.has_health_details)
+        report = services.profile_flags(self.client_a, profile)
+        self.assertIn('Y04_JOINT', report.codes)
+        self.assertNotIn('I03_HEALTH_SCREEN_NO', report.codes)
+        self.assertNotIn('I04_DEFAULTS', report.codes)
+
+
+class Migration0005Tests(TransactionTestCase):
+    """La migración 0005 deja las fichas existentes en `legacy` y es reversible."""
+    serialized_rollback = True
+    before = [('health', '0004_whatsapp_consent_purpose')]
+    after = [('health', '0005_ficha_basica')]
+
+    def tearDown(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())     # deja la base al día para lo que sigue
+        super().tearDown()
+
+    def _old_profile(self, apps):
+        # Las cuentas no cambian con esta migración: la clienta se crea con el modelo actual
+        user = make_user('ficha_vieja', User.ROLE_MEMBER)
+        Profile = apps.get_model('health', 'HealthProfile')
+        return Profile.objects.create(
+            user_id=user.pk, version=1, is_current=True, created_by_role='member',
+            birth_date=adult_birth_date(30), sex_for_calculation='F', recent_surgery='none',
+            pregnancy_status='none', eating_disorder_history='no', parq={f'q{i}': False for i in range(1, 8)},
+            injuries=['knee'], diet_type='omnivore', meal_slots=['breakfast', 'lunch', 'dinner'],
+            cooking_access='full', budget_level='low', training_days_per_week=3, session_minutes=60,
+            training_place='gym', experience_level='beginner', activity_level='light',
+        )
+
+    def test_existing_profiles_become_legacy_and_the_migration_reverts(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.before)
+        old = self._old_profile(executor.loader.project_state(self.before).apps)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.after)
+        Profile = executor.loader.project_state(self.after).apps.get_model('health', 'HealthProfile')
+        migrated = Profile.objects.get(pk=old.pk)
+        self.assertEqual((migrated.health_screen, migrated.food_screen, migrated.defaulted_fields),
+                         ('legacy', 'legacy', []))
+        self.assertEqual((migrated.injuries, migrated.activity_level), (['knee'], 'light'))   # nada cambia
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.before)
+        columns = {col.name for col in connection.introspection.get_table_description(
+            connection.cursor(), 'health_healthprofile')}
+        self.assertFalse({'health_screen', 'food_screen', 'defaulted_fields'} & columns)
+        Profile = executor.loader.project_state(self.before).apps.get_model('health', 'HealthProfile')
+        self.assertEqual(Profile.objects.get(pk=old.pk).injuries, ['knee'])

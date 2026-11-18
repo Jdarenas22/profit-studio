@@ -1,0 +1,30 @@
+{% comment %}
+  Pestañas de estado de C-01 (clientas) y C-05 (entrenadores): enlaces a ?status=active|inactive|all con su
+  número. Son navegación (enlaces con aria-current), no un tablist. Espera `status`, `counts` y
+  `masculine` (bool: «Activos / Desactivados / Todos» para el equipo; si no, «Activas / Desactivadas / Todas»).
+{% endcomment %}
+<nav aria-label="Filtrar por estado de la cuenta" class="mb-6 -mx-1 overflow-x-auto">
+  <ul class="flex w-max gap-1 rounded-2xl border border-white/10 bg-zinc-900 p-1.5 mx-1">
+    <li>
+      <a href="?status=active"{% if status == 'active' %} aria-current="page"{% endif %}
+         class="flex items-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary {% if status == 'active' %}bg-white/15 text-white{% else %}text-white/70 hover:text-white hover:bg-white/5{% endif %}">
+        {% if masculine %}Activos{% else %}Activas{% endif %}
+        <span class="rounded-full bg-black/40 px-2 py-0.5 text-xs tabular-nums">{{ counts.active }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="?status=inactive"{% if status == 'inactive' %} aria-current="page"{% endif %}
+         class="flex items-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary {% if status == 'inactive' %}bg-white/15 text-white{% else %}text-white/70 hover:text-white hover:bg-white/5{% endif %}">
+        {% if masculine %}Desactivados{% else %}Desactivadas{% endif %}
+        <span class="rounded-full bg-black/40 px-2 py-0.5 text-xs tabular-nums">{{ counts.inactive }}</span>
+      </a>
+    </li>
+    <li>
+      <a href="?status=all"{% if status == 'all' %} aria-current="page"{% endif %}
+         class="flex items-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary {% if status == 'all' %}bg-white/15 text-white{% else %}text-white/70 hover:text-white hover:bg-white/5{% endif %}">
+        {% if masculine %}Todos{% else %}Todas{% endif %}
+        <span class="rounded-full bg-black/40 px-2 py-0.5 text-xs tabular-nums">{{ counts.all }}</span>
+      </a>
+    </li>
+  </ul>
+</nav>

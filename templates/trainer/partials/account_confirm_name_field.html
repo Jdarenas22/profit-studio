@@ -1,0 +1,27 @@
+{% comment %}
+  C-04 y C-07: escribir el nombre para confirmar (`confirm_name`). Espera `display_name`, `form`, `errors`.
+  Va dentro del formulario de C-04/C-07, que define en Alpine `typed` y `matches` (solo ayuda visual).
+  El servidor compara sin mayúsculas ni espacios sobrantes, pero CON tildes; la ayuda lo dice.
+{% endcomment %}
+<div>
+  <label for="acct-confirm_name" class="block text-white/90 text-sm font-semibold mb-2">
+    Escribe "<span class="text-white [overflow-wrap:anywhere]">{{ display_name }}</span>" para confirmar <span class="text-red-300" aria-hidden="true">*</span>
+  </label>
+  <input id="acct-confirm_name" name="confirm_name" type="text" required maxlength="300"
+         autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+         value="{{ form.confirm_name|default:'' }}"
+         x-ref="confirm" x-model="typed"
+         aria-describedby="acct-confirm_name-help{% if errors.confirm_name %} acct-confirm_name-error{% endif %}"{% if errors.confirm_name %} aria-invalid="true"{% endif %}
+         class="w-full min-h-[48px] bg-black/40 border {% if errors.confirm_name %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-base sm:text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+  {% if errors.confirm_name %}
+  <p id="acct-confirm_name-error" class="mt-2 flex items-start gap-1.5 text-red-300 text-sm">
+    <i class="fa fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ errors.confirm_name }}</span>
+  </p>
+  {% endif %}
+  <p id="acct-confirm_name-help" class="mt-2 text-white/60 text-xs leading-relaxed">
+    No importan las mayúsculas ni los espacios de más, pero sí las tildes.
+  </p>
+  <p role="status" class="mt-1 min-h-[1.25rem] text-green-300 text-xs font-semibold">
+    <span x-show="matches" x-cloak><i class="fa fa-circle-check mr-1" aria-hidden="true"></i>El nombre coincide.</span>
+  </p>
+</div>

@@ -352,3 +352,42 @@ class ReviewAndApprovalTests(PlanScenarioTestCase):
         day = plan.routine.days.first()
         day.exercises.create(exercise=risky, sets=3, reps='10', rest_seconds=60, order=99)
         self.assertIn(risky.name, services.routine_conflicts(plan))
+
+
+# ─── Ficha básica (contrato ficha-basica.md, sección 8: planes) ───────────────
+
+class BasicProfileExerciseTests(PlanScenarioTestCase):
+    def test_exercise_plan_with_the_minimal_profile_uses_sedentary_and_nothing_new(self):
+        self.ready(self.client_a, basic=True)
+        job, fake = self.request(self.client_a)
+        self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
+        payload = fake.calls[0]['payload']
+        self.assertEqual(payload['client']['activity'], 'sedentary')
+        self.assertFalse(payload['client']['conservative'])
+        self.assertEqual(set(payload['client']), {'age', 'sex', 'goal', 'experience', 'activity', 'conservative'})
+        self.assertEqual(set(payload), {'task', 'schema_version', 'job_ref', 'client', 'training', 'limits',
+                                        'allowed_exercises', 'trainer_notes', 'previous_errors'})
+        sent = json.dumps(payload, ensure_ascii=False)
+        for word in ('health_screen', 'food_screen', 'defaulted_fields', 'legacy', 'no declar', 'Nivel de actividad'):
+            self.assertNotIn(word, sent)
+        self.assertIn('flags/2', job.plan.ruleset_version)
+
+    def test_trainer_summary_says_activity_was_not_given(self):
+        self.ready(self.client_a, basic=True)
+        job, _fake = self.request(self.client_a)
+        self.login(self.trainer_a)
+        response = self.client.get(reverse('trainer_plan_detail', args=[job.plan.pk]))
+        self.assertEqual(response.context['profile_summary']['activity'], 'No indicado')
+        # Contraprueba: declarada, se muestra su etiqueta
+        self.ready(self.client_b, basic=True, activity_level='moderate')
+        other, _fake = self.request(self.client_b)
+        self.login(self.boss)
+        response = self.client.get(reverse('trainer_plan_detail', args=[other.plan.pk]))
+        self.assertEqual(response.context['profile_summary']['activity'], 'Moderada (activa casi todos los días)')
+
+    def test_home_without_equipment_only_offers_exercises_without_equipment(self):
+        self.ready(self.client_a, basic=True, training_place='home')   # todo el catálogo usa máquinas
+        job, fake = self.request(self.client_a)
+        self.assertEqual(job.status, PlanGenerationJob.STATUS_BLOCKED)
+        self.assertEqual(job.flags, ['D06_FEW_EXERCISES'])
+        self.assertEqual(fake.calls, [])
