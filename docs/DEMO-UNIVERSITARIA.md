@@ -71,10 +71,11 @@ simulados de respaldo. Nunca presentar un resultado simulado como una respuesta 
   calórico exacto de una rutina ni se alteran porciones al margen de las reglas de Django.
 - Gemini selecciona recetas permitidas; Django filtra alimentos, valida porciones, recalcula
   cantidades y comprueba el día completo antes de guardar. La salida inválida no se publica.
-- El catálogo inicial contiene cifras aproximadas y conserva esa procedencia: no se marca
-  falsamente como validado por profesionales o como importado de USDA. La integración USDA
-  existe para búsqueda/importación/revisión; esta muestra no presupone su importación completa.
-  Azúcares/sodio ausentes no deben mostrarse como cero ni como cobertura completa.
+- La demo sincroniza 70 referencias de composición USDA verificadas contra su evidencia
+  y excluye 20 alimentos que necesitan precisar variedad o receta. No se certifica una marca,
+  receta local ni revisión profesional. Las cantidades importadas se muestran en gramos;
+  los nutrientes ausentes permanecen desconocidos. Los planes anteriores se conservan.
+  Inventario, controles y comandos: [catálogo USDA](nutricion/2026-11-18-catalogo-usda.md).
 - El tercer perfil utiliza el objetivo existente de resistencia cardiovascular para ilustrar
   mantenimiento energético; no se añadió una nueva categoría comercial «mantenimiento».
 - Los textos y consentimientos sembrados son exclusivos de personas ficticias. Los perfiles
@@ -96,3 +97,7 @@ Fuentes oficiales para comprobar vigencia de nivel y cuotas:
 [precios](https://aistudio.google.com/docs/pricing) y
 [límites](https://aistudio.google.com/docs/rate-limits).
 Las cuotas son por proyecto y varían por modelo; el nivel gratuito no implica uso ilimitado.
+
+Actualización USDA: suite completa de 1.527 pruebas aprobadas; tres perfiles simulados
+con cinco comidas y cobertura de composición USDA en sus 45 opciones. La prueba real
+de Gemini descrita arriba es anterior a esta actualización del catálogo.

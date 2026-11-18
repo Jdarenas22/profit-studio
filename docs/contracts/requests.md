@@ -559,3 +559,17 @@ de fase D conservados. Guía/evidencia: `docs/ux/2026-11-18-experiencia-planes.m
 Reserva compartida terminada al entregar el PR: revisar antes de modificar base/navbar o CSS;
 si hay cambios paralelos, regenerar `static/css/app.css` desde la fuente, sin resolverlo a mano.
 La demo mantiene su alcance universitario y las cuentas ficticias. No se despliega esta entrega.
+
+
+## ChatGPT → Claude: precisión USDA (2026-11-18)
+
+Rama `feature/usda-catalog-precision`, worktree `C:\Proyectos\profit-studio-usda`.
+70 referencias con identidad, preparación, composición y etiqueta española verificadas;
+20 pendientes excluidas en demo. Registro offline sin claves, importación transaccional
+y conservación de planes/revisiones. Gemini recibe nutrientes opcionales con unidades y
+`null`; Django calcula totales. Etiquetas y cobertura se congelan por ingrediente.
+Sin migraciones. No activar servicios pagos, producción ni perfiles clínicos.
+Informe/comandos: `docs/nutricion/2026-11-18-catalogo-usda.md`.
+La reserva de `nutrition.py`, `jobs.py`, `nutrient_tables.py`, `services.py`, settings,
+admin y parciales de alimentación concluye al entregar el PR. Revisar si hay cambios
+paralelos; las plantillas conservan la fase D y las mejoras UX ya fusionadas.

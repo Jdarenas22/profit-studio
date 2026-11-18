@@ -129,7 +129,10 @@ def create_nutrition_draft(job, assessment, generated, *, model_name, prompt_ver
 
 def _option_view(option):
     from . import nutrient_tables
+    sources = {row['food_id']: row for row in (option.nutrient_snapshot or {}).get('ingredients', [])
+               if isinstance(row, dict) and 'food_id' in row}
     items = [{'food': item.food, 'grams': item.grams,
+              'source_qualifier': sources.get(item.food_id, {}).get('source_qualifier', ''),
               'household': rules_foods.household_text(item.food, item.grams)} for item in option.items.all()]
     return {'option': option, 'items': items, 'nutrients': nutrient_tables.option_table(option),
             'letter': 'ABC'[option.position - 1] if option.position in (1, 2, 3) else ''}

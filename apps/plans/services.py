@@ -181,6 +181,7 @@ def training_profile(profile, yellow_codes):
 def food_items():
     """Catálogo de alimentos activo como datos simples para el motor. Fuera de DEBUG solo cuentan
     los alimentos validados por un profesional (`validated_by`), salvo que la validación esté suspendida."""
+    from .sources.catalog import source_is_consistent, reviewed_reference_matches
     rows = Food.objects.filter(is_active=True)
     if not settings.DEBUG and professional_required():
         rows = rows.exclude(validated_by='')
@@ -196,6 +197,8 @@ def food_items():
             condition_tags=tuple(row.condition_tags or ()), is_common=row.is_common,
         )
         for row in rows
+        if not getattr(settings, 'NUTRITION_REQUIRE_USDA_REFERENCE', False)
+        or (source_is_consistent(row) and reviewed_reference_matches(row))
     ]
 
 

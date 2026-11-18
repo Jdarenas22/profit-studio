@@ -34,5 +34,5 @@ class Command(BaseCommand):
             f'Alimentos: {created} nuevos, {updated} actualizados, {kept} ya validados o importados (sin tocar).'))
         if unvalidated:
             self.stdout.write(self.style.WARNING(
-                f'{unvalidated} alimentos activos siguen SIN VALIDAR: fuera de DEBUG no se usan hasta que un '
-                'nutricionista los valide (admin > Alimentos > "Marcar como validados").'))
+                f'{unvalidated} alimentos activos siguen SIN VALIDAR: su procedencia debe revisarse. '
+                'La política USDA solo ofrece alimentos con composición trazable y consistente.'))

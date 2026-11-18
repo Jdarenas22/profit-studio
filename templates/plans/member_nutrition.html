@@ -108,7 +108,7 @@
         {% endif %}
         <ul class="mt-3 space-y-1">
           {% for item in opt.items %}
-          <li class="text-sm text-white/90 [overflow-wrap:anywhere]">{{ item.food.name }} <span class="text-white/50">— {{ item.household }}</span></li>
+          <li class="text-sm text-white/90 [overflow-wrap:anywhere]">{{ item.food.name }} <span class="text-white/50">— {{ item.household }}</span>{% if item.source_qualifier %}<span class="block text-white/60 text-xs">{{ item.source_qualifier }}</span>{% endif %}</li>
           {% endfor %}
         </ul>
         {% include 'plans/partials/nutrients.html' with nutrients=opt.nutrients only %}
