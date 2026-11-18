@@ -69,6 +69,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+CSRF_FAILURE_VIEW = 'apps.assessments.api.csrf_failure'
 
 # ─── Templates ─────────────────────────────────────────────────────────────────
 TEMPLATES = [

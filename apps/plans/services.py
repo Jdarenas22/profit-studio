@@ -132,6 +132,9 @@ class Assessment:
     @property
     def blocked_message(self):
         """Texto para la clienta cuando está bloqueado (sin diagnósticos)."""
+        from . import wellness
+        if wellness.OUT_OF_SCOPE in self.eligibility.red_codes:
+            return 'Los menús de bienestar no cubren esta solicitud. La alimentación clínica está pausada.'
         for code in (rules_eligibility.D06_FEW_EXERCISES, rules_eligibility.D06_FEW_FOODS):
             if self.eligibility.red_codes == (code,):
                 return rules_eligibility.REQUIREMENT_TEXTS[code]
@@ -214,6 +217,10 @@ def assess(client, kind, actor, check_quota=True):
         quota_ok=quota_ok(client, actor) if check_quota else True,
     )
     catalog_result = None
+    from . import wellness
+    if kind == KIND_NUTRITION and wellness.outside_scope(profile):
+        eligibility = dataclasses.replace(
+            eligibility, red_codes=tuple(dict.fromkeys((*eligibility.red_codes, wellness.OUT_OF_SCOPE))))
     if kind == KIND_EXERCISE and profile is not None and not eligibility.missing and not eligibility.red_codes:
         catalog_result = rules_catalog.filter_exercises(
             exercise_items(), training_profile(profile, eligibility.yellow_codes))

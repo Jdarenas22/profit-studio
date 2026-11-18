@@ -20,6 +20,7 @@ admin.site.site_title = 'ProFit Studio'
 admin.site.index_title = 'Administración'
 
 urlpatterns = [
+    path('api/v1/assessments/', include('apps.assessments.api_urls')),
     path('health/', health_check),      # ← Railway HealthCheck
     path('admin/', admin.site.urls),
     path('', include('apps.public.urls')),

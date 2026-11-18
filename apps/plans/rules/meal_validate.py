@@ -146,6 +146,7 @@ class SlotRules:
     diet: str = ''
     n_options: int = OPTIONS_PER_SLOT
     existing: tuple = ()                # ExistingOption
+    recipes: tuple | None = None        # None = editor manual / contratos anteriores; () = sin recetas.
 
 
 def _round5(value):
@@ -221,6 +222,15 @@ def validate_meal_slot(data, rules):
             continue
         scaled, total, option_errors = evaluate_option(rows, rules)
         errors.extend((code, f'{where}: {detail}') for code, detail in option_errors)
+        if rules.recipes is not None:
+            recipe = next((recipe for recipe in rules.recipes if recipe['name'] == name), None)
+            submitted = sorted((food.id, grams) for food, grams in rows)
+            expected = sorted((item['food_id'], item['grams']) for item in recipe['items']) if recipe else []
+            if (recipe is None or submitted != expected) and not errors:
+                errors.append(('V09_RECIPE', f'{where}: selecciona una receta ofrecida sin cambiar ingredientes ni porciones'))
+                continue
+            if recipe is not None:
+                preparation = recipe['preparation']
         cleaned.append({
             'name': name or '', 'preparation': preparation or '',
             'items': [{'food_id': food.id, 'grams': grams} for food, grams in scaled], 'totals': total,

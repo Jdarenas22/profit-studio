@@ -373,6 +373,9 @@ def export_data(user):
     """Todos los datos de salud propios de `user` en un diccionario (se entrega como JSON).
     Deja constancia en `HealthAccessLog`. Los valores pueden incluir Decimal/fechas: la vista
     los serializa con DjangoJSONEncoder."""
+    from apps.assessments.cardio import serialize_evaluation
+    from apps.assessments.models import CardioEvaluation
+
     measurements = [
         {'date': m.date, 'weight_kg': m.weight, 'height_m': m.height, 'waist_cm': m.waist_cm,
          'hip_cm': m.hip_cm, 'body_fat_pct': m.body_fat_pct, 'imc': m.imc,
@@ -398,6 +401,10 @@ def export_data(user):
         },
         'health_profiles': [_profile_export(p) for p in HealthProfile.objects.filter(user=user).order_by('version')],
         'body_measurements': measurements,
+        'cardio_evaluations': [
+            serialize_evaluation(row)
+            for row in CardioEvaluation.objects.filter(assessment__user=user).order_by('pk')
+        ],
         'consents': consents,
         'access_log': access,
     }

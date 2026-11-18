@@ -3,11 +3,8 @@ de la salud antes de producción."""
 
 # Descargo de responsabilidad: visible al pedir el plan, en "Mi plan" y en la rutina aprobada
 DISCLAIMER = (
-    'Este plan es una orientación general de ejercicio y alimentación, elaborada con apoyo de '
-    'inteligencia artificial y revisada por tu entrenador. No reemplaza la valoración, el diagnóstico '
-    'ni el tratamiento de un médico o de un nutricionista-dietista. Si sientes dolor en el pecho, '
-    'mareo, falta de aire, desmayo, dolor intenso o cualquier síntoma que te preocupe, suspende el '
-    'ejercicio y consulta a un profesional de la salud. Si tienes una condición médica, estás '
-    'embarazada o en lactancia, o has tenido dificultades con la alimentación, consulta a tu médico '
-    'antes de seguir este plan.'
+    'Orientación de bienestar y entrenamiento con menús cotidianos e internacionales, '
+    'preparada con apoyo de inteligencia artificial y revisada por tu entrenador. '
+    'La atención clínica y las dietas para tratar enfermedades están pausadas en ProFit Studio. '
+    'Si un ejercicio produce dolor o malestar, detén la actividad.'
 )

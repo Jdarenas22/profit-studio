@@ -1,0 +1,44 @@
+{% load static %}
+<section class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-6"
+         data-cardio-api="{% url 'api_ruffier_dickson' assessment.pk %}">
+  <h2 class="text-white font-bold mb-1">Nueva evaluación Ruffier / Ruffier-Dickson</h2>
+  <p class="text-white/60 text-sm mb-4">Registra frecuencias en latidos por minuto, no el conteo de 15 segundos.
+    El profesional responsable debe verificar que la prueba sea apropiada para la persona.</p>
+  <p class="text-white/60 text-sm mb-4">Protocolo de referencia: reposo acostada durante unos minutos y registro de P0;
+    30 sentadillas en 45 segundos y registro inmediato de P1; recuperación acostada y registro de P2
+    al cumplirse 60 segundos desde el fin del esfuerzo. No registres como completa una prueba interrumpida.</p>
+  <form data-cardio-form class="space-y-4">
+    {% csrf_token %}
+    <div class="grid grid-cols-3 gap-4">
+      <label class="text-white/60 text-sm">P0 — Reposo (bpm)
+        <input class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white"
+               name="resting_hr_bpm" type="number" min="20" max="250" step="1" required>
+      </label>
+      <label class="text-white/60 text-sm">P1 — Postesfuerzo (bpm)
+        <input class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white"
+               name="post_exercise_hr_bpm" type="number" min="20" max="250" step="1" required>
+      </label>
+      <label class="text-white/60 text-sm">P2 — Recuperación (bpm)
+        <input class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white"
+               name="recovery_hr_bpm" type="number" min="20" max="250" step="1" required>
+      </label>
+    </div>
+    <label class="block text-white/60 text-sm">
+      <input name="protocol_confirmed" type="checkbox" required>
+      Confirmo que los valores corresponden al protocolo completo indicado.
+    </label>
+    <button class="bg-primary text-white font-semibold py-2.5 px-6 rounded-xl text-sm" type="submit">
+      Calcular y guardar evaluación
+    </button>
+  </form>
+  <p data-cardio-status class="text-white/60 text-sm mt-4" role="status" aria-live="polite"></p>
+  <p class="text-white/40 text-xs mt-4">IR = (P0 + P1 + P2 − 200) / 10.
+    IRD = (P1 − 70 + 2 × (P2 − P0)) / 10.
+    Resultado numérico para seguimiento; interpretación pendiente del profesional.
+    No es un diagnóstico ni un certificado de aptitud.</p>
+  <h3 class="text-white font-bold mt-4">Evaluaciones guardadas</h3>
+  <ul data-cardio-history class="text-white/60 text-sm space-y-3 mt-4"></ul>
+  <noscript>Activa JavaScript para registrar y consultar esta evaluación mediante la API.</noscript>
+</section>
+<script src="{% static 'js/cardio-api.js' %}" defer></script>
+

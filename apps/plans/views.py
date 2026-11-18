@@ -95,9 +95,14 @@ def _job_context(job):
     blocked = job.status == PlanGenerationJob.STATUS_BLOCKED
     is_alternative = job.kind == PlanGenerationJob.KIND_MEAL_ALTERNATIVE
     message = (ALTERNATIVE_MESSAGES if is_alternative else JOB_MESSAGES).get(job.status, '')
+    if job.error_code == 'recipes_unavailable':
+        message = ('No encontramos suficientes recetas compatibles con tus preferencias y porciones. '
+                   'Tu entrenador puede revisar las opciones disponibles.')
     if blocked:
         few = next((code for code in _FEW_ITEMS_CODES if job.flags == [code]), None)
         message = rules_eligibility.REQUIREMENT_TEXTS[few] if few else rules_eligibility.BLOCKED_MESSAGE
+        if 'NUTRITION_CLINICAL_PAUSED' in job.flags:
+            message = 'Los menús de bienestar no cubren esta solicitud. La alimentación clínica está pausada.'
     return {
         'job': job, 'job_message': message, 'job_finished': job.is_finished, 'job_blocked': blocked,
         'job_is_alternative': is_alternative,

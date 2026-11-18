@@ -39,6 +39,7 @@ def assessment_list(request):
     return render(request, 'assessments/list.html', {'assessments': assessments})
 
 
+@never_cache
 @trainer_required
 def trainer_assessment_create(request, client_pk):
     client = get_client_for_trainer(request, client_pk)
@@ -87,6 +88,7 @@ def trainer_assessment_create(request, client_pk):
     })
 
 
+@never_cache
 @trainer_required
 def trainer_assessment_detail(request, pk):
     assessment = get_object_or_404(InitialAssessment.objects.select_related('user'), pk=pk)
@@ -108,7 +110,7 @@ def trainer_assessment_detail(request, pk):
                 dixon = DixonTest.objects.create(
                     assessment=assessment, p0=data['p0'], p1=data['p1'], p2=data['p2'], observations=obs
                 )
-            messages.success(request, f'Test de Ruffier-Dickson guardado. IRD: {dixon.index_value} — {dixon.classification}.')
+            messages.success(request, f'Índice de Ruffier guardado. IR: {dixon.index_value} — {dixon.classification}.')
             return redirect('trainer_assessment_detail', pk=pk)
 
         errors = errors_dict(form)

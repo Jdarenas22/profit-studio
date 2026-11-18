@@ -384,5 +384,5 @@ def empty_form_values():
     for name in (*PARQ_FIELDS, *MEAL_TIME_FIELDS):
         values[name] = ''
     # Casillas que arrancan marcadas: desayuno, almuerzo y cena
-    values['meal_slots'] = list(ch.REQUIRED_MEAL_SLOTS)
+    values['meal_slots'] = [code for code, _label in ch.MEAL_SLOT_CHOICES]
     return values

@@ -118,10 +118,18 @@ Variables de entorno requeridas en Railway:
 1. **Wompi** (`apps/payments`): pagos online con webhook. La vista `wompi_webhook` es `@csrf_exempt`. El `Payment` se crea al iniciar checkout; el webhook actualiza el status y activa la membresía.
 2. **ManualPayment** (`apps/payments`): registrado por trainers para pagos en efectivo/transferencia. Solo visible a `is_superuser` en el nav.
 
+### API Ruffier / Ruffier-Dickson
+
+- Contrato, uso y decisiones: `docs/API_RUFFIER_DICKSON.md`.
+- `GET/POST /api/v1/assessments/<assessment_pk>/ruffier-dickson/`: sesión trainer + asignación + salud habilitada + consentimiento vigente + adulto. CSRF obligatorio en POST.
+- `CardioEvaluation` agrega mediciones con ambos índices y versiones; token UUID por valoración evita duplicados. Cálculo puro en `apps/assessments/cardio.py`. Sin interpretación clínica automática.
+- `DixonTest` es el registro anterior: calcula Ruffier, no Dickson. Sus datos y escala heredada no se recalculan. La interfaz ahora aclara el nombre.
+- El detalle de valoración usa `static/js/cardio-api.js` y `trainer/partials/cardio_api.html`. La exportación propia de salud incluye `cardio_evaluations`.
+
 ### Cálculos automáticos en save()
 
 - `InitialAssessment.save()` → calcula y guarda `imc` e `imc_classification`
-- `DixonTest.save()` → calcula `index_value` y `classification` (IRD = (P0+P1+P2-200)/10)
+- `DixonTest.save()` → registro anterior: calcula `index_value` y `classification` de Ruffier (IR = (P0+P1+P2-200)/10).
 - `BodyMeasurement.save()` → calcula `imc` e `imc_classification`
 
 ### Ejercicios: prioridad de media
@@ -168,6 +176,13 @@ Estructura jerárquica: `Routine` → `RoutineDay` (días) → `RoutineExercise`
 - Gemini por REST con la biblioteca estándar (`apps/plans/ai/gemini.py`, sin dependencias nuevas): clave en la cabecera `x-goog-api-key`, errores solo como códigos (`ai_http_429`...). Las pruebas usan `FakeAIClient` (`apps/plans/tests/helpers.py`), nunca la red.
 
 ### Plan de alimentación (fase C de `docs/contracts/plan-ia.md`)
+
+**Actualización 2026-11-17:** el alcance actual es bienestar, con alimentación clínica pausada.
+Ver `docs/MENUS_BIENESTAR_GEMINI.md` (prevalece sobre las referencias a adaptación clínica de esta sección).
+`apps/plans/wellness.py` bloquea condiciones/medicamentos/embarazo/antecedentes alimentarios;
+`rules/recipes.py` ofrece 52 plantillas cotidianas e internacionales al simulador y a Gemini.
+El backend valida selección exacta con V09_RECIPE y conserva preparación del recetario.
+Prompts meal/3 y meal/4; las notas libres de alimentación no se envían al proveedor.
 
 - Flujo: igual que el ejercicio (`services.request_plan(client, 'nutrition', ...)` -> trabajo -> hilo), pero `jobs._run_nutrition` hace **una llamada por comida** (`meal-slot/1`), valida cada una (`rules/meal_validate.py`, un reintento con códigos) y solo al final crea el `Plan` `draft_ai` con su `NutritionPlan` (objetivos calculados por Python: `rules/energy.py`), `MealSlot` y 3 `MealOption` activas por comida (`nutrition.create_nutrition_draft`). La IA **solo elige `food_id` y gramos**; kcal, macros y medidas caseras los calcula Python desde `Food`. Un fallo no guarda nada.
 - Catálogo: `Food` (admin solo superusuaria). `python manage.py load_foods` carga ~90 alimentos con cifras **aproximadas y sin validar**; **fuera de `DEBUG` solo se usan los que tienen `validated_by`** (acción «Marcar como validados» del admin, la hace quien verifica las cifras). Sin alimentos suficientes tras el filtro (alergias, trazas, dieta, intolerancias, etiquetas de advertencias) -> `D06_FEW_FOODS` y el trabajo queda `blocked` sin llamar a la IA.
