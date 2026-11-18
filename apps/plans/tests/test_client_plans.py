@@ -333,8 +333,9 @@ class JobRowsTests(ClientPlansTestCase):
     def test_every_error_code_the_code_can_produce_has_a_friendly_text(self):
         """Si alguien agrega un código de error nuevo, esta prueba obliga a redactar su texto."""
         found = set()
-        for name in ('jobs.py', 'ai/gemini.py', 'ai/__init__.py', 'ai/fake.py'):
-            source = (APPS / name).read_text(encoding='utf-8')
+        # Todos los módulos de la IA (también los que se agreguen después) y la cola de trabajos.
+        for path in [APPS / 'jobs.py', *sorted((APPS / 'ai').glob('*.py'))]:
+            source = path.read_text(encoding='utf-8')
             found |= set(re.findall(r"(?:JobFailed|AI\w*Error|AIInvalidOutput)\(\s*'([a-z_0-9]+)'", source))
         found |= {'ai_http_429', 'ai_http_503', 'ai_http_400', 'ai_http_401', 'ai_http_403', 'ai_http_404',
                   'ai_finish_max_tokens', 'validation_failed:V03_ALLERGEN', 'validation_failed:V04_KCAL',

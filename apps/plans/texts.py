@@ -69,6 +69,8 @@ JOB_TEXT_LOST = 'El proceso se interrumpió (por ejemplo, un reinicio del servid
 JOB_TEXT_INACTIVE = 'La cuenta estaba desactivada cuando se iba a generar.'
 JOB_TEXT_KIND = 'Ese tipo de plan no está disponible.'
 JOB_TEXT_CHANGED = 'El plan cambió mientras se generaba la opción. La clienta puede volver a pedirla.'
+JOB_TEXT_DEMO_LIMIT = 'Se alcanzó el límite diario de la demostración. Inténtalo de nuevo mañana.'
+JOB_TEXT_DEMO_USER = 'La demostración solo genera planes para las cuentas ficticias.'
 JOB_TEXT_INTERNAL = ('Ocurrió un error interno al generar el borrador. Inténtalo de nuevo y, si se repite, '
                      'avisa a la administradora.')
 JOB_FAILED_EXACT = {
@@ -78,6 +80,10 @@ JOB_FAILED_EXACT = {
     'ai_blocked_prompt': JOB_TEXT_SAFETY, 'ai_blocked_safety': JOB_TEXT_SAFETY,
     'ai_invalid_json': JOB_TEXT_UNREADABLE, 'ai_unreadable_response': JOB_TEXT_UNREADABLE,
     'ai_no_candidates': JOB_TEXT_UNREADABLE, 'ai_unknown': JOB_TEXT_UNREADABLE,
+    'ai_response_too_large': JOB_TEXT_UNREADABLE,
+    # Demostración universitaria (config.settings.demo, PR #31): nunca salen en producción.
+    'demo_not_configured': JOB_TEXT_CONFIG, 'demo_budget_unavailable': JOB_TEXT_CONFIG,
+    'demo_daily_limit': JOB_TEXT_DEMO_LIMIT, 'demo_synthetic_user_required': JOB_TEXT_DEMO_USER,
     'recipes_unavailable': JOB_TEXT_RECIPES,
     'worker_lost': JOB_TEXT_LOST, 'lost_lock': JOB_TEXT_LOST,
     'client_inactive': JOB_TEXT_INACTIVE,
