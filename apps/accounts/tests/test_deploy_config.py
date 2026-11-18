@@ -513,36 +513,20 @@ class CreateTrainerCommandTests(TestCase):
         self.assertTrue(user.is_superuser)
 
 
-class RailwayBuildConfigTests(SimpleTestCase):
-    """railway.toml: collectstatic en el build y healthcheck intacto."""
+class RailwayLegacyConfigTests(SimpleTestCase):
+    """Railway dejó de leer «Config as Code» (railway.toml / railway.json) el 2026-12-01. La
+    configuración del servicio vive en el panel (docs/DEPLOY.md, sección 9). Si uno de esos
+    archivos vuelve a la raíz, Railway lo aplicaría por encima del panel mientras lo lea."""
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.text = (BASE_DIR / 'railway.toml').read_text(encoding='utf-8')
-
-    def _config(self):
-        try:
-            import tomllib
-        except ImportError:  # Python < 3.11
-            self.skipTest('tomllib no está disponible')
-        return tomllib.loads(self.text)
-
-    def test_collectstatic_runs_in_the_build_and_does_not_break_it(self):
-        build = self._config()['build']
-        self.assertIn('manage.py collectstatic --noinput', build['buildCommand'])
-        self.assertIn('||', build['buildCommand'])          # si falla, start.sh lo repite: el build no se cae
-
-    def test_start_command_and_healthcheck_are_kept(self):
-        deploy = self._config()['deploy']
-        self.assertEqual(deploy['startCommand'], 'bash start.sh')
-        self.assertEqual(deploy['healthcheckPath'], '/health/')
-        self.assertGreaterEqual(deploy['healthcheckTimeout'], 60)
+    def test_no_config_as_code_files(self):
+        for name in ('railway.toml', 'railway.json'):
+            with self.subTest(name=name):
+                self.assertFalse((BASE_DIR / name).exists(), f'{name} no debe volver: ver docs/DEPLOY.md, sección 9')
 
 
 class ProcfileTests(SimpleTestCase):
-    """Procfile: si Railway no tiene comando de arranque (railway.toml deja de leerse el
-    2026-12-01 y el panel quedó vacío), Nixpacks y Railpack usan la línea `web` del Procfile.
+    """Procfile: si el panel de Railway se queda sin comando de arranque, Nixpacks y Railpack
+    usan la línea `web` del Procfile.
     Debe pasar por start.sh: esperar a la base, migrate (si falla no arranca) y gunicorn."""
 
     @classmethod
@@ -574,17 +558,6 @@ class ProcfileTests(SimpleTestCase):
         self.assertIn('PORT="${PORT:-8000}"', self.start)
         self.assertRegex(self.start, r'exec gunicorn config\.wsgi:application \\\n\s+--bind 0\.0\.0\.0:\$PORT')
 
-    def test_same_start_command_as_railway_toml_while_it_exists(self):
-        path = BASE_DIR / 'railway.toml'
-        if not path.exists():
-            self.skipTest('railway.toml ya se retiró')
-        try:
-            import tomllib
-        except ImportError:  # Python < 3.11
-            self.skipTest('tomllib no está disponible')
-        start_command = tomllib.loads(path.read_text(encoding='utf-8'))['deploy']['startCommand']
-        self.assertEqual(self._processes()['web'], start_command)
-
     def test_unix_line_endings(self):
         # Con CRLF, Linux leería «start.sh\r» y el arranque fallaría con «No such file».
         self.assertNotIn(b'\r', self.raw)
@@ -593,8 +566,13 @@ class ProcfileTests(SimpleTestCase):
 
 
 class RailwayPanelGuideTests(SimpleTestCase):
-    """docs/DEPLOY.md (sección 9) dice qué poner en el panel de Railway cuando railway.toml deje
-    de leerse. Mientras railway.toml exista, la guía debe repetir exactamente sus valores."""
+    """docs/DEPLOY.md (sección 9) dice qué hay en el panel de Railway: es la única copia escrita
+    de esa configuración (antes estaba en railway.toml)."""
+
+    BUILD_COMMAND = (
+        "python manage.py collectstatic --noinput || "
+        "echo 'AVISO: collectstatic fallo en el build; start.sh lo repetira'"
+    )
 
     @classmethod
     def setUpClass(cls):
@@ -603,30 +581,29 @@ class RailwayPanelGuideTests(SimpleTestCase):
         start = text.index('## 9. ')
         end = text.find('\n## ', start + 1)
         cls.section = text[start:end if end != -1 else len(text)]
+        cls.procfile = (BASE_DIR / 'Procfile').read_text(encoding='utf-8')
 
-    def test_guide_repeats_the_values_of_railway_toml(self):
-        path = BASE_DIR / 'railway.toml'
-        if not path.exists():
-            self.skipTest('railway.toml ya se retiró')
-        try:
-            import tomllib
-        except ImportError:  # Python < 3.11
-            self.skipTest('tomllib no está disponible')
-        config = tomllib.loads(path.read_text(encoding='utf-8'))
-        deploy = config['deploy']
+    def test_guide_lists_the_panel_values(self):
         expected = [
-            config['build']['buildCommand'],
-            deploy['startCommand'],
-            deploy['healthcheckPath'],
-            str(deploy['healthcheckTimeout']),
-            str(deploy['restartPolicyMaxRetries']),
+            self.BUILD_COMMAND,
+            'bash start.sh',
+            '/health/',
+            '300',
+            '10',
+            'DJANGO_SETTINGS_MODULE=config.settings.production',
         ]
-        expected += [f'{name}={value}' for name, value in config['build'].get('env', {}).items()]
         for value in expected:
             with self.subTest(value=value):
                 self.assertIn(f'`{value}`', self.section)
         self.assertIn('On Failure', self.section)
+        self.assertIn('Nixpacks', self.section)
 
+    def test_collectstatic_in_the_build_does_not_break_it(self):
+        self.assertIn('manage.py collectstatic --noinput', self.BUILD_COMMAND)
+        self.assertIn('||', self.BUILD_COMMAND)  # si falla, start.sh lo repite: el build no se cae
+
+    def test_panel_start_command_matches_the_procfile(self):
+        self.assertIn('web: bash start.sh', self.procfile)
 
 
 class HealthEndpointTests(TestCase):

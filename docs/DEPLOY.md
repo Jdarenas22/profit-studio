@@ -178,28 +178,29 @@ Los borradores se generan en un hilo del mismo servidor (sin Redis ni Celery); s
 
 | Archivo | Para qué sirve |
 | --- | --- |
-| `railway.toml` | Builder, comando de build y de arranque (`bash start.sh`), healthcheck `/health/` y política de reinicio. **Railway deja de leerlo el 2026-12-01**: ver sección 9. No se borra hasta confirmar un despliegue con la configuración del panel |
 | `start.sh` | Espera a la base, migraciones, estáticos, cuenta inicial, datos iniciales y gunicorn |
 | `Procfile` | `web: bash start.sh`. Respaldo: si el servicio no tiene comando de arranque, Nixpacks y Railpack usan esta línea, así que el arranque igual pasa por `start.sh` (antes llamaba a gunicorn directo y se saltaba `migrate`) |
 | `requirements.txt` → `requirements/base.txt` | Dependencias de producción |
 | `requirements/development.txt`, `requirements/local.txt` | Dependencias para desarrollo (con debug toolbar; `local.txt` sin PostgreSQL) |
 | `.env.example` | Plantilla de variables, solo con valores de ejemplo |
 
-## 9. Configuración del servicio sin `railway.toml` (Railway deja de leerlo el 2026-12-01)
+## 9. Configuración del servicio en el panel de Railway
 
-Railway retiró «Config as Code» (`railway.toml` / `railway.json`): esos archivos dejan de leerse el **2026-12-01** (corte definitivo). Su reemplazo, «Infrastructure as Code», es un archivo `.railway/railway.ts` que exige instalar el paquete npm `railway` (o `.railway/railway.py`, en beta, con `pip install railway-sdk`) y aplicarlo con la CLI. No se adoptó: agregaría Node/npm al repositorio (y Nixpacks cambiaría el build al ver un `package.json`), y un `railway config apply` del proyecto entero puede borrar recursos que no estén en el archivo, como la base Postgres. La configuración vive en el **panel** del servicio. Fuentes (consultadas el 2026-11-17): <https://docs.railway.com/reference/config-as-code>, <https://docs.railway.com/infrastructure-as-code>.
+Railway retiró «Config as Code» (`railway.toml` / `railway.json`): esos archivos dejan de leerse el **2026-12-01**. Su reemplazo, «Infrastructure as Code», es un archivo `.railway/railway.ts` que exige instalar el paquete npm `railway` (o `.railway/railway.py`, en beta, con `pip install railway-sdk`) y aplicarlo con la CLI. No se adoptó: agregaría Node/npm al repositorio (y Nixpacks cambiaría el build al ver un `package.json`), y un `railway config apply` del proyecto entero puede borrar recursos que no estén en el archivo, como la base Postgres. Fuentes (consultadas el 2026-11-17): <https://docs.railway.com/reference/config-as-code>, <https://docs.railway.com/infrastructure-as-code>.
 
-Valores que hay que tener en Railway → servicio `profit-studio` → **Settings** (son los mismos de `railway.toml`; los nombres de las secciones y campos pueden variar un poco en el panel):
+**Corte hecho el 2026-11-17:** los valores se copiaron al panel del servicio de producción y `railway.toml` se borró del repositorio. No se debe volver a crear `railway.toml` ni `railway.json`: mientras Railway los lea mandan sobre el panel (`test_deploy_config.py` lo impide).
 
-- **Build › Builder**: el que use hoy el último despliegue correcto (`railway.toml` dice Nixpacks). Ver la nota de abajo antes de cambiarlo.
+Producción: proyecto `alluring-dedication`, entorno `production`, servicio `profit-studio` (dominio `profit-studio-production.up.railway.app`). Valores en **Settings**:
+
+- **Build › Builder**: Nixpacks. Ver la nota de abajo antes de cambiarlo.
 - **Build › Custom Build Command**: `python manage.py collectstatic --noinput || echo 'AVISO: collectstatic fallo en el build; start.sh lo repetira'`
 - **Deploy › Custom Start Command**: `bash start.sh`
 - **Deploy › Healthcheck Path**: `/health/`
-- **Deploy › Healthcheck Timeout**: `300` segundos (es el valor por defecto de Railway)
-- **Deploy › Restart Policy**: `On Failure`, con máximo `10` reintentos (también es el valor por defecto)
-- **Variables**: `DJANGO_SETTINGS_MODULE=config.settings.production` (el `[build.env]` de `railway.toml`; las variables del servicio también se ven durante el build)
-
-Mientras el servicio tenga una ruta en **Settings › Config File** (o `railway.toml` en la raíz), el archivo manda sobre el panel en cada despliegue. Por eso: primero se copian los valores al panel, después se vacía esa ruta, se hace un despliegue de prueba y, solo si sale bien, se borra `railway.toml` del repositorio.
+- **Deploy › Healthcheck Timeout**: `300` segundos
+- **Deploy › Restart Policy**: `On Failure`, con máximo `10` reintentos
+- **Deploy › Serverless / App Sleeping**: encendido (el plan gratuito lo exige)
+- **Settings › Config File**: vacío
+- **Variables**: `DJANGO_SETTINGS_MODULE=config.settings.production` (las variables del servicio también se ven durante el build)
 
 Redes de seguridad si algo queda vacío en el panel:
 
@@ -208,4 +209,4 @@ Redes de seguridad si algo queda vacío en el panel:
 - Sin `DJANGO_SETTINGS_MODULE`: `start.sh` usa `config.settings.production`, pero el `collectstatic` del build usaría los settings de desarrollo. Por eso la variable debe existir en el servicio.
 - Sin healthcheck: el despliegue sale en vivo sin comprobar que `/health/` responde. No rompe nada, pero se pierde la protección: hay que llenarlo.
 
-Nota sobre el builder: Nixpacks está en modo mantenimiento y Railway recomienda Railpack. Railpack ignora `nixpacks.toml`, lee `.python-version` (3.11) y, sin comando de arranque, también usa el `Procfile`. Cambiar de builder es un cambio aparte: no se hace en el mismo despliegue que este corte.
+Nota sobre el builder: Nixpacks está en modo mantenimiento y Railway recomienda Railpack. Railpack ignora `nixpacks.toml`, lee `.python-version` (3.11) y, sin comando de arranque, también usa el `Procfile`. Cambiar de builder es un cambio aparte, con su propio despliegue de prueba.

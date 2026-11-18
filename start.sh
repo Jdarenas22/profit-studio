@@ -91,7 +91,7 @@ else
 fi
 
 # 4. Archivos estáticos — normalmente ya están: Railway ejecuta collectstatic en el BUILD
-#    (railway.toml > buildCommand) y quedan dentro de la imagen. Aquí solo se repite si
+#    (panel del servicio > Build Command) y quedan dentro de la imagen. Aquí solo se repite si
 #    falta la carpeta (p. ej. build sin variables o arranque local). Se tolera el fallo a
 #    propósito: production.py usa CompressedStaticFilesStorage (sin manifest), así que la
 #    app arranca y el login/health siguen funcionando aunque falte algún archivo estático
