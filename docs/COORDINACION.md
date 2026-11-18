@@ -69,7 +69,9 @@ propia carpeta `media/`**, y las pruebas crean bases aparte. No hay base compart
 
 Archivos **compartidos**, que exigen avisar aquí antes de tocarlos: `apps/plans/models.py`,
 `apps/plans/services.py`, `apps/plans/nutrition.py`, `config/settings/*.py`, `CLAUDE.md`,
-`.env.example`, `templates/trainer/base.html`, `templates/base.html`.
+`.env.example`, `templates/trainer/base.html`, `templates/base.html`, `static/css/app.css`.
+
+`static/css/app.css` es minificado: si dos ramas lo regeneran, al fusionar no se resuelve a mano. Quien fusiona segundo toma el de `main` y lo vuelve a generar (`scripts/build-css.sh`) sobre su rama.
 
 Si un asistente necesita un cambio en el área del otro, lo pide en `docs/contracts/requests.md`
 (o en la sección 5 de este archivo) y no lo hace él mismo.
@@ -91,7 +93,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 - 2026-11-18 · ChatGPT · Auditoría de seguridad, capacidad local y vigencia tecnológica solicitada por la persona · `chore/auditoria-seguridad-capacidad` · en curso · `scripts/audit/security_capacity.py`, `docs/auditorias/2026-11-18-seguridad-capacidad.md` y resultados sintéticos · solo pruebas aisladas y documentación; sin modificar fase D, configuración ni producción
 - 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini · `feature/gemini-http-safety`, [PR #27](https://github.com/Jdarenas22/profit-studio/pull/27) · implementado, en curso hasta revisión y fusión; 1.369 pruebas locales aprobadas · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
-- 2026-11-17 · Claude · Fase D (D-01 a D-04), contrato aprobado por la persona · `feature/fase-d` · en curso · `apps/plans/` (vistas, `rules/progress.py`, `services.py`, `nutrition.py`), `apps/routines/`, plantillas `trainer/client_plans.html`, `trainer/client_progress.html` y `trainer/plan_detail.html`
+- 2026-11-18 · Claude · Fase D (D-01 a D-04): backend listo (commit fff3005, 1474 pruebas OK, sin migraciones); pantallas en curso; regenerará `app.css` · `feature/fase-d` · en curso · `apps/plans/` (vistas, `rules/progress.py`, `services.py`, `nutrition.py`), `apps/routines/`, plantillas `trainer/client_plans.html`, `trainer/client_progress.html` y `trainer/plan_detail.html`
 
 ### Hecho
 
