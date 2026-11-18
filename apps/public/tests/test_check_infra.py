@@ -428,6 +428,14 @@ class CommandTests(TestCase):
         conn.send_messages.assert_not_called()
         self.assertEqual(mail.outbox, [])
 
+    def test_fdc_key_is_redacted_from_environment_and_settings(self):
+        for ctx in (make_ctx(env={'FDC_API_KEY': 'fake-fdc-env-secret'}),
+                    make_ctx(make_settings(FDC_API_KEY='fake-fdc-setting-secret'))):
+            checks = [ci.Check('Food', 'test', ci.OK, 'fake-fdc-env-secret fake-fdc-setting-secret')]
+            cleaned = all_text(ci.redact_checks(checks, ci.collect_secrets(ctx)))
+            secret = ctx.env.get('FDC_API_KEY') or ctx.settings.FDC_API_KEY
+            self.assertNotIn(secret, cleaned)
+
     def test_produccion_sin_secret_key_es_error_en_el_comando_completo(self):
         with override_settings(SETTINGS_MODULE='config.settings.production', DEBUG=False,
                                SECRET_KEY='', ALLOWED_HOSTS=['profit.up.railway.app']):

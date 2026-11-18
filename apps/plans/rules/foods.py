@@ -66,7 +66,7 @@ class FoodItem:
     protein100: Decimal
     carbs100: Decimal
     fat100: Decimal
-    fiber100: Decimal = D('0')
+    fiber100: Decimal | None = D('0')
     household_unit: str = ''
     household_unit_plural: str = ''
     household_grams: Decimal | None = None
@@ -75,6 +75,10 @@ class FoodItem:
     diet_tags: tuple = DIET_CODES
     condition_tags: tuple = ()
     is_common: bool = True
+    sugars100: Decimal | None = None
+    added_sugars100: Decimal | None = None
+    saturated_fat100: Decimal | None = None
+    sodium_mg100: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -157,11 +161,20 @@ class Totals:
     protein: Decimal = D('0')
     carbs: Decimal = D('0')
     fat: Decimal = D('0')
-    fiber: Decimal = D('0')
+    fiber: Decimal | None = D('0')
+    sugars: Decimal | None = D('0')
+    added_sugars: Decimal | None = D('0')
+    saturated_fat: Decimal | None = D('0')
+    sodium_mg: Decimal | None = D('0')
 
     def __add__(self, other):
         return Totals(self.kcal + other.kcal, self.protein + other.protein, self.carbs + other.carbs,
-                      self.fat + other.fat, self.fiber + other.fiber)
+                      self.fat + other.fat, *(
+                          None if a is None or b is None else a + b
+                          for a, b in ((self.fiber, other.fiber), (self.sugars, other.sugars),
+                                       (self.added_sugars, other.added_sugars),
+                                       (self.saturated_fat, other.saturated_fat),
+                                       (self.sodium_mg, other.sodium_mg))))
 
     @property
     def fat_share(self):
@@ -171,7 +184,9 @@ class Totals:
 def portion_totals(food, grams):
     factor = D(grams) / 100
     return Totals(food.kcal100 * factor, food.protein100 * factor, food.carbs100 * factor,
-                  food.fat100 * factor, food.fiber100 * factor)
+                  food.fat100 * factor, *(
+                      None if getattr(food, field, None) is None else getattr(food, field) * factor
+                      for field in ('fiber100', 'sugars100', 'added_sugars100', 'saturated_fat100', 'sodium_mg100')))
 
 
 def items_totals(rows):
@@ -189,7 +204,9 @@ def round_totals(total):
         'protein': float(total.protein.quantize(D('0.1'), rounding=ROUND_HALF_UP)),
         'carbs': float(total.carbs.quantize(D('0.1'), rounding=ROUND_HALF_UP)),
         'fat': float(total.fat.quantize(D('0.1'), rounding=ROUND_HALF_UP)),
-        'fiber': float(total.fiber.quantize(D('0.1'), rounding=ROUND_HALF_UP)),
+        **{key: None if getattr(total, key) is None
+           else float(getattr(total, key).quantize(D('0.1'), rounding=ROUND_HALF_UP))
+           for key in ('fiber', 'sugars', 'added_sugars', 'saturated_fat', 'sodium_mg')},
     }
 
 

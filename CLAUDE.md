@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **ProFit Studio** — Plataforma web de gestión para gimnasio/entrenamiento personal. Django 5.2 LTS (5.2.19), desplegado en Railway con PostgreSQL (**Django 5.2 exige PostgreSQL 14 o superior**: con una versión anterior el servidor no arranca). El negocio opera en Colombia (moneda COP, zona horaria `America/Bogota`).
 
+## Ubicación principal de trabajo
+
+La copia activa del proyecto está en `C:\Proyectos\profit-studio`. Ejecutar desde esa carpeta los comandos, pruebas y migraciones. La carpeta anterior de OneDrive es una copia de respaldo; no usarla como destino de nuevos cambios.
+
 ## Comandos esenciales
 
 ```bash
@@ -195,6 +199,12 @@ Estructura jerárquica: `Routine` → `RoutineDay` (días) → `RoutineExercise`
 - Gemini por REST con la biblioteca estándar (`apps/plans/ai/gemini.py`, sin dependencias nuevas): clave en la cabecera `x-goog-api-key`, errores solo como códigos (`ai_http_429`...). Las pruebas usan `FakeAIClient` (`apps/plans/tests/helpers.py`), nunca la red.
 
 ### Plan de alimentación (fase C de `docs/contracts/plan-ia.md`)
+
+Datos nutricionales USDA: `docs/INTEGRACION_DATOS_NUTRICIONALES.md`.
+`fdc_search` solo consulta; `fdc_import` es vista previa salvo `--apply` con descripción confirmada.
+Clave FDC_API_KEY solo en entorno; no imprimirla ni leer .env. Las importaciones quedan inactivas.
+No mezclar 100 g y 100 ml. Nutrientes ausentes son null. Cada opción nueva congela fuentes y cantidades
+en MealOption.nutrient_snapshot. `load_foods` no pisa alimentos vinculados a USDA.
 
 **Actualización 2026-11-17:** el alcance actual es bienestar, con alimentación clínica pausada.
 Ver `docs/MENUS_BIENESTAR_GEMINI.md` (prevalece sobre las referencias a adaptación clínica de esta sección).

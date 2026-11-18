@@ -1,0 +1,9 @@
+<div class="text-white/60 text-xs mt-2">
+  <p>Sodio: {% if nutrients.sodium_mg != None %}{{ nutrients.sodium_mg|floatformat:1 }} mg{% else %}Sin datos completos{% endif %} ·
+    Azúcares totales: {% if nutrients.sugars != None %}{{ nutrients.sugars|floatformat:1 }} g{% else %}Sin datos completos{% endif %}</p>
+  <p>Azúcares añadidos: {% if nutrients.added_sugars != None %}{{ nutrients.added_sugars|floatformat:1 }} g{% else %}Sin datos completos{% endif %} ·
+    Grasa saturada: {% if nutrients.saturated_fat != None %}{{ nutrients.saturated_fat|floatformat:1 }} g{% else %}Sin datos completos{% endif %}</p>
+  <p>Fibra: {% if nutrients.fiber != None %}{{ nutrients.fiber|floatformat:1 }} g{% else %}Sin datos completos{% endif %}.
+    Estimaciones según los ingredientes registrados; incluyen solo cantidades medidas.</p>
+</div>
+

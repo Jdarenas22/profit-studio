@@ -22,7 +22,7 @@ class Command(BaseCommand):
             if food is None:
                 Food.objects.create(name=name, **row)
                 created += 1
-            elif food.validated_by:
+            elif food.validated_by or food.fdc_id:
                 kept += 1
             else:
                 for field, value in row.items():
@@ -31,7 +31,7 @@ class Command(BaseCommand):
                 updated += 1
         unvalidated = Food.objects.filter(is_active=True, validated_by='').count()
         self.stdout.write(self.style.SUCCESS(
-            f'Alimentos: {created} nuevos, {updated} actualizados, {kept} ya validados (sin tocar).'))
+            f'Alimentos: {created} nuevos, {updated} actualizados, {kept} ya validados o importados (sin tocar).'))
         if unvalidated:
             self.stdout.write(self.style.WARNING(
                 f'{unvalidated} alimentos activos siguen SIN VALIDAR: fuera de DEBUG no se usan hasta que un '
