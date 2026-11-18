@@ -53,12 +53,28 @@
       </div>
 
       {% elif exercise.video_file %}
-      <!-- Archivo de video subido directamente -->
-      <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
-        <video controls class="w-full h-full object-cover"
+      {% comment %}
+        Archivo de video subido. object-contain: el video se ve entero, sea vertical (9:16) u
+        horizontal. La caja tiene alto estable (9:16 con tope de alto) para que la página no salte
+        cuando el navegador conoce la proporción del video.
+        Sin poster: las portadas son horizontales (para las tarjetas 16:9) y en la caja 9:16
+        quedarían diminutas. En su lugar, #t=0.1 hace que el navegador (también Safari iOS) pinte el
+        primer cuadro con preload="metadata". El <video> es transparente para que, antes de cargar y
+        en las franjas de un video horizontal, se vea la portada desenfocada de fondo.
+        Sin type en <source>: el formulario acepta MP4, WEBM y MOV y el navegador detecta el formato.
+      {% endcomment %}
+      <div class="relative w-full aspect-[9/16] max-h-[min(75vh,720px)] bg-black rounded-2xl overflow-hidden border border-white/10">
+        {% if exercise.image %}
+        <img src="{{ exercise.image.url }}" alt="" aria-hidden="true" decoding="async"
+             class="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" />
+        {% endif %}
+        <video controls
                controlsList="nodownload"
-               preload="metadata">
-          <source src="{{ exercise.video_file.url }}" type="video/mp4" />
+               preload="metadata"
+               playsinline
+               aria-label="Video del ejercicio {{ exercise.name }}"
+               class="relative block w-full h-full object-contain bg-transparent">
+          <source src="{{ exercise.video_file.url }}#t=0.1" />
           Tu navegador no soporta la reproducción de video.
         </video>
       </div>
