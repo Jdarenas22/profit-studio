@@ -21,7 +21,7 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.accounts.decorators import member_required, trainer_required
 from apps.accounts.form_utils import errors_dict, flash_errors
 from apps.accounts.models import User
-from apps.accounts.permissions import get_client_for_trainer
+from apps.accounts.permissions import get_client_for_trainer, reject_if_inactive
 from apps.assessments.services import latest_anthropometrics, latest_height
 from apps.plans.rules.flags import add_months
 
@@ -127,6 +127,7 @@ def member_consent_revoke(request, purpose):
 def _choices_context():
     """Listas cerradas `[(código, etiqueta)]` para pintar casillas y selectores."""
     return {
+        'screen': ch.SCREEN_FORM_CHOICES,      # las dos preguntas que despliegan (Sí / No)
         'sex': ch.SEX_CHOICES,
         'goals': User.GOAL_CHOICES,
         'conditions': ch.CONDITION_CHOICES,
@@ -150,7 +151,10 @@ def _choices_context():
 
 
 def _form_context(*, mode, client, profile, values, errors, last_height):
-    """Contexto de las plantillas del formulario (F-04 y la del entrenador): mismo diccionario."""
+    """Contexto de las plantillas del formulario (FB-01: la clienta y el entrenador usan el mismo
+    diccionario). Ficha básica: `form.health_screen` / `form.food_screen` ('yes' | 'no' | ''),
+    `form.defaulted_fields`, `choices.screen` y `screen_was_yes` / `food_screen_was_yes` (la
+    versión vigente tenía datos que se quitarán si ahora responde «No»)."""
     parq_rows = [
         {'key': key, 'number': number, 'text': text, 'field': f'parq_{key}', 'value': values.get(f'parq_{key}', '')}
         for number, (key, text) in enumerate(ch.PARQ_QUESTIONS, start=1)
@@ -168,6 +172,8 @@ def _form_context(*, mode, client, profile, values, errors, last_height):
         'client': client,                      # solo en modo 'trainer'
         'profile': profile,                    # versión vigente o None
         'is_edit': profile is not None,
+        'screen_was_yes': bool(profile is not None and profile.has_health_details),
+        'food_screen_was_yes': bool(profile is not None and profile.has_food_details),
         'steps': ch.WIZARD_STEPS,
         'choices': _choices_context(),
         'required_meal_slots': list(ch.REQUIRED_MEAL_SLOTS),
@@ -356,6 +362,9 @@ def trainer_health_profile_edit(request, client_pk):
     if request.method not in ('GET', 'HEAD', 'POST'):
         return HttpResponse(status=405)
     client = get_client_for_trainer(request, client_pk)
+    blocked = reject_if_inactive(request, client)   # desactivada: solo lectura
+    if blocked:
+        return blocked
     back = redirect('trainer_health_profile', client_pk=client.pk)
     profile = services.current_profile(client)
     if profile is None:

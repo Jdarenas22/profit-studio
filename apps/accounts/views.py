@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import BadHeaderError, send_mail
 from django.db import IntegrityError, transaction
+from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
@@ -13,17 +14,21 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_http_methods, require_POST
 
+from . import choices
+from . import services as account_services
 from .axes_utils import get_client_ip
 from .decorators import trainer_required, superuser_required
 from .form_utils import errors_dict, flash_errors
 from .forms import (
-    MemberProfileForm, RegisterForm, TrainerAddClientForm, TrainerClientEditForm,
-    TrainerCreateTrainerForm, TrainerEditForm,
+    DeactivateAccountForm, EraseAccountForm, MemberProfileForm, RegisterForm, TrainerAddClientForm,
+    TrainerClientEditForm, TrainerCreateTrainerForm, TrainerDeactivateForm, TrainerEditForm,
+    TrainerEraseForm,
 )
 from .models import User
-from .permissions import clients_for_trainer, get_client_for_trainer
+from .permissions import clients_for_trainer, get_client_for_trainer, reject_if_inactive
 from .ratelimit import hit
 
 logger = logging.getLogger(__name__)
@@ -44,6 +49,13 @@ PROFILE_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'gender', 'bio'
 TRAINER_FORM_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'password',
                          'password2', 'bio')
 TRAINER_EDIT_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'bio', 'profile_photo')
+# Confirmaciones de cuentas (C-03, C-04, C-06, C-07). Los esqueletos de C-03, C-06 y C-07 pintan
+# `errors.<campo>`; la plantilla vieja de C-04 (client_confirm_delete.html) todavía no, por eso
+# su tupla está vacía: cuando frontend-architect la entregue, agregar los campos que pinte.
+CLIENT_DEACTIVATE_RENDERED = ('reason',)
+CLIENT_ERASE_RENDERED = ('confirm_name', 'reason', 'ack_payments')
+TRAINER_DEACTIVATE_RENDERED = ('reason', 'reassign_to')
+TRAINER_ERASE_RENDERED = ('confirm_name', 'reason', 'reassign_to', 'ack_payments')
 
 # Límites del registro público (por IP, ventana fija). Se pueden ajustar en settings.
 REGISTER_ATTEMPTS_LIMIT = getattr(settings, 'REGISTER_ATTEMPTS_LIMIT', 20)    # envíos de formulario / ventana
@@ -105,9 +117,15 @@ def dashboard(request):
     routines = request.user.routines.filter(is_active=True).prefetch_related(
         'days__exercises__exercise'
     )
+    from apps.whatsapp import conf as whatsapp_conf
+    from apps.whatsapp import services as whatsapp_services
     return render(request, 'accounts/member_dashboard.html', {
         'membership': membership,
         'routines': routines,
+        # Avisos por WhatsApp (W-03): None con la función apagada; si no, 'off', 'pending', 'active',
+        # 'wrong_number', 'undeliverable' u 'opted_out'
+        'whatsapp_status': (whatsapp_services.status_for(request.user)
+                            if whatsapp_conf.enabled() else None),
     })
 
 
@@ -122,8 +140,9 @@ def trainer_dashboard(request):
     today = timezone.localdate()
     is_super = request.user.is_superuser
 
-    # Superusuaria ve todo; los demás entrenadores solo sus clientes asignados
-    my_clients_qs = clients_for_trainer(request.user)
+    # Superusuaria ve todo; los demás entrenadores solo sus clientes asignados (las desactivadas
+    # no cuentan en el resumen: se ven en la lista con el filtro «Desactivadas»)
+    my_clients_qs = clients_for_trainer(request.user).filter(is_active=True)
 
     my_client_ids = my_clients_qs.values_list('pk', flat=True)
 
@@ -149,7 +168,7 @@ def trainer_dashboard(request):
         'is_superuser': is_super,
         # Clientes nuevos sin entrenador asignado (solo superusuario los ve)
         'unassigned_clients': User.objects.filter(
-            role='member', assigned_trainer__isnull=True
+            role='member', assigned_trainer__isnull=True, is_active=True, erased_at__isnull=True,
         ).count() if is_super else 0,
     }
     return render(request, 'trainer/dashboard.html', context)
@@ -159,7 +178,7 @@ def _notify_new_registration(user, plan):
     """Avisa por correo a la(s) superusuaria(s). Un fallo de correo nunca rompe el registro."""
     try:
         superuser_emails = list(
-            User.objects.filter(is_superuser=True).exclude(email='')
+            User.objects.filter(is_superuser=True, is_active=True).exclude(email='')
             .values_list('email', flat=True)
         )
         if not superuser_emails:
@@ -334,15 +353,42 @@ def trainer_add_client(request):
     })
 
 
+def _list_status(request):
+    """`?status=active|inactive|all`; sin valor o con uno no válido, `active`."""
+    status = request.GET.get('status', '')
+    return status if status in choices.STATUS_CHOICES else choices.STATUS_ACTIVE
+
+
+def _filter_status(queryset, status):
+    if status == choices.STATUS_ACTIVE:
+        return queryset.filter(is_active=True)
+    if status == choices.STATUS_INACTIVE:
+        return queryset.filter(is_active=False)
+    return queryset
+
+
+def _status_counts(queryset):
+    counts = queryset.aggregate(active=Count('pk', filter=Q(is_active=True)),
+                                inactive=Count('pk', filter=Q(is_active=False)))
+    counts['all'] = counts['active'] + counts['inactive']
+    return counts
+
+
 @trainer_required
 def trainer_client_list(request):
     is_super = request.user.is_superuser
-    clients = clients_for_trainer(request.user).select_related('assigned_trainer').order_by('first_name', 'last_name')
-    unassigned_count = clients.filter(assigned_trainer__isnull=True).count() if is_super else 0
+    status = _list_status(request)
+    accessible = clients_for_trainer(request.user)
+    clients = _filter_status(accessible, status).select_related('assigned_trainer').order_by(
+        'first_name', 'last_name')
+    unassigned_count = (accessible.filter(is_active=True, assigned_trainer__isnull=True).count()
+                        if is_super else 0)
     return render(request, 'trainer/clients.html', {
         'clients': clients,
         'is_superuser': is_super,
         'unassigned_count': unassigned_count,
+        'status': status,
+        'counts': _status_counts(accessible),
     })
 
 
@@ -362,12 +408,21 @@ def trainer_client_detail(request, pk):
         'routines': routines,
         'plan_request_token': uuid.uuid4(),   # botón "Generar borrador de rutina con IA"
         'plan_request_token_nutrition': uuid.uuid4(),   # botón "Generar borrador de alimentación con IA"
+        # Cuentas (C-02): qué botones se muestran
+        'can_deactivate': client.is_active and account_services.can_act(
+            request.user, client, choices.ACTION_DEACTIVATE),
+        'can_reactivate': not client.is_active and account_services.can_act(
+            request.user, client, choices.ACTION_REACTIVATE),
+        'can_erase': account_services.can_act(request.user, client, choices.ACTION_ERASE),
     })
 
 
 @trainer_required
 def trainer_client_edit(request, pk):
     client = get_client_for_trainer(request, pk)
+    blocked = reject_if_inactive(request, client)
+    if blocked:
+        return blocked
     from apps.memberships.models import MembershipPlan
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
 
@@ -418,15 +473,128 @@ def trainer_client_edit(request, pk):
     })
 
 
-@trainer_required
-def trainer_client_delete(request, pk):
+# ─── Desactivar, reactivar y eliminar cuentas (docs/contracts/cuentas-eliminar.md) ─────────
+
+MSG_ALREADY_INACTIVE = 'Esa cuenta ya estaba desactivada.'
+MSG_ALREADY_ACTIVE = 'Esa cuenta ya estaba activa.'
+
+
+def _reasons():
+    return list(choices.REASON_CHOICES)
+
+
+def _client_target(request, pk, action):
+    """La clienta `pk` si quien pide puede hacer `action` sobre ella; si no, 404 (no se revela)."""
     client = get_client_for_trainer(request, pk)
+    if not account_services.can_act(request.user, client, action):
+        raise Http404
+    return client
+
+
+def _trainer_target(request, pk, action):
+    """El entrenador `pk` (nunca una superusuaria, una cuenta eliminada ni la propia); si no, 404."""
+    trainer = get_object_or_404(User, pk=pk, role=User.ROLE_TRAINER, is_superuser=False,
+                                erased_at__isnull=True)
+    if not account_services.can_act(request.user, trainer, action):
+        raise Http404
+    return trainer
+
+
+def _run_action(request, func, *args, **kwargs):
+    """Ejecuta el caso de uso y devuelve `(resultado, errores_de_campo)`.
+
+    - Bien: `(resultado, {})`.
+    - Error de un campo detectado en la transacción (p. ej. el destino se desactivó): `(None, {campo: texto})`.
+    - Rechazo o fallo inesperado: `(None, None)` con el mensaje ya puesto. La traza va al logger,
+      nunca a la pantalla.
+    """
+    try:
+        return func(*args, **kwargs), {}
+    except account_services.AccountFieldError as exc:
+        return None, {exc.field: exc.message}
+    except account_services.AccountActionError as exc:
+        logger.warning('account action rejected code=%s actor_id=%s', exc.code, request.user.pk)
+        messages.error(request, exc.message)
+        return None, None
+    except Exception:
+        logger.exception('account action failed actor_id=%s', request.user.pk)
+        messages.error(request, account_services.GENERIC_ERROR)
+        return None, None
+
+
+def _render_with_errors(request, template, context, form, errors, rendered):
+    flash_errors(request, form, errors, skip=rendered)
+    context.update({'errors': errors, 'form': request.POST})
+    return render(request, template, context)
+
+
+@require_http_methods(['GET', 'POST'])
+@never_cache
+@trainer_required
+def trainer_client_deactivate(request, pk):
+    """C-03. El entrenador (sus clientas) o la superusuaria (todas) desactiva una cuenta."""
+    client = _client_target(request, pk, choices.ACTION_DEACTIVATE)
+    context = {'client': client, 'reasons': _reasons()}
     if request.method == 'POST':
-        full_name = client.get_full_name() or client.username
-        client.delete()
-        messages.success(request, f'El cliente {full_name} ha sido eliminado.')
-        return redirect('trainer_clients')
-    return render(request, 'trainer/client_confirm_delete.html', {'client': client})
+        form = DeactivateAccountForm(request.POST)
+        errors = {} if form.is_valid() else errors_dict(form)
+        if not errors:
+            name = client.display_name
+            result, errors = _run_action(request, account_services.deactivate_account, client,
+                                         request.user, form.cleaned_data['reason'])
+            if result is not None:
+                if result.changed:
+                    messages.success(request, f'Desactivaste la cuenta de {name}. Ya no puede iniciar sesión '
+                                              'y su historial se conserva. Puedes reactivarla cuando quieras.')
+                else:
+                    messages.info(request, MSG_ALREADY_INACTIVE)
+            if errors is None or result is not None:
+                return redirect('trainer_client_detail', pk=client.pk)
+        return _render_with_errors(request, 'trainer/client_deactivate.html', context, form, errors,
+                                   CLIENT_DEACTIVATE_RENDERED)
+    context.update({'errors': {}, 'form': {}})
+    return render(request, 'trainer/client_deactivate.html', context)
+
+
+@require_POST
+@trainer_required
+def trainer_client_reactivate(request, pk):
+    client = _client_target(request, pk, choices.ACTION_REACTIVATE)
+    name = client.display_name
+    result, _errors = _run_action(request, account_services.reactivate_account, client, request.user)
+    if result is not None:
+        if result.changed:
+            messages.success(request, f'La cuenta de {name} está activa de nuevo.')
+        else:
+            messages.info(request, MSG_ALREADY_ACTIVE)
+    return redirect('trainer_client_detail', pk=client.pk)
+
+
+@require_http_methods(['GET', 'POST'])
+@never_cache
+@superuser_required
+def trainer_client_delete(request, pk):
+    """C-04. Eliminar definitivamente una clienta: solo la superusuaria (respuesta 2a)."""
+    client = _client_target(request, pk, choices.ACTION_ERASE)
+    display_name = client.display_name   # se toma ANTES de eliminar
+    context = {'client': client, 'display_name': display_name, 'reasons': _reasons(),
+               **account_services.client_erase_context(client)}
+    if request.method == 'POST':
+        form = EraseAccountForm(request.POST, expected_name=display_name, needs_ack=context['needs_ack'])
+        errors = {} if form.is_valid() else errors_dict(form)
+        if not errors:
+            result, errors = _run_action(request, account_services.erase_account, client, request.user,
+                                         form.cleaned_data['reason'])
+            if result is not None:
+                messages.success(request, f'Eliminaste definitivamente la cuenta de {display_name}. '
+                                          'Sus pagos se conservan sin datos personales.')
+                return redirect('trainer_clients')
+            if errors is None:
+                return redirect('trainer_client_detail', pk=client.pk)
+        return _render_with_errors(request, 'trainer/client_confirm_delete.html', context, form, errors,
+                                   CLIENT_ERASE_RENDERED)
+    context.update({'errors': {}, 'form': {}})
+    return render(request, 'trainer/client_confirm_delete.html', context)
 
 
 @login_required
@@ -519,15 +687,108 @@ def trainer_create_trainer(request):
 
 @superuser_required
 def trainer_staff_list(request):
-    """Lista de entrenadores — solo superusuario."""
-    trainers = User.objects.filter(role='trainer').order_by('first_name', 'last_name')
-    return render(request, 'trainer/trainer_list.html', {'trainers': trainers})
+    """Lista de entrenadores — solo superusuario. `?status=active|inactive|all` (C-05)."""
+    status = _list_status(request)
+    staff = User.objects.filter(role=User.ROLE_TRAINER, erased_at__isnull=True)
+    trainers = _filter_status(staff, status).annotate(
+        client_count=Count('assigned_clients', distinct=True),
+    ).order_by('-is_superuser', 'first_name', 'last_name')
+    return render(request, 'trainer/trainer_list.html', {
+        'trainers': trainers,
+        'status': status,
+        'counts': _status_counts(staff),
+    })
+
+
+def _trainer_action_context(trainer):
+    return {'trainer_obj': trainer, 'reasons': _reasons(),
+            **account_services.trainer_action_context(trainer)}
+
+
+def _reassign_message(result):
+    if result.reassigned_count:
+        return f' {result.reassigned_count} clientas pasaron a {result.reassigned_to.display_name}.'
+    return ''
+
+
+@require_http_methods(['GET', 'POST'])
+@never_cache
+@superuser_required
+def trainer_staff_deactivate(request, pk):
+    """C-06. Desactiva un entrenador y pasa sus clientas a otro (en la misma transacción)."""
+    trainer = _trainer_target(request, pk, choices.ACTION_DEACTIVATE)
+    context = _trainer_action_context(trainer)
+    if request.method == 'POST':
+        form = TrainerDeactivateForm(request.POST, client_count=context['client_count'],
+                                     targets=account_services.valid_reassign_targets(trainer))
+        errors = {} if form.is_valid() else errors_dict(form)
+        if not errors:
+            name = trainer.display_name
+            result, errors = _run_action(request, account_services.deactivate_account, trainer, request.user,
+                                         form.cleaned_data['reason'], form.cleaned_data['reassign_to'])
+            if result is not None:
+                if result.changed:
+                    messages.success(request, f'Desactivaste a {name}.{_reassign_message(result)}')
+                else:
+                    messages.info(request, MSG_ALREADY_INACTIVE)
+            if errors is None or result is not None:
+                return redirect('trainer_staff_list')
+            context = _trainer_action_context(trainer)   # el destino pudo cambiar: se relee la lista
+        return _render_with_errors(request, 'trainer/trainer_deactivate.html', context, form, errors,
+                                   TRAINER_DEACTIVATE_RENDERED)
+    context.update({'errors': {}, 'form': {}})
+    return render(request, 'trainer/trainer_deactivate.html', context)
+
+
+@require_POST
+@superuser_required
+def trainer_staff_reactivate(request, pk):
+    trainer = _trainer_target(request, pk, choices.ACTION_REACTIVATE)
+    name = trainer.display_name
+    result, _errors = _run_action(request, account_services.reactivate_account, trainer, request.user)
+    if result is not None:
+        if result.changed:
+            messages.success(request, f'{name} está activo/a de nuevo. Sus clientas anteriores siguen con '
+                                      'quien las tiene ahora; reasígnalas si hace falta.')
+        else:
+            messages.info(request, MSG_ALREADY_ACTIVE)
+    return redirect('trainer_staff_list')
+
+
+@require_http_methods(['GET', 'POST'])
+@never_cache
+@superuser_required
+def trainer_staff_delete(request, pk):
+    """C-07. Elimina definitivamente un entrenador (lápida) y pasa sus clientas a otro."""
+    trainer = _trainer_target(request, pk, choices.ACTION_ERASE)
+    display_name = trainer.display_name   # se toma ANTES de eliminar
+    context = {**_trainer_action_context(trainer), 'display_name': display_name,
+               'validated_foods_hint': account_services.validated_foods_hint(trainer)}
+    if request.method == 'POST':
+        form = TrainerEraseForm(request.POST, expected_name=display_name,
+                                client_count=context['client_count'],
+                                targets=account_services.valid_reassign_targets(trainer))
+        errors = {} if form.is_valid() else errors_dict(form)
+        if not errors:
+            result, errors = _run_action(request, account_services.erase_account, trainer, request.user,
+                                         form.cleaned_data['reason'], form.cleaned_data['reassign_to'])
+            if result is not None:
+                messages.success(request, f'Eliminaste definitivamente la cuenta de {display_name}.'
+                                          f'{_reassign_message(result)}')
+                return redirect('trainer_staff_list')
+            if errors is None:
+                return redirect('trainer_staff_list')
+            context.update(_trainer_action_context(trainer))
+        return _render_with_errors(request, 'trainer/trainer_confirm_delete.html', context, form, errors,
+                                   TRAINER_ERASE_RENDERED)
+    context.update({'errors': {}, 'form': {}})
+    return render(request, 'trainer/trainer_confirm_delete.html', context)
 
 
 @superuser_required
 def trainer_edit_trainer(request, pk):
     """Editar datos de un entrenador — solo superusuario."""
-    trainer = get_object_or_404(User, pk=pk, role='trainer')
+    trainer = get_object_or_404(User, pk=pk, role='trainer', erased_at__isnull=True)
 
     if request.method == 'POST':
         form = TrainerEditForm(request.POST, request.FILES, trainer=trainer)
@@ -547,7 +808,7 @@ def trainer_edit_trainer(request, pk):
         errors = errors_dict(form)
         flash_errors(request, form, errors, skip=TRAINER_EDIT_RENDERED)
         return render(request, 'trainer/trainer_edit.html', {
-            'trainer_obj': get_object_or_404(User, pk=pk, role='trainer'),
+            'trainer_obj': get_object_or_404(User, pk=pk, role='trainer', erased_at__isnull=True),
             'errors': errors,
             'form': request.POST,
         })
@@ -568,15 +829,16 @@ def trainer_edit_trainer(request, pk):
 @superuser_required
 def trainer_assign_client(request, pk):
     """Asigna un entrenador a un cliente — solo superusuario (única que asigna)."""
-    client = get_object_or_404(User, pk=pk, role='member')
-    trainers = User.objects.filter(role='trainer').order_by('first_name')
+    client = get_object_or_404(User, pk=pk, role='member', erased_at__isnull=True)
+    # Solo entrenadores activos (un entrenador desactivado no puede tener clientas)
+    trainers = User.objects.filter(role='trainer', is_active=True, erased_at__isnull=True).order_by('first_name')
 
     if request.method == 'POST':
         trainer_id = request.POST.get('trainer_id') or None
         if trainer_id:
             if not str(trainer_id).isdigit():
                 raise Http404
-            client.assigned_trainer = get_object_or_404(User, pk=int(trainer_id), role='trainer')
+            client.assigned_trainer = get_object_or_404(trainers, pk=int(trainer_id))
         else:
             client.assigned_trainer = None
         client.save()

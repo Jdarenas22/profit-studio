@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% comment %}
+  W-01 «Avisos por WhatsApp» (clienta). Contrato: docs/contracts/requests.md, «Avisos por WhatsApp:
+  contrato W-01 a W-03». El cuerpo es común con trainer/whatsapp_settings.html.
+{% endcomment %}
+
+{% block title %}Avisos por WhatsApp — ProFit Studio{% endblock %}
+
+{% block content %}
+<section class="py-10 px-4 max-w-2xl mx-auto">
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'dashboard' %}" class="rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Mi panel</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Avisos por WhatsApp</span>
+  </nav>
+
+  {% include "accounts/partials/whatsapp_settings_body.html" %}
+</section>
+{% endblock %}

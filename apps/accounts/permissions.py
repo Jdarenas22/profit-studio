@@ -11,16 +11,21 @@ Regla única de la plataforma (asignación automática):
 Cuando el recurso no es accesible se responde 404 (no se revela si existe).
 Toda vista que reciba el pk de un cliente, o de algo que pertenece a un cliente
 (valoración, rutina, membresía, medición, pago manual), debe pasar por aquí.
+
+Cuentas (docs/contracts/cuentas-eliminar.md): las cuentas ELIMINADAS (lápidas) no aparecen nunca;
+las DESACTIVADAS sí (para verlas y reactivarlas), pero su ficha es de solo lectura: las vistas y
+los servicios que escriben datos de una clienta llaman a `ensure_client_active`.
 """
+from django.contrib import messages
 from django.http import Http404
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 
 from .models import User
 
 
 def clients_for_trainer(user):
     """Queryset de clientes (role='member') a los que `user` puede acceder."""
-    clients = User.objects.filter(role=User.ROLE_MEMBER)
+    clients = User.objects.filter(role=User.ROLE_MEMBER, erased_at__isnull=True)
     if not getattr(user, 'is_authenticated', False) or not user.is_trainer:
         return clients.none()
     if user.is_superuser:
@@ -41,3 +46,36 @@ def ensure_client_access(request, client):
     if not clients_for_trainer(request.user).filter(pk=client.pk).exists():
         raise Http404
     return client
+
+
+INACTIVE_CLIENT_MESSAGE = 'Esta cuenta está desactivada. Reactívala para hacer cambios.'
+
+
+class ClientInactiveError(Exception):
+    """Se intentó escribir datos de una clienta desactivada o eliminada."""
+
+    def __init__(self, message=INACTIVE_CLIENT_MESSAGE):
+        super().__init__(message)
+
+
+def ensure_client_active(client):
+    """Regla de solo lectura (respuesta 4a): nadie escribe datos de una clienta desactivada.
+
+    La lanzan los servicios (defensa en profundidad) y la usan las vistas con
+    `reject_if_inactive`. Se relee la fila: la cuenta pudo desactivarse después de cargarla.
+    """
+    state = User.objects.filter(pk=client.pk).values('is_active', 'erased_at').first()
+    if state is None or not state['is_active'] or state['erased_at'] is not None:
+        raise ClientInactiveError()
+    return client
+
+
+def reject_if_inactive(request, client):
+    """Para las vistas que escriben: `None` si la clienta está activa; si no, la redirección al
+    detalle con el mensaje de solo lectura."""
+    try:
+        ensure_client_active(client)
+    except ClientInactiveError as exc:
+        messages.error(request, str(exc))
+        return redirect('trainer_client_detail', pk=client.pk)
+    return None

@@ -1,0 +1,102 @@
+# Integración continua de ProFit Studio: pruebas y auditoría de dependencias.
+#
+# - No despliega nada ni usa secretos: Railway sigue desplegando por su cuenta.
+# - Las pruebas usan config.settings.development (SQLite en memoria, correo en consola).
+#   No hay .env en CI: la suite funciona con los valores por defecto y con variables
+#   ficticias definidas aquí (nunca valores reales).
+# - Node solo se instala para que apps/public/tests/test_tailwind_build.py compile el CSS con
+#   `npx --yes tailwindcss@<versión>` y compruebe que static/css/app.css está al día. A
+#   propósito NO hay package.json (nixpacks detectaría Node y cambiaría el build de Railway).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  DJANGO_SETTINGS_MODULE: config.settings.development
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  # La suite no necesita más variables: sin .env, development.py usa sus valores por defecto
+  # (IA y WhatsApp simulados, sin red hacia Gemini ni Meta). Las pruebas de production.py
+  # corren en subprocesos con sus propias variables inventadas.
+
+jobs:
+  pruebas:
+    name: Pruebas de Django
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Instalar Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements/*.txt
+
+      - name: Instalar Node (solo para compilar Tailwind en la prueba del CSS)
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Instalar dependencias de Python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements/development.txt
+
+      - name: Comprobar que npx está disponible (la prueba del CSS no debe saltarse)
+        run: |
+          node --version
+          npx --version
+
+      - name: Revisión de Django (check)
+        run: python manage.py check --settings=config.settings.development
+
+      - name: Migraciones al día (makemigrations --check)
+        run: python manage.py makemigrations --check --dry-run --settings=config.settings.development
+
+      - name: Suite completa (avisos de obsolescencia = error)
+        run: python -W error::DeprecationWarning manage.py test --settings=config.settings.development
+
+  dependencias:
+    name: Auditoría de dependencias (pip-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Instalar Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements/*.txt
+
+      - name: Instalar pip-audit
+        run: python -m pip install pip-audit
+
+      # base.txt = lo que corre en Railway (requirements.txt solo lo incluye).
+      - name: Auditar requirements/base.txt (producción)
+        run: pip-audit -r requirements/base.txt --desc on
+
+      - name: Auditar requirements/development.txt (desarrollo y CI)
+        run: pip-audit -r requirements/development.txt --desc on
+
+      - name: Auditar requirements/local.txt (entorno local sin PostgreSQL)
+        run: pip-audit -r requirements/local.txt --desc on

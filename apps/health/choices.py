@@ -189,14 +189,29 @@ ACCESS_ACTION_CHOICES = [
     ('delete', 'Borrado'),
 ]
 
-# Pasos del asistente de la ficha (F-04). El servidor valida todo al guardar; `error_steps`
-# dice en qué pasos hay errores para llevar a la clienta al primero.
+# Respuesta a las dos preguntas que despliegan (docs/contracts/ficha-basica.md, sección 3).
+# `legacy` = ficha anterior a la ficha básica (respondió el cuestionario completo): solo existe en
+# la base; un guardado nuevo siempre es `yes` o `no`.
+SCREEN_CHOICES = [
+    ('yes', 'Sí'),
+    ('no', 'No'),
+    ('legacy', 'Ficha completa anterior'),
+]
+# Opciones que se pintan en el asistente (`choices.screen`). Ninguna marcada al empezar.
+SCREEN_FORM_CHOICES = [
+    ('yes', 'Sí, hay algo que contar'),
+    ('no', 'No, ninguna me aplica'),
+]
+
+# Pasos del asistente de la ficha básica (FB-01). El servidor valida todo al guardar;
+# `error_steps` dice en qué pasos hay errores para llevar a la clienta al primero. El paso 5 es
+# opcional: se puede guardar desde el 4.
 WIZARD_STEPS = [
-    {'number': 1, 'key': 'basics', 'title': 'Datos básicos y meta'},
-    {'number': 2, 'key': 'health', 'title': 'Salud'},
-    {'number': 3, 'key': 'parq', 'title': 'Cuestionario de aptitud'},
-    {'number': 4, 'key': 'food', 'title': 'Alimentación'},
-    {'number': 5, 'key': 'training', 'title': 'Entrenamiento'},
+    {'number': 1, 'key': 'basics', 'title': 'Datos básicos y meta', 'optional': False},
+    {'number': 2, 'key': 'health', 'title': 'Salud', 'optional': False},
+    {'number': 3, 'key': 'food', 'title': 'Alimentación', 'optional': False},
+    {'number': 4, 'key': 'training', 'title': 'Entrenamiento', 'optional': False},
+    {'number': 5, 'key': 'details', 'title': 'Más detalles (opcional)', 'optional': True},
 ]
 
 

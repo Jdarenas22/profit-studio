@@ -225,6 +225,162 @@ Primera pieza de la fase D (el resto sigue pendiente). Sin migración: `MealChoi
   5. Ocultarlo en la impresión.
 - **Para saber**: las pastillas de día de la pantalla van de hoy a hoy + 6, así que desde la interfaz solo se marcan comidas de **hoy** (el servicio acepta también días anteriores, pero la pantalla no navega hacia atrás). La hora de la marca no se muestra en ninguna parte.
 
+### Fase D1: contador del menú (`trainer_plan_badge`) (IMPLEMENTADO por el backend, 2026-10-15)
+
+Segunda pieza de la fase D (la parte de contador de F-17). Sin migración. Pedido a `templates/trainer/base.html` y a un fragmento nuevo.
+
+- **Ruta**: `GET {% url 'trainer_plan_badge' %}` (`/plans/trainer/inbox/badge/`). Solo entrenadores (la clienta recibe 403 y quien no inició sesión va al inicio de sesión), solo GET (otro método = 405), función apagada = 404, `Cache-Control: no-store`.
+- **Respuesta**: siempre 200 con el fragmento `trainer/partials/plan_badge.html` y un único dato de contexto, `count` (int; puede ser 0 o mayor que 99: el backend no lo recorta). Responde 200 también con `count == 0`, porque el sondeo del menú es permanente (no usa el 286 de htmx).
+- **Qué cuenta**: exactamente los mismos «Planes por revisar» que muestra la bandeja (`trainer_plan_inbox`, `pending_count`): borradores de la IA, planes en revisión y planes aprobados con una opción nueva pedida por la clienta, solo de SUS clientas (la superusuaria, de todas). Los dos salen de la misma función (`services.pending_review_count`), así que nunca difieren.
+- **Lo que se pide**:
+  1. En `templates/trainer/base.html`, dentro del enlace «Planes por revisar» (bloque `{% if AI_PLANS_ENABLED %}`), un contenedor con `hx-get="{% url 'trainer_plan_badge' %}"`, `hx-trigger="load, every 60s"` y `hx-swap="innerHTML"`.
+  2. El fragmento pinta una píldora con el número (`99+` si `count > 99`) solo si `count > 0`; si es 0 no pinta nada.
+  3. Accesible: `aria-label` «N planes por revisar» (en singular, «1 plan por revisar») y sin romper la fila de pestañas en móvil.
+
+### Avisos por WhatsApp: contrato W-01 a W-03 (IMPLEMENTADO por el backend, 2026-11-16)
+
+Contrato: `docs/contracts/whatsapp.md` (APROBADO; ver secciones 2.1, 3, 4 y 11). Rama `feature/whatsapp-avisos`. Los avisos son de una sola vía y **nunca** llevan datos de salud. No cambia nada del botón de soporte (`WHATSAPP_LINK` / `WHATSAPP_NUMBER`).
+
+**Plantillas que hay que reemplazar.** Hoy existen esqueletos mínimos, sin estilos, marcados "REEMPLAZAR POR frontend-architect":
+- `templates/accounts/whatsapp_settings.html`: clienta. Extiende `base.html` y usa el bloque `content`.
+- `templates/trainer/whatsapp_settings.html`: entrenador o superusuaria. Extiende `trainer/base.html` y usa el bloque `trainer_content`.
+- `templates/accounts/partials/whatsapp_settings_body.html`: cuerpo común que incluyen las dos anteriores.
+
+La vista elige la plantilla según `request.user.is_trainer`. Las pruebas del backend comprueban el **contexto**, no el HTML.
+
+**Rutas.** Todas trabajan sobre `request.user` y no reciben ningún id:
+
+| Nombre | Ruta | Método | Notas |
+| --- | --- | --- | --- |
+| `whatsapp_settings` | `/accounts/whatsapp/` | GET | Pantalla W-01. Exige sesión; no exige membresía vigente. Con la función apagada responde 404. Lleva `Cache-Control: no-store`. |
+| `whatsapp_enable` | `/accounts/whatsapp/enable/` | POST | Campos: `phone`, `accept` (casilla, valor `on`) y `text_version` (oculto, `{{ text_version }}`). Si hay errores, vuelve a pintar W-01 con `errors` y `form` (HTTP 200). Si sale bien, redirige a W-01 con un mensaje de éxito. |
+| `whatsapp_disable` | `/accounts/whatsapp/disable/` | POST | Siempre permitida, incluso con la función apagada. Redirige a W-01 (o al `dashboard` si está apagada) con un mensaje. Conviene pedir confirmación antes de enviar. |
+| `whatsapp_resend_confirmation` | `/accounts/whatsapp/resend/` | POST | Permite 1 reenvío cada 10 minutos y 3 por día. Los errores y el éxito llegan como `messages`. |
+
+Las tres rutas POST responden 405 si se abren con GET. Todo formulario lleva `{% csrf_token %}` y su botón se deshabilita mientras envía.
+
+**Contexto de W-01**
+
+- `status`: estado de los avisos. Valores posibles:
+  - `off`: no los activó, retiró la autorización o se publicó un texto nuevo que debe aceptar.
+  - `pending`: activó, pero falta que pulse «Sí, soy yo» en WhatsApp.
+  - `active`.
+  - `wrong_number`: alguien respondió «No soy yo».
+  - `undeliverable`: WhatsApp no pudo entregar los mensajes dos veces seguidas.
+  - `opted_out`: se dio de baja.
+- `phone_display`: número formateado (`+57 300 123 4567`), o `''` si `status` es `off`.
+- `available` (= `text_ready`): bool. Si es falso, mostrar «Esta función aún no está disponible» y **no** mostrar el formulario. Pasa, por ejemplo, en producción mientras falten los datos legales.
+- `form`: diccionario `{phone, accept}` para repoblar el formulario. `phone` llega precargado desde el perfil (`User.phone`) cuando es un celular válido.
+- `errors`: diccionario con estas claves posibles:
+  - `phone`: número no válido o ya registrado en otra cuenta. El mensaje no dice en cuál.
+  - `accept`: falta marcar la casilla, o el texto cambió mientras se leía.
+  - `general`: falta `text_version`, la función no está disponible o la persona es menor de edad.
+
+  Cada error se pinta junto a su campo; `general`, arriba.
+- `text_version`: número de versión del texto de consentimiento.
+- `body`: texto completo del consentimiento. Se muestra escapado, con los saltos de línea respetados (por ejemplo, `white-space: pre-line`).
+- `privacy_policy_url`: si viene vacío, no se muestra el enlace.
+- `can_resend`: bool. Solo se muestra «Reenviar confirmación» si `status == 'pending'` y `can_resend`.
+- `recent`: hasta 10 elementos `{kind_label, created_at, status_label, status}` con los últimos avisos, sin contenido.
+- `is_minor`: bool. Si es verdadero: «Los avisos por WhatsApp son solo para mayores de 18 años. Consulta con tu entrenador.», sin formulario.
+- `is_simulated`: bool. Si es verdadero, mostrar la franja «MODO DE PRUEBA: los mensajes no salen a WhatsApp».
+
+**Qué mostrar según `status`**
+
+| `status` | Qué ve la persona |
+| --- | --- |
+| `off`, `opted_out`, `wrong_number`, `undeliverable` | Formulario de activación: número + texto + casilla **sin marcar** + botón «Activar avisos», deshabilitado hasta marcar la casilla. Con `wrong_number`: «Ese número no confirmó los avisos; revisa tu número». Con `undeliverable`: «No pudimos entregarte avisos; revisa tu número». |
+| `pending` | «Te enviamos un mensaje por WhatsApp. Pulsa "Sí, soy yo" para empezar a recibir los avisos», más «Reenviar confirmación» (si `can_resend`) y «Desactivar avisos». |
+| `active` | «Recibes avisos en {phone_display}», más «Desactivar avisos». Opcional: indicar que también se puede responder BAJA en WhatsApp. |
+
+Mensajes de éxito y error que llegan por `messages` (ya redactados):
+- «Listo. Te enviamos un mensaje por WhatsApp: pulsa "Sí, soy yo" para empezar a recibir los avisos.»
+- «Desactivaste los avisos por WhatsApp. No te enviaremos más mensajes.»
+- «Te enviamos de nuevo el mensaje de confirmación.»
+- «Ya te enviamos la confirmación hace poco. Espera unos minutos.»
+- «Llegaste al máximo de reenvíos de hoy. Inténtalo mañana.»
+- «No pudimos guardar el cambio. Inténtalo de nuevo más tarde.»
+
+**W-02: enlace en el menú.** En `partials/account_menu_items.html` (clienta y entrenador), agregar «Avisos por WhatsApp» con `{% url 'whatsapp_settings' %}`, solo dentro de `{% if WHATSAPP_NOTICES_ENABLED %}`. Esa variable global la entrega el procesador de contexto `apps.whatsapp.context_processors.whatsapp_flags` y no consulta la base de datos.
+
+**W-03: aviso en el panel de la clienta.** `accounts/member_dashboard.html` recibe `whatsapp_status`, que vale `None` con la función apagada (en ese caso no se dibuja nada) o uno de los valores de `status`:
+- `pending`: «Confirma tu número en WhatsApp», con enlace a W-01.
+- `wrong_number` o `undeliverable`: «Revisa tu número de WhatsApp», con enlace a W-01.
+- Cualquier otro valor: no se dibuja nada, o como mucho un enlace discreto.
+
+**Reglas de siempre:** sin `|safe` ni `innerHTML` con datos, no poner el teléfono en la URL y no cargar scripts nuevos de terceros.
+
+### Ficha básica: FB-01 a FB-04 (APROBADO el 2026-11-17; backend listo en `feature/ficha-basica`)
+
+Contrato: `docs/contracts/ficha-basica.md` (secciones 2 a 4 y 7; contexto exacto en la sección 10). La persona aprobó todas las recomendaciones (1A a 7A). Rama `feature/ficha-basica`. **Si este bloque difiere del «Contrato A2 para el frontend» en la ficha, manda este bloque.** El resto de A2 no cambia: rutas, acceso, `no-store`, `errors`, `form` y la regla de no usar `x-if`.
+
+- **FB-01. Asistente** (`health/partials/profile_wizard.html`; lo usan la clienta y el entrenador). Tiene 5 pasos (`steps`):
+  1. Datos básicos y meta: `birth_date`, `sex_for_calculation`, `training_goal`. El peso meta pasa al paso 5.
+  2. Salud: radio `health_screen` (`choices.screen`; texto exacto en la sección 3.1 del contrato, con la lista de casos visible; ninguno marcado al empezar). Con «Sí» se despliegan las 7 preguntas `parq_q*` y todo el detalle médico actual. Con «No» no se muestra nada médico.
+  3. Alimentación: radio `food_screen` (texto en la sección 3.2). Con «Sí» se despliegan `diet_type` (sin preselección), `allergies`, `allergy_severity` e `intolerances`, con la nota «Si eres celíaca, márcalo también en Salud».
+  4. Entrenamiento: `training_days_per_week`, `session_minutes`, `training_place` y `experience_level`. Desde aquí ya se puede guardar.
+  5. «Más detalles (opcional)»: `target_weight_kg`, comidas y horarios, `cooking_access`, `budget_level`, `eats_out_per_week`, gustos, `equipment` (solo si entrena en casa), `activity_level` y `sleep_hours`. Ningún radio marcado al empezar. Aviso: «Si quieres un plan de alimentación, cuéntanos al menos tu nivel de actividad diaria».
+
+  Reglas para el asistente:
+  - Lo desplegado se oculta con `x-show`. El servidor descarta lo médico si llega «No», así que no hace falta limpiar campos en el navegador.
+  - Si `screen_was_yes` es verdadero y la persona cambia a «No», mostrar antes de guardar: «Al responder No se quitarán de tu ficha los datos de salud que habías registrado.»
+  - Errores nuevos posibles: `health_screen` y `food_screen` (incluido «Marcaste que sí, pero no indicaste qué…»).
+  - El aviso fijo de arriba pasa a ser: «Solo te pedimos lo necesario para entrenar. Si tienes algún tema de salud o de alimentación, cuéntanoslo y se abrirán más preguntas.»
+- **FB-02. Resumen de la clienta** (`health/partials/profile_summary.html`, `profile_detail.html`):
+  - Con `profile.health_declared_none`: «No indicaste problemas de salud», sin la lista médica ni el cuestionario.
+  - Con `profile.food_declared_none`: «Sin alergias, intolerancias ni dieta especial».
+  - Campos de `profile.defaulted_fields`: «No indicado». Además, un enlace «Completar más detalles» a `{% url 'member_health_profile' %}?edit=1`.
+- **FB-03. Ficha del entrenador** (`trainer/health_profile.html`):
+  - Mostrar la respuesta a cada pregunta: «Salud: respondió No (no vio el cuestionario detallado)», «Respondió Sí» o, si es `legacy`, «Cuestionario completo».
+  - Mostrar `profile.defaulted_labels` como «No declarado por la clienta».
+  - Las banderas nuevas (`I03_HEALTH_SCREEN_NO`, `I04_DEFAULTS` y `M10_NO_ACTIVITY`) llegan en `flags`, en los grupos que ya existen: no hace falta código nuevo, solo comprobar que se ven.
+- **FB-04. Pedido de plan** (`plans/request.html`): el requisito nuevo `D07_NUTRITION_DETAILS` llega en `missing_texts`, que ya existe. Comprobar que el texto se ve junto al enlace a la ficha.
+
+Pedidos al frontend: los cuatro de arriba (ya se pueden construir). Contexto nuevo en el formulario:
+- `form.health_screen` y `form.food_screen` (`'yes'` | `'no'` | `''`).
+- `form.defaulted_fields` (lista).
+- `choices.screen`.
+- `screen_was_yes` (bool).
+
+**Contexto exacto implementado (2026-11-17).** Lo que no aparece aquí no cambió respecto al «Contrato A2».
+
+- **FB-01** (`health/profile_form.html` y `trainer/health_profile_form.html`, que incluyen `health/partials/profile_wizard.html`):
+  - `steps`: 5 diccionarios `{number, key, title, optional}`; `key` = `basics`, `health`, `food`, `training`, `details`; títulos «Datos básicos y meta», «Salud», «Alimentación», «Entrenamiento», «Más detalles (opcional)»; `optional` solo es `True` en el 5.
+  - `choices.screen` = `[('yes', 'Sí, hay algo que contar'), ('no', 'No, ninguna me aplica')]` (para las dos preguntas). El resto de `choices` no cambió.
+  - `form.health_screen` / `form.food_screen`: `''` en una ficha nueva (ninguna marcada); al editar, la respuesta guardada, y en una ficha `legacy`, la preselección de la sección 5 del contrato.
+  - `form.defaulted_fields`: lista de códigos entre `cooking_access`, `budget_level`, `eats_out_per_week`, `equipment`, `activity_level`. Esos campos llegan vacíos en `form` (sin radio marcado).
+  - Al editar una ficha con «No», llegan vacías las preguntas que la clienta nunca vio: `parq_q1`..`parq_q7`, `recent_surgery`, `pregnancy_status`, `eating_disorder_history` y, con «No» en alimentación, `diet_type`.
+  - `screen_was_yes` (bool): la versión vigente tiene datos médicos; mostrar el aviso de la regla de arriba si cambia a «No». **Nuevo:** `food_screen_was_yes` (bool), lo mismo para dieta, alergias e intolerancias: «Al responder No se quitarán de tu ficha la dieta, las alergias y las intolerancias que habías registrado.»
+  - Pasos de los errores (`error_steps`): `health_screen`, `parq_q*` y todo lo médico = 2; `food_screen`, `diet_type`, `allergies`, `allergy_severity`, `intolerances` = 3; `training_days_per_week`, `session_minutes`, `training_place`, `experience_level` = 4; `target_weight_kg`, comidas, horarios, `cooking_access`, `budget_level`, `eats_out_per_week`, gustos, `equipment`, `activity_level`, `sleep_hours` = 5.
+  - Mensajes nuevos que pueden llegar en `errors`: `health_screen` («Cuéntanos si tienes algún problema de salud (Sí o No).» o «Marcaste que sí, pero no indicaste qué. Márcalo abajo o cambia tu respuesta a No.») y `food_screen` («Cuéntanos si tienes alergias, intolerancias o una dieta especial (Sí o No).» o «Marcaste que sí, pero no indicaste cuál. Márcalo o cambia tu respuesta a No.»).
+  - Con sexo masculino y «Sí» en salud, la pregunta de embarazo se puede ocultar: el servidor guarda `none`.
+  - **Ajuste temporal del backend:** el asistente actual tiene dos radios marcados «REEMPLAZAR POR frontend-architect (FB-01)» para poder guardar mientras tanto. Reemplazarlos con el diseño de FB-01.
+- **FB-02** (`health/profile_detail.html` / `profile_summary.html`): `profile.health_declared_none`, `profile.food_declared_none`, `profile.defaulted_fields` (lista de códigos: usar `{% if 'activity_level' in profile.defaulted_fields %}`) y `profile.defaulted_labels` (lista de etiquetas en español). El resto del contexto no cambió.
+- **FB-03** (`trainer/health_profile.html`): `profile.health_screen` / `profile.food_screen` (`'yes'` | `'no'` | `'legacy'`; también `profile.get_health_screen_display`), `profile.defaulted_labels`. En `flags.info` llegan `I03_HEALTH_SCREEN_NO` e `I04_DEFAULTS` (su `text` ya trae las etiquetas); en `flags.missing`, `M10_NO_ACTIVITY`.
+- **FB-04** (`plans/request.html`): con `kind=nutrition`, `eligibility.missing` puede traer `{'code': 'D07_NUTRITION_DETAILS', 'text': 'Para armar tu plan de alimentación necesitamos tu nivel de actividad diaria. Complétalo en "Más detalles" de tu ficha.', 'url': '/health/profile/?edit=1'}`. La plantilla actual ya pinta el texto y el enlace «Ir ahora»; solo hay que comprobarlo. Opcional para FB-01: si quieren que ese enlace abra directamente el paso 5, pídanlo aquí (hoy el asistente abre en el primer paso con errores o en el 1).
+- En el resumen del entrenador del plan (`trainer/plan_detail.html`, `profile_summary.activity`) ya llega «No indicado» cuando no la declaró.
+
+### Cuentas: contrato C-01 a C-08 (APROBADO el 2026-11-17; backend IMPLEMENTADO el 2026-11-17)
+
+Contrato: `docs/contracts/cuentas-eliminar.md` (secciones 2, 4, 13, 16 y 21). Rama `feature/eliminar-usuarios`. La persona aprobó todas las recomendaciones (1a a 10a): un entrenador común **desactiva y reactiva** a sus clientas pero **no elimina** (solo la superusuaria); los comprobantes de pago se **conservan** (solo los ve la superusuaria). Todas las pantallas son del panel (`trainer/base.html`, bloque `trainer_content`). Cada acción es un formulario POST con `{% csrf_token %}` y el botón se deshabilita mientras envía. Los nombres se pintan siempre escapados (nunca `|safe`).
+
+**Estado de las plantillas:** C-03, C-06 y C-07 existen como **esqueletos mínimos** del backend (marcados «REEMPLAZAR POR frontend-architect»): funcionan, pero sin diseño. C-04 (`client_confirm_delete.html`) sigue siendo la plantilla **vieja**: se pinta sin error, pero **no tiene** los campos `confirm_name`, `reason` ni `ack_payments`, así que hoy la eliminación desde la pantalla siempre se rechaza (los errores salen como mensaje arriba). Es un fallo seguro hasta que llegue la nueva. C-01, C-02, C-05 y C-08 ya reciben el contexto nuevo; las plantillas actuales lo ignoran sin romperse.
+
+| Id | Plantilla | Vista | Contexto exacto y qué cambia |
+| --- | --- | --- | --- |
+| C-01 | `trainer/clients.html` | `trainer_client_list` | Contexto nuevo: `status` (`'active'`, `'inactive'` o `'all'`; sin parámetro o con uno no válido llega `'active'`) y `counts` (`{'active': n, 'inactive': n, 'all': n}`). Se conservan `clients`, `is_superuser` y `unassigned_count` (ahora solo cuenta activas). Pestañas «Activas / Desactivadas / Todas» que enlazan a `?status=active\|inactive\|all`, con su número. En cada fila, si `not client.is_active`: etiqueta «Desactivada». Las cuentas eliminadas nunca llegan. |
+| C-02 | `trainer/client_detail.html` | `trainer_client_detail` | Contexto nuevo: `can_deactivate`, `can_reactivate`, `can_erase` (bool). Si `not client.is_active`: franja «Cuenta desactivada el {{ client.deactivated_at\|date:"d/m/Y" }}» y ocultar o deshabilitar los botones que escriben (editar, membresía, pago, valoración, medida, rutina, ficha, generar plan, tomar/aprobar/regenerar plan): el servidor ya los rechaza con «Esta cuenta está desactivada. Reactívala para hacer cambios.». Botones: `can_deactivate` → enlace «Desactivar» a `trainer_client_deactivate`; `can_reactivate` → formulario POST «Reactivar» a `trainer_client_reactivate`; `can_erase` (solo la superusuaria) → enlace «Eliminar definitivamente» a `trainer_client_delete`, con estilo de peligro y separado. **El enlace actual a `trainer_client_delete` debe mostrarse solo con `can_erase`** (hoy lo ve cualquier entrenador y lo devuelve a su panel con «No tienes permiso»). |
+| C-03 | `trainer/client_deactivate.html` (esqueleto) | `trainer_client_deactivate` (GET, POST) | Contexto: `client`, `reasons` (lista `[(código, texto)]`), `errors` (`{'reason': '…'}`), `form` (el POST). Texto: «{{ client.display_name }} no podrá iniciar sesión. Su historial, pagos y ficha se conservan. Puedes reactivarla cuando quieras.» Select opcional `reason` (opción vacía primero). Botones «Desactivar» (POST) y «Cancelar» (a `trainer_client_detail`). Pintar `errors.reason`. |
+| C-04 | `trainer/client_confirm_delete.html` (**se reescribe**) | `trainer_client_delete` (GET, POST; solo superusuaria) | Contexto: `client`, `display_name`, `summary` (`{'health_versions', 'assessments', 'measurements', 'routines', 'plans', 'manual_payments', 'receipts', 'wompi_payments'}`, enteros), `membership_valid_until` (fecha o `None`), `pending_wompi` (bool), `needs_ack` (bool), `reasons`, `errors`, `form`. Dos listas: «Se borrará para siempre» (ficha de salud, valoraciones, medidas, rutinas, planes, avisos de WhatsApp, foto de perfil) y «Se conserva sin datos personales» (pagos: monto, fecha, método y plan; **y los comprobantes (`summary.receipts`), que se guardan en el archivo privado por obligación contable y solo los ve la superusuaria**). Aviso fijo: «Si tiene un testimonio publicado, bórralo en Admin > Testimonios.» Campo `confirm_name` con la etiqueta «Escribe "{{ display_name }}" para confirmar» (`autocomplete="off"`, `maxlength="300"`), select obligatorio `reason` y, si `needs_ack`, la casilla `ack_payments` **sin marcar** con «Entiendo que tiene una membresía vigente o un pago en curso» (mostrar `membership_valid_until` y `pending_wompi`). Botón «Eliminar definitivamente», deshabilitado hasta que el texto coincida (solo ayuda: el servidor valida igual, sin distinguir mayúsculas ni espacios, pero **con tildes**). Pintar `errors.confirm_name`, `errors.reason` y `errors.ack_payments`. |
+| C-05 | `trainer/trainer_list.html` | `trainer_staff_list` | Contexto: `trainers` (ahora con `client_count` anotado y la superusuaria primero), `status`, `counts` (como C-01). Pestañas como en C-01. Por fila: etiqueta «Desactivado/a» si `not trainer.is_active`; «Dueña» y **ningún botón de cuenta** si `trainer.is_superuser`. Botones: «Desactivar» (enlace a `trainer_staff_deactivate`) si está activo, «Reactivar» (formulario POST a `trainer_staff_reactivate`) si no, y «Eliminar definitivamente» (enlace a `trainer_staff_delete`). Usar `trainer.client_count` en vez de `trainer.assigned_clients.count`. |
+| C-06 | `trainer/trainer_deactivate.html` (esqueleto) | `trainer_staff_deactivate` (GET, POST) | Contexto: `trainer_obj`, `client_count` (sus clientas, activas y desactivadas), `in_review_count`, `targets` (lista de entrenadores activos menos él; la superusuaria primero, con `is_superuser` para marcarla «(dueña)»), `reasons`, `errors` (`reassign_to`, `reason`), `form`. Si `client_count > 0`: select obligatorio `reassign_to` (valor = `t.pk`, texto = `t.display_name`) **sin opción preseleccionada**, con «Elige a quién pasar sus {{ client_count }} clientas». Si `in_review_count > 0`: «{{ in_review_count }} planes que estaba revisando vuelven a la bandeja». Select opcional `reason`. |
+| C-07 | `trainer/trainer_confirm_delete.html` (esqueleto) | `trainer_staff_delete` (GET, POST) | Lo mismo que C-06, más `display_name` y `validated_foods_hint` (bool); `confirm_name` y `reason` obligatorios como en C-04 (sin `ack_payments`). Texto: «Su nombre desaparece de la web y del panel. Las rutinas, valoraciones y planes que hizo se conservan como "Cuenta eliminada".» Si `validated_foods_hint`: «Revisa en Admin > Alimentos si aparece como validador/a.» Pintar `errors.confirm_name`, `errors.reason` y `errors.reassign_to`. |
+| C-08 | `trainer/manual_payment_list.html` y donde se muestra quién hizo algo | `trainer_manual_payment_list` y otras | La superusuaria recibe además, en `payments`, los pagos de cuentas eliminadas. Si `p.user.is_erased`: mostrar «Cuenta eliminada» (`p.user.display_name`), **sin enlace** al detalle (daría 404); el enlace al comprobante (`payment_receipt`) sí funciona para ella, y se puede marcar con `p.receipt_retained` («Conservado por obligación contable»). Para el nombre de un entrenador o de quien hizo algo (rutina, valoración, plan aprobado, pago registrado, asignado), usar `{{ persona.display_name }}`, que devuelve «Cuenta eliminada» cuando corresponde, y agregar «(desactivado/a)» si `not persona.is_active` y no `persona.is_erased`. |
+
+Mensajes: llegan por `messages` y ya están redactados (contrato, sección 13). Rutas: `trainer_client_deactivate` y `trainer_staff_deactivate`/`trainer_staff_delete`/`trainer_client_delete` aceptan GET y POST; `trainer_client_reactivate` y `trainer_staff_reactivate` solo POST (GET → 405). Las confirmaciones responden `Cache-Control: no-store`. Con errores, la vista vuelve a pintar la misma plantilla con `errors` y `form` (HTTP 200); si sale bien, redirige con un mensaje.
+
+**Pedido del backend al frontend (pendiente):** cuando entreguen C-04, avisen qué `errors.<campo>` pinta para agregarlos a `CLIENT_ERASE_RENDERED` en `apps/accounts/views.py` (hoy está vacía y esos errores se repiten como mensaje arriba). Lo mismo si los esqueletos C-03, C-06 o C-07 dejan de pintar algún campo (`CLIENT_DEACTIVATE_RENDERED`, `TRAINER_DEACTIVATE_RENDERED`, `TRAINER_ERASE_RENDERED`). Las pruebas del backend miran el contexto (`response.context`), no el HTML.
+
 ## De frontend-architect para arquitecto-backend
 
 ### Fase A1: plantillas entregadas (F-01, F-02, F-03) y lo que asumen de las vistas
@@ -274,6 +430,41 @@ Plantilla nueva `trainer/partials/adaptation_panel.html`, incluida desde `plan_d
 ### Submenú de perfil en el banner (frontend, 2026-10-13)
 
 Solo plantillas: `partials/navbar.html` (botón con foto/inicial + nombre que abre el submenú; sección «Mi cuenta» en el menú móvil), `partials/account_menu_items.html` (contenido compartido) y `trainer/base.html` (se quitan «Mi perfil» y «Salir» de la fila de pestañas). Sin cambios de contrato ni de vistas. Usa lo que ya llega: `user.is_trainer`, `user.is_superuser`, `user.profile_photo`, `user.get_full_name`, `HEALTH_FEATURES_ENABLED` y `AI_PLANS_ENABLED` (procesadores de contexto existentes) y las rutas `dashboard`, `trainer_dashboard`, `member_profile_edit`, `member_measurement_list`, `member_health_profile`, `member_plans` y `logout`. Pedidos al backend: ninguno.
+
+### Avisos por WhatsApp: W-01 a W-03 entregadas (frontend, 2026-11-16)
+
+Plantillas reales en lugar de los esqueletos: `accounts/whatsapp_settings.html`, `trainer/whatsapp_settings.html` y `accounts/partials/whatsapp_settings_body.html` (W-01); enlace «Avisos por WhatsApp» en `partials/account_menu_items.html` con `WHATSAPP_NOTICES_ENABLED` (W-02); aviso en `accounts/member_dashboard.html` para `pending`, `wrong_number` y `undeliverable` (W-03). Usan solo el contexto y las rutas de este contrato. Los mensajes de `messages` los sigue pintando `base.html`. «Activar avisos» y los botones de envío usan `aria-disabled` (no `disabled`) para seguir enfocables; el servidor valida igual. Pedidos al backend: ninguno.
+
+### Ficha básica: FB-01 a FB-04 entregadas (frontend, 2026-11-17, rama `feature/ficha-basica`)
+
+Solo plantillas, contra el bloque «Ficha básica: FB-01 a FB-04» y el contexto exacto de la sección 10 de `ficha-basica.md`:
+
+- **FB-01** `health/partials/profile_wizard.html` (reescrito; se quitaron los dos radios temporales «REEMPLAZAR POR frontend-architect») + parcial nuevo `health/partials/screen_options.html`; aviso fijo nuevo en `health/profile_form.html`. Pasos según `steps`; el detalle médico y el alimentario se despliegan con `x-show`; avisos `screen_was_yes` / `food_screen_was_yes` en el paso y otra vez junto al botón de guardar; botón «Guardar» desde el paso 4.
+- **FB-02** `health/partials/profile_summary.html`, `summary_item.html`, `summary_list.html`, parcial nuevo `defaulted_value.html` y `health/profile_detail.html` (aviso con «Completar más detalles»).
+- **FB-03** `trainer/health_profile.html`: tarjeta «Respuestas de la clienta» (`health_screen`, `food_screen`, `defaulted_labels`). Las banderas I03, I04 y M10 se ven en sus grupos sin cambios.
+- **FB-04** `plans/request.html`: comprobado que D07 se ve con su enlace.
+- **Sin cambio de backend:** los enlaces a «Más detalles» agregan `#mas-detalles` en el navegador (el fragmento no llega al servidor y no lleva datos), y el asistente abre directamente en el paso 5 si no hay errores. Eso resuelve la parte opcional de FB-04 sin tocar `apps/plans/views.py`.
+
+Pedidos al backend: ninguno. Observación (no bloquea): en `trainer/health_profile.html`, la casilla «Plan de alimentación» dice «Sin restricciones» aunque M10 lo bloquee por D07, porque `blocked_scopes` solo cuenta las banderas rojas. Si se quiere mostrar «Falta un dato», bastaría con un conjunto `missing_scopes` en `flags`.
+
+### Cuentas: C-01 a C-08 entregadas (frontend, 2026-11-17)
+
+Plantillas reales: `trainer/client_confirm_delete.html` (C-04, reescrita), `trainer/client_deactivate.html` (C-03), `trainer/trainer_deactivate.html` (C-06) y `trainer/trainer_confirm_delete.html` (C-07) en lugar de los esqueletos; cambios en `trainer/clients.html` (C-01), `trainer/client_detail.html` (C-02), `trainer/trainer_list.html` (C-05) y `trainer/manual_payment_list.html` (C-08). Parciales nuevos en `trainer/partials/`: `account_status_tabs`, `account_error_summary`, `account_reason_field`, `account_reassign_field`, `account_confirm_name_field` y `person_name` (C-08: `display_name` + «(desactivado/a)»). C-08 también en `trainer/plan_detail.html`, `trainer/assign_trainer.html`, `trainer/clients.html` y, del lado de la clienta, `plans/member_plans.html`, `plans/member_nutrition.html` y `routines/member_routine.html` (ahí, si quien aprobó está eliminado, no se nombra a nadie; la clienta no ve «(desactivado/a)»). Con la clienta desactivada se ocultan además las acciones de escritura de `trainer/plan_detail.html` y `trainer/partials/nutrition_review.html` (tomar, aprobar, regenerar, editar o revisar opciones; archivar sigue) y «Corregir» de `trainer/health_profile.html`. Solo usan el contexto de este contrato.
+
+**Pedido al backend: errores que las plantillas pintan junto al campo** (agregarlos a las listas `*_RENDERED` de `apps/accounts/views.py` para que no se repitan como mensaje arriba; hoy C-04 los muestra dos veces porque `CLIENT_ERASE_RENDERED` está vacía):
+
+| Pantalla | Lista | Campos pintados junto al campo (y en el resumen de errores de arriba) |
+| --- | --- | --- |
+| C-04 | `CLIENT_ERASE_RENDERED` | `confirm_name`, `reason`, `ack_payments` |
+| C-03 | `CLIENT_DEACTIVATE_RENDERED` | `reason` (sin cambio) |
+| C-06 | `TRAINER_DEACTIVATE_RENDERED` | `reason`, `reassign_to` (sin cambio) |
+| C-07 | `TRAINER_ERASE_RENDERED` | `confirm_name`, `reason`, `reassign_to` (sin cambio; `ack_payments` sobra ahí, C-07 no tiene esa casilla, pero no hace daño) |
+
+`ack_payments` solo se pinta cuando `needs_ack` es verdadero; si el backend devolviera ese error con `needs_ack` falso (no debería pasar), se perdería: conviene dejarlo fuera de la lista en ese caso o no emitirlo. Cualquier otra clave (p. ej. `__all__`) no se pinta y debe seguir saliendo por `messages`.
+
+**RESUELTO (2026-11-17, sesión principal):** `CLIENT_ERASE_RENDERED = ('confirm_name', 'reason', 'ack_payments')`; la prueba `test_wrong_confirmation_changes_nothing` ahora comprueba que el error se pinta en C-04 y no se repite como mensaje.
+
+Notas: el botón «Eliminar definitivamente» de C-04/C-07 usa `aria-disabled` (sigue enfocable) hasta que el nombre coincide, normalizando como `normalize_name` (NFC, espacios, minúsculas; con tildes); el servidor valida igual y sin JavaScript el formulario se envía normal. `reassign_to` y `reason` no tienen opción preseleccionada; `ack_payments` nunca llega marcada.
 
 ## Resueltos
 

@@ -1,0 +1,1 @@
+{# C-08. Nombre de quien hizo algo: «Cuenta eliminada» en una lápida y «(desactivado/a)» si está desactivada. Espera `person` (User). Sin salto de línea final a propósito: se usa dentro de frases. #}{{ person.display_name }}{% if not person.is_active and not person.is_erased %} (desactivado/a){% endif %}

@@ -1,0 +1,20 @@
+{% comment %}
+  Resumen de errores de las confirmaciones de cuenta (C-03, C-04, C-06, C-07). Recibe el foco al cargar
+  (autofocus + tabindex=-1) y se anuncia (role="alert"); cada error enlaza a su campo. El mismo texto se
+  pinta junto al campo. Espera `errors` (dict). Solo cubre los campos que estas pantallas pintan: los
+  demás los avisa el backend con `messages` (listas *_RENDERED de apps/accounts/views.py).
+{% endcomment %}
+{% if errors.reassign_to or errors.reason or errors.confirm_name or errors.ack_payments %}
+<div id="acct-errors" role="alert" tabindex="-1" autofocus
+     class="mb-6 rounded-2xl border border-red-500/50 bg-red-500/10 px-4 py-4 sm:px-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+  <h2 class="flex items-center gap-2 text-red-100 text-sm font-bold">
+    <i class="fa fa-circle-exclamation text-red-300" aria-hidden="true"></i> Revisa lo siguiente antes de continuar
+  </h2>
+  <ul class="mt-2 space-y-1 text-sm">
+    {% if errors.reassign_to %}<li><a href="#acct-reassign_to" class="text-red-100 underline underline-offset-2 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">A quién pasar sus clientas: {{ errors.reassign_to }}</a></li>{% endif %}
+    {% if errors.reason %}<li><a href="#acct-reason" class="text-red-100 underline underline-offset-2 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Motivo: {{ errors.reason }}</a></li>{% endif %}
+    {% if errors.confirm_name %}<li><a href="#acct-confirm_name" class="text-red-100 underline underline-offset-2 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Nombre: {{ errors.confirm_name }}</a></li>{% endif %}
+    {% if errors.ack_payments %}<li><a href="#acct-ack_payments" class="text-red-100 underline underline-offset-2 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Membresía y pagos: {{ errors.ack_payments }}</a></li>{% endif %}
+  </ul>
+</div>
+{% endif %}

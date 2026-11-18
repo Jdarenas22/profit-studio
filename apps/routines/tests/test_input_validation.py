@@ -6,7 +6,7 @@ from django.urls import reverse
 from apps.accounts.tests.helpers import ScenarioTestCase
 from apps.exercises.models import Exercise
 from apps.routines import views
-from apps.routines.models import Routine, RoutineDay, RoutineExercise
+from apps.routines.models import Routine, RoutineExercise
 
 
 class RoutineCreateValidationTests(ScenarioTestCase):

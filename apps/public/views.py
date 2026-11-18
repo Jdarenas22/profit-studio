@@ -9,7 +9,8 @@ def home(request):
 
 def about(request):
     from apps.accounts.models import User
-    trainers = User.objects.filter(role='trainer').order_by('date_joined')
+    # Solo entrenadores activos (una cuenta desactivada o eliminada no se muestra)
+    trainers = User.objects.filter(role='trainer', is_active=True, erased_at__isnull=True).order_by('date_joined')
     return render(request, 'public/about.html', {'trainers': trainers})
 
 

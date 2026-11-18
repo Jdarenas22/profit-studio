@@ -50,6 +50,14 @@
   {% endif %}
 {% endif %}
 
+{% if WHATSAPP_NOTICES_ENABLED %}
+{% url 'whatsapp_settings' as url_whatsapp_settings %}
+<a href="{{ url_whatsapp_settings }}" {% if variant == 'desktop' %}role="menuitem"{% endif %}{% if request.path == url_whatsapp_settings %} aria-current="page"{% endif %} class="{{ item_cls }}">
+  <i class="fab fa-whatsapp w-4 text-center text-white/60" aria-hidden="true"></i><span class="flex-1">Avisos por WhatsApp</span>
+  {% if request.path == url_whatsapp_settings %}<i class="fa fa-check text-xs text-primary" aria-hidden="true"></i><span class="sr-only">(página actual)</span>{% endif %}
+</a>
+{% endif %}
+
 <div class="my-1 border-t border-white/10" role="separator"></div>
 
 <form method="post" action="{% url 'logout' %}" {% if variant == 'desktop' %}role="none"{% endif %}

@@ -8,6 +8,14 @@ Reglas (docs/contracts/plan-ia.md, 2.2): listas cerradas contra `choices.py`; ra
 coherencias entre campos; textos libres limpios (NFC, sin caracteres de control, sin `<` ni `>`,
 espacios colapsados, máximo 300 caracteres). Mayores de 18 y hasta 100 años.
 
+Ficha básica (docs/contracts/ficha-basica.md, sección 4; reglas compartidas en `screening.py`):
+- `health_screen` y `food_screen` son obligatorias (`yes` / `no`). Con `no`, los campos médicos
+  (o los alimentarios) NO se validan ni se guardan: se quitan del formulario y `clean()` pone los
+  valores neutros. Así un valor basura en un campo oculto no bloquea a la clienta.
+- Con `yes` se aplican las reglas completas, y «Sí» sin marcar nada es un error.
+- Paso 5 «Más detalles (opcional)»: lo vacío toma un valor por defecto; lo que puede cambiar un
+  plan queda en `cleaned_data['defaulted_fields']` («no declarado»).
+
 Convención de `form` para las plantillas (`form_values_*`): un diccionario donde los campos de
 lista (`conditions`, `medications`, `injuries`, `allergies`, `intolerances`, `meal_slots`,
 `equipment`) son SIEMPRE listas (para usar `{% if 'knee' in form.injuries %}checked{% endif %}`),
@@ -28,6 +36,7 @@ from apps.assessments.forms import IMC_MAX, IMC_MIN
 
 from . import choices as ch
 from . import dates
+from . import screening
 
 AGE_MAX = 100
 TARGET_WEIGHT_MIN, TARGET_WEIGHT_MAX = Decimal('30'), Decimal('250')
@@ -47,17 +56,22 @@ TEXT_FIELDS = ('other_condition_text', 'medications_text', 'injuries_text',
 PARQ_FIELDS = tuple(f'parq_{key}' for key in ch.PARQ_KEYS)
 MEAL_TIME_FIELDS = tuple(f'meal_time_{code}' for code in ch.codes(ch.MEAL_SLOT_CHOICES))
 
+# Campos que dependen de cada pregunta (se descartan con «No»)
+HEALTH_FORM_FIELDS = (
+    *PARQ_FIELDS, 'conditions', 'condition_controlled', 'medical_clearance', 'clearance_date',
+    'medications', 'injuries', 'recent_surgery', 'pregnancy_status', 'eating_disorder_history',
+    'other_condition_text', 'medications_text', 'injuries_text',
+)
+FOOD_FORM_FIELDS = ('diet_type', 'allergies', 'allergy_severity', 'intolerances')
+
 SECTION_FIELDS = {
-    1: ('birth_date', 'sex_for_calculation', 'training_goal', 'target_weight_kg'),
-    2: ('conditions', 'condition_controlled', 'medical_clearance', 'clearance_date', 'medications',
-        'injuries', 'recent_surgery', 'pregnancy_status', 'eating_disorder_history',
-        'other_condition_text', 'medications_text', 'injuries_text'),
-    3: PARQ_FIELDS,
-    4: ('diet_type', 'allergies', 'allergy_severity', 'intolerances', 'meal_slots',
-        *MEAL_TIME_FIELDS, 'cooking_access', 'budget_level', 'eats_out_per_week',
-        'disliked_foods_text', 'liked_foods_text'),
-    5: ('training_days_per_week', 'session_minutes', 'training_place', 'equipment',
-        'experience_level', 'activity_level', 'sleep_hours'),
+    1: ('birth_date', 'sex_for_calculation', 'training_goal'),
+    2: ('health_screen', *HEALTH_FORM_FIELDS),
+    3: ('food_screen', *FOOD_FORM_FIELDS),
+    4: ('training_days_per_week', 'session_minutes', 'training_place', 'experience_level'),
+    5: ('target_weight_kg', 'meal_slots', *MEAL_TIME_FIELDS, 'cooking_access', 'budget_level',
+        'eats_out_per_week', 'liked_foods_text', 'disliked_foods_text', 'equipment',
+        'activity_level', 'sleep_hours'),
 }
 FIELD_STEP = {name: step for step, names in SECTION_FIELDS.items() for name in names}
 
@@ -155,7 +169,12 @@ class HealthProfileForm(forms.Form):
                         'max_value': f'El peso meta debe estar entre {TARGET_WEIGHT_MIN} y {TARGET_WEIGHT_MAX} kg.'},
     )
 
-    # Paso 2 — salud
+    # Paso 2 — salud (todo lo médico depende de `health_screen`)
+    health_screen = forms.ChoiceField(
+        choices=ch.SCREEN_FORM_CHOICES, label='¿Tienes algún problema de salud, lesión o tomas medicamentos?',
+        error_messages={'required': screening.HEALTH_SCREEN_REQUIRED,
+                        'invalid_choice': screening.HEALTH_SCREEN_REQUIRED},
+    )
     conditions = _multi(ch.CONDITION_CHOICES, 'Condiciones')
     condition_controlled = forms.BooleanField(required=False, label='Condiciones controladas')
     medical_clearance = forms.BooleanField(required=False, label='Autorización médica')
@@ -172,25 +191,32 @@ class HealthProfileForm(forms.Form):
     medications_text = CleanTextField(label='Medicamentos')
     injuries_text = CleanTextField(label='Lesiones')
 
-    # Paso 4 — alimentación
+    # Paso 3 — alimentación (el detalle depende de `food_screen`)
+    food_screen = forms.ChoiceField(
+        choices=ch.SCREEN_FORM_CHOICES, label='¿Tienes alergias, intolerancias o una dieta especial?',
+        error_messages={'required': screening.FOOD_SCREEN_REQUIRED,
+                        'invalid_choice': screening.FOOD_SCREEN_REQUIRED},
+    )
     diet_type = _choice(ch.DIET_CHOICES, label='Tipo de dieta')
     allergies = _multi(ch.ALLERGY_CHOICES, 'Alergias')
     allergy_severity = _choice(ch.ALLERGY_SEVERITY_CHOICES, required=False, label='Gravedad de la alergia')
     intolerances = _multi(ch.INTOLERANCE_CHOICES, 'Intolerancias')
-    meal_slots = _multi(ch.MEAL_SLOT_CHOICES, 'Comidas del día')
-    cooking_access = _choice(ch.COOKING_CHOICES, label='Cocina')
-    budget_level = _choice(ch.BUDGET_CHOICES, label='Presupuesto')
-    eats_out_per_week = _int(EATS_OUT_MIN, EATS_OUT_MAX, required=False, label='Comidas fuera por semana')
-    disliked_foods_text = CleanTextField(label='Alimentos que no te gustan')
-    liked_foods_text = CleanTextField(label='Alimentos que te gustan')
 
-    # Paso 5 — entrenamiento
+    # Paso 4 — entrenamiento
     training_days_per_week = _int(TRAINING_DAYS_MIN, TRAINING_DAYS_MAX, label='Días por semana')
     session_minutes = _int(SESSION_MIN, SESSION_MAX, label='Minutos por sesión')
     training_place = _choice(ch.TRAINING_PLACE_CHOICES, label='Lugar')
-    equipment = _multi(ch.EQUIPMENT_CHOICES, 'Equipo')
     experience_level = _choice(ch.EXPERIENCE_CHOICES, label='Experiencia')
-    activity_level = _choice(ch.ACTIVITY_CHOICES, label='Actividad')
+
+    # Paso 5 — más detalles (opcional: lo vacío toma un valor por defecto)
+    meal_slots = _multi(ch.MEAL_SLOT_CHOICES, 'Comidas del día')
+    cooking_access = _choice(ch.COOKING_CHOICES, required=False, label='Cocina')
+    budget_level = _choice(ch.BUDGET_CHOICES, required=False, label='Presupuesto')
+    eats_out_per_week = _int(EATS_OUT_MIN, EATS_OUT_MAX, required=False, label='Comidas fuera por semana')
+    disliked_foods_text = CleanTextField(label='Alimentos que no te gustan')
+    liked_foods_text = CleanTextField(label='Alimentos que te gustan')
+    equipment = _multi(ch.EQUIPMENT_CHOICES, 'Equipo')
+    activity_level = _choice(ch.ACTIVITY_CHOICES, required=False, label='Actividad')
     sleep_hours = DecimalInRangeField(
         label='Horas de sueño', required=False, places=1, min_value=SLEEP_MIN, max_value=SLEEP_MAX,
         error_messages={'invalid': 'Horas de sueño inválidas.',
@@ -201,18 +227,44 @@ class HealthProfileForm(forms.Form):
     def __init__(self, data=None, *, known_height=None, **kwargs):
         super().__init__(data, **kwargs)
         self.known_height = known_height
-        # Paso 3: siete respuestas Sí/No
+        # Paso 2 (con «Sí»): siete respuestas Sí/No
         for key in ch.PARQ_KEYS:
             self.fields[f'parq_{key}'] = forms.ChoiceField(
                 choices=[('yes', 'Sí'), ('no', 'No')], required=True, label=key,
                 error_messages={'required': 'Responde Sí o No.', 'invalid_choice': 'Responde Sí o No.'},
             )
-        # Paso 4: hora de cada comida (opcional, HH:MM)
+        # Paso 5: hora de cada comida (opcional, HH:MM)
         for code, label in ch.MEAL_SLOT_CHOICES:
             self.fields[f'meal_time_{code}'] = forms.CharField(
                 required=False, label=f'Hora de {label.lower()}', max_length=10,
                 error_messages={'max_length': 'Hora no válida. Usa HH:MM.'},
             )
+        # Las dos preguntas que despliegan. Lo desplegable es solo experiencia de uso: aquí manda
+        # lo que llegó en el POST.
+        self.health_answer = self._posted('health_screen')
+        self.food_answer = self._posted('food_screen')
+        self._apply_screen(self.health_answer, HEALTH_FORM_FIELDS)
+        self._apply_screen(self.food_answer, FOOD_FORM_FIELDS)
+        # Con sexo masculino el embarazo no se pregunta: el servidor pone 'none' (contrato, 4.1)
+        if self.health_answer == screening.SCREEN_YES and self._posted('sex_for_calculation') == 'M':
+            self.fields['pregnancy_status'].required = False
+
+    def _posted(self, name):
+        if not self.is_bound:
+            return ''
+        value = self.data.get(name)
+        return value if isinstance(value, str) else ''
+
+    def _apply_screen(self, answer, names):
+        """«No»: los campos se quitan (no se validan ni se guardan; `clean()` pone los neutros).
+        «Sí»: reglas completas. Sin respuesta válida: el error va en la pregunta y el detalle no
+        se exige (para no llenar la pantalla de errores)."""
+        if answer == screening.SCREEN_NO:
+            for name in names:
+                self.fields.pop(name, None)
+        elif answer != screening.SCREEN_YES:
+            for name in names:
+                self.fields[name].required = False
 
     # ─── Validación de campos sueltos ─────────────────────────────────────────
     def clean_birth_date(self):
@@ -249,42 +301,32 @@ class HealthProfileForm(forms.Form):
             if name in data:
                 data[name] = _ordered(data[name], choices)
 
-        # Cuestionario de aptitud -> {q1: bool, ...}
-        parq = {}
-        for key in ch.PARQ_KEYS:
-            answer = data.pop(f'parq_{key}', None)
-            if answer is not None:
-                parq[key] = answer == 'yes'
-        if len(parq) == len(ch.PARQ_KEYS):
-            data['parq'] = parq
+        # ── Salud (paso 2) ──
+        if self.health_answer == screening.SCREEN_NO:
+            data.update(screening.health_neutral_values())
+        else:
+            self._clean_health(data)
 
-        # Embarazo / lactancia / posparto solo con sexo femenino o sin especificar
-        if data.get('pregnancy_status', 'none') != 'none' and data.get('sex_for_calculation') == 'M':
-            err('pregnancy_status', 'Esta opción no coincide con el sexo indicado. Revisa tus respuestas.')
+        # ── Alimentación (paso 3) ──
+        if self.food_answer == screening.SCREEN_NO:
+            data.update(screening.food_neutral_values())
+        else:
+            self._clean_food(data)
 
-        # Autorización médica: exige fecha; sin autorización se limpia la fecha
-        if 'medical_clearance' in data:
-            if data['medical_clearance']:
-                if data.get('clearance_date') is None and 'clearance_date' not in self.errors:
-                    err('clearance_date', 'Escribe la fecha de la autorización de tu médico.')
-            else:
-                data['clearance_date'] = None
+        # ── Más detalles (paso 5): valores por defecto y «no declarados» ──
+        defaulted = []
+        for name in ('cooking_access', 'budget_level', 'activity_level'):
+            if name in data and not data[name]:
+                data[name] = screening.DEFAULT_VALUES[name]
+                defaulted.append(name)
+        if 'eats_out_per_week' in data and data['eats_out_per_week'] is None:
+            data['eats_out_per_week'] = screening.DEFAULT_VALUES['eats_out_per_week']
+            defaulted.append('eats_out_per_week')
 
-        # Sin condiciones declaradas no hay "condiciones controladas"
-        if 'conditions' in data and not data['conditions']:
-            data['condition_controlled'] = False
-
-        # Alergias: la gravedad solo aplica si hay alergias
-        if 'allergies' in data:
-            if data['allergies']:
-                if not data.get('allergy_severity') and 'allergy_severity' not in self.errors:
-                    err('allergy_severity', 'Indica qué tan fuerte es tu alergia.')
-            else:
-                data['allergy_severity'] = ''
-
-        # Comidas: siempre desayuno, almuerzo y cena; opcionales media mañana y merienda (3 a 5)
+        # Comidas: siempre desayuno, almuerzo y cena; opcionales media mañana y merienda (3 a 5).
+        # Si no llega ninguna, se usan las tres obligatorias (no cuenta como «no declarado»).
         if 'meal_slots' in data:
-            slots = _ordered(data['meal_slots'], ch.MEAL_SLOT_CHOICES)
+            slots = _ordered(data['meal_slots'], ch.MEAL_SLOT_CHOICES) or list(screening.DEFAULT_MEAL_SLOTS)
             if any(code not in slots for code in ch.REQUIRED_MEAL_SLOTS):
                 err('meal_slots', 'Incluye siempre desayuno, almuerzo y cena. '
                                   'Puedes agregar media mañana y merienda.')
@@ -303,20 +345,20 @@ class HealthProfileForm(forms.Form):
                 meal_times[code] = f'{int(match.group(1)):02d}:{match.group(2)}'
         data['meal_times'] = meal_times
 
-        if data.get('eats_out_per_week') is None:
-            data['eats_out_per_week'] = 0
-
-        # Equipo: obligatorio en casa ("ninguno" es exclusivo); en el gimnasio no aplica
+        # Equipo: solo en casa ("Ninguno" es exclusivo). En casa y sin responder = solo ejercicios
+        # sin equipo (lo prudente) y queda como «no declarado». En el gimnasio no aplica.
         if 'training_place' in data and 'equipment' in data:
             equipment = _ordered(data['equipment'], ch.EQUIPMENT_CHOICES)
             if data['training_place'] == 'home':
                 if not equipment:
-                    err('equipment', 'Indica con qué equipo cuentas en casa (o "Ninguno").')
+                    equipment = list(screening.DEFAULT_VALUES['equipment'])
+                    defaulted.append('equipment')
                 elif 'none' in equipment and len(equipment) > 1:
                     err('equipment', '"Ninguno" no se puede combinar con otro equipo.')
             else:
                 equipment = []
             data['equipment'] = equipment
+        data['defaulted_fields'] = screening.ordered_defaulted(defaulted)
 
         # Peso meta coherente con la estatura conocida
         target, height = data.get('target_weight_kg'), self.known_height
@@ -327,6 +369,59 @@ class HealthProfileForm(forms.Form):
 
         return data
 
+    def _clean_health(self, data):
+        """Reglas completas de lo médico (respuesta «Sí», o sin respuesta válida)."""
+        err = self.add_error
+        # Cuestionario de aptitud -> {q1: bool, ...}
+        parq = {}
+        for key in ch.PARQ_KEYS:
+            answer = data.pop(f'parq_{key}', None)
+            if answer:
+                parq[key] = answer == 'yes'
+        if len(parq) == len(ch.PARQ_KEYS):
+            data['parq'] = parq
+
+        # Embarazo / lactancia / posparto solo con sexo femenino o sin especificar. Con sexo
+        # masculino y sin respuesta, el servidor pone 'none'.
+        if data.get('sex_for_calculation') == 'M':
+            if data.get('pregnancy_status') not in (None, '', 'none'):
+                err('pregnancy_status', 'Esta opción no coincide con el sexo indicado. Revisa tus respuestas.')
+            elif 'pregnancy_status' in data:
+                data['pregnancy_status'] = 'none'
+
+        # Autorización médica: exige fecha; sin autorización se limpia la fecha
+        if 'medical_clearance' in data:
+            if data['medical_clearance']:
+                if data.get('clearance_date') is None and 'clearance_date' not in self.errors:
+                    err('clearance_date', 'Escribe la fecha de la autorización de tu médico.')
+            else:
+                data['clearance_date'] = None
+
+        # Sin condiciones declaradas no hay "condiciones controladas"
+        if 'conditions' in data and not data['conditions']:
+            data['condition_controlled'] = False
+
+        # «Sí» sin nada marcado: ficha ambigua (decisión 2A). Solo si todo lo médico llegó bien.
+        if (self.health_answer == screening.SCREEN_YES and 'parq' in data
+                and not any(name in self.errors for name in HEALTH_FORM_FIELDS)
+                and screening.health_is_neutral(data)):
+            err('health_screen', screening.HEALTH_YES_EMPTY)
+
+    def _clean_food(self, data):
+        """Reglas completas de lo alimentario (respuesta «Sí», o sin respuesta válida)."""
+        # Alergias: la gravedad solo aplica si hay alergias
+        if 'allergies' in data:
+            if data['allergies']:
+                if not data.get('allergy_severity') and 'allergy_severity' not in self.errors:
+                    self.add_error('allergy_severity', 'Indica qué tan fuerte es tu alergia.')
+            else:
+                data['allergy_severity'] = ''
+        # «Sí» sin indicar cuál (decisión 2A, igual que en salud)
+        if (self.food_answer == screening.SCREEN_YES
+                and not any(name in self.errors for name in FOOD_FORM_FIELDS)
+                and screening.food_is_neutral(data)):
+            self.add_error('food_screen', screening.FOOD_YES_EMPTY)
+
 
 # ─── Valores para repoblar la plantilla (`form`) ──────────────────────────────
 
@@ -336,6 +431,16 @@ def _text(value):
 
 def _date_text(value):
     return value.isoformat() if hasattr(value, 'isoformat') else _text(value)
+
+
+def _posted_defaulted(post):
+    """Datos del paso 5 que llegaron vacíos y se guardarían como «no declarados»."""
+    names = [name for name in ('cooking_access', 'budget_level', 'eats_out_per_week', 'activity_level')
+             if not _text(post.get(name)).strip()]
+    equipment = post.getlist('equipment') if hasattr(post, 'getlist') else list(post.get('equipment') or [])
+    if _text(post.get('training_place')) == 'home' and not equipment:
+        names.append('equipment')
+    return screening.ordered_defaulted(names)
 
 
 def form_values_from_post(post):
@@ -350,29 +455,50 @@ def form_values_from_post(post):
             values[name] = _text(post.get(name))
     for name in (*PARQ_FIELDS, *MEAL_TIME_FIELDS):
         values[name] = _text(post.get(name))
+    values['defaulted_fields'] = _posted_defaulted(post)
     return values
 
 
 def form_values_from_profile(profile, training_goal=''):
-    """Valores de una ficha existente (para editarla), en la misma forma que `form_values_from_post`."""
+    """Valores de una ficha existente (para editarla), en la misma forma que `form_values_from_post`.
+
+    - `health_screen` / `food_screen`: la respuesta guardada; en una ficha `legacy`, `yes` si hay
+      algún dato distinto del neutro y `no` si todo es neutro.
+    - Lo que la clienta no respondió vuelve VACÍO: los campos de `defaulted_fields` y, si
+      respondió «No», las preguntas médicas (o la dieta) que nunca vio. Así, al guardar de nuevo,
+      nada se convierte en «declarado» sin querer.
+    """
     values = {}
     for name in HealthProfileForm.base_fields:
         if name == 'training_goal':
             values[name] = training_goal or ''
         elif name in LIST_FIELDS:
-            values[name] = list(getattr(profile, name) or [])
+            values[name] = list(getattr(profile, name, None) or [])
         elif name in BOOLEAN_FIELDS:
-            values[name] = bool(getattr(profile, name))
+            values[name] = bool(getattr(profile, name, False))
         elif name in ('birth_date', 'clearance_date'):
-            values[name] = _date_text(getattr(profile, name))
+            values[name] = _date_text(getattr(profile, name, None))
         else:
-            values[name] = _text(getattr(profile, name))
-    answers = profile.parq or {}
+            values[name] = _text(getattr(profile, name, None))
+    answers = getattr(profile, 'parq', None) or {}
     for key in ch.PARQ_KEYS:
         values[f'parq_{key}'] = 'yes' if answers.get(key) else ('no' if key in answers else '')
-    times = profile.meal_times or {}
+    times = getattr(profile, 'meal_times', None) or {}
     for code in ch.codes(ch.MEAL_SLOT_CHOICES):
         values[f'meal_time_{code}'] = times.get(code, '')
+
+    stored_health = getattr(profile, 'health_screen', screening.SCREEN_LEGACY)
+    stored_food = getattr(profile, 'food_screen', screening.SCREEN_LEGACY)
+    values['health_screen'], values['food_screen'] = screening.legacy_screen_guess(profile)
+    if stored_health == screening.SCREEN_NO:
+        for name in ('recent_surgery', 'pregnancy_status', 'eating_disorder_history', *PARQ_FIELDS):
+            values[name] = ''
+    if stored_food == screening.SCREEN_NO:
+        values['diet_type'] = ''
+    defaulted = screening.ordered_defaulted(getattr(profile, 'defaulted_fields', None))
+    for name in defaulted:
+        values[name] = [] if name in LIST_FIELDS else ''
+    values['defaulted_fields'] = defaulted
     return values
 
 
@@ -385,4 +511,5 @@ def empty_form_values():
         values[name] = ''
     # Casillas que arrancan marcadas: desayuno, almuerzo y cena
     values['meal_slots'] = list(ch.REQUIRED_MEAL_SLOTS)
+    values['defaulted_fields'] = []
     return values

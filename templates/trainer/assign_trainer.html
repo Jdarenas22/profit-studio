@@ -29,7 +29,7 @@
       <p class="text-white/40 text-sm mt-0.5">
         {{ client.get_full_name|default:client.username }}
         {% if client.assigned_trainer %}
-        · <span class="text-white/25">Actual: {{ client.assigned_trainer.get_full_name }}</span>
+        · <span class="text-white/60">Actual: {% include 'trainer/partials/person_name.html' with person=client.assigned_trainer %}</span>
         {% else %}
         · <span class="text-yellow-400/60">Sin entrenador asignado</span>
         {% endif %}

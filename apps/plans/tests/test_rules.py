@@ -202,3 +202,36 @@ class ValidateTests(SimpleTestCase):
         data = plan()
         data['days'][0]['exercises'][0]['exercise_id'] = 999
         self.assertEqual(self.check(data).error_code, 'validation_failed:V02_IDS')
+
+
+class BasicProfileEligibilityTests(SimpleTestCase):
+    """Ficha básica (contrato ficha-basica.md, 6.3): sin nivel de actividad no hay plan de
+    alimentación (D07), pero el de ejercicio sigue disponible."""
+
+    def test_m10_becomes_d07_only_for_nutrition(self):
+        nutrition = evaluate('nutrition', defaulted_fields=('activity_level',))
+        self.assertEqual(nutrition.missing, (eligibility.D07_NUTRITION_DETAILS,))
+        self.assertFalse(nutrition.can_request)
+        self.assertFalse(nutrition.blocked)
+        self.assertIn('nivel de actividad diaria', nutrition.missing_texts[0])
+        self.assertIn('Más detalles', nutrition.missing_texts[0])
+        exercise = evaluate('exercise', defaulted_fields=('activity_level',))
+        self.assertTrue(exercise.can_request)
+        self.assertEqual(exercise.missing, ())
+
+    def test_counterproof_declared_activity_has_no_d07(self):
+        self.assertNotIn(eligibility.D07_NUTRITION_DETAILS, evaluate('nutrition').missing)
+        self.assertNotIn(eligibility.D07_NUTRITION_DETAILS,
+                         evaluate('nutrition', defaulted_fields=('cooking_access', 'budget_level')).missing)
+
+    def test_d07_goes_after_d04_and_before_the_quota(self):
+        result = eligibility.evaluate(
+            flags.evaluate(facts(defaulted_fields=('activity_level',), weight_kg=Decimal('300'))),
+            'nutrition', quota_ok=False)
+        self.assertEqual(result.missing, (eligibility.D04_INCOHERENT, eligibility.D07_NUTRITION_DETAILS,
+                                          eligibility.D05_QUOTA))
+
+    def test_health_screen_no_does_not_make_the_plan_conservative(self):
+        result = evaluate('exercise', health_screen='no')
+        self.assertFalse(result.conservative)
+        self.assertEqual(result.yellow_codes, ())

@@ -20,14 +20,22 @@ from apps.plans.rules import flags as rules_flags
 
 from . import choices as ch
 from . import dates
+from . import screening
 
 PURPOSE_HEALTH_DATA = 'health_data'
 PURPOSE_AI = 'ai_processing'
+# Avisos de la cuenta por WhatsApp (docs/contracts/whatsapp.md). Usa el mismo registro versionado,
+# pero NO es una finalidad de salud: las pantallas y reglas de salud usan `HEALTH_PURPOSES`.
+PURPOSE_WHATSAPP = 'whatsapp_notices'
 PURPOSE_CHOICES = [
     (PURPOSE_HEALTH_DATA, 'Tratamiento de datos de salud'),
     (PURPOSE_AI, 'Envío sin identificar a la inteligencia artificial'),
+    (PURPOSE_WHATSAPP, 'Avisos de mi cuenta por WhatsApp'),
 ]
 PURPOSES = tuple(code for code, _ in PURPOSE_CHOICES)
+# Finalidades de salud: las únicas que ven `member_consent`, la tarjeta de consentimientos de la
+# ficha y la revisión de textos legales de la IA (`ai_texts_ready`).
+HEALTH_PURPOSES = (PURPOSE_HEALTH_DATA, PURPOSE_AI)
 
 # Marcador pendiente de reemplazar en un texto legal: [RAZÓN SOCIAL], [NIT], [CORREO DE DERECHOS]...
 PLACEHOLDER_RE = re.compile(r'\[[^\[\]]+\]')
@@ -161,6 +169,20 @@ class HealthProfile(models.Model):
     )
     confirmed_by_client_at = models.DateTimeField(null=True, blank=True, verbose_name='Confirmada por la clienta')
 
+    # Ficha básica (docs/contracts/ficha-basica.md, sección 5). `legacy` = ficha anterior que
+    # respondió el cuestionario completo; un guardado nuevo siempre es `yes` o `no`.
+    health_screen = models.CharField(
+        max_length=6, choices=ch.SCREEN_CHOICES, default=screening.SCREEN_LEGACY,
+        verbose_name='Respuesta a la pregunta de salud',
+    )
+    food_screen = models.CharField(
+        max_length=6, choices=ch.SCREEN_CHOICES, default=screening.SCREEN_LEGACY,
+        verbose_name='Respuesta a la pregunta de alimentación',
+    )
+    defaulted_fields = models.JSONField(
+        default=list, blank=True, verbose_name='Datos no declarados (valor por defecto)',
+    )
+
     # Básicos (la meta vive en User.training_goal; peso y estatura en BodyMeasurement)
     birth_date = models.DateField(verbose_name='Fecha de nacimiento')
     sex_for_calculation = models.CharField(max_length=2, choices=ch.SEX_CHOICES, verbose_name='Sexo para el cálculo')
@@ -224,6 +246,20 @@ class HealthProfile(models.Model):
                 fields=['user'], condition=models.Q(is_current=True),
                 name='health_profile_one_current',
             ),
+            # Con «No» en salud, lo médico es neutro (las listas JSON las controla el servicio:
+            # comparar JSON en un CHECK no se comporta igual en SQLite y en PostgreSQL)
+            models.CheckConstraint(
+                condition=~models.Q(health_screen='no') | models.Q(
+                    recent_surgery='none', pregnancy_status='none', eating_disorder_history='no',
+                    medical_clearance=False, condition_controlled=False, clearance_date__isnull=True,
+                ),
+                name='health_profile_screen_no_neutral',
+            ),
+            # Con «No» en alimentación: come de todo y sin gravedad de alergia
+            models.CheckConstraint(
+                condition=~models.Q(food_screen='no') | models.Q(diet_type='omnivore', allergy_severity=''),
+                name='health_profile_food_no_neutral',
+            ),
         ]
 
     def __str__(self):
@@ -233,6 +269,34 @@ class HealthProfile(models.Model):
     @property
     def age(self):
         return dates.age_today(self.birth_date)
+
+    @property
+    def health_declared_none(self):
+        """Respondió «No» a la pregunta general de salud (no vio el cuestionario detallado)."""
+        return self.health_screen == screening.SCREEN_NO
+
+    @property
+    def food_declared_none(self):
+        """Respondió «No» a la pregunta de alergias, intolerancias o dieta especial."""
+        return self.food_screen == screening.SCREEN_NO
+
+    @property
+    def has_health_details(self):
+        """La versión tiene algún dato médico distinto del neutro (sirve para avisar, al cambiar a
+        «No», que esos datos se quitarán de la ficha)."""
+        return not self.health_declared_none and not screening.health_is_neutral(self)
+
+    @property
+    def has_food_details(self):
+        return not self.food_declared_none and not screening.food_is_neutral(self)
+
+    @property
+    def defaulted_labels(self):
+        """Etiquetas en español de los datos que no declaró (se usó un valor por defecto)."""
+        return screening.defaulted_labels(self.defaulted_fields)
+
+    def is_defaulted(self, name):
+        return name in (self.defaulted_fields or ())
 
     @property
     def needs_confirmation(self):

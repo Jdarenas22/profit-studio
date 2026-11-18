@@ -5,6 +5,8 @@ from django.urls import path, re_path, include
 from django.conf import settings
 from django.http import JsonResponse
 
+from apps.whatsapp import urls as whatsapp_urls
+
 from .media import serve_public_media
 
 
@@ -21,6 +23,7 @@ urlpatterns = [
     path('health/', health_check),      # ← Railway HealthCheck
     path('admin/', admin.site.urls),
     path('', include('apps.public.urls')),
+    path('accounts/whatsapp/', include(whatsapp_urls.account_urlpatterns)),   # avisos por WhatsApp
     path('accounts/', include('apps.accounts.urls')),
     path('exercises/', include('apps.exercises.urls')),
     path('routines/', include('apps.routines.urls')),
@@ -29,6 +32,7 @@ urlpatterns = [
     path('health/', include('apps.health.urls')),
     path('plans/', include('apps.plans.urls')),
     path('payments/', include('apps.payments.urls')),
+    path('whatsapp/', include('apps.whatsapp.urls')),     # webhook de Meta
 ]
 
 if settings.DEBUG:

@@ -42,7 +42,9 @@
         <div class="min-w-0 flex-1">
           <p class="text-white/90 text-sm">{{ item.text }}</p>
           {% if item.url %}
-          <a href="{{ item.url }}" class="text-primary text-sm underline underline-offset-2 hover:text-primary-dark">Ir ahora</a>
+          {# D07 (ficha básica): #mas-detalles abre el asistente directo en el paso 5, donde está el nivel de actividad #}
+          <a href="{{ item.url }}{% if item.code == 'D07_NUTRITION_DETAILS' %}#mas-detalles{% endif %}"
+             class="inline-flex items-center min-h-[44px] text-primary text-sm underline underline-offset-2 hover:text-primary-light rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{% if item.code == 'D07_NUTRITION_DETAILS' %}Completar más detalles{% else %}Ir ahora{% endif %}<span class="sr-only">: {{ item.text }}</span></a>
           {% endif %}
         </div>
       </li>

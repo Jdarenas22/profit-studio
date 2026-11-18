@@ -1,4 +1,4 @@
-"""Revisa que la infraestructura (Railway, Cloudflare R2, Wompi, correo) esté bien configurada.
+"""Revisa que la infraestructura (Railway, Cloudflare R2, Wompi, correo, Redis) esté bien configurada.
 
 Uso:
     python manage.py check_infra            # tabla OK / AVISO / ERROR
@@ -23,6 +23,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import Error as DatabaseError
 from django.db import connection
 
+from config import security
+
 OK = 'OK'
 WARN = 'AVISO'
 ERROR = 'ERROR'
@@ -34,9 +36,11 @@ WOMPI_VARS = ('WOMPI_PUBLIC_KEY', 'WOMPI_PRIVATE_KEY', 'WOMPI_INTEGRITY_SECRET',
 SECRET_ENV_NAMES = (
     'SECRET_KEY', 'DATABASE_URL', 'REDIS_URL', 'TRAINER_INITIAL_PASSWORD', 'TRAINER_PASSWORD',
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT_URL', 'EMAIL_HOST_PASSWORD',
-    *WOMPI_VARS, 'GEMINI_API_KEY',
+    *WOMPI_VARS, 'GEMINI_API_KEY', 'WHATSAPP_CLOUD_ACCESS_TOKEN', 'WHATSAPP_CLOUD_APP_SECRET',
+    'WHATSAPP_CLOUD_VERIFY_TOKEN',
 )
-SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', *WOMPI_VARS, 'GEMINI_API_KEY')
+SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', *WOMPI_VARS, 'GEMINI_API_KEY',
+                        'WHATSAPP_CLOUD_ACCESS_TOKEN', 'WHATSAPP_CLOUD_APP_SECRET', 'WHATSAPP_CLOUD_VERIFY_TOKEN')
 
 NETWORK_TIMEOUT_SECONDS = 10
 
@@ -74,6 +78,18 @@ def default_s3_client_factory(endpoint_url, access_key, secret_key):
     )
 
 
+def default_redis_ping(url):
+    """PING a Redis con tiempos cortos (solo lectura). redis se importa aquí: en local puede faltar."""
+    import redis
+
+    client = redis.Redis.from_url(url, socket_connect_timeout=NETWORK_TIMEOUT_SECONDS,
+                                  socket_timeout=NETWORK_TIMEOUT_SECONDS)
+    try:
+        return client.ping()
+    finally:
+        client.close()
+
+
 def default_mail_connection_factory():
     """Conexión SMTP de Django con los ajustes del proyecto. open() autentica; no envía nada."""
     from django.core.mail import get_connection
@@ -88,6 +104,7 @@ class Context:
     smtp: bool = False
     s3_client_factory: Callable = default_s3_client_factory
     mail_connection_factory: Callable = default_mail_connection_factory
+    redis_ping: Callable = default_redis_ping
     db_ok: bool = field(default=True, init=False)
 
     @property
@@ -138,23 +155,36 @@ def check_secret_key_and_hosts(ctx):
             Check('Django', 'ALLOWED_HOSTS', OK, 'Se exige solo en producción (se omite aquí).'),
         ]
     results = []
-    secret = (get_setting(ctx.settings, 'SECRET_KEY') or '').strip()
-    lowered = secret.lower()
-    if (
-        not secret or 'insecure' in lowered
-        or lowered.startswith(('cambia-esta', 'changeme', 'change-me', 'tu-clave'))
-    ):
+    secret = get_setting(ctx.settings, 'SECRET_KEY') or ''
+    strict = bool(getattr(ctx.settings, 'SECURITY_STRICT_SECRETS', False))
+    if security.secret_key_is_placeholder(secret):
         results.append(Check(
             'Django', 'SECRET_KEY', ERROR,
             'Falta o es un valor de ejemplo/desarrollo.',
             'En Railway > Variables define SECRET_KEY con un valor largo y aleatorio '
             '(por ejemplo: python -c "import secrets; print(secrets.token_urlsafe(60))").'))
-    elif len(secret) < 50:
-        results.append(Check(
-            'Django', 'SECRET_KEY', WARN, f'Definida pero corta ({len(secret)} caracteres).',
-            'Usa una clave de al menos 50 caracteres aleatorios y cámbiala en Railway > Variables.'))
     else:
-        results.append(Check('Django', 'SECRET_KEY', OK, 'Definida y con longitud suficiente.'))
+        # Mismos criterios que security.W009 de Django y que el chequeo profit.W001.
+        weaknesses = security.secret_key_weaknesses(secret)
+        if weaknesses:
+            results.append(Check(
+                'Django', 'SECRET_KEY', ERROR if strict else WARN,
+                'No cumple los criterios de seguridad de Django (security.W009): ' + '; '.join(weaknesses) + '.',
+                security.SECRET_KEY_ACTION_TEXT + ('' if strict else
+                                                   ' Con SECURITY_STRICT_SECRETS=true el servidor no arrancaría.')))
+        else:
+            results.append(Check('Django', 'SECRET_KEY', OK,
+                                 'Definida y cumple los criterios de Django (longitud y variedad).'))
+
+    if strict:
+        results.append(Check('Django', 'SECURITY_STRICT_SECRETS', OK,
+                             'Activo: una SECRET_KEY débil o un bucket de comprobantes no separado '
+                             'impiden el arranque.'))
+    else:
+        results.append(Check('Django', 'SECURITY_STRICT_SECRETS', OK,
+                             'Inactivo: la clave débil y el bucket de comprobantes solo se avisan.',
+                             'Actívalo (SECURITY_STRICT_SECRETS=true) cuando SECRET_KEY y '
+                             'R2_RECEIPTS_BUCKET_NAME estén en OK en esta revisión.'))
 
     hosts = [h for h in (getattr(ctx.settings, 'ALLOWED_HOSTS', []) or []) if h]
     if not hosts or '*' in hosts:
@@ -286,15 +316,18 @@ def check_r2(ctx):
     else:
         results.append(Check(area, 'R2_PUBLIC_URL', OK, 'Formato correcto (https, sin ruta).'))
 
-    if not receipts:
+    # Misma regla que production.py y el chequeo profit.W002 (config/security.py).
+    receipts_problem = security.receipts_bucket_problem(bucket, receipts)
+    if receipts_problem == 'missing':
         results.append(Check(area, 'Bucket de comprobantes', ERROR,
                              'R2_RECEIPTS_BUCKET_NAME no está definido: los comprobantes irían al bucket de media.',
                              'Crea un bucket PRIVADO en Cloudflare > R2 (sin r2.dev ni dominio) y define '
-                             'R2_RECEIPTS_BUCKET_NAME.'))
-    elif receipts == bucket:
+                             'R2_RECEIPTS_BUCKET_NAME. Con SECURITY_STRICT_SECRETS=true el servidor no arranca así.'))
+    elif receipts_problem == 'same':
         results.append(Check(area, 'Bucket de comprobantes', ERROR,
                              'Es el mismo bucket que el de media; si ese es público, los comprobantes quedan públicos.',
-                             'Crea un bucket PRIVADO distinto y ponlo en R2_RECEIPTS_BUCKET_NAME.'))
+                             'Crea un bucket PRIVADO distinto y ponlo en R2_RECEIPTS_BUCKET_NAME. Con '
+                             'SECURITY_STRICT_SECRETS=true el servidor no arranca así.'))
     else:
         results.append(Check(area, 'Bucket de comprobantes', OK, 'Es distinto del bucket de media.'))
 
@@ -384,6 +417,53 @@ def check_email(ctx):
                       f'No se pudo abrir la sesión en {host}:{port} ({type(exc).__name__}{suffix}).', action)]
     return [Check(area, 'Conexión SMTP', OK,
                   f'Conexión y autenticación correctas en {host}:{port}. No se envió ningún correo.')]
+
+
+REDIS_BACKEND_PREFIX = 'django_redis.'
+
+
+def check_cache(ctx):
+    """Caché compartida (Redis) o memoria de cada proceso.
+
+    Sin REDIS_URL, production.py usa LocMemCache: cada proceso de gunicorn tiene su propia
+    memoria, así que los límites de frecuencia de apps/accounts/ratelimit.py se cuentan por
+    proceso (con N procesos el límite real puede ser hasta N veces mayor). Las sesiones quedan
+    en la base de datos y django-axes (bloqueo por intentos de inicio de sesión) también usa la
+    base: ninguno de los dos se afecta. El despliegue NO depende de Redis: solo se avisa.
+    Con REDIS_URL, las sesiones viven en Redis: si no responde, nadie puede iniciar sesión.
+    """
+    area = 'Caché'
+    caches = getattr(ctx.settings, 'CACHES', None) or {}
+    backend = str((caches.get('default') or {}).get('BACKEND', ''))
+    redis_url = ctx.env_value('REDIS_URL')
+    if not backend.startswith(REDIS_BACKEND_PREFIX):
+        if not ctx.is_production:
+            return [Check(area, 'Redis', OK, 'Caché en memoria local (desarrollo).')]
+        return [Check(area, 'Redis', WARN,
+                      'Sin REDIS_URL: la caché vive en la memoria de cada proceso de gunicorn. Los límites de '
+                      'frecuencia del registro de cuentas se cuentan por proceso y pueden permitir hasta '
+                      'N veces más intentos con N procesos. Las sesiones y django-axes usan la base de datos y '
+                      'no se afectan. La web funciona igual.',
+                      'Para límites compartidos: Railway > + New > Database > Redis y, en el servicio web, '
+                      'Variables > Add Reference > REDIS_URL. Después vuelve a correr esta revisión.')]
+    if not redis_url:
+        return [Check(area, 'Redis', OK, 'Caché Redis configurada (sin REDIS_URL en el entorno: no se prueba).')]
+    try:
+        answered = ctx.redis_ping(redis_url)
+    except ImportError:
+        return [Check(area, 'Redis', ERROR, 'La biblioteca redis no está instalada en este entorno.',
+                      'Instala las dependencias: pip install -r requirements/base.txt')]
+    except Exception as exc:  # noqa: BLE001 — nunca se muestra el mensaje (puede traer host o clave)
+        return [Check(area, 'Redis', ERROR,
+                      f'Redis no responde ({type(exc).__name__}): las sesiones y los límites viven ahí, '
+                      'así que nadie podría iniciar sesión.',
+                      'Revisa que el servicio Redis de Railway esté activo y que REDIS_URL sea la referencia '
+                      'correcta; si no lo vas a usar, borra REDIS_URL del servicio web.')]
+    if not answered:
+        return [Check(area, 'Redis', ERROR, 'Redis no respondió al PING.',
+                      'Revisa el servicio Redis de Railway y REDIS_URL.')]
+    return [Check(area, 'Redis', OK,
+                  'Redis responde: límites de frecuencia y sesiones compartidos entre procesos.')]
 
 
 def check_superuser(ctx):
@@ -537,6 +617,85 @@ def check_ai_plans(ctx):
     return results
 
 
+def whatsapp_state(settings_):
+    """(modo, variables que faltan, pendientes legales, canal pausado, plantillas pausadas, fallidos 24 h).
+    Misma regla que apps.whatsapp.conf, leída del objeto de settings recibido (las pruebas usan uno falso)."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.health.models import PURPOSE_WHATSAPP, ConsentTextVersion
+    from apps.whatsapp.conf import GRAPH_VERSION_RE, LIVE_REQUIRED, MIN_VERIFY_TOKEN_LENGTH
+    from apps.whatsapp.models import WhatsAppChannelState, WhatsAppMessage
+
+    raw = (getattr(settings_, 'WHATSAPP_CLOUD_MODE', '') or '').strip().lower()
+    mode = raw or ('simulated' if getattr(settings_, 'DEBUG', False) else 'off')
+    missing, legal = [], []
+    if mode == 'live':
+        missing = [name for name in LIVE_REQUIRED if not str(get_setting(settings_, name) or '').strip()]
+        token = str(get_setting(settings_, 'WHATSAPP_CLOUD_VERIFY_TOKEN') or '')
+        if token and len(token) < MIN_VERIFY_TOKEN_LENGTH:
+            missing.append('WHATSAPP_CLOUD_VERIFY_TOKEN (muy corta)')
+        version = str(get_setting(settings_, 'WHATSAPP_CLOUD_GRAPH_VERSION') or '')
+        if version and not GRAPH_VERSION_RE.match(version):
+            missing.append('WHATSAPP_CLOUD_GRAPH_VERSION (formato vNN.N)')
+    if mode != 'off':
+        for name, label in (('WHATSAPP_CLOUD_SITE_URL', 'WHATSAPP_CLOUD_SITE_URL (https)'),
+                            ('PRIVACY_POLICY_URL', 'PRIVACY_POLICY_URL (https)')):
+            if urlsplit(str(getattr(settings_, name, '') or '').strip()).scheme != 'https':
+                legal.append(label)
+        if not getattr(settings_, 'WHATSAPP_CLOUD_LEGAL_REVIEWED', False):
+            legal.append('WHATSAPP_CLOUD_LEGAL_REVIEWED=true')
+        text = ConsentTextVersion.objects.filter(purpose=PURPOSE_WHATSAPP, is_current=True).first()
+        if text is None or text.has_placeholders:
+            legal.append('texto de consentimiento de WhatsApp sin marcadores')
+    state = WhatsAppChannelState.objects.filter(pk=1).first()
+    failed = WhatsAppMessage.objects.filter(status=WhatsAppMessage.STATUS_FAILED,
+                                            created_at__gte=timezone.now() - timedelta(hours=24)).count()
+    return mode, missing, legal, bool(state and state.paused), list(state.paused_templates) if state else [], failed
+
+
+def check_whatsapp(ctx):
+    area = 'WhatsApp'
+    raw = (getattr(ctx.settings, 'WHATSAPP_CLOUD_MODE', '') or '').strip().lower()
+    if raw not in ('', 'off', 'simulated', 'live'):
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', ERROR, f'Valor no válido: {raw}.', 'Usa off, simulated o live.')]
+    if (raw or ('simulated' if getattr(ctx.settings, 'DEBUG', False) else 'off')) == 'off':
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', OK, 'Apagado: no se ofrecen ni se envían avisos.')]
+    if not ctx.db_ok:
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', WARN, 'Sin base de datos: no se pudo revisar.')]
+    try:
+        mode, missing, legal, paused, paused_templates, failed = whatsapp_state(ctx.settings)
+    except DatabaseError:
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', WARN, 'No se pudo leer el estado (¿faltan migraciones?).')]
+    if mode == 'off':
+        return [Check(area, 'WHATSAPP_CLOUD_MODE', OK, 'Apagado: no se ofrecen ni se envían avisos.')]
+    results = []
+    if mode == 'simulated':
+        results.append(Check(area, 'WHATSAPP_CLOUD_MODE', WARN if ctx.is_production else OK,
+                             'Modo de prueba: los avisos no salen a WhatsApp.'))
+    elif missing:
+        results.append(Check(area, 'WHATSAPP_CLOUD_MODE', ERROR, 'live sin configuración completa: falta '
+                             + ', '.join(missing) + '.', 'Revisa la sección 8 de docs/contracts/whatsapp.md.'))
+    else:
+        results.append(Check(area, 'WHATSAPP_CLOUD_MODE', OK, 'live (conexión sin probar).',
+                             'Pruébala con: python manage.py check_whatsapp'))
+    if legal:
+        results.append(Check(area, 'Pendientes legales', WARN if mode == 'live' else OK,
+                             ('No se envía nada mientras falte: ' if mode == 'live' else 'Pendiente: ') + '; '.join(legal) + '.',
+                             'Pregunta 14 de docs/contracts/whatsapp.md.' if mode == 'live' else ''))
+    if paused:
+        results.append(Check(area, 'Canal', ERROR, 'Pausado por un error de cuenta o token.',
+                             'python manage.py check_whatsapp --resume'))
+    if paused_templates:
+        results.append(Check(area, 'Plantillas', WARN, 'Pausadas: ' + ', '.join(paused_templates) + '.',
+                             'Revísalas en el Administrador de WhatsApp y luego: python manage.py check_whatsapp --resume'))
+    if failed:
+        results.append(Check(area, 'Fallidos (24 h)', WARN, f'{failed} aviso(s) no se pudieron enviar.',
+                             'python manage.py check_whatsapp'))
+    return results
+
+
 CHECKS = (
     check_settings,
     check_secret_key_and_hosts,
@@ -544,9 +703,11 @@ CHECKS = (
     check_r2,
     check_wompi,
     check_email,
+    check_cache,
     check_superuser,
     check_health_switches,
     check_ai_plans,
+    check_whatsapp,
 )
 
 
@@ -625,6 +786,7 @@ class Command(BaseCommand):
             smtp=options['smtp'],
             s3_client_factory=default_s3_client_factory,
             mail_connection_factory=default_mail_connection_factory,
+            redis_ping=default_redis_ping,
         )
 
     def handle(self, *args, **options):

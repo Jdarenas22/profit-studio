@@ -32,7 +32,7 @@
        class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
       <i class="fa fa-arrow-left" aria-hidden="true"></i> Volver a la clienta
     </a>
-    {% if can_edit %}
+    {% if can_edit and client.is_active %}
     <a href="{% url 'trainer_health_profile_edit' client.pk %}"
        class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
       <i class="fa fa-pen" aria-hidden="true"></i> Corregir
@@ -94,6 +94,56 @@
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
   <div class="lg:col-span-2 min-w-0 space-y-6">
+
+    <!-- Respuestas de la ficha básica (FB-03) -->
+    <section aria-labelledby="screens-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6">
+      <h2 id="screens-title" class="text-white font-bold text-sm uppercase tracking-wider mb-4">Respuestas de la clienta</h2>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+        <div class="min-w-0">
+          <dt class="text-white/60 text-xs mb-1">Salud</dt>
+          <dd class="text-sm [overflow-wrap:anywhere]">
+            {% if profile.health_screen == 'no' %}
+            <span class="inline-flex items-center gap-1 rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-bold text-sky-100">Respondió No</span>
+            <span class="block text-white/80 mt-1">No vio el cuestionario detallado.</span>
+            {% elif profile.health_screen == 'yes' %}
+            <span class="inline-flex items-center gap-1 rounded-md bg-primary/20 px-2 py-0.5 text-xs font-bold text-orange-100">Respondió Sí</span>
+            <span class="block text-white/80 mt-1">Respondió el cuestionario detallado.</span>
+            {% else %}
+            <span class="inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-0.5 text-xs font-bold text-white">Cuestionario completo</span>
+            <span class="block text-white/80 mt-1">Ficha anterior a la ficha básica.</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="text-white/60 text-xs mb-1">Alimentación</dt>
+          <dd class="text-sm [overflow-wrap:anywhere]">
+            {% if profile.food_screen == 'no' %}
+            <span class="inline-flex items-center gap-1 rounded-md bg-sky-500/20 px-2 py-0.5 text-xs font-bold text-sky-100">Respondió No</span>
+            <span class="block text-white/80 mt-1">Sin alergias, intolerancias ni dieta especial.</span>
+            {% elif profile.food_screen == 'yes' %}
+            <span class="inline-flex items-center gap-1 rounded-md bg-primary/20 px-2 py-0.5 text-xs font-bold text-orange-100">Respondió Sí</span>
+            <span class="block text-white/80 mt-1">Indicó dieta, alergias o intolerancias.</span>
+            {% else %}
+            <span class="inline-flex items-center gap-1 rounded-md bg-white/15 px-2 py-0.5 text-xs font-bold text-white">Cuestionario completo</span>
+            <span class="block text-white/80 mt-1">Ficha anterior a la ficha básica.</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div class="min-w-0 sm:col-span-2">
+          <dt class="text-white/60 text-xs mb-1">No declarado por la clienta</dt>
+          <dd>
+            {% if profile.defaulted_labels %}
+            <ul class="flex flex-wrap gap-1.5">
+              {% for label in profile.defaulted_labels %}<li class="rounded-lg bg-yellow-500/15 px-2.5 py-1 text-xs text-yellow-100 [overflow-wrap:anywhere]">{{ label }}</li>{% endfor %}
+            </ul>
+            <p class="text-white/60 text-xs leading-relaxed mt-2">Se usó un valor por defecto prudente. Opcional: pregúntaselos.</p>
+            {% else %}
+            <span class="text-white/70 text-sm">Nada: declaró todos los datos opcionales que cambian un plan.</span>
+            {% endif %}
+          </dd>
+        </div>
+      </dl>
+    </section>
 
     <!-- Banderas -->
     {% if flags %}

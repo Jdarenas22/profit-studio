@@ -3,6 +3,9 @@
 Los correos NUNCA llevan datos de salud, banderas ni contenido del plan: solo "hay algo para
 revisar" y dónde verlo. Un fallo del correo se registra y no interrumpe nada.
 Destinatario del entrenador: el asignado a la clienta o, si no tiene, las superusuarias.
+
+Además se encola el aviso por WhatsApp equivalente (docs/contracts/whatsapp.md) para quien lo haya
+activado. Los ganchos de `apps.whatsapp.services` nunca lanzan excepciones: el correo sale igual.
 """
 import logging
 
@@ -22,6 +25,11 @@ def _trainer_recipients(client):
         role='trainer', is_superuser=True, is_active=True).exclude(email='').values_list('email', flat=True))
 
 
+def _whatsapp_trainer_review(client):
+    from apps.whatsapp import services as whatsapp
+    whatsapp.notify_trainer_review(client)
+
+
 def _send(subject, body, recipients, what):
     if not recipients:
         return False
@@ -34,6 +42,7 @@ def _send(subject, body, recipients, what):
 
 
 def trainer_draft_ready(plan):
+    _whatsapp_trainer_review(plan.client)
     body = ('Hay un borrador de plan generado con IA para revisar.\n\n'
             f'Ábrelo en el panel: Planes por revisar ({reverse("trainer_plan_inbox")}).\n\n'
             'La clienta no verá nada hasta que lo apruebes.')
@@ -41,12 +50,14 @@ def trainer_draft_ready(plan):
 
 
 def trainer_alternative_ready(plan):
+    _whatsapp_trainer_review(plan.client)
     body = ('Una clienta pidió otra opción para una comida de su plan de alimentación y ya está activa.\n\n'
             f'Revísala en el panel: Planes por revisar ({reverse("trainer_plan_inbox")}).')
     return _send('ProFit Studio: una opción nueva para revisar', body, _trainer_recipients(plan.client), 'alternative')
 
 
 def trainer_job_blocked(job):
+    _whatsapp_trainer_review(job.client)
     body = ('Una clienta pidió un plan con IA y no se generó por seguridad (su ficha requiere '
             'valoración profesional o no hay ejercicios compatibles).\n\n'
             f'Revisa el detalle en el panel: Planes por revisar ({reverse("trainer_plan_inbox")}). '
@@ -56,14 +67,17 @@ def trainer_job_blocked(job):
 
 
 def trainer_job_failed(job):
+    _whatsapp_trainer_review(job.client)
     body = ('No se pudo generar un borrador de plan con IA.\n\n'
             f'Revisa el detalle en el panel: Planes por revisar ({reverse("trainer_plan_inbox")}).')
     return _send('ProFit Studio: no se pudo generar un plan', body, _trainer_recipients(job.client), 'failed')
 
 
 def client_plan_approved(plan):
+    from apps.whatsapp import services as whatsapp
+    whatsapp.notify_plan_approved(plan)
     client = plan.client
-    if not client.email:
+    if not client.email or not client.is_active:   # no se escribe a una cuenta desactivada
         return False
     body = ('Tu entrenador revisó y aprobó tu plan.\n\n'
             f'Míralo al iniciar sesión, en Mi plan ({reverse("member_plans")}).')

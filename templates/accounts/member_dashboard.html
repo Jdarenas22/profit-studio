@@ -72,6 +72,30 @@
     </div>
   </div>
 
+  {# W-03: aviso de los avisos por WhatsApp. whatsapp_status es None con la función apagada (no se dibuja nada). #}
+  {% if whatsapp_status == 'pending' or whatsapp_status == 'wrong_number' or whatsapp_status == 'undeliverable' %}
+  <div role="status"
+       class="mb-8 rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center gap-4
+              {% if whatsapp_status == 'pending' %}border-yellow-500/40 bg-yellow-500/10{% else %}border-red-500/40 bg-red-500/10{% endif %}">
+    <div class="flex items-start gap-3 flex-1 min-w-0">
+      <i class="fab fa-whatsapp text-xl mt-0.5 shrink-0 {% if whatsapp_status == 'pending' %}text-yellow-300{% else %}text-red-300{% endif %}" aria-hidden="true"></i>
+      <div class="min-w-0">
+        {% if whatsapp_status == 'pending' %}
+        <p class="text-yellow-100 font-semibold text-sm">Confirma tu número en WhatsApp</p>
+        <p class="text-yellow-100/80 text-xs leading-relaxed mt-0.5">Te enviamos un mensaje: pulsa «Sí, soy yo» para empezar a recibir los avisos.</p>
+        {% else %}
+        <p class="text-red-100 font-semibold text-sm">Revisa tu número de WhatsApp</p>
+        <p class="text-red-100/80 text-xs leading-relaxed mt-0.5">{% if whatsapp_status == 'wrong_number' %}Ese número no confirmó los avisos.{% else %}No pudimos entregarte los avisos.{% endif %}</p>
+        {% endif %}
+      </div>
+    </div>
+    <a href="{% url 'whatsapp_settings' %}"
+       class="inline-flex items-center justify-center gap-2 min-h-[44px] shrink-0 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      {% if whatsapp_status == 'pending' %}Ver avisos por WhatsApp{% else %}Revisar mi número{% endif %} <i class="fa fa-arrow-right text-xs" aria-hidden="true"></i>
+    </a>
+  </div>
+  {% endif %}
+
   <!-- Resumen de mis medidas (solo con la función de salud encendida; si no, sus rutas dan 404) -->
   {% if HEALTH_FEATURES_ENABLED %}
   {% with measurements=user.measurements.all|slice:":3" %}
