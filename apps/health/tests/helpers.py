@@ -29,6 +29,9 @@ _STUBS = {
     'trainer/body_measurement_edit.html':
         'EDIT weight={{ form.weight }} hip={{ form.hip_cm }} '
         '{% for key, value in errors.items %}[{{ key }}]{% endfor %}',
+    # Fase D (docs/contracts/plan-ia-fase-d.md; las plantillas reales son de frontend-architect)
+    'trainer/client_plans.html': 'CLIENT_PLANS {{ client.pk }}',
+    'trainer/client_progress.html': 'CLIENT_PROGRESS {{ client.pk }}',
 }
 
 

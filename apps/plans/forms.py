@@ -3,6 +3,7 @@ from django import forms
 
 from apps.plans.rules.validate import clean_text
 
+from .cloning import CLONE_REASON_MAX
 from .models import KIND_CHOICES, KIND_EXERCISE
 from .services import ARCHIVE_REASON_MAX, NOTE_FOR_CLIENT_MAX, TRAINER_NOTES_MAX
 
@@ -110,6 +111,15 @@ class RegenerateForm(_CleanTextMixin, forms.Form):
 class ArchiveForm(_CleanTextMixin, forms.Form):
     reason = forms.CharField(required=False, max_length=ARCHIVE_REASON_MAX, error_messages={
         'max_length': f'El motivo admite máximo {ARCHIVE_REASON_MAX} caracteres.'})
+
+    def clean_reason(self):
+        return self._clean_free_text('reason')
+
+
+class CloneForm(_CleanTextMixin, forms.Form):
+    """Clonar a borrador: el motivo es opcional y va al historial del plan nuevo."""
+    reason = forms.CharField(required=False, max_length=CLONE_REASON_MAX, error_messages={
+        'max_length': f'El motivo admite máximo {CLONE_REASON_MAX} caracteres.'})
 
     def clean_reason(self):
         return self._clean_free_text('reason')
