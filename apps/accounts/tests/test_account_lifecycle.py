@@ -812,8 +812,9 @@ class EraseClientTests(LifecycleMixin, HealthScenarioTestCase):
             with self.subTest(reason=reason):
                 response = self.client.post(url, self.erase_post(maria, reason=reason))
                 self.assertEqual(response.context['errors'], {'reason': 'Elige un motivo.'})
-        # La plantilla vieja de C-04 todavía no pinta los errores: se avisan con `messages`
-        self.assertTrue(any('Elige un motivo.' in m for m in flashes(response)))
+        # C-04 pinta cada error junto a su campo: no se repite como mensaje arriba
+        self.assertContains(response, 'Elige un motivo.')
+        self.assertFalse(any('Elige un motivo.' in m for m in flashes(response)))
         self.assertIsNone(self.fresh(maria).erased_at)
         self.assertFalse(AccountAuditLog.objects.exists())
         response = self.client.post(url, self.erase_post(maria, confirm_name=' maría  JOSÉ'))

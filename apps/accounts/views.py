@@ -53,7 +53,7 @@ TRAINER_EDIT_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'bio', 'pr
 # `errors.<campo>`; la plantilla vieja de C-04 (client_confirm_delete.html) todavía no, por eso
 # su tupla está vacía: cuando frontend-architect la entregue, agregar los campos que pinte.
 CLIENT_DEACTIVATE_RENDERED = ('reason',)
-CLIENT_ERASE_RENDERED = ()
+CLIENT_ERASE_RENDERED = ('confirm_name', 'reason', 'ack_payments')
 TRAINER_DEACTIVATE_RENDERED = ('reason', 'reassign_to')
 TRAINER_ERASE_RENDERED = ('confirm_name', 'reason', 'reassign_to', 'ack_payments')
 

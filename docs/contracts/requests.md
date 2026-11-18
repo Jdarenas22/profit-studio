@@ -400,6 +400,8 @@ Plantillas reales: `trainer/client_confirm_delete.html` (C-04, reescrita), `trai
 
 `ack_payments` solo se pinta cuando `needs_ack` es verdadero; si el backend devolviera ese error con `needs_ack` falso (no debería pasar), se perdería: conviene dejarlo fuera de la lista en ese caso o no emitirlo. Cualquier otra clave (p. ej. `__all__`) no se pinta y debe seguir saliendo por `messages`.
 
+**RESUELTO (2026-11-17, sesión principal):** `CLIENT_ERASE_RENDERED = ('confirm_name', 'reason', 'ack_payments')`; la prueba `test_wrong_confirmation_changes_nothing` ahora comprueba que el error se pinta en C-04 y no se repite como mensaje.
+
 Notas: el botón «Eliminar definitivamente» de C-04/C-07 usa `aria-disabled` (sigue enfocable) hasta que el nombre coincide, normalizando como `normalize_name` (NFC, espacios, minúsculas; con tildes); el servidor valida igual y sin JavaScript el formulario se envía normal. `reassign_to` y `reason` no tienen opción preseleccionada; `ack_payments` nunca llega marcada.
 
 ## Resueltos
