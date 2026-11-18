@@ -1,8 +1,10 @@
-{# Lista de opciones elegidas, en etiquetas. Parámetros: label, items, empty, extra (texto libre, siempre escapado). #}
+{# Lista de opciones elegidas, en etiquetas. Parámetros: label, items, empty, extra (texto libre, siempre escapado), defaulted_field (ver summary_item). #}
 <div class="min-w-0 sm:col-span-2">
   <dt class="text-white/60 text-xs mb-1">{{ label }}</dt>
   <dd>
-    {% if items %}
+    {% if defaulted_field and defaulted_field in profile.defaulted_fields %}
+    <span class="text-sm">{% include 'health/partials/defaulted_value.html' with value=items|join:', ' %}</span>
+    {% elif items %}
     <ul class="flex flex-wrap gap-1.5">
       {% for item in items %}<li class="rounded-lg bg-white/10 px-2.5 py-1 text-xs text-white/90 [overflow-wrap:anywhere]">{{ item }}</li>{% endfor %}
     </ul>

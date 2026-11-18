@@ -414,6 +414,18 @@ Solo plantillas: `partials/navbar.html` (botón con foto/inicial + nombre que ab
 
 Plantillas reales en lugar de los esqueletos: `accounts/whatsapp_settings.html`, `trainer/whatsapp_settings.html` y `accounts/partials/whatsapp_settings_body.html` (W-01); enlace «Avisos por WhatsApp» en `partials/account_menu_items.html` con `WHATSAPP_NOTICES_ENABLED` (W-02); aviso en `accounts/member_dashboard.html` para `pending`, `wrong_number` y `undeliverable` (W-03). Usan solo el contexto y las rutas de este contrato. Los mensajes de `messages` los sigue pintando `base.html`. «Activar avisos» y los botones de envío usan `aria-disabled` (no `disabled`) para seguir enfocables; el servidor valida igual. Pedidos al backend: ninguno.
 
+### Ficha básica: FB-01 a FB-04 entregadas (frontend, 2026-11-17, rama `feature/ficha-basica`)
+
+Solo plantillas, contra el bloque «Ficha básica: FB-01 a FB-04» y el contexto exacto de la sección 10 de `ficha-basica.md`:
+
+- **FB-01** `health/partials/profile_wizard.html` (reescrito; se quitaron los dos radios temporales «REEMPLAZAR POR frontend-architect») + parcial nuevo `health/partials/screen_options.html`; aviso fijo nuevo en `health/profile_form.html`. Pasos según `steps`; el detalle médico y el alimentario se despliegan con `x-show`; avisos `screen_was_yes` / `food_screen_was_yes` en el paso y otra vez junto al botón de guardar; botón «Guardar» desde el paso 4.
+- **FB-02** `health/partials/profile_summary.html`, `summary_item.html`, `summary_list.html`, parcial nuevo `defaulted_value.html` y `health/profile_detail.html` (aviso con «Completar más detalles»).
+- **FB-03** `trainer/health_profile.html`: tarjeta «Respuestas de la clienta» (`health_screen`, `food_screen`, `defaulted_labels`). Las banderas I03, I04 y M10 se ven en sus grupos sin cambios.
+- **FB-04** `plans/request.html`: comprobado que D07 se ve con su enlace.
+- **Sin cambio de backend:** los enlaces a «Más detalles» agregan `#mas-detalles` en el navegador (el fragmento no llega al servidor y no lleva datos), y el asistente abre directamente en el paso 5 si no hay errores. Eso resuelve la parte opcional de FB-04 sin tocar `apps/plans/views.py`.
+
+Pedidos al backend: ninguno. Observación (no bloquea): en `trainer/health_profile.html`, la casilla «Plan de alimentación» dice «Sin restricciones» aunque M10 lo bloquee por D07, porque `blocked_scopes` solo cuenta las banderas rojas. Si se quiere mostrar «Falta un dato», bastaría con un conjunto `missing_scopes` en `flags`.
+
 ## Resueltos
 
 (ninguno)
