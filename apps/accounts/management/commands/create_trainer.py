@@ -33,7 +33,7 @@ class Command(BaseCommand):
         if User.objects.filter(username=username).exists():
             if make_superuser:
                 # Si ya existe pero le faltan permisos de superusuario, los aplicamos
-                updated = User.objects.filter(username=username).update(
+                User.objects.filter(username=username).update(
                     is_staff=True, is_superuser=True, role=User.ROLE_TRAINER
                 )
                 self.stdout.write(self.style.SUCCESS(

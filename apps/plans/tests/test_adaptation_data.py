@@ -270,7 +270,7 @@ class NutritionAdaptationTests(NutritionScenarioTestCase):
     def test_a_food_the_client_keeps_discarding_stops_being_offered(self):
         first, second = self.slot.options.get(position=1), self.slot.options.get(position=2)
         self.discard_with_food(first)
-        job, fake = self.discard_with_food(second)           # 2.º descarte: ya hay patrón para el siguiente
+        self.discard_with_food(second)                       # 2.º descarte: ya hay patrón para el siguiente
         with self.fake_ai() as fake, self.captureOnCommitCallbacks(execute=True):
             job, _created = services.request_plan(
                 self.client_a, 'nutrition', self.client_a, services.new_request_token())

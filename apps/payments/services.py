@@ -137,7 +137,6 @@ def activate_membership(payment):
     (start_date = hoy, end_date = hoy + duración). Si sigue vigente, se extiende
     desde su fecha de fin actual (no se pierden días ya pagados).
     """
-    from django.db import transaction
     from apps.memberships.models import Membership
 
     plan = payment.plan

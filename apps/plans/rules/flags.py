@@ -276,7 +276,6 @@ def evaluate(facts):
 
     value_bmi = bmi(facts)
     coherent = bmi_is_coherent(value_bmi)
-    age_ok = facts.age is not None and ADULT_AGE <= facts.age <= MAX_REASONABLE_AGE
 
     # ── Datos faltantes ──
     if not facts.has_profile:
