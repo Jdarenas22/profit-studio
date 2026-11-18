@@ -89,11 +89,11 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
+- 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini · `feature/gemini-http-safety`, [PR #27](https://github.com/Jdarenas22/profit-studio/pull/27) · implementado, en curso hasta revisión y fusión; 1.369 pruebas locales aprobadas · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
 - 2026-11-17 · Claude · Fase D (D-01 a D-04), contrato aprobado por la persona · `feature/fase-d` · en curso · `apps/plans/` (vistas, `rules/progress.py`, `services.py`, `nutrition.py`), `apps/routines/`, plantillas `trainer/client_plans.html`, `trainer/client_progress.html` y `trainer/plan_detail.html`
 
 ### Hecho
 
-- 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini: bloquear redirecciones, limitar respuestas y controlar JSON demasiado anidado · `feature/gemini-http-safety` · PR #27, implementado; pendiente de revisión y fusión · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
 - 2026-11-17 · ChatGPT · Integración USDA FoodData Central · PR #26 · migración `plans/0005`
 - 2026-11-17 · Claude · Railway sin `railway.toml` (configuración en el panel) · PR #25
 
@@ -107,7 +107,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### Sin asignar
 
-- 2026-11-18 · Dependabot: alertas abiertas de **Pillow** (varias altas: desbordamiento de memoria con TIFF/libtiff y DoS con EXIF). `pip-audit` del CI aún no las marca. Actualizar Pillow en `requirements/base.txt` en una rama aparte (`chore/pillow`), con la suite completa y la prueba de imágenes WebP. Quien la tome, que se la asigne aquí.
+- 2026-11-18 · Dependabot/Pillow: pendiente reconciliar las alertas con el grafo de dependencias de GitHub. Revisión ChatGPT: `origin/main` fija `Pillow==13.0.0` en `requirements/base.txt` y `requirements/local.txt`; el entorno local también usa 13.0.0. Se consultaron las 216 alertas abiertas de Pillow: ninguno de sus rangos afectados incluye 13.0.0. Los avisos oficiales [TIFF](https://github.com/python-pillow/Pillow/security/advisories/GHSA-xvh5-g6gv-559v) y [EXIF](https://github.com/python-pillow/Pillow/security/advisories/GHSA-wqgw-9xfh-qf2g) indican 13.0.0 como versión corregida. No se toma `chore/pillow` para subir una versión que ya está fijada. Un desfase del grafo es una hipótesis pendiente de comprobar; no se cerraron alertas ni se modificaron dependencias.
 
 ### Pendientes de la persona
 
