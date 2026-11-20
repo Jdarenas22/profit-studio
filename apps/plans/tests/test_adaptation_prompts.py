@@ -25,13 +25,13 @@ class PromptVersionTests(SimpleTestCase):
         self.assertNotIn('history', p.EXERCISE_SYSTEM)
         self.assertNotIn('history', p.MEAL_SYSTEM)
         self.assertEqual(p.exercise_prompt(False), (p.EXERCISE_SYSTEM, 'exercise/1'))
-        self.assertEqual(p.meal_prompt(False), (p.MEAL_SYSTEM, 'meal/3'))
+        self.assertEqual(p.meal_prompt(False), (p.MEAL_SYSTEM, 'meal/5'))
 
     def test_version_2_is_version_1_plus_exactly_one_rule(self):
         self.assertEqual(p.EXERCISE_SYSTEM_V2.replace(p.EXERCISE_HISTORY_RULE, ''), p.EXERCISE_SYSTEM)
         self.assertEqual(p.MEAL_SYSTEM_V2.replace(p.MEAL_HISTORY_RULE, ''), p.MEAL_SYSTEM)
         self.assertEqual(p.exercise_prompt(True), (p.EXERCISE_SYSTEM_V2, 'exercise/2'))
-        self.assertEqual(p.meal_prompt(True), (p.MEAL_SYSTEM_V2, 'meal/4'))
+        self.assertEqual(p.meal_prompt(True), (p.MEAL_SYSTEM_V2, 'meal/6'))
 
     def test_the_new_rule_continues_the_numbering_and_stays_before_the_format(self):
         exercise, meal = p.EXERCISE_SYSTEM_V2, p.MEAL_SYSTEM_V2
@@ -211,7 +211,7 @@ class NutritionJobPromptTests(NutritionScenarioTestCase):
         job, fake_ai = self.new_plan()
         self.assertTrue(all(call['system'] == p.MEAL_SYSTEM_V2 for call in fake_ai.calls))
         self.assertTrue(all('history' in call['payload'] for call in fake_ai.calls))
-        self.assertEqual(job.plan.prompt_version, 'meal/4')
+        self.assertEqual(job.plan.prompt_version, 'meal/6')
 
     def test_liked_foods_reach_the_ai_and_the_draft_stays_valid(self):
         slot = self.plan.nutrition.slots.get(code='lunch')
@@ -229,4 +229,4 @@ class NutritionJobPromptTests(NutritionScenarioTestCase):
         with override_settings(AI_PLANS_ADAPTATION=False):
             job, fake_ai = self.new_plan()
         self.assertTrue(all(call['system'] == p.MEAL_SYSTEM for call in fake_ai.calls))
-        self.assertEqual(job.plan.prompt_version, 'meal/3')
+        self.assertEqual(job.plan.prompt_version, 'meal/5')

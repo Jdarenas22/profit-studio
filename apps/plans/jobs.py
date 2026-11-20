@@ -33,7 +33,7 @@ from apps.health import dates as health_dates
 from . import adaptation as adaptation_service
 from . import ai, notifications, nutrition, services
 from .ai import prompts
-from .models import KIND_EXERCISE, KIND_NUTRITION, PlanGenerationJob
+from .models import KIND_EXERCISE, KIND_NUTRITION, MealOption, PlanGenerationJob
 from .rules import energy as rules_energy
 from .rules import meal_validate as rules_meal
 from .rules import validate as rules_validate
@@ -430,10 +430,15 @@ def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_optio
     offered_ids = adaptation.food_ids if adaptation is not None and adaptation.foods is not None \
         else assessment.foods.allowed_ids
     rules = replace(rules, foods={key: food for key, food in rules.foods.items() if key in offered_ids})
-    recipe_options = recipes.candidates(rules, assessment.profile.cooking_access)
-    if not recipes.select_options(recipe_options, n_options, existing, avoid_names):
+    # Orden propio de cada trabajo y comida: la IA no ve siempre los mismos platos primero.
+    candidates = recipes.candidates(rules, assessment.profile.cooking_access, seed=job.job_ref)
+    # Los nombres ya usados en el día se excluyen de la lista y del esquema (restricción dura); si así
+    # no queda un grupo válido (perfiles muy restringidos) se vuelve a la lista completa.
+    offered = recipes.offer(candidates, n_options, existing, avoid_names)
+    if not offered.options:
         raise JobFailed('recipes_unavailable')
-    rules = replace(rules, recipes=tuple(recipe_options))
+    recipe_options = offered.options
+    rules = replace(rules, recipes=tuple(recipe_options), distinct_protein=offered.distinct_protein)
     system = prompts.meal_prompt(adaptation is not None and bool(adaptation.history))[0]
     validation, result = _generate_validated(
         job, started, ai_client, task='meal_slot', system=system,
@@ -498,9 +503,12 @@ def _run_alternative(job, started):
     existing = [rules_meal.ExistingOption(name=o.name, food_ids=frozenset(i.food_id for i in o.items.all()))
                 for o in others]       # incluye la rechazada: la nueva no debe parecérsele
     target = _SlotView(slot.code, slot.kcal_target, slot.protein_g, slot.carbs_g, slot.fat_g)
+    # Tampoco debe repetir los platos que la clienta ya tiene en las otras comidas del día
+    day_names = list(MealOption.objects.filter(slot__nutrition_plan=slot.nutrition_plan, is_active=True)
+                     .exclude(slot=slot).values_list('name', flat=True))
     client = ai.get_ai_client()
     options, result = _generate_slot_options(job, started, client, assessment, target, n_options=1,
-                                             existing=existing, avoid_names=[o.name for o in others],
+                                             existing=existing, avoid_names=[o.name for o in others] + day_names,
                                              adaptation=adaptation)
     _check_budget(started)
     with transaction.atomic():

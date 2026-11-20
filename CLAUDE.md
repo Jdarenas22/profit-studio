@@ -209,9 +209,12 @@ en MealOption.nutrient_snapshot. `load_foods` no pisa alimentos vinculados a USD
 **Actualización 2026-11-17:** el alcance actual es bienestar, con alimentación clínica pausada.
 Ver `docs/MENUS_BIENESTAR_GEMINI.md` (prevalece sobre las referencias a adaptación clínica de esta sección).
 `apps/plans/wellness.py` bloquea condiciones/medicamentos/embarazo/antecedentes alimentarios;
-`rules/recipes.py` ofrece 52 plantillas cotidianas e internacionales al simulador y a Gemini.
+`rules/recipes.py` ofrece 117 plantillas cotidianas e internacionales (`everyday-world/2`) al simulador y a Gemini.
 El backend valida selección exacta con V09_RECIPE y conserva preparación del recetario.
-Prompts meal/3 y meal/4; las notas libres de alimentación no se envían al proveedor.
+Variedad: la lista de recetas sale en un orden distinto por trabajo y comida; los nombres ya usados en el día se
+excluyen de la lista y del esquema (con respaldo a la lista completa si no queda un grupo válido) y, si se puede,
+las 3 opciones de una comida no repiten proteína principal (`main_protein`; V06). Ver `docs/MENUS_BIENESTAR_GEMINI.md`.
+Prompts meal/5 y meal/6; las notas libres de alimentación no se envían al proveedor.
 
 - Flujo: igual que el ejercicio (`services.request_plan(client, 'nutrition', ...)` -> trabajo -> hilo), pero `jobs._run_nutrition` hace **una llamada por comida** (`meal-slot/1`), valida cada una (`rules/meal_validate.py`, un reintento con códigos) y solo al final crea el `Plan` `draft_ai` con su `NutritionPlan` (objetivos calculados por Python: `rules/energy.py`), `MealSlot` y 3 `MealOption` activas por comida (`nutrition.create_nutrition_draft`). La IA **solo elige `food_id` y gramos**; kcal, macros y medidas caseras los calcula Python desde `Food`. Un fallo no guarda nada.
 - Catálogo: `Food` (admin solo superusuaria). `python manage.py load_foods` carga ~90 alimentos con cifras **aproximadas y sin validar**; **fuera de `DEBUG` solo se usan los que tienen `validated_by`** (acción «Marcar como validados» del admin, la hace quien verifica las cifras). Sin alimentos suficientes tras el filtro (alergias, trazas, dieta, intolerancias, etiquetas de advertencias) -> `D06_FEW_FOODS` y el trabajo queda `blocked` sin llamar a la IA.
