@@ -57,6 +57,7 @@ LOGOUT_REDIRECT_URL = '/'
 # ─── Middleware ─────────────────────────────────────────────────────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'config.middleware.PermissionsPolicyMiddleware',   # antes de WhiteNoise: también cubre los estáticos
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -70,6 +71,29 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'config.urls'
 CSRF_FAILURE_VIEW = 'apps.assessments.api.csrf_failure'
+
+# ─── Permissions-Policy (config/middleware.py) ─────────────────────────────────
+# Funciones del navegador que la web NO usa: se niegan a la página y a todo lo que incruste. Una lista
+# vacía = nadie. NO se niegan las que usa el video de YouTube incrustado (templates/exercises/detail.html:
+# accelerometer, autoplay, clipboard-write, encrypted-media, gyroscope, picture-in-picture) ni fullscreen;
+# una prueba (apps/public/tests/test_permissions_policy.py) compara esta lista con los `allow="..."` de
+# las plantillas. `payment`: el widget de Wompi (https://checkout.wompi.co/widget.js) abre su checkout en
+# un iframe sin `allow` (verificado el 2026-11-20), así que hoy no lo necesita; se deja a su origen por si
+# algún día activa Apple Pay/Google Pay (negarlo en silencio quitaría un medio de pago).
+PERMISSIONS_POLICY = {
+    'camera': [],
+    'microphone': [],
+    'geolocation': [],
+    'payment': ['self', 'https://checkout.wompi.co'],
+    'usb': [],
+    'serial': [],
+    'bluetooth': [],
+    'hid': [],
+    'midi': [],
+    'display-capture': [],
+    'magnetometer': [],
+    'xr-spatial-tracking': [],
+}
 
 # ─── Templates ─────────────────────────────────────────────────────────────────
 TEMPLATES = [
@@ -115,8 +139,8 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # ─── Almacenamiento (STORAGES) ──────────────────────────────────────────────────
 # Django 5.1 eliminó DEFAULT_FILE_STORAGE y STATICFILES_STORAGE: ya no se leen y no avisan.
-# 'default' guarda las subidas (media); 'staticfiles' sirve los estáticos con WhiteNoise.
-# production.py cambia 'staticfiles' (sin manifest) y, con R2, también 'default'.
+# 'default' guarda las subidas (media); 'staticfiles' sirve los estáticos con WhiteNoise, con huella en
+# el nombre (manifest; production.py lo repite y explica). Con R2, production.py cambia también 'default'.
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
     'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},

@@ -30,7 +30,7 @@
     <!-- Foto o avatar -->
     <div class="relative h-40 bg-zinc-800 flex items-center justify-center overflow-hidden">
       {% if trainer.profile_photo %}
-      <img src="{{ trainer.profile_photo.url }}" alt="" width="400" height="160" loading="lazy"
+      <img src="{{ trainer.profile_photo.url }}" alt="" width="400" height="160" loading="lazy" decoding="async"
            class="w-full h-full object-cover object-top{% if not trainer.is_active %} grayscale opacity-60{% endif %}">
       {% else %}
       <div class="flex flex-col items-center gap-2">

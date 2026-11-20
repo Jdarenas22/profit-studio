@@ -24,7 +24,7 @@
     <div class="flex items-center gap-4 flex-1 min-w-0">
       <div class="w-12 h-12 bg-primary/10 group-hover:bg-primary/20 rounded-2xl flex items-center justify-center shrink-0 transition-colors">
         {% if assessment.user.profile_photo %}
-        <img src="{{ assessment.user.profile_photo.url }}" alt="" class="w-12 h-12 rounded-2xl object-cover">
+        <img src="{{ assessment.user.profile_photo.url }}" alt="" width="48" height="48" loading="lazy" decoding="async" class="w-12 h-12 rounded-2xl object-cover">
         {% else %}
         <span class="text-primary font-black text-lg">
           {{ assessment.user.first_name|first|upper|default:assessment.user.username|first|upper }}

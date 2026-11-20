@@ -21,7 +21,7 @@
       <!-- ✅ Imagen con botón Play → abre video en YouTube (tab nueva) -->
       <a href="{{ exercise.safe_video_url }}" target="_blank" rel="noopener noreferrer"
          class="relative block aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 group cursor-pointer">
-        <img src="{{ exercise.image.url }}" alt="{{ exercise.name }}"
+        <img src="{{ exercise.image.url }}" alt="{{ exercise.name }}" width="1280" height="720" fetchpriority="high" decoding="async"
              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
         <!-- Overlay oscuro -->
         <div class="absolute inset-0 bg-black/25 group-hover:bg-black/50 transition-colors duration-300"></div>
@@ -65,7 +65,7 @@
       {% endcomment %}
       <div class="relative w-full aspect-[9/16] max-h-[min(75vh,720px)] bg-black rounded-2xl overflow-hidden border border-white/10">
         {% if exercise.image %}
-        <img src="{{ exercise.image.url }}" alt="" aria-hidden="true" decoding="async"
+        <img src="{{ exercise.image.url }}" alt="" aria-hidden="true" width="640" height="360" loading="lazy" decoding="async"
              class="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40" />
         {% endif %}
         <video controls
@@ -82,7 +82,7 @@
       {% elif exercise.image %}
       <!-- Solo imagen (sin video) -->
       <div class="aspect-video bg-zinc-900 rounded-2xl overflow-hidden border border-white/10">
-        <img src="{{ exercise.image.url }}" alt="{{ exercise.name }}"
+        <img src="{{ exercise.image.url }}" alt="{{ exercise.name }}" width="1280" height="720" fetchpriority="high" decoding="async"
              class="w-full h-full object-cover" />
       </div>
 
