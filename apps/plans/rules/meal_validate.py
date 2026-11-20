@@ -147,6 +147,7 @@ class SlotRules:
     n_options: int = OPTIONS_PER_SLOT
     existing: tuple = ()                # ExistingOption
     recipes: tuple | None = None        # None = editor manual / contratos anteriores; () = sin recetas.
+    distinct_protein: bool = False      # con recetas: las opciones no repiten proteína principal (V06)
 
 
 def _round5(value):
@@ -205,7 +206,7 @@ def validate_meal_slot(data, rules):
     if len(options) != rules.n_options:
         errors.append((V01_SCHEMA, f'options: {len(options)} opciones, se pidieron {rules.n_options}'))
 
-    cleaned = []
+    cleaned, proteins = [], []
     safe = safe_phrases(rules.foods.values())
     for o_index, option in enumerate(options, start=1):
         where = f'opción {o_index}'
@@ -231,6 +232,7 @@ def validate_meal_slot(data, rules):
                 continue
             if recipe is not None:
                 preparation = recipe['preparation']
+                proteins.append(recipe.get('main_protein'))
         cleaned.append({
             'name': name or '', 'preparation': preparation or '',
             'items': [{'food_id': food.id, 'grams': grams} for food, grams in scaled], 'totals': total,
@@ -238,6 +240,10 @@ def validate_meal_slot(data, rules):
 
     if not errors:
         _check_variety(cleaned, rules, errors)
+    if not errors and rules.distinct_protein:
+        named = [protein for protein in proteins if protein]
+        if len(named) != len(set(named)):
+            errors.append((V06_VARIETY, 'las opciones comparten la proteína principal'))
     if errors:
         return ValidationResult(None, tuple(errors))
     return ValidationResult({'options': cleaned}, ())
