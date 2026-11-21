@@ -152,6 +152,52 @@ class DatabaseChecks(TestCase):
         self.assertEqual(ci.check_superuser(ctx)[0].status, ci.WARN)
 
 
+class ConnectionReuseChecks(TestCase):
+    """Conexiones persistentes a la base: solo se lee la configuración, nunca el host ni las claves."""
+
+    def check(self, **database):
+        ctx = make_ctx(make_settings(DATABASES={'default': {
+            'HOST': 'host-secreto.internal', 'PASSWORD': 'clave-bd-inventada', **database}}))
+        results = ci.check_connection_reuse(ctx)
+        self.assertEqual([c.name for c in results], ['Conexiones persistentes'])
+        self.assertNotIn('host-secreto', all_text(results))
+        self.assertNotIn('clave-bd-inventada', all_text(results))
+        return results[0]
+
+    def test_con_reutilizacion_y_comprobacion_es_ok_dice_los_segundos_y_avisa_que_no_duerme(self):
+        result = self.check(CONN_MAX_AGE=60, CONN_HEALTH_CHECKS=True)
+        self.assertEqual(result.status, ci.OK)
+        self.assertIn('60 s', result.detail)
+        self.assertIn('CONN_HEALTH_CHECKS=True', result.detail)
+        # La nota advierte que con conexiones abiertas el servicio deja de dormirse y cómo revertirlo
+        self.assertIn('deja de dormirse', result.action)
+        self.assertIn('DB_CONN_MAX_AGE', result.action)
+
+    def test_con_cero_es_ok_y_explica_que_reutilizar_impide_app_sleeping(self):
+        result = self.check(CONN_MAX_AGE=0, CONN_HEALTH_CHECKS=True)
+        self.assertEqual(result.status, ci.OK)       # es lo normal con App Sleeping (el valor por defecto), no un fallo
+        self.assertIn('CONN_MAX_AGE=0', result.detail)
+        self.assertIn('impide App Sleeping', result.action)
+        self.assertIn('DB_CONN_MAX_AGE=60', result.action)
+
+    def test_sin_las_claves_se_trata_como_el_valor_por_defecto_de_django(self):
+        self.assertIn('CONN_MAX_AGE=0', self.check().detail)
+        self.assertEqual(ci.check_connection_reuse(make_ctx(make_settings(DATABASES=None)))[0].status, ci.OK)
+        self.assertEqual(ci.check_connection_reuse(make_ctx(SimpleNamespace(DEBUG=False)))[0].status, ci.OK)
+
+    def test_reutilizar_sin_comprobar_la_conexion_es_aviso(self):
+        result = self.check(CONN_MAX_AGE=60, CONN_HEALTH_CHECKS=False)
+        self.assertEqual(result.status, ci.WARN)
+        self.assertIn('CONN_HEALTH_CHECKS', result.action)
+        self.assertIn('deja de dormirse', result.action)
+
+    def test_sin_limite_de_edad_se_dice(self):
+        result = self.check(CONN_MAX_AGE=None, CONN_HEALTH_CHECKS=True)
+        self.assertEqual(result.status, ci.OK)
+        self.assertIn('sin límite', result.detail)
+        self.assertIn('deja de dormirse', result.action)
+
+
 class R2Checks(TestCase):
     def run_r2(self, env=None, client=None, **settings_kw):
         env = dict(R2_ENV if env is None else env)
@@ -375,6 +421,13 @@ class CommandTests(TestCase):
         self.assertIn('0 ERROR', out)
         for area in ('Django', 'Base de datos', 'Cloudflare R2', 'Wompi', 'Correo', 'Cuentas', 'Salud'):
             self.assertIn(area, out)
+
+    def test_el_comando_completo_incluye_las_conexiones_persistentes_sin_el_host(self):
+        out, _err, _error = self.run_command('--json')
+        line = next(c for c in json.loads(out)['checks'] if c['name'] == 'Conexiones persistentes')
+        self.assertEqual(line['area'], 'Base de datos')
+        self.assertEqual(line['status'], 'OK')
+        self.assertNotIn('host-secreto', out)
 
     def test_con_error_el_codigo_de_salida_es_uno(self):
         # R2 con bucket de comprobantes igual al de media = ERROR
