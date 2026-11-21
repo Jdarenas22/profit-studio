@@ -92,6 +92,7 @@ Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprim
 | `HEALTH_FEATURES_ENABLED` | `true` enciende «Mis medidas» y la ficha de salud de la clienta. Ver sección 7 antes de activarla |
 | `PRIVACY_POLICY_URL` | Enlace a la política de tratamiento de datos que se muestra junto al consentimiento |
 | `REDIS_URL` | Caché compartida entre los 2 workers (límite de intentos de login). Sin ella se usa memoria local de cada proceso |
+| `DB_CONN_MAX_AGE` | Segundos que cada worker reutiliza su conexión a Postgres (entero ≥ 0). **Sin definir: `0` = una conexión nueva por petición** (el servicio puede dormirse con App Sleeping). Con `60` las páginas con base de datos responden ~200 ms más rápido, pero **el servicio deja de dormirse**: ponerla al pasar a un plan de pago. Un valor que no sea un entero ≥ 0 detiene el arranque. Ver sección 11 |
 | `AI_PLANS_MODE` | Planes con IA: `off` (por defecto), `simulated` (borradores de ejemplo, sin costo, no se aprueban) o `live` (Gemini). Ver sección 7b |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BILLING_CONFIRMED` | Obligatorias en `live` (el servidor no arranca sin ellas). La clave debe ser de un proyecto con facturación |
 
@@ -225,3 +226,48 @@ Qué cambia al operar:
 **Service worker en `/sw.js`.** El archivo fuente es `static/sw.js`, pero se entrega desde la raíz (`apps/public/views.py::service_worker`) con `Service-Worker-Allowed: /`, `Cache-Control: no-cache` y `X-Content-Type-Options: nosniff`. Servido desde `/static/sw.js` el navegador rechaza registrarlo con `scope: '/'` y la PWA no funciona sin avisar. La vista no usa la base de datos ni la sesión.
 
 **Permissions-Policy.** `config/middleware.py` añade la cabecera a todas las respuestas con la lista de `PERMISSIONS_POLICY` (`config/settings/base.py`): cámara, micrófono, ubicación, USB, serie, Bluetooth, HID, MIDI, captura de pantalla, magnetómetro y realidad extendida quedan negados; `payment` solo para el sitio y `https://checkout.wompi.co`. Si algún día la web usa una de esas funciones (por ejemplo, la cámara para escanear), hay que quitarla de la lista; una prueba revisa que no se niegue nada de lo que piden los `allow="..."` de las plantillas.
+
+## 11. Conexiones a la base de datos y App Sleeping (2026-11-20)
+
+**Decisión: por defecto `DB_CONN_MAX_AGE=0` (sin conexiones persistentes).** Reutilizar la conexión a Postgres acelera cada página que usa la base, pero Railway cuenta las conexiones abiertas como actividad y eso impide que el servicio se duerma (ver «App Sleeping» más abajo). El servicio `profit-studio` está en plan gratuito con App Sleeping encendido (verificado: `sleepApplication=true`, plan «free»; ver sección 9), así que se prefiere que duerma. La mejora queda lista y se activa con **`DB_CONN_MAX_AGE=60`** al pasar a un plan de pago, o si se prefiere un servicio siempre despierto y más rápido.
+
+**Qué era el problema.** Django, sin configuración, abre una conexión nueva a PostgreSQL en **cada petición** y la cierra al terminar (`CONN_MAX_AGE=0`): conexión de red + negociación TLS + autenticación. Medido en producción el 2026-11-21 (mediana de 7 peticiones, tiempo de servidor): las páginas que no usan la base respondían en 225-340 ms (`/health/`, `/sw.js`, `/accounts/login/`) y las que sí la usan en 490-585 ms (`/`, `/about/`, `/exercises/`, `/contact/`); en local la portada tarda 1,4 ms. Esa diferencia de ~200-250 ms es, en gran parte, abrir la conexión.
+
+**Qué se hizo.** `config/settings/production.py` fija en `DATABASES['default']`:
+
+- `CONN_MAX_AGE` = `DB_CONN_MAX_AGE` (por defecto `0`: una conexión nueva por petición, como siempre). Con un valor mayor que 0 (por ejemplo `60`), cada worker de gunicorn reutiliza su conexión mientras tenga menos de esos segundos de vida. Django revisa la edad al empezar y al terminar cada petición, así que una conexión vieja se cambia cuando llega la siguiente petición, y la última conexión queda abierta hasta la siguiente visita.
+- `CONN_HEALTH_CHECKS=True` (siempre): antes de la primera consulta de cada petición que reutiliza la conexión, Django hace un `SELECT 1`; si Postgres se reinició o se durmió, descarta la conexión muerta y abre otra en vez de responder 500. Cuesta un viaje de ida y vuelta a la base por petición reutilizada; con `DB_CONN_MAX_AGE=0` no hace nada, porque no hay conexión que reutilizar.
+- `DB_CONN_MAX_AGE` es la única perilla: si `DATABASE_URL` trae `?conn_max_age=...` o `?conn_health_checks=...`, se sobrescriben. Lo demás que entrega la URL (motor, host, `OPTIONS`) no se toca. Una variable vacía cuenta como no definida; un valor que no sea un entero ≥ 0 (`abc`, `-1`, `1.5`, `60s`) lanza `ImproperlyConfigured` con el nombre de la variable y el servidor no arranca: Railway no da por bueno el despliegue (healthcheck) y conserva el anterior.
+- `python manage.py check_infra` muestra la línea «Base de datos · Conexiones persistentes»: OK con `0` (con la nota de que reutilizar conexiones impide App Sleeping), OK con los segundos y la comprobación si se reutilizan (con la nota de que el servicio deja de dormirse), AVISO si se reutiliza sin comprobar. No muestra host ni claves.
+
+**Activarlas (plan de pago o servicio siempre despierto):** en Railway > Variables del servicio `profit-studio`, `DB_CONN_MAX_AGE=60` (redespliega solo). **Desactivarlas de nuevo:** quitar la variable o poner `DB_CONN_MAX_AGE=0`.
+
+**Revisado y sin cambios necesarios** (nada depende de una conexión nueva por petición):
+
+- Hilos de planes con IA (`apps/plans/jobs.py::_thread_main`) y de WhatsApp (`apps/whatsapp/queue.py::_thread_main`): las conexiones de Django son propias de cada hilo, llaman `close_old_connections()` al empezar y `connection.close()` al terminar; ni la edad ni la comprobación las afectan (esas señales solo corren en el hilo de la petición). El comando `process_whatsapp_queue` también cierra al final.
+- `start.sh`: el script que espera a la base y los comandos en segundo plano (`check_infra`, `load_initial_data`, `load_foods`) son procesos aparte; la conexión se cierra con el proceso. El `connect_timeout` de 5 s se aplica solo dentro del script de espera (`connection.settings_dict` de ese proceso) y no depende de `CONN_MAX_AGE`. Gunicorn no usa `--preload`, así que ningún worker hereda una conexión abierta antes de bifurcarse.
+- `select_for_update()` y `transaction.atomic()` (pagos, planes, cuentas, WhatsApp): el candado vive hasta que termina la transacción, no la conexión. Si una petición terminara con una transacción a medias, Django descarta esa conexión al final (`close_old_connections` cierra la que no volvió a autocommit). No hay `SET` de sesión, bloqueos de sesión (`advisory`) ni tablas temporales en el código.
+- Si algún día se pone PgBouncer en modo transacción delante de Postgres, hay que volver a decidir: ahí se usa `DB_CONN_MAX_AGE=0` (ya es el valor por defecto) o `DISABLE_SERVER_SIDE_CURSORS=True`.
+
+**Cuántas conexiones puede haber a la vez** (la cuenta supone `DB_CONN_MAX_AGE` > 0, el peor caso; con `0` el máximo simultáneo es el mismo, solo que sin las 2 conexiones que quedan abiertas en reposo). Postgres de Railway, plantilla estándar: `max_connections` = 100 (el valor por defecto de Postgres; según hilos del foro de Railway de hace 1-2 años, **no verificado en tu instancia**: confírmalo con `SHOW max_connections;`). Cuenta por instancia del servicio web:
+
+| Quién | Conexiones | Nota |
+| --- | --- | --- |
+| Workers de gunicorn (2, sync, un hilo cada uno) | 2 | Uso simultáneo máximo igual que con `0`; la diferencia es que, con conexiones persistentes, quedan 2 abiertas aunque no haya tráfico |
+| Hilos de planes con IA | 1 por trabajo en marcha | Hasta ~4 min cada uno; el código no limita la concurrencia (tope diario: `AI_PLANS_DAILY_JOB_LIMIT`=100). Cifra de trabajo: 5 |
+| Hilos de avisos de WhatsApp | 1 por aviso, segundos | Cifra de trabajo: 2 |
+| `check_infra` y `load_initial_data` → `load_foods` (segundo plano de `start.sh`) | 2 | Solo el primer minuto tras arrancar |
+| Servicio cron `process_whatsapp_queue` (servicio aparte) | 1 | Hasta 4 min cada 15 |
+
+- **Estable:** 2 + 5 + 2 = 9 por instancia (lo normal son 2-4), más 1 del cron.
+- **Durante un despliegue** (Railway mantiene el anterior hasta que el nuevo pasa el healthcheck): 9 (anterior) + 9 (nuevo) + 2 (arranque) + 1 (`migrate`) + 1 (cron) = **22 en el peor caso**, ~22 % de 100.
+- Fórmula: en estado estable `réplicas × (2 + J + W) + 1`; en un despliegue `2 × réplicas × (2 + J + W) + 2 + 1 + 1` (instancia anterior y nueva a la vez), con `J` trabajos de IA y `W` avisos simultáneos. Con 100 como tope hay margen para varias réplicas; si algún día se escala, repite la cuenta.
+- Esta cuenta es por diseño: no se midió el número real de conexiones. Para verlo en Postgres: `SELECT count(*) FROM pg_stat_activity;`.
+
+**App Sleeping: por qué el valor por defecto es 0 y cuándo poner 60.** La documentación de Railway (consultada el 2026-11-20, <https://docs.railway.com/reference/app-sleeping>) dice que las conexiones abiertas a la base de datos cuentan como actividad y evitan que el servicio se duerma: «Idle database connections, such as pooled ones, count as outbound traffic and prevent sleep». Con `DB_CONN_MAX_AGE` > 0 cada worker se queda con su última conexión abierta hasta la siguiente visita (Django solo revisa la edad al empezar y terminar una petición), así que **el servicio web deja de dormirse**: más consumo facturado, a cambio de páginas ~200 ms más rápidas y de evitar los 10-20 s de arranque en frío de la primera visita. Que Railway lo cuente así viene de su documentación; no se probó en este servicio.
+
+- **Plan gratuito con App Sleeping (hoy): dejar `0`.** Es lo que da el valor por defecto; la web conserva el comportamiento anterior y el servicio sigue durmiéndose. Cada página que usa la base paga ~200 ms por abrir la conexión.
+- **Plan de pago, o servicio siempre despierto: poner `DB_CONN_MAX_AGE=60`.** Ahí no hay sueño que proteger y la mejora es gratis. Después de activarla, `check_infra` muestra la nota de que el servicio deja de dormirse.
+- Si se activa y se quiere comprobar el efecto: no visites la web durante unos 15 minutos y mira en el panel si el servicio `profit-studio` sigue «Active» en vez de «Sleeping».
+
+**Qué esperar al activarla.** Abrir una conexión nueva a Postgres necesita ~7 viajes de ida y vuelta (red, TLS, autenticación); si cuesta ~200-250 ms, cada viaje tarda unos 30 ms. Con la conexión reutilizada, la portada solo paga dos viajes (la comprobación y la consulta): debería bajar de ~585 ms hacia ~400-450 ms. Es una estimación hecha con las cifras medidas y no una medición posterior al cambio: vuelve a medir tras desplegar. Además, 30 ms por viaje es mucho más de lo normal dentro de la misma región de Railway (1-2 ms por la red privada), y cada consulta de cada página lo paga: conviene comprobar en el panel que `DATABASE_URL` use la dirección interna (`*.railway.internal`, no la pública `*.proxy.rlwy.net`) y que web y Postgres estén en la misma región. Es una hipótesis: no se verificó (no se leen las variables de Railway).
