@@ -11,6 +11,8 @@
       @submit="sending = true" @pageshow.window="sending = false"
       @change="sync($event)" @keydown.enter="onEnter($event)">
   {% csrf_token %}
+  {# Camino guiado: vuelve a donde empezó (docs/contracts/camino-guiado.md, sección 3). #}
+  {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
   {# Una sola región viva para los avisos del asistente: se cambia su texto, no se muestra ni se oculta #}
   <p x-ref="live" class="sr-only" aria-live="polite"></p>

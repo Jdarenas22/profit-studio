@@ -156,15 +156,21 @@ def consent_cards(user):
 
 # ─── Menores de edad ──────────────────────────────────────────────────────────
 
-def is_minor(user):
+_UNSET = object()
+
+
+def is_minor(user, profile=_UNSET):
     """True si lo que se sabe de la clienta indica que tiene menos de 18 años.
 
     Manda la fecha de nacimiento de su ficha vigente (fase A2). Si todavía no tiene ficha, se usa
     como respaldo la edad de su última valoración inicial (la registra el entrenador), así una
     menor identificada por el entrenador nunca llega a crear ficha. Sin ningún dato no se
     bloquea: el texto del consentimiento incluye la declaración "soy mayor de 18 años".
+
+    `profile`: la ficha vigente si quien llama ya la leyó (`None` = no tiene); evita repetir la consulta.
     """
-    profile = current_profile(user)
+    if profile is _UNSET:
+        profile = current_profile(user)
     if profile is not None:
         return dates.age_today(profile.birth_date) < ADULT_AGE
     age = (InitialAssessment.objects.filter(user=user)
@@ -175,13 +181,11 @@ def is_minor(user):
 # ─── Textos pendientes de revisión legal ──────────────────────────────────────
 
 def purposes_with_placeholders():
-    """Finalidades cuyo texto vigente aún tiene marcadores `[...]` (o no existe)."""
-    pending = []
-    for purpose in HEALTH_PURPOSES:
-        text = current_text(purpose)
-        if text is None or text.has_placeholders:
-            pending.append(purpose)
-    return pending
+    """Finalidades cuyo texto vigente aún tiene marcadores `[...]` (o no existe). Una sola consulta."""
+    current = {text.purpose: text for text in
+               ConsentTextVersion.objects.filter(purpose__in=HEALTH_PURPOSES, is_current=True)}
+    return [purpose for purpose in HEALTH_PURPOSES
+            if purpose not in current or current[purpose].has_placeholders]
 
 
 def ai_texts_ready():
@@ -454,9 +458,11 @@ def trainer_can_see_content(client):
 
 # ─── Banderas (solo para el entrenador) ───────────────────────────────────────
 
-def build_facts(user, profile):
-    """Arma los `Facts` del motor de reglas desde la ficha, las medidas y los consentimientos."""
-    anth = latest_anthropometrics(user)
+def build_facts(user, profile, anth=_UNSET):
+    """Arma los `Facts` del motor de reglas desde la ficha, las medidas y los consentimientos.
+    `anth`: las medidas (`latest_anthropometrics`) si quien llama ya las leyó (`None` = no hay)."""
+    if anth is _UNSET:
+        anth = latest_anthropometrics(user)
     assessment_age = (InitialAssessment.objects.filter(user=user)
                       .order_by('-date', '-pk').values_list('age', flat=True).first())
     common = dict(
@@ -498,7 +504,9 @@ def build_facts(user, profile):
     )
 
 
-def profile_flags(user, profile=None):
-    """Banderas calculadas (`FlagReport`) de la clienta. Solo para el panel del entrenador."""
-    profile = profile if profile is not None else current_profile(user)
-    return rules_flags.evaluate(build_facts(user, profile))
+def profile_flags(user, profile=_UNSET, anth=_UNSET):
+    """Banderas calculadas (`FlagReport`) de la clienta. Solo para el panel del entrenador.
+    `profile` y `anth` (medidas): lo ya leído por quien llama (`None` = no hay); sin ellos se leen aquí."""
+    if profile is _UNSET:
+        profile = current_profile(user)
+    return rules_flags.evaluate(build_facts(user, profile, anth))

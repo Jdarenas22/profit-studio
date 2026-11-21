@@ -6,8 +6,6 @@ propio trabajo, filtrado por `client=request.user`), con membresía vigente y so
 Todo responde `Cache-Control: no-store` y, apagada la función, 404.
 """
 from functools import wraps
-from urllib.parse import quote
-
 from django.conf import settings
 from django.contrib import messages
 from django.http import Http404, HttpResponse
@@ -21,10 +19,10 @@ from apps.accounts.form_utils import errors_dict
 from apps.accounts.permissions import clients_for_trainer, get_client_for_trainer
 from apps.health import services as health
 from apps.health.choices import EQUIPMENT_CHOICES, labels_for
-from apps.health.models import PURPOSE_AI, PURPOSE_HEALTH_DATA, HealthAccessLog
+from apps.health.models import HealthAccessLog
 
 from . import adaptation as adaptation_service
-from . import ai, cloning, jobs, nutrition, overview, progress, services, texts
+from . import ai, cloning, jobs, journey, nutrition, overview, progress, services, texts
 from .forms import (
     AlternativeForm, ApproveForm, ArchiveForm, CloneForm, CompleteForm, GenerateForm, MealChoiceForm,
     PlanRequestForm, RegenerateForm, ReviewOptionForm, parse_option_post,
@@ -57,29 +55,15 @@ def plans_feature_required(view_func):
     return never_cache(_wrapped)
 
 
-def _requirement_url(code, next_url):
-    query = f'?next={quote(next_url, safe="/")}'
-    links = {
-        rules_eligibility.D01_CONSENT_HEALTH: reverse('member_consent', args=[PURPOSE_HEALTH_DATA]) + query,
-        rules_eligibility.D01_CONSENT_AI: reverse('member_consent', args=[PURPOSE_AI]) + query,
-        rules_eligibility.D02_PROFILE: reverse('member_health_profile'),
-        rules_eligibility.D02_PROFILE_CONFIRM: reverse('member_health_profile'),
-        rules_eligibility.D03_MEASURE: reverse('member_measurement_add'),
-        rules_eligibility.D04_INCOHERENT: reverse('member_health_profile') + '?edit=1',
-        # Ficha básica: falta el nivel de actividad («Más detalles» de la ficha)
-        rules_eligibility.D07_NUTRITION_DETAILS: reverse('member_health_profile') + '?edit=1',
-    }
-    return links.get(code)
-
-
 def _eligibility_context(assessment, next_url):
     eligibility = assessment.eligibility
     return {
         'can_request': eligibility.can_request,
         'blocked': eligibility.blocked,
-        'blocked_message': assessment.blocked_message if eligibility.blocked else '',
+        # Se muestra junto al botón «Avisar a mi entrenador»: aún no se avisó, así que no dice que ya se hizo
+        'blocked_message': journey.blocked_message(assessment, on_request_screen=True) if eligibility.blocked else '',
         'missing': [{'code': code, 'text': rules_eligibility.REQUIREMENT_TEXTS[code],
-                     'url': _requirement_url(code, next_url)} for code in eligibility.missing],
+                     'url': journey.requirement_url(code, next_url)} for code in eligibility.missing],
     }
 
 
@@ -169,9 +153,15 @@ def member_plan_request(request):
             for text in errors_dict(form).values():
                 messages.error(request, text)
 
-    assessment = services.assess(user, kind, user)
+    back_url = f'{here}?kind={kind}'
+    # Lo común a los dos tipos (ficha, banderas, consentimientos, cupo) se calcula una vez y lo comparten
+    # la evaluación de este tipo y el camino guiado (que evalúa los dos).
+    base = services.assess_base(user, user)
+    assessment = services.assess(user, kind, user, base=base)
     return render(request, 'plans/request.html', {
-        'eligibility': _eligibility_context(assessment, f'{here}?kind={kind}'),
+        'eligibility': _eligibility_context(assessment, back_url),
+        # Camino guiado (docs/contracts/camino-guiado.md): None cuando no aplica
+        'journey': journey.client_journey(user, back_url, base=base),
         'kind': kind,
         'kinds': [{'code': KIND_EXERCISE, 'label': 'Plan de ejercicio', 'icon': 'fa-dumbbell',
                    'url': here, 'selected': kind == KIND_EXERCISE},

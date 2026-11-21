@@ -675,7 +675,8 @@ class BasicProfileRequestPageTests(NutritionScenarioTestCase):
         response = self.client.get(reverse('member_plan_request'), {'kind': 'nutrition'})
         missing = response.context['eligibility']['missing']
         self.assertEqual([item['code'] for item in missing], ['D07_NUTRITION_DETAILS'])
-        self.assertEqual(missing[0]['url'], reverse('member_health_profile') + '?edit=1')
+        # El enlace vuelve a «Pedir mi plan de alimentación» (camino guiado: `next` también en la ficha)
+        self.assertEqual(missing[0]['url'], reverse('member_health_profile') + '?edit=1&next=/plans/request/%3Fkind%3Dnutrition')
         self.assertContains(response, 'nivel de actividad diaria')
         self.assertContains(response, reverse('member_health_profile') + '?edit=1')
         exercise = self.client.get(reverse('member_plan_request'), {'kind': 'exercise'})

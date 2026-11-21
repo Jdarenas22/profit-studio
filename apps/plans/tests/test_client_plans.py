@@ -35,7 +35,7 @@ JOB_KEYS = {'job', 'kind_label', 'status', 'status_label', 'tone', 'summary', 'f
 GENERIC = 'No se pudo generar el borrador. Código técnico'
 # Consultas de la pantalla (sesión, la clienta, planes, trabajos y las dos evaluaciones de «generar»); fijo
 # aunque la clienta tenga muchos planes o trabajos. Si cambia a propósito, se actualiza aquí.
-EXPECTED_QUERIES = 35
+EXPECTED_QUERIES = 30      # eran 35: `assess` ya no repite las medidas ni consulta dos veces los textos legales
 APPS = Path(__file__).resolve().parents[1]
 
 

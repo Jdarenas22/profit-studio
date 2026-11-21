@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
@@ -14,6 +16,7 @@ from apps.accounts.permissions import (
 from apps.health import services as health_services
 from apps.health.decorators import health_feature_required
 from apps.health.models import PURPOSE_HEALTH_DATA
+from apps.health.navigation import safe_next, with_next
 from . import services
 from .forms import BodyMeasurementForm, DixonTestForm, InitialAssessmentForm, MemberMeasurementForm
 from .models import InitialAssessment, DixonTest, BodyMeasurement
@@ -227,9 +230,10 @@ def trainer_measurement_delete(request, pk):
 # encendida. Siempre se trabaja sobre `request.user`: ninguna ruta recibe el id de una clienta.
 # Todas las respuestas llevan Cache-Control: no-store (health_feature_required).
 
-def _consent_redirect():
-    return redirect(f"{reverse('member_consent', args=[PURPOSE_HEALTH_DATA])}"
-                    f"?next={reverse('member_measurement_add')}")
+def _consent_redirect(next_url=None):
+    """Pide primero el consentimiento y vuelve a registrar la medida (conservando el `next` de origen)."""
+    back = with_next(reverse('member_measurement_add'), next_url)
+    return redirect(f"{reverse('member_consent', args=[PURPOSE_HEALTH_DATA])}?next={quote(back, safe='/')}")
 
 
 @health_feature_required
@@ -247,6 +251,7 @@ def member_measurement_list(request):
 def _add_context(request, form_values, errors):
     known = services.latest_height(request.user)
     return {
+        'next': safe_next(request) or '',      # a dónde vuelve al guardar (campo oculto del formulario)
         'height_required': known is None,
         'last_height': known,
         'daily_limit_reached': services.member_daily_limit_reached(request.user),
@@ -258,10 +263,13 @@ def _add_context(request, form_values, errors):
 @health_feature_required
 @member_required
 def member_measurement_add(request):
+    """Formulario de medidas de la clienta. `next` (ruta interna, del POST o de la URL): a dónde vuelve
+    al registrar la medida (camino guiado); si no, a su historial."""
     if health_services.is_minor(request.user):
         return render(request, 'health/minor_blocked.html', status=403)
+    next_url = safe_next(request)
     if not health_services.has_health_consent(request.user):
-        return _consent_redirect()
+        return _consent_redirect(next_url)
 
     known_height = services.latest_height(request.user)
 
@@ -282,7 +290,7 @@ def member_measurement_add(request):
                     'puedes borrar esta medición hoy y registrarla de nuevo; tu entrenador también la revisará.',
                 )
             messages.success(request, 'Medición registrada.')
-            return redirect('member_measurement_list')
+            return redirect(next_url or 'member_measurement_list')
 
         errors = errors_dict(form)
         flash_errors(request, form, errors, skip=MEASUREMENT_RENDERED)
