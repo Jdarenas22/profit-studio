@@ -139,12 +139,20 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-# ─── Archivos estáticos — sin manifest para evitar errores al iniciar ──────────
-# CompressedStaticFilesStorage comprime los archivos pero NO crea staticfiles.json
-# Evita el error "Missing staticfiles.json manifest" si collectstatic falla.
+# ─── Archivos estáticos — con huella en el nombre (manifest) ───────────────────
+# CompressedManifestStaticFilesStorage comprime y renombra cada archivo con una huella de su contenido
+# (app.css -> app.<12 hex>.css) y guarda la correspondencia en staticfiles/staticfiles.json. WhiteNoise
+# sirve los nombres con huella con `Cache-Control: max-age=315360000, public, immutable` (diez años) y los
+# nombres sin huella con caché corta (60 s): al cambiar un archivo cambia su URL, así que nadie queda
+# con una copia vieja ni hace falta esperar a que caduque.
+# Contrapartida: `collectstatic` TIENE que haber corrido (en el build de Railway; start.sh lo repite si
+# falta el manifest y NO arranca si falla). Con el manifest ausente, o si una plantilla pide con
+# {% static %} un archivo que no existe, Django lanza ValueError y la página responde 500: por eso
+# apps/public/tests/test_static_references.py revisa todas las plantillas. No se usa
+# WHITENOISE_MANIFEST_STRICT=False: taparía el error en vez de avisarlo.
 STORAGES = {
     **STORAGES,
-    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
 }
 
 # ─── Cloudflare R2 — almacenamiento de archivos (OPCIONAL) ─────────────────────

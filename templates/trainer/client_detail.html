@@ -20,7 +20,7 @@
 <div class="flex flex-wrap items-start justify-between gap-4 mb-8">
   <div class="flex items-center gap-4 min-w-0">
     {% if client.profile_photo %}
-    <img src="{{ client.profile_photo.url }}" alt=""
+    <img src="{{ client.profile_photo.url }}" alt="" width="64" height="64" decoding="async"
          class="w-16 h-16 rounded-2xl object-cover border-2 border-primary/30 shrink-0{% if not client.is_active %} grayscale opacity-70{% endif %}">
     {% else %}
     <div class="w-16 h-16 {% if client.is_active %}bg-primary/10{% else %}bg-white/10{% endif %} rounded-2xl flex items-center justify-center shrink-0">
@@ -144,7 +144,7 @@
       {% if client.assigned_trainer %}
       <div class="flex items-center gap-3 mb-4">
         {% if client.assigned_trainer.profile_photo %}
-        <img src="{{ client.assigned_trainer.profile_photo.url }}"
+        <img src="{{ client.assigned_trainer.profile_photo.url }}" alt="" width="40" height="40" loading="lazy" decoding="async"
              class="w-10 h-10 rounded-xl object-cover shrink-0 border border-white/10">
         {% else %}
         <div class="w-10 h-10 bg-primary/15 rounded-xl flex items-center justify-center shrink-0">

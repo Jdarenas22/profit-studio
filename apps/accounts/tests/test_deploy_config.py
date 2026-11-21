@@ -98,9 +98,10 @@ class ProductionSettingsTests(SimpleTestCase):
     # ── Almacenamiento: Django 5.1 eliminó DEFAULT_FILE_STORAGE y STATICFILES_STORAGE ─────
     # Esos nombres ya no se leen y no avisan: sin STORAGES, la media iría al disco del servidor
     # (que Railway borra en cada despliegue) en vez de a R2, y los estáticos perderían WhiteNoise.
+    # Los estáticos llevan huella en el nombre (manifest): caché de un año sin servir copias viejas.
     STORAGE_FILESYSTEM = 'django.core.files.storage.filesystem.FileSystemStorage'
     STORAGE_S3 = 'storages.backends.s3.S3Storage'                     # alias: S3Boto3Storage
-    STORAGE_STATIC_PROD = 'whitenoise.storage.CompressedStaticFilesStorage'
+    STORAGE_STATIC_PROD = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
     def test_without_r2_media_uses_the_local_disk_and_static_uses_whitenoise(self):
         code, data, err = load_production()
@@ -460,16 +461,22 @@ class StartScriptTests(SimpleTestCase):
         self.assertNotIn('set -e', self.text)
 
     def test_collectstatic_only_runs_at_boot_when_the_build_did_not_generate_it(self):
+        # La señal es el manifest (staticfiles.json), no que la carpeta tenga algo: un collectstatic
+        # cortado a la mitad deja archivos pero no manifest, y con CompressedManifestStaticFilesStorage
+        # eso daría error 500 en todas las páginas.
         self.assertEqual(self.text.count('python manage.py collectstatic'), 1)
-        guard = re.search(r'if \[ -n "\$\(ls -A staticfiles[^\n]*\)" \]; then\n(.*?)\nelse\n(.*?)\nfi', self.text, re.S)
+        self.assertNotIn('ls -A staticfiles', self.text)
+        guard = re.search(r'if \[ -s staticfiles/staticfiles\.json \]; then\n(.*?)\nelse\n(.*?)\nfi', self.text, re.S)
         self.assertIsNotNone(guard)
-        self.assertNotIn('collectstatic --noinput', guard.group(1))         # con staticfiles/ → se omite
-        self.assertIn('collectstatic --noinput', guard.group(2))            # sin staticfiles/ → se repite
+        self.assertNotIn('collectstatic --noinput', guard.group(1))         # con manifest → se omite
+        self.assertIn('collectstatic --noinput', guard.group(2))            # sin manifest → se repite
 
-    def test_collectstatic_failure_at_boot_does_not_abort(self):
+    def test_collectstatic_failure_at_boot_aborts(self):
+        # Sin manifest toda la web daría 500 mientras /health/ sigue en 200 (no usa estáticos): se aborta
+        # para que Railway conserve el despliegue anterior.
         match = re.search(r'collectstatic --noinput.*?\n\s*else\n(.*?)\n\s*fi', self.text, re.S)
         self.assertIsNotNone(match)
-        self.assertNotIn('exit', match.group(1))
+        self.assertIn('exit 1', match.group(1))
 
     def test_keeps_media_directories(self):
         self.assertIn('mkdir -p', self.text)

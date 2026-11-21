@@ -20,7 +20,7 @@ Cloudflare R2  (archivos subidos)
 
 - Dirección pública actual: `https://profit-studio-production.up.railway.app`
 - Healthcheck de Railway: `GET /health/` → `{"status": "ok"}` (no toca la base de datos).
-- `start.sh` hace, en este orden: `migrate` (si falla, **no arranca**) → `collectstatic` → crea la superusuaria `yiseth` (solo si existe `TRAINER_INITIAL_PASSWORD`) → `load_initial_data` → `gunicorn`.
+- `start.sh` hace, en este orden: `migrate` (si falla, **no arranca**) → `collectstatic` (solo si falta `staticfiles/staticfiles.json`; si falla, **no arranca**) → crea la superusuaria `yiseth` (solo si existe `TRAINER_INITIAL_PASSWORD`) → `load_initial_data` → `gunicorn`.
 - Los servicios de Railway están en modo «sleeping» (App Sleeping): tras ~10 min sin tráfico Railway detiene el servicio web **y** Postgres, y los despierta con la primera visita, que tarda entre 10 y 20 s. «Sleeping» en el panel **no** significa desconectado. Para que el despertar sea fiable, `start.sh` espera a que Postgres acepte conexiones antes de migrar (hasta `DB_WAIT_SECONDS`, 90 s por defecto). Si prefieres respuesta inmediata siempre, desactiva «Serverless» en Settings de cada servicio (los deja siempre encendidos y cuesta más).
 
 ## 2. Estado verificado (2026-10-08)
@@ -110,7 +110,7 @@ wrangler r2 bucket domain list profitstudio-receipts     # no debe haber dominio
 
 1. Haz merge a `main` (o cambia una variable): Railway construye y despliega solo.
 2. Mira el avance: `railway deployment list --service profit-studio` (estados `BUILDING` → `DEPLOYING` → `SUCCESS`).
-3. Revisa el arranque: `railway logs --service profit-studio`. Deben salir `Base de datos lista`, `migrate OK`, el bloque de `check_infra`, `collectstatic OK` y `Listening at …`.
+3. Revisa el arranque: `railway logs --service profit-studio`. Deben salir `Base de datos lista`, `migrate OK`, el bloque de `check_infra`, `staticfiles ya generado en el build` (o `collectstatic OK` si lo repitió) y `Listening at …`.
 4. Comprueba `https://<tu-dominio>/health/`. Si falla justo al arrancar, espera unos segundos: el servicio estaba despertando.
 5. Si algo sale mal, en Railway → Deployments puedes volver al despliegue anterior (rollback).
 
@@ -205,8 +205,23 @@ Producción: proyecto `alluring-dedication`, entorno `production`, servicio `pro
 Redes de seguridad si algo queda vacío en el panel:
 
 - Sin comando de arranque: Nixpacks y Railpack usan la línea `web` del `Procfile`, que es `bash start.sh` (`apps/accounts/tests/test_deploy_config.py` lo comprueba).
-- Sin comando de build: `start.sh` ejecuta `collectstatic` al arrancar si no existe `staticfiles/`.
+- Sin comando de build (o con un `collectstatic` del build que falló o quedó a medias): `start.sh` ejecuta `collectstatic` al arrancar si no existe `staticfiles/staticfiles.json`. Si vuelve a fallar, `start.sh` **aborta** el arranque (ver sección 10).
 - Sin `DJANGO_SETTINGS_MODULE`: `start.sh` usa `config.settings.production`, pero el `collectstatic` del build usaría los settings de desarrollo. Por eso la variable debe existir en el servicio.
 - Sin healthcheck: el despliegue sale en vivo sin comprobar que `/health/` responde. No rompe nada, pero se pierde la protección: hay que llenarlo.
 
 Nota sobre el builder: Nixpacks está en modo mantenimiento y Railway recomienda Railpack. Railpack ignora `nixpacks.toml`, lee `.python-version` (3.11) y, sin comando de arranque, también usa el `Procfile`. Cambiar de builder es un cambio aparte, con su propio despliegue de prueba.
+
+## 10. Estáticos con huella, service worker y cabeceras (2026-11-20)
+
+**Estáticos con huella.** Producción usa `whitenoise.storage.CompressedManifestStaticFilesStorage` (`config/settings/production.py`). `collectstatic` guarda cada archivo con una huella de su contenido en el nombre (`css/app.css` → `css/app.5820300842cd.css`) y anota la correspondencia en `staticfiles/staticfiles.json`. `{% static %}` entrega el nombre con huella, y WhiteNoise lo sirve con `Cache-Control: max-age=315360000, public, immutable`: el navegador lo guarda y no lo vuelve a pedir; si el archivo cambia, cambia su URL. Los nombres sin huella siguen existiendo (se sirven con caché de 60 s), por eso las rutas escritas a mano (`/static/offline.html`) siguen funcionando.
+
+Qué cambia al operar:
+
+- `collectstatic` **tiene que terminar bien**: su post-proceso falla si un CSS tiene `url(...)` a un archivo inexistente. En el build de Railway el comando lleva `|| echo ...` (el build no se cae), así que `start.sh` revisa que exista `staticfiles/staticfiles.json`; si no existe, lo repite, y si falla otra vez **no arranca**. Sin manifest, todas las páginas darían error 500 mientras `/health/` sigue en 200 (no usa estáticos) y Railway daría el despliegue por bueno; al abortar, el healthcheck falla y Railway conserva el despliegue anterior.
+- Una plantilla que pida con `{% static 'x' %}` un archivo que no existe lanza `ValueError: Missing staticfiles manifest entry` y esa página responde 500 (con el almacenamiento anterior solo fallaba esa imagen). `apps/public/tests/test_static_references.py` recorre todas las plantillas, comprueba que cada `{% static %}` y cada `/static/...` escrito a mano exista, y corre un `collectstatic` real con el almacenamiento de producción: si falla, la suite falla antes de desplegar.
+- No se usa `WHITENOISE_MANIFEST_STRICT=False`: taparía el error en vez de avisarlo.
+- Para volver al comportamiento anterior (sin huella) basta cambiar la línea `STORAGES['staticfiles']` de `production.py` a `whitenoise.storage.CompressedStaticFilesStorage` y volver a poner en `start.sh` el arranque tolerante.
+
+**Service worker en `/sw.js`.** El archivo fuente es `static/sw.js`, pero se entrega desde la raíz (`apps/public/views.py::service_worker`) con `Service-Worker-Allowed: /`, `Cache-Control: no-cache` y `X-Content-Type-Options: nosniff`. Servido desde `/static/sw.js` el navegador rechaza registrarlo con `scope: '/'` y la PWA no funciona sin avisar. La vista no usa la base de datos ni la sesión.
+
+**Permissions-Policy.** `config/middleware.py` añade la cabecera a todas las respuestas con la lista de `PERMISSIONS_POLICY` (`config/settings/base.py`): cámara, micrófono, ubicación, USB, serie, Bluetooth, HID, MIDI, captura de pantalla, magnetómetro y realidad extendida quedan negados; `payment` solo para el sitio y `https://checkout.wompi.co`. Si algún día la web usa una de esas funciones (por ejemplo, la cámara para escanear), hay que quitarla de la lista; una prueba revisa que no se niegue nada de lo que piden los `allow="..."` de las plantillas.

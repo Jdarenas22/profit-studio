@@ -8,7 +8,9 @@
   <meta name="description" content="{% block description %}Entrenamiento personalizado y profesional con ProFit Studio. Transforma tu cuerpo, cambia tu vida.{% endblock %}" />
 
   <!-- PWA -->
-  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="manifest" href="{% static 'manifest.json' %}" />
+  <link rel="icon" type="image/png" sizes="48x48" href="{% static 'images/favicon-48.png' %}" />
+  <link rel="apple-touch-icon" href="{% static 'images/apple-touch-icon.png' %}" />
   <meta name="theme-color" content="#FF6B00" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -97,13 +99,22 @@
     });
   </script>
 
-  <!-- Service Worker PWA -->
+  <!-- Service Worker PWA: /sw.js (raíz, para que su alcance sea todo el sitio). Solo guarda
+       estáticos y la página sin conexión, nunca páginas con datos de la sesión. -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js', { scope: '/' })
-          .catch(() => {}); // Fallo silencioso si el scope no está disponible
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .catch(function (err) { console.warn('Service worker no registrado:', err && err.name); });
       });
+      // Al cerrar sesión, pedir al worker que vacíe su caché (defensa adicional).
+      document.addEventListener('submit', function (evt) {
+        var form = evt.target;
+        if (form && form.action && form.action.indexOf('{% url "logout" %}') !== -1
+            && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'logout' });
+        }
+      }, true);
     }
   </script>
 
@@ -124,6 +135,9 @@
       // la petición si la página se descarga mientras está en vuelo. Si falla no
       // se redirige (evita un bucle de recargas con la sesión aún abierta).
       function postLogout() {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'logout' });
+        }
         fetch('{% url "logout" %}', {
           method: 'POST',
           credentials: 'same-origin',

@@ -16,7 +16,7 @@
     <div class="relative shrink-0">
       {% if trainer_obj.profile_photo %}
       <img src="{{ trainer_obj.profile_photo.url }}"
-           alt="{{ trainer_obj.get_full_name }}"
+           alt="{{ trainer_obj.get_full_name }}" width="80" height="80" decoding="async"
            class="w-20 h-20 rounded-2xl object-cover object-top border-2 border-primary/30">
       {% else %}
       <div class="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center border-2 border-dashed border-primary/20">
@@ -42,7 +42,7 @@
       {% if trainer_obj.profile_photo %}
       <div class="flex items-center gap-4 mb-4">
         <img src="{{ trainer_obj.profile_photo.url }}"
-             alt="Foto actual"
+             alt="Foto actual" width="64" height="64" loading="lazy" decoding="async"
              class="w-16 h-16 rounded-xl object-cover object-top border border-white/10">
         <div>
           <p class="text-white/50 text-sm font-medium">Foto actual</p>
