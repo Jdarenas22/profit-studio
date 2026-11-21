@@ -1,0 +1,37 @@
+{% comment %}
+Tarjeta de un plan dentro del camino guiado. La incluye journey_card.html con
+plan (journey.plans.exercise|nutrition), plan_name, plan_kind y plan_icon.
+{% endcomment %}
+<article class="pfs-plan-card{% if plan.state == 'ready' %} pfs-plan-ready{% elif plan.state == 'generating' %} pfs-plan-generating{% elif plan.state == 'approved' %} pfs-plan-approved{% elif plan.state == 'blocked' or plan.state == 'quota' %} pfs-plan-attention{% endif %}">
+  <span class="pfs-icon"><i class="fa {{ plan_icon }}" aria-hidden="true"></i></span>
+  <div class="min-w-0">
+    <p class="pfs-plan-state">
+      {% if plan.state == 'ready' %}<i class="fa fa-circle-check" aria-hidden="true"></i> Listo para pedir
+      {% elif plan.state == 'generating' %}<i class="fa fa-gears" aria-hidden="true"></i> En preparación
+      {% elif plan.state == 'in_review' %}<i class="fa fa-user-check" aria-hidden="true"></i> En revisión
+      {% elif plan.state == 'approved' %}<i class="fa fa-circle-check" aria-hidden="true"></i> Aprobado
+      {% elif plan.state == 'blocked' %}<i class="fa fa-circle-pause" aria-hidden="true"></i> En pausa
+      {% elif plan.state == 'quota' %}<i class="fa fa-calendar-day" aria-hidden="true"></i> Vuelve más adelante
+      {% else %}<i class="fa fa-list-check" aria-hidden="true"></i> Faltan pasos{% endif %}
+    </p>
+    <h3 class="mt-1">{{ plan_name }}</h3>
+  </div>
+  {% if plan.message %}<p class="pfs-muted">{{ plan.message }}</p>
+  {% elif plan.state == 'generating' %}<p class="pfs-muted">Estamos armando tu plan.</p>
+  {% elif plan.state == 'in_review' %}<p class="pfs-muted">Tu entrenador lo está revisando.</p>{% endif %}
+
+  {% if plan.state == 'ready' and plan.url %}
+  <a href="{{ plan.url }}" class="pfs-button"><i class="fa fa-wand-magic-sparkles" aria-hidden="true"></i> Pedir mi plan de {{ plan_kind }}</a>
+  {% elif plan.state == 'generating' and plan.url %}
+  <a href="{{ plan.url }}" class="pfs-button pfs-button-secondary">Ver cómo va<span class="sr-only"> mi plan de {{ plan_kind }}</span> <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+  {% elif plan.state == 'approved' and plan.url %}
+  <a href="{{ plan.url }}" class="pfs-button">Ver mi plan<span class="sr-only"> de {{ plan_kind }}</span> <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+  {% elif plan.state == 'missing_steps' and journey.all_ready %}
+    {# Con la lista abierta el paso pendiente ya trae su botón: aquí no se repite. #}
+    {% if plan.url %}
+    <a href="{{ plan.url }}" class="pfs-button pfs-button-secondary">{{ plan.cta|default:"Ir al paso pendiente" }} <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+    {% elif journey.next_step.url %}
+    <a href="{{ journey.next_step.url }}" class="pfs-button pfs-button-secondary">{{ journey.next_step.cta|default:"Ir al paso pendiente" }} <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+    {% endif %}
+  {% endif %}
+</article>
