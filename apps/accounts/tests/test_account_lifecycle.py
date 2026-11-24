@@ -20,6 +20,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages import get_messages
 from django.contrib.sessions.models import Session
 from django.core import mail
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.management import call_command
@@ -944,7 +945,7 @@ class EraseTrainerTests(LifecycleMixin, ScenarioTestCase):
 
 # ─── 18. Admin ────────────────────────────────────────────────────────────────
 
-class AdminTests(ScenarioTestCase):
+class AdminTests(LifecycleMixin, ScenarioTestCase):
     def setUp(self):
         self.factory = RequestFactory()
 
@@ -953,21 +954,233 @@ class AdminTests(ScenarioTestCase):
         request.user = user
         return request
 
-    def test_user_admin_cannot_delete_and_flags_are_read_only(self):
+    admin_login_backend = 'django.contrib.auth.backends.ModelBackend'
+
+    def admin_login(self, user):
+        self.client.force_login(user, backend=self.admin_login_backend)
+
+    @staticmethod
+    def admin_delete_url(user, query=''):
+        return reverse('admin:accounts_user_delete', args=[user.pk]) + query
+
+    def assert_untouched(self, *users):
+        """Ninguna cuenta se borró ni quedó como lápida, y no hay auditoría de eliminación."""
+        for user in users:
+            row = User.objects.get(pk=user.pk)
+            self.assertIsNone(row.erased_at)
+            self.assertTrue(row.is_active)
+        self.assertFalse(AccountAuditLog.objects.filter(action=choices.ACTION_ERASE).exists())
+
+    def test_user_admin_flags_are_read_only_and_delete_selected_is_gone(self):
         model_admin = admin.site._registry[User]
         self.assertIsInstance(model_admin, CustomUserAdmin)
         request = self.request_for(self.boss)
-        self.assertFalse(model_admin.has_delete_permission(request, self.client_a))
-        self.assertNotIn('delete_selected', model_admin.get_actions(request))
+        actions = model_admin.get_actions(request)
+        self.assertNotIn('delete_selected', actions)
+        self.assertIn('erase_via_panel', actions)
         readonly = model_admin.get_readonly_fields(request, self.client_a)
         for name in ('is_active', 'is_superuser', 'deactivated_at', 'erased_at'):
             self.assertIn(name, readonly)
-        self.client.force_login(self.boss, backend='django.contrib.auth.backends.ModelBackend')
-        response = self.client.get(reverse('admin:accounts_user_delete', args=[self.client_a.pk]))
-        self.assertEqual(response.status_code, 403)
-        response = self.client.post(reverse('admin:accounts_user_changelist'),
-                                    {'action': 'delete_selected', '_selected_action': [self.client_a.pk]})
+        # La acción masiva de Django ya no existe: el POST no borra nada.
+        self.admin_login(self.boss)
+        self.client.post(reverse('admin:accounts_user_changelist'),
+                         {'action': 'delete_selected', '_selected_action': [self.client_a.pk]})
+        self.client.post(reverse('admin:accounts_user_changelist'),
+                         {'action': 'delete_selected', 'post': 'yes', '_selected_action': [self.client_a.pk]})
         self.assertTrue(User.objects.filter(pk=self.client_a.pk).exists())
+        self.assert_untouched(self.client_a)
+
+    def test_delete_permission_only_for_owner_and_erasable_targets(self):
+        model_admin = admin.site._registry[User]
+        boss_request = self.request_for(self.boss)
+        self.assertTrue(model_admin.has_delete_permission(boss_request))
+        self.assertTrue(model_admin.has_delete_permission(boss_request, self.client_a))
+        self.assertTrue(model_admin.has_delete_permission(boss_request, self.client_free))
+        self.assertTrue(model_admin.has_delete_permission(boss_request, self.trainer_a))
+        # Nunca sobre la propia cuenta ni sobre otra superusuaria
+        other_boss = make_user('boss2', User.ROLE_TRAINER, is_staff=True, is_superuser=True)
+        self.assertFalse(model_admin.has_delete_permission(boss_request, self.boss))
+        self.assertFalse(model_admin.has_delete_permission(boss_request, other_boss))
+        # Nunca sobre una lápida
+        services.erase_account(self.client_b, self.boss, choices.REASON_HOLDER_REQUEST)
+        self.assertFalse(model_admin.has_delete_permission(boss_request, self.fresh(self.client_b)))
+        # Un entrenador con acceso al admin (is_staff) no puede, ni sobre sus clientas
+        trainer_request = self.request_for(self.trainer_a)
+        self.assertFalse(model_admin.has_delete_permission(trainer_request))
+        self.assertFalse(model_admin.has_delete_permission(trainer_request, self.client_a))
+        # Una clienta, aunque fuera superusuaria de Django, tampoco (no es entrenadora)
+        member_boss = make_user('member_boss', User.ROLE_MEMBER, is_staff=True, is_superuser=True)
+        self.assertFalse(model_admin.has_delete_permission(self.request_for(member_boss), self.client_a))
+        # Una superusuaria desactivada tampoco
+        other_boss.is_active = False
+        other_boss.save(update_fields=['is_active'])
+        self.assertFalse(model_admin.has_delete_permission(self.request_for(other_boss), self.client_a))
+
+    def test_change_page_shows_delete_link_only_where_it_applies(self):
+        self.admin_login(self.boss)
+        for target in (self.client_a, self.trainer_a):
+            response = self.client.get(reverse('admin:accounts_user_change', args=[target.pk]))
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, self.admin_delete_url(target))
+        response = self.client.get(reverse('admin:accounts_user_change', args=[self.boss.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, self.admin_delete_url(self.boss))
+
+    def test_admin_delete_redirects_client_to_the_safe_panel_flow_without_deleting(self):
+        self.admin_login(self.boss)
+        for method in (self.client.get, self.client.post):
+            response = method(self.admin_delete_url(self.client_a))
+            self.assertRedirects(response, reverse('trainer_client_delete', args=[self.client_a.pk]),
+                                 fetch_redirect_response=False)
+        self.assert_untouched(self.client_a)
+        # La pantalla del panel abre y es la que pide motivo y confirmación
+        response = self.client.get(self.admin_delete_url(self.client_a), follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.resolver_match.url_name, 'trainer_client_delete')
+        self.assertIn('reasons', response.context)
+        self.assert_untouched(self.client_a)
+
+    def test_admin_delete_redirects_trainer_to_the_safe_panel_flow_without_deleting(self):
+        self.admin_login(self.boss)
+        for method in (self.client.get, self.client.post):
+            response = method(self.admin_delete_url(self.trainer_a))
+            self.assertRedirects(response, reverse('trainer_staff_delete', args=[self.trainer_a.pk]),
+                                 fetch_redirect_response=False)
+        self.assert_untouched(self.trainer_a, self.client_a)
+        self.assertEqual(self.fresh(self.client_a).assigned_trainer_id, self.trainer_a.pk)
+        response = self.client.get(self.admin_delete_url(self.trainer_a), follow=True)
+        self.assertEqual(response.resolver_match.url_name, 'trainer_staff_delete')
+        self.assertEqual(response.status_code, 200)
+
+    def test_erasing_after_the_admin_redirect_goes_through_the_service(self):
+        """De punta a punta: admin -> panel -> `erase_account` (lápida, auditoría), no `delete()`."""
+        self.admin_login(self.boss)
+        response = self.client.get(self.admin_delete_url(self.client_a), follow=True)
+        self.assertEqual(response.resolver_match.url_name, 'trainer_client_delete')
+        response = self.client.post(response.request['PATH_INFO'], self.erase_post(self.client_a))
+        self.assertRedirects(response, reverse('trainer_clients'), fetch_redirect_response=False)
+        row = self.fresh(self.client_a)   # la fila sigue: es una lápida, no un borrado
+        self.assertIsNotNone(row.erased_at)
+        self.assertTrue(ManualPayment.objects.filter(user=row).exists())
+        log = AccountAuditLog.objects.get(action=choices.ACTION_ERASE)
+        self.assertEqual((log.actor, log.target), (self.boss, row))
+
+    def test_admin_delete_of_protected_targets_shows_error_and_returns_to_change_page(self):
+        other_boss = make_user('boss2', User.ROLE_TRAINER, is_staff=True, is_superuser=True)
+        services.erase_account(self.client_b, self.boss, choices.REASON_HOLDER_REQUEST)
+        audit_before = AccountAuditLog.objects.count()
+        self.admin_login(self.boss)
+        cases = ((self.boss, 'cuenta de superusuaria'), (other_boss, 'cuenta de superusuaria'),
+                 (self.fresh(self.client_b), 'ya fue eliminada'))
+        for target, expected_text in cases:
+            for method in (self.client.get, self.client.post):
+                response = method(self.admin_delete_url(target))
+                self.assertRedirects(response, reverse('admin:accounts_user_change', args=[target.pk]),
+                                     fetch_redirect_response=False)
+                self.assertIn(expected_text, ' '.join(flashes(response)))
+        self.assertEqual(AccountAuditLog.objects.count(), audit_before)
+        self.assertTrue(User.objects.filter(pk=self.boss.pk, is_active=True).exists())
+        self.assertTrue(User.objects.filter(pk=other_boss.pk, is_active=True, erased_at__isnull=True).exists())
+
+    def test_admin_delete_of_unknown_account_is_404(self):
+        self.admin_login(self.boss)
+        self.assertEqual(self.client.get(reverse('admin:accounts_user_delete', args=[999999])).status_code, 404)
+        self.assertEqual(self.client.get('/admin/accounts/user/no-es-un-id/delete/').status_code, 404)
+
+    def test_admin_delete_is_forbidden_for_non_owners_and_popups(self):
+        # Entrenador con acceso al admin (is_staff), aunque la clienta sea suya
+        self.admin_login(self.trainer_a)
+        for method in (self.client.get, self.client.post):
+            self.assertEqual(method(self.admin_delete_url(self.client_a)).status_code, 403)
+        response = self.client.post(reverse('admin:accounts_user_changelist'),
+                                    {'action': 'erase_via_panel', '_selected_action': [self.client_a.pk]})
+        self.assertEqual(response.status_code, 403)
+        # Sin sesión: el admin pide iniciar sesión
+        self.client.logout()
+        response = self.client.get(self.admin_delete_url(self.client_a))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response['Location'])
+        # Una clienta (no staff) tampoco
+        self.admin_login(self.client_a)
+        self.assertEqual(self.client.get(self.admin_delete_url(self.client_a)).status_code, 302)
+        # La ventana emergente de los campos relacionados no sigue el flujo
+        self.admin_login(self.boss)
+        response = self.client.get(self.admin_delete_url(self.client_a, '?_popup=1&_to_field=id'))
+        self.assertEqual(response.status_code, 403)
+        self.assert_untouched(self.client_a, self.trainer_a)
+
+    def test_erase_action_redirects_with_exactly_one_selected_account(self):
+        self.admin_login(self.boss)
+        changelist = reverse('admin:accounts_user_changelist')
+        response = self.client.post(changelist, {'action': 'erase_via_panel',
+                                                 '_selected_action': [self.client_a.pk]})
+        self.assertRedirects(response, reverse('trainer_client_delete', args=[self.client_a.pk]),
+                             fetch_redirect_response=False)
+        response = self.client.post(changelist, {'action': 'erase_via_panel',
+                                                 '_selected_action': [self.trainer_a.pk]})
+        self.assertRedirects(response, reverse('trainer_staff_delete', args=[self.trainer_a.pk]),
+                             fetch_redirect_response=False)
+        self.assert_untouched(self.client_a, self.trainer_a)
+
+    def test_erase_action_does_nothing_with_zero_or_several_accounts(self):
+        self.admin_login(self.boss)
+        changelist = reverse('admin:accounts_user_changelist')
+        response = self.client.post(changelist, {'action': 'erase_via_panel',
+                                                 '_selected_action': [self.client_a.pk, self.client_b.pk]})
+        self.assertRedirects(response, changelist, fetch_redirect_response=False)
+        self.assertIn('Elige una sola cuenta', ' '.join(flashes(response)))
+        # «Seleccionar las N cuentas» (select_across): tampoco
+        response = self.client.post(changelist, {'action': 'erase_via_panel', 'select_across': '1', 'index': '0',
+                                                 '_selected_action': [self.client_a.pk]})
+        self.assertRedirects(response, changelist, fetch_redirect_response=False)
+        self.assertIn('Elige una sola cuenta', ' '.join(flashes(response)))
+        # Ninguna seleccionada: Django ni llama a la acción y avisa
+        response = self.client.post(changelist, {'action': 'erase_via_panel', '_selected_action': []})
+        self.assertNotIn('/accounts/trainer/', response.get('Location', ''))
+        # La acción llamada directo con un queryset vacío tampoco hace nada
+        model_admin = admin.site._registry[User]
+        request = self.request_for(self.boss)
+        with mock.patch.object(model_admin, 'message_user') as message_user:
+            self.assertIsNone(model_admin.erase_via_panel(request, User.objects.none()))
+        self.assertEqual(message_user.call_count, 1)
+        self.assert_untouched(self.client_a, self.client_b)
+
+    def test_erase_action_with_a_protected_account_shows_error_and_does_not_redirect(self):
+        self.admin_login(self.boss)
+        changelist = reverse('admin:accounts_user_changelist')
+        response = self.client.post(changelist, {'action': 'erase_via_panel', '_selected_action': [self.boss.pk]})
+        self.assertRedirects(response, changelist, fetch_redirect_response=False)
+        self.assertIn('cuenta de superusuaria', ' '.join(flashes(response)))
+        self.assert_untouched(self.boss)
+
+    def test_admin_has_no_other_path_that_deletes_accounts(self):
+        model_admin = admin.site._registry[User]
+        request = self.request_for(self.boss)
+        with self.assertRaises(PermissionDenied):
+            model_admin.delete_model(request, self.client_a)
+        with self.assertRaises(PermissionDenied):
+            model_admin.delete_queryset(request, User.objects.filter(pk=self.client_a.pk))
+        self.assertTrue(User.objects.filter(pk=self.client_a.pk).exists())
+        # Ninguna acción del admin de usuarios toca la base: solo `erase_via_panel`
+        self.assertEqual(set(model_admin.get_actions(request)), {'erase_via_panel'})
+
+    def test_other_admins_do_not_offer_to_delete_accounts(self):
+        """Con `has_delete_permission=True` para la dueña, ningún campo de otro admin que apunte a
+        `User` debe ofrecer el botón de borrar la cuenta relacionada (ventana emergente)."""
+        from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
+        request = self.request_for(self.boss)
+        offenders = []
+        for model, model_admin in admin.site._registry.items():
+            if model is User or not model_admin.has_view_permission(request):
+                continue
+            form = model_admin.get_form(request)
+            for name, form_field in form.base_fields.items():
+                widget = form_field.widget
+                queryset = getattr(form_field, 'queryset', None)
+                if (isinstance(widget, RelatedFieldWidgetWrapper) and queryset is not None
+                        and queryset.model is User and widget.can_delete_related):
+                    offenders.append(f'{model._meta.label}.{name}')
+        self.assertEqual(offenders, [])
 
     def test_audit_admin_is_read_only_and_superuser_only(self):
         services.deactivate_account(self.client_a, self.trainer_a)

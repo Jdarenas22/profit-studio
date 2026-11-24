@@ -7,6 +7,9 @@ class PaymentAdmin(admin.ModelAdmin):
     list_display = ['reference', 'user', 'plan', 'amount_display', 'status', 'method_display', 'created_at']
     list_filter = ['status', 'payment_method_type', 'currency']
     search_fields = ['reference', 'user__username', 'user__email', 'wompi_transaction_id']
+    # `user` como número (no como lista con botones de agregar/editar/borrar la cuenta): el admin
+    # de usuarios ya no borra en cascada, pero tampoco debe ofrecer borrar una cuenta desde un pago.
+    raw_id_fields = ['user']
     readonly_fields = ['reference', 'wompi_transaction_id', 'raw_webhook', 'created_at', 'updated_at']
     ordering = ['-created_at']
 
