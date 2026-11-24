@@ -145,6 +145,8 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
+- 2026-11-24 · ChatGPT · Verificación y corrección de confidencialidad de contraseñas solicitada por la persona · `fix/password-confidentiality`, sobre #42, worktree USDA. Reserva `apps/accounts/forms.py`, `apps/accounts/views.py`, `templates/trainer/client_add.html`, `templates/trainer/client_edit.html` y pruebas nuevas de contraseñas. Auditoría local agregada: todas las cuentas con PBKDF2-SHA256; dos con iteraciones antiguas, sin cambiar ni recuperar contraseñas. Corregir campos visibles/rellenado de claves y ocultación en informes de error. Sin migraciones, cambios de hashers reales, credenciales, datos de usuarios, Railway ni otros archivos reservados de Claude.
+
 
 
 
