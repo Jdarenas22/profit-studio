@@ -145,6 +145,8 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
+- 2026-11-24 · ChatGPT · Auditoría exigente de ciberseguridad y filtraciones solicitada por la persona · `audit/cybersecurity-2026-11-24`, snapshot del código activo `c2958e0`. Reserva solo `scripts/audit/` y `docs/auditorias/` para pruebas y evidencia redactada. Pruebas de ataques con cuentas/base/medios aislados fuera del proyecto; comprobación pública limitada y sin alterar usuarios reales. Revisión de dependencias, Git y artefactos de credenciales solo con salidas redactadas, nunca claves/hashes/cuerpos privados. No se corrigen vulnerabilidades de aplicación durante esta tarea: se entrega informe con evidencia y prioridades. No migraciones nuevas ni cambios de API/configuración, cuentas, contraseñas, despliegue o archivos reservados de Claude.
+
 
 
 
