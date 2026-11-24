@@ -8,6 +8,10 @@ en el worker de gunicorn + recuperación de trabajos huérfanos. Sin Celery ni R
 3. `recover_stale_jobs` devuelve a la cola los `running` sin latido de más de 3 minutos (worker
    reiniciado, redeploy) y relanza los `queued` olvidados. Corre al consultar un estado, al crear
    un trabajo y con `python manage.py process_plan_jobs`.
+4. Modo trabajador (`AI_PLANS_WORKER=True`, apagado por defecto; docs/DEPLOY.md, sección 12): `start_job`
+   no lanza hilos en la web; el trabajo se queda `queued` y lo toma un servicio aparte con
+   `process_plan_jobs --loop` (`apps/plans/worker.py`), que usa el mismo `claim` y la misma ejecución.
+   La recuperación que corre en la web sigue devolviendo huérfanos a la cola, pero ya no los relanza ahí.
 
 Reintentos: errores transitorios (429, 5xx, timeout) hasta 3 veces por llamada con espera
 2/6/18 s + variación (respeta Retry-After); errores permanentes y bloqueos de seguridad no se
@@ -48,6 +52,7 @@ TRANSIENT_TRIES = 3
 TRANSIENT_WAITS = (2, 6, 18)
 MAX_RETRY_AFTER = 30
 VALIDATION_TRIES = 2          # la primera respuesta + un reintento con los códigos
+CLAIM_CANDIDATES = 5          # trabajos `queued` que `run_next_queued` intenta reclamar antes de rendirse
 
 _sleep = time.sleep           # las pruebas lo reemplazan
 
@@ -62,9 +67,19 @@ class JobFailed(Exception):
 # ─── Arranque, reclamo y recuperación ─────────────────────────────────────────
 
 def start_job(job_id):
-    """Ejecuta el trabajo en un hilo (o en línea con AI_PLANS_RUN_INLINE)."""
+    """Ejecuta el trabajo en un hilo (o en línea con AI_PLANS_RUN_INLINE).
+
+    Con AI_PLANS_WORKER=True NO lanza ningún hilo en este proceso: el trabajo queda `queued` y lo toma
+    el servicio trabajador (`process_plan_jobs --loop`). Es el único punto por donde la web (al crear un
+    trabajo o al recuperar huérfanos) lanza hilos, así que con el modo trabajador la web no corre IA.
+    AI_PLANS_RUN_INLINE (pruebas y depuración) tiene prioridad sobre los dos modos."""
     if settings.AI_PLANS_RUN_INLINE:
         run_job(job_id)
+        return
+    if settings.AI_PLANS_WORKER:
+        # En DEBUG a propósito: la recuperación de la web vuelve a pasar por aquí con cada consulta de estado
+        # de un trabajo que lleva tiempo en cola, y un INFO por consulta llenaría los logs.
+        logger.debug('plan job left queued for the worker job_id=%s', job_id)
         return
     thread = threading.Thread(target=_thread_main, args=(job_id,), name=f'plan-job-{job_id}', daemon=True)
     thread.start()
@@ -165,6 +180,35 @@ def run_job(job_id):
     """Corre un trabajo hasta el final. Nunca lo deja en `running` si no se cae el proceso."""
     if not claim(job_id):
         return None
+    return _run_claimed(job_id)
+
+
+def run_next_queued():
+    """Toma el trabajo `queued` MÁS ANTIGUO que este proceso logre reclamar y lo corre hasta el final.
+
+    Para el servicio trabajador (`process_plan_jobs --loop`). Si dos procesos compiten, el reclamo es el
+    mismo UPDATE atómico de `claim`: solo uno gana y el otro sigue con el siguiente candidato (nunca se
+    corre dos veces el mismo trabajo). Devuelve el id del trabajo que corrió, o None si no había
+    ninguno para tomar. No importa cómo termine el trabajo (listo, fallido o bloqueado): lo registra
+    `_run_claimed`."""
+    candidates = PlanGenerationJob.objects.filter(status=PlanGenerationJob.STATUS_QUEUED).order_by(
+        'created_at', 'pk').values_list('pk', flat=True)[:CLAIM_CANDIDATES]
+    for job_id in list(candidates):
+        if claim(job_id):
+            _run_claimed(job_id)
+            return job_id
+    return None
+
+
+def queued_older_than(age):
+    """Cuántos trabajos llevan más de `age` (timedelta) en `queued`. Para `check_infra`: con el modo
+    trabajador, que haya alguno de más de 5 minutos indica que el servicio trabajador no está corriendo."""
+    return PlanGenerationJob.objects.filter(status=PlanGenerationJob.STATUS_QUEUED,
+                                            created_at__lt=timezone.now() - age).count()
+
+
+def _run_claimed(job_id):
+    """Corre un trabajo que este proceso YA reclamó (`claim`)."""
     job = PlanGenerationJob.objects.select_related('client', 'health_profile', 'parent_plan',
                                                    'requested_by').get(pk=job_id)
     started = time.monotonic()

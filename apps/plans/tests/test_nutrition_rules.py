@@ -271,6 +271,13 @@ class MeasuresTests(SimpleTestCase):
         self.assertEqual(f.round_totals(total)['kcal'], 295)
         self.assertEqual(round(float(total.fat_share), 3), round(float(D('3.9') * 9 / D('295')), 3))
 
+    def test_round_totals_rounds_kcal_halves_up_not_to_even(self):
+        # kcal a múltiplos de 5 con las mitades hacia arriba (ROUND_HALF_UP): 732,5 -> 735, no 730.
+        for kcal, expected in (('732.5', 735), ('742.5', 745), ('737.5', 740), ('727.5', 730),
+                               ('732.4', 730), ('732.6', 735), ('0', 0)):
+            with self.subTest(kcal=kcal):
+                self.assertEqual(f.round_totals(f.Totals(kcal=D(kcal)))['kcal'], expected)
+
     def test_exchanges_give_the_same_energy_per_portion(self):
         groups = f.exchange_groups(ITEMS)
         self.assertGreaterEqual(len(groups), 6)

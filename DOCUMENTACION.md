@@ -854,6 +854,7 @@ El archivo `.env` en la raíz del proyecto controla el comportamiento del sistem
 | `GEMINI_MODEL` | Solo en `live` | Nombre exacto del modelo, con versión (no un alias `-latest`, que cambia sin aviso) |
 | `GEMINI_BILLING_CONFIRMED` | Solo en `live` | `true` confirma que la clave es de un proyecto con facturación (el nivel gratuito permite que Google use los datos). En `live`, el servidor no arranca sin las tres variables de Gemini |
 | `AI_PLANS_ADAPTATION` | Opcional | Adaptación de los planes al historial de la clienta (apagada por defecto) |
+| `AI_PLANS_WORKER` | Opcional | `false` por defecto (los trabajos de IA corren en hilos de la web). `true` = la web los deja en cola y los toma un servicio aparte con `python manage.py process_plan_jobs --loop`; mantiene despierto a Postgres y gasta crédito las 24 h, no usarlo en el plan gratuito (`docs/DEPLOY.md`, sección 12). Solo `true`/`false` |
 | `AI_PLANS_REQUIRE_PROFESSIONAL` | Opcional | Si es `true`, aprobar planes de alimentación exige credencial de nutrición (hoy `False`) |
 | `WHATSAPP_CLOUD_MODE` | ❌ | Avisos por WhatsApp (API de Meta): `off` (por defecto en producción), `simulated` (desarrollo, sin red) o `live`. NO es lo mismo que `WHATSAPP_LINK` |
 | `WHATSAPP_CLOUD_ACCESS_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID`, `WHATSAPP_CLOUD_WABA_ID`, `WHATSAPP_CLOUD_APP_SECRET`, `WHATSAPP_CLOUD_VERIFY_TOKEN`, `WHATSAPP_CLOUD_GRAPH_VERSION` | Solo en `live` | Datos de Meta. Sin ellos el servidor no arranca en `live`. El verify token debe tener 32 caracteres o más |

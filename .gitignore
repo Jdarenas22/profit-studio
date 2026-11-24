@@ -14,6 +14,11 @@ env/
 .env
 !.env.example
 
+# Copias de seguridad de la base (datos de salud: NUNCA al repositorio; ver docs/BACKUPS.md)
+*.dump
+*.dump.*
+backups/
+
 # Django
 *.log
 db.sqlite3

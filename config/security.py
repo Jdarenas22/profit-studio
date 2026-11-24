@@ -28,15 +28,21 @@ _TRUE = ('true', '1', 'yes', 'on', 'si', 'sí')
 _FALSE = ('', 'false', '0', 'no', 'off')
 
 
-def parse_strict_flag(raw):
-    """Interpreta SECURITY_STRICT_SECRETS. Un valor desconocido es un error (ValueError):
-    mejor avisarlo que dejar el modo estricto apagado sin que nadie lo note."""
+def parse_bool_flag(name, raw):
+    """Booleano ESTRICTO de una variable de entorno. Vacío = False. Un valor desconocido (un error de
+    tipeo como "ture") es un error (ValueError con el NOMBRE de la variable, nunca el valor): mejor
+    avisarlo que dejar apagado lo que se quiso encender sin que nadie lo note."""
     value = str(raw if raw is not None else '').strip().lower()
     if value in _TRUE:
         return True
     if value in _FALSE:
         return False
-    raise ValueError(f'{STRICT_ENV_NAME} debe ser true o false.')
+    raise ValueError(f'{name} debe ser true o false.')
+
+
+def parse_strict_flag(raw):
+    """Interpreta SECURITY_STRICT_SECRETS (ver `parse_bool_flag`)."""
+    return parse_bool_flag(STRICT_ENV_NAME, raw)
 
 
 def secret_key_is_placeholder(secret):

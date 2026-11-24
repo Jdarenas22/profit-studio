@@ -699,9 +699,25 @@ class ChoiceTests(NutritionScenarioTestCase):
         nutrition.choose_option(self.client_a, self.slot.pk, option.pk, self.today)
         view = nutrition.day_view(self.client_a, self.plan, self.today)
         self.assertEqual(view['chosen_count'], 1)
-        self.assertEqual(view['day_totals']['kcal'], int(round(option.kcal / 5) * 5))
+        # El esperado se calcula con el mismo redondeo del código (kcal a múltiplos de 5, mitades hacia
+        # arriba). `round()` de Python redondea las mitades al par y esta prueba fallaba a veces
+        # (p. ej. 735 != 730 cuando la opción sumaba 732,5 kcal).
+        expected = rules_foods.round_totals(rules_foods.Totals(kcal=option.kcal))['kcal']
+        self.assertEqual(view['day_totals']['kcal'], expected)
         MealOption.objects.filter(pk=option.pk).update(is_active=False)
         self.assertIsNone(nutrition.day_view(self.client_a, self.plan, self.today)['day_totals'])
+
+    def test_day_view_kcal_rounds_halves_up_with_values_forced_to_the_tie(self):
+        """Determinista: se fuerzan las kcal de la opción elegida a valores que caen justo en la mitad
+        (el redondeo al par daría 730 con 732,5; el del código da 735)."""
+        option = self.slot.options.get(position=1)
+        nutrition.choose_option(self.client_a, self.slot.pk, option.pk, self.today)
+        for kcal, expected in (('732.5', 735), ('742.5', 745), ('737.5', 740), ('727.5', 730),
+                               ('732.4', 730), ('732.6', 735)):
+            with self.subTest(kcal=kcal):
+                MealOption.objects.filter(pk=option.pk).update(kcal=Decimal(kcal))
+                view = nutrition.day_view(self.client_a, self.plan, self.today)
+                self.assertEqual(view['day_totals']['kcal'], expected)
 
     def test_shopping_list_adds_up_the_week(self):
         rows, assumed = nutrition.shopping_list(self.client_a, self.plan)

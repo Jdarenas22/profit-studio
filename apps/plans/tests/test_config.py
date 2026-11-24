@@ -45,6 +45,39 @@ class ProductionAISettingsTests(SimpleTestCase):
         self.assertNotEqual(load_production(AI_PLANS_MODE='encendido')[0], 0)
         self.assertNotEqual(load_production(GEMINI_SCHEMA_FIELD='responseSchema')[0], 0)
 
+    # ── Modo trabajador (AI_PLANS_WORKER): apagado por defecto, booleano estricto ──────────────
+    def test_worker_mode_is_off_by_default_and_when_empty(self):
+        for raw in ('', '   '):
+            with self.subTest(raw=raw):
+                code, data, err = load_production(AI_PLANS_WORKER=raw)
+                self.assertEqual(code, 0, err)
+                self.assertIs(data['ai_worker'], False)
+                self.assertIs(data['ai_inline'], False)
+
+    def test_worker_mode_accepts_the_usual_true_and_false_spellings(self):
+        for raw, expected in (('true', True), ('TRUE', True), (' True ', True), ('1', True), ('yes', True),
+                              ('on', True), ('false', False), ('False', False), ('0', False), ('no', False),
+                              ('off', False)):
+            with self.subTest(raw=raw):
+                code, data, err = load_production(AI_PLANS_WORKER=raw)
+                self.assertEqual(code, 0, err)
+                self.assertIs(data['ai_worker'], expected)
+
+    def test_worker_mode_with_an_invalid_value_stops_the_server_and_names_only_the_variable(self):
+        for bad in ('quizas-worker-xyz', 'ture', '2', 'activar'):
+            with self.subTest(raw=bad):
+                code, _data, err = load_production(AI_PLANS_WORKER=bad)
+                self.assertNotEqual(code, 0)
+                self.assertIn('ImproperlyConfigured', err)
+                self.assertIn('AI_PLANS_WORKER debe ser true o false', err)
+                self.assertNotIn(bad + "'", err)           # el valor nunca se imprime
+
+    def test_worker_mode_does_not_touch_the_other_ai_switches(self):
+        code, data, err = load_production(AI_PLANS_WORKER='true')
+        self.assertEqual(code, 0, err)
+        self.assertIs(data['ai_worker'], True)
+        self.assertIs(data['ai_inline'], False)            # RUN_INLINE (pruebas) sigue siendo independiente
+
 
 def exercise_post(**overrides):
     data = {'name': 'Sentadilla búlgara', 'level': 'beginner', 'description': 'd', 'muscles': 'm'}

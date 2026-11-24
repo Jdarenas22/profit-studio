@@ -14,6 +14,7 @@ Termina con código distinto de cero si alguna comprobación da ERROR.
 import json
 import os
 from dataclasses import asdict, dataclass, field
+from datetime import date, timedelta
 from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
 
@@ -22,6 +23,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 from django.db import Error as DatabaseError
 from django.db import connection
+from django.utils import timezone
 
 from config import security
 
@@ -43,6 +45,30 @@ SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', *WOMPI_VARS, 'GEMIN
                         'WHATSAPP_CLOUD_ACCESS_TOKEN', 'WHATSAPP_CLOUD_APP_SECRET', 'WHATSAPP_CLOUD_VERIFY_TOKEN')
 
 NETWORK_TIMEOUT_SECONDS = 10
+
+# ─── Fin de soporte de PostgreSQL ─────────────────────────────────────────────────
+# Fuente oficial: https://www.postgresql.org/support/versioning/ (columna «Final Release»: el proyecto da
+# soporte 5 años a cada versión mayor; después publica una última versión menor y la versión queda sin
+# soporte). Tabla CONSULTADA el 2026-11-20. El chequeo compara estas fechas con el día de HOY, así que una
+# versión que va terminando su soporte pasa a AVISO sola, sin tocar el código; para una versión mayor más
+# nueva que la tabla da OK con una nota, y con la tabla de más de un año avisa que hay que revisarla.
+# Al actualizarla: copia las fechas de la fuente y cambia POSTGRES_SUPPORT_CONSULTED.
+POSTGRES_SUPPORT_SOURCE = 'https://www.postgresql.org/support/versioning/'
+POSTGRES_SUPPORT_CONSULTED = date(2026, 11, 20)
+POSTGRES_FINAL_RELEASE = {
+    13: date(2025, 11, 13),
+    14: date(2026, 11, 12),
+    15: date(2027, 11, 11),
+    16: date(2028, 11, 9),
+    17: date(2029, 11, 8),
+    18: date(2030, 11, 14),
+    19: date(2031, 11, 19),
+}
+POSTGRES_ENDING_SOON = timedelta(days=180)     # desde aquí se anota (sigue OK) que hay que planificar el salto
+POSTGRES_TABLE_STALE_AFTER = timedelta(days=365)
+
+# Trabajos de IA en cola: con el modo trabajador, más de 5 minutos sin que nadie los tome = no hay trabajador.
+QUEUED_STUCK_AFTER = timedelta(minutes=5)
 
 
 # ─── Modelo del resultado ─────────────────────────────────────────────────────────
@@ -97,6 +123,20 @@ def default_mail_connection_factory():
     return get_connection(fail_silently=False, timeout=NETWORK_TIMEOUT_SECONDS)
 
 
+def default_today():
+    """Hoy, en la zona horaria del proyecto (America/Bogota)."""
+    return timezone.localdate()
+
+
+def default_pg_version():
+    """`server_version_num` de PostgreSQL (p. ej. 160004 = 16.4). Django lo lee una vez por conexión."""
+    return connection.pg_version
+
+
+def database_vendor():
+    return connection.vendor
+
+
 @dataclass
 class Context:
     settings: Any
@@ -105,6 +145,8 @@ class Context:
     s3_client_factory: Callable = default_s3_client_factory
     mail_connection_factory: Callable = default_mail_connection_factory
     redis_ping: Callable = default_redis_ping
+    today: Callable = default_today
+    pg_version: Callable = default_pg_version
     db_ok: bool = field(default=True, init=False)
 
     @property
@@ -208,7 +250,7 @@ def pending_migrations(conn=None):
 
 
 def check_database(ctx):
-    vendor = connection.vendor
+    vendor = database_vendor()
     try:
         connection.ensure_connection()
     except DatabaseError as exc:
@@ -239,6 +281,68 @@ def check_database(ctx):
     else:
         results.append(Check('Base de datos', 'Migraciones', OK, 'Todas las migraciones están aplicadas.'))
     return results
+
+
+def split_pg_version(number):
+    """`server_version_num` -> (versión mayor, versión menor, texto). 160004 -> (16, 4, '16.4').
+    Antes de la 10 la mayor tiene dos cifras (90624 = 9.6.24) y se devuelve (9, 24, '9.6.24')."""
+    number = int(number)
+    if number >= 100000:
+        return number // 10000, number % 10000, f'{number // 10000}.{number % 10000}'
+    return number // 10000, number % 100, f'{number // 10000}.{number // 100 % 100}.{number % 100}'
+
+
+def postgres_support_end(major):
+    """(fecha de fin de soporte | None, conocida). Una versión mayor anterior a las de la tabla ya está
+    fuera de soporte (fecha None, conocida); una más nueva que la tabla es desconocida."""
+    if major in POSTGRES_FINAL_RELEASE:
+        return POSTGRES_FINAL_RELEASE[major], True
+    if major < min(POSTGRES_FINAL_RELEASE):
+        return None, True
+    return None, False
+
+
+def check_postgres_version(ctx):
+    """Versión de PostgreSQL contra la tabla de fin de soporte (solo con PostgreSQL; solo lectura).
+
+    Muestra únicamente mayor.menor: nunca el host, el usuario ni la clave. Compara con la fecha de HOY."""
+    area, name = 'Base de datos', 'Versión de PostgreSQL'
+    if not ctx.db_ok or database_vendor() != 'postgresql':
+        return []
+    try:
+        major, _minor, text = split_pg_version(ctx.pg_version())
+    except Exception as exc:  # noqa: BLE001 — nunca se muestra el mensaje (puede traer datos de la conexión)
+        return [Check(area, name, WARN, f'No se pudo leer la versión del servidor ({type(exc).__name__}).',
+                      'Revisa la conexión y vuelve a ejecutar esta revisión.')]
+    today = ctx.today()
+    end, known = postgres_support_end(major)
+    source = (f'Fechas de {POSTGRES_SUPPORT_SOURCE}, consultadas el {POSTGRES_SUPPORT_CONSULTED.isoformat()}.')
+    stale = ''
+    if today - POSTGRES_SUPPORT_CONSULTED > POSTGRES_TABLE_STALE_AFTER:
+        stale = (' La tabla de fechas tiene más de un año: confírmala en esa dirección y actualiza '
+                 'POSTGRES_FINAL_RELEASE en apps/public/management/commands/check_infra.py.')
+    if not known:
+        return [Check(area, name, OK,
+                      f'PostgreSQL {text}: la versión mayor {major} es más nueva que la tabla de fechas de esta '
+                      'revisión; se asume con soporte.',
+                      f'Confirma su fecha de fin de soporte en {POSTGRES_SUPPORT_SOURCE} y agrégala a '
+                      'POSTGRES_FINAL_RELEASE (apps/public/management/commands/check_infra.py).' + stale)]
+    if end is None or today >= end:
+        since = f'terminó su soporte el {end.isoformat()}' if end else 'es anterior a las de la tabla y ya no tiene soporte'
+        return [Check(area, name, WARN,
+                      f'PostgreSQL {text}: la versión mayor {major} {since}: ya no recibe correcciones de '
+                      'seguridad.',
+                      'La web sigue funcionando (Django 5.2 exige PostgreSQL 14 o superior), pero conviene '
+                      'planificar el salto a una versión con soporte (15 o más reciente). Antes, una copia de '
+                      'seguridad (docs/BACKUPS.md); el procedimiento de actualización está en docs/DEPLOY.md, '
+                      'sección 13. ' + source + stale)]
+    remaining = end - today
+    soon = ''
+    if remaining <= POSTGRES_ENDING_SOON:
+        soon = (f' Su soporte termina pronto ({end.isoformat()}): planifica el salto a una versión más reciente '
+                '(docs/DEPLOY.md, sección 13) con una copia de seguridad antes (docs/BACKUPS.md).')
+    return [Check(area, name, OK, f'PostgreSQL {text}: la versión mayor {major} tiene soporte hasta el '
+                                  f'{end.isoformat()}.', (source + soon + stale).strip())]
 
 
 def check_connection_reuse(ctx):
@@ -651,6 +755,52 @@ def check_ai_plans(ctx):
     return results
 
 
+def stuck_queued_job_count():
+    """Trabajos de IA en `queued` desde hace más de QUEUED_STUCK_AFTER (solo lectura)."""
+    from apps.plans import jobs
+
+    return jobs.queued_older_than(QUEUED_STUCK_AFTER)
+
+
+def check_ai_execution(ctx):
+    """Dónde corren los trabajos de IA: hilos del servidor web (AI_PLANS_WORKER=False, lo normal) o un
+    servicio trabajador aparte (`process_plan_jobs --loop`). Con trabajador, avisa si hay trabajos en cola
+    de más de 5 minutos: señal de que ese servicio no está corriendo. Ver docs/DEPLOY.md, sección 12."""
+    area, name = 'IA', 'Ejecución de trabajos'
+    if not getattr(ctx.settings, 'AI_PLANS_WORKER', False):
+        return [Check(area, name, OK,
+                      'Hilos en el servidor web: cada trabajo de IA corre en un hilo del proceso web (sin '
+                      'servicio aparte).',
+                      'Para sacarlos de la web existe el modo trabajador (AI_PLANS_WORKER=true + un servicio '
+                      'con `python manage.py process_plan_jobs --loop`). Cuesta crédito las 24 horas y '
+                      'mantiene despierto a Postgres: ver docs/DEPLOY.md, sección 12.')]
+    results = [Check(area, name, OK,
+                     'Trabajador aparte (AI_PLANS_WORKER=true): la web deja los trabajos en cola y los toma '
+                     'el servicio que corre `python manage.py process_plan_jobs --loop`.',
+                     'Ese servicio consulta la base cada pocos segundos: mantiene despierto a Postgres y gasta '
+                     'crédito las 24 horas (docs/DEPLOY.md, sección 12).')]
+    if not ctx.db_ok:
+        return results
+    try:
+        stuck = stuck_queued_job_count()
+    except DatabaseError:
+        return results + [Check(area, 'Trabajos en cola', WARN,
+                                'No se pudo leer la cola (¿faltan migraciones?).')]
+    if stuck:
+        minutes = int(QUEUED_STUCK_AFTER.total_seconds() // 60)
+        results.append(Check(area, 'Trabajos en cola', WARN,
+                             f'{stuck} trabajo(s) llevan más de {minutes} minutos en cola: el servicio trabajador '
+                             'no está corriendo (o no da abasto).',
+                             'En Railway revisa que exista el servicio trabajador (comando de inicio `python '
+                             'manage.py process_plan_jobs --loop`), que esté activo (sin App Sleeping) y con '
+                             'las mismas variables que la web, y mira sus logs. Si ya no lo quieres, quita '
+                             'AI_PLANS_WORKER de la web.'))
+    else:
+        results.append(Check(area, 'Trabajos en cola', OK,
+                             f'Ninguno lleva más de {int(QUEUED_STUCK_AFTER.total_seconds() // 60)} minutos en cola.'))
+    return results
+
+
 def whatsapp_state(settings_):
     """(modo, variables que faltan, pendientes legales, canal pausado, plantillas pausadas, fallidos 24 h).
     Misma regla que apps.whatsapp.conf, leída del objeto de settings recibido (las pruebas usan uno falso)."""
@@ -734,6 +884,7 @@ CHECKS = (
     check_settings,
     check_secret_key_and_hosts,
     check_database,
+    check_postgres_version,
     check_connection_reuse,
     check_r2,
     check_wompi,
@@ -742,6 +893,7 @@ CHECKS = (
     check_superuser,
     check_health_switches,
     check_ai_plans,
+    check_ai_execution,
     check_whatsapp,
 )
 
@@ -822,6 +974,8 @@ class Command(BaseCommand):
             s3_client_factory=default_s3_client_factory,
             mail_connection_factory=default_mail_connection_factory,
             redis_ping=default_redis_ping,
+            today=default_today,
+            pg_version=default_pg_version,
         )
 
     def handle(self, *args, **options):

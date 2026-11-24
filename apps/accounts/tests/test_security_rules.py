@@ -65,6 +65,25 @@ class StrictFlagTests(SimpleTestCase):
             security.parse_strict_flag('quizas')
 
 
+class BoolFlagTests(SimpleTestCase):
+    """`parse_bool_flag`: booleano estricto compartido por SECURITY_STRICT_SECRETS y AI_PLANS_WORKER."""
+
+    def test_same_spellings_as_the_strict_flag(self):
+        for raw in ('true', 'TRUE', ' True ', '1', 'yes', 'on', 'si', 'sí'):
+            self.assertTrue(security.parse_bool_flag('AI_PLANS_WORKER', raw), raw)
+        for raw in ('', '  ', None, 'false', 'False', '0', 'no', 'off'):
+            self.assertFalse(security.parse_bool_flag('AI_PLANS_WORKER', raw), raw)
+
+    def test_unknown_value_names_the_variable_and_never_the_value(self):
+        with self.assertRaises(ValueError) as ctx:
+            security.parse_bool_flag('AI_PLANS_WORKER', 'quizas-valor-secreto')
+        self.assertEqual(str(ctx.exception), 'AI_PLANS_WORKER debe ser true o false.')
+
+    def test_the_strict_flag_keeps_its_own_name_in_the_message(self):
+        with self.assertRaisesMessage(ValueError, 'SECURITY_STRICT_SECRETS debe ser true o false.'):
+            security.parse_strict_flag('quizas')
+
+
 class ReceiptsBucketRuleTests(SimpleTestCase):
     def test_missing_same_and_valid(self):
         self.assertEqual(security.receipts_bucket_problem('media', ''), 'missing')
