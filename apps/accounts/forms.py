@@ -413,3 +413,44 @@ class TrainerEraseForm(_ReassignMixin, EraseAccountForm):
     def __init__(self, *args, client_count, targets, **kwargs):
         super().__init__(*args, **kwargs)
         self._setup_reassign(client_count, targets)
+
+
+# ─── Transferir la administración (docs/contracts/transferir-administracion.md) ──────────────
+
+TRANSFER_PICK_MESSAGE = 'Elige a quién entregar la administración.'
+TRANSFER_PASSWORD_REQUIRED_MESSAGE = 'Escribe tu contraseña para confirmar.'
+TRANSFER_CONFIRM_MESSAGE = 'Marca la casilla para confirmar que entiendes el cambio.'
+
+
+class TransferAdminForm(forms.Form):
+    """Quién recibe la administración (`new_admin`), la contraseña de quien entrega (`password`) y la
+    casilla de confirmación (`confirm`). `new_admin` solo acepta a los entrenadores elegibles
+    (`candidates`); cualquier otro valor es un error de campo, nunca un 500."""
+
+    new_admin = forms.CharField(
+        label='Nueva administradora', max_length=20,
+        error_messages={'required': TRANSFER_PICK_MESSAGE, 'max_length': TRANSFER_PICK_MESSAGE},
+    )
+    password = forms.CharField(
+        label='Tu contraseña', strip=False, max_length=PASSWORD_MAX,
+        widget=forms.PasswordInput(render_value=False),
+        error_messages={'required': TRANSFER_PASSWORD_REQUIRED_MESSAGE,
+                        'max_length': account_services.TRANSFER_PASSWORD_MESSAGE},
+    )
+    confirm = forms.BooleanField(
+        label='Entiendo que dejaré de ser la administradora', required=True,
+        error_messages={'required': TRANSFER_CONFIRM_MESSAGE},
+    )
+
+    def __init__(self, *args, candidates, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.candidates = candidates
+
+    def clean_new_admin(self):
+        value = (self.cleaned_data.get('new_admin') or '').strip()
+        if not _PK_PATTERN.match(value):
+            raise ValidationError(TRANSFER_PICK_MESSAGE)
+        target = self.candidates.filter(pk=int(value)).first()
+        if target is None:
+            raise ValidationError(account_services.TRANSFER_TARGET_MESSAGE)
+        return target

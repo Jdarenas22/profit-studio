@@ -20,10 +20,14 @@ REASON_CODES = tuple(code for code, _label in REASON_CHOICES)
 ACTION_DEACTIVATE = 'deactivate'
 ACTION_REACTIVATE = 'reactivate'
 ACTION_ERASE = 'erase'
+# Traspaso de la administración (docs/contracts/transferir-administracion.md): `actor` = quien
+# entrega, `target` = quien recibe.
+ACTION_TRANSFER_ADMIN = 'transfer_admin'
 ACTION_CHOICES = [
     (ACTION_DEACTIVATE, 'Desactivar'),
     (ACTION_REACTIVATE, 'Reactivar'),
     (ACTION_ERASE, 'Eliminar definitivamente'),
+    (ACTION_TRANSFER_ADMIN, 'Transferir la administración'),
 ]
 
 # Filtro de las listas del panel (?status=)

@@ -1,0 +1,191 @@
+{% extends "trainer/base.html" %}
+{% comment %}
+  T-01 «Transferir la administración» (solo la superusuaria). Contrato: docs/contracts/transferir-administracion.md
+  y docs/contracts/requests.md, «Transferir la administración: pantalla T-01».
+  Contexto: targets (entrenadores elegibles; sin preselección), kept_clients_count, errors
+  ({'new_admin', 'password', 'confirm'}; las tres se pintan junto a su campo y en el resumen: ADMIN_TRANSFER_RENDERED),
+  form ({'new_admin': '…'}). La contraseña NUNCA vuelve a la plantilla.
+  Acción delicada pero reversible por quien la recibe: amarillo de advertencia, no rojo de peligro.
+{% endcomment %}
+{% block title %}Transferir la administración — ProFit Studio{% endblock %}
+
+{% block trainer_content %}
+<div class="max-w-2xl">
+
+  <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-2 text-white/60 text-sm mb-6">
+    <a href="{% url 'trainer_staff_list' %}" class="rounded hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Entrenadores</a>
+    <i class="fa fa-chevron-right text-xs" aria-hidden="true"></i>
+    <span class="text-white/80" aria-current="page">Transferir la administración</span>
+  </nav>
+
+  <header class="flex items-start gap-4 mb-6">
+    <div class="w-12 h-12 shrink-0 rounded-2xl bg-yellow-500/15 flex items-center justify-center">
+      <i class="fa fa-user-shield text-yellow-300 text-xl" aria-hidden="true"></i>
+    </div>
+    <div class="min-w-0">
+      <h1 class="text-2xl font-black text-white">Transferir la administración</h1>
+      <p class="text-white/80 text-sm leading-relaxed mt-2">
+        Le entregas la administración del estudio a otra persona del equipo. No se agrega una segunda administradora:
+        cambia quién lo es, y tú pasas a ser entrenador/a común.
+      </p>
+    </div>
+  </header>
+
+  {% if errors.new_admin or errors.password or errors.confirm %}
+  <div id="acct-errors" role="alert" tabindex="-1" autofocus
+       class="mb-6 rounded-2xl border border-red-500/50 bg-red-500/10 px-4 py-4 sm:px-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+    <h2 class="flex items-center gap-2 text-red-100 text-sm font-bold">
+      <i class="fa fa-circle-exclamation text-red-300" aria-hidden="true"></i> Revisa lo siguiente antes de continuar
+    </h2>
+    <ul class="mt-2 space-y-1 text-sm">
+      {% if errors.new_admin %}<li><a href="#acct-new_admin" class="text-red-100 underline underline-offset-2 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Quién recibe la administración: {{ errors.new_admin }}</a></li>{% endif %}
+      {% if errors.password %}<li><a href="#acct-password" class="text-red-100 underline underline-offset-2 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Contraseña: {{ errors.password }}</a></li>{% endif %}
+      {% if errors.confirm %}<li><a href="#acct-confirm" class="text-red-100 underline underline-offset-2 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Confirmación: {{ errors.confirm }}</a></li>{% endif %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if targets %}
+  <!-- Qué cambia para cada persona -->
+  <section aria-labelledby="changes-title" class="mb-6">
+    <h2 id="changes-title" class="text-white font-bold mb-3">Qué cambia</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="rounded-2xl border border-primary/30 bg-primary/10 p-4 sm:p-5">
+        <h3 class="flex items-center gap-2 text-white text-sm font-bold">
+          <i class="fa fa-crown text-primary" aria-hidden="true"></i> La persona que elijas
+        </h3>
+        <ul class="mt-3 space-y-2 text-white/80 text-sm leading-snug">
+          <li class="flex items-start gap-2"><i class="fa fa-check text-primary text-xs mt-1 shrink-0" aria-hidden="true"></i><span>Pasa a ser la administradora.</span></li>
+          <li class="flex items-start gap-2"><i class="fa fa-check text-primary text-xs mt-1 shrink-0" aria-hidden="true"></i><span>Ve Pagos y Entrenadores, y todas las clientas.</span></li>
+          <li class="flex items-start gap-2"><i class="fa fa-check text-primary text-xs mt-1 shrink-0" aria-hidden="true"></i><span>Es quien asigna las clientas a cada entrenador/a.</span></li>
+        </ul>
+      </div>
+      <div class="rounded-2xl border border-white/10 bg-zinc-900 p-4 sm:p-5">
+        <h3 class="flex items-center gap-2 text-white text-sm font-bold">
+          <i class="fa fa-user text-white/70" aria-hidden="true"></i> Tú
+        </h3>
+        <ul class="mt-3 space-y-2 text-white/80 text-sm leading-snug">
+          <li class="flex items-start gap-2"><i class="fa fa-check text-white/60 text-xs mt-1 shrink-0" aria-hidden="true"></i><span>Sigues entrenando como entrenador/a común.</span></li>
+          <li class="flex items-start gap-2"><i class="fa fa-check text-white/60 text-xs mt-1 shrink-0" aria-hidden="true"></i>
+            <span>{% if kept_clients_count == 1 %}Conservas a tu clienta asignada.{% elif kept_clients_count %}Conservas tus {{ kept_clients_count }} clientas asignadas.{% else %}Hoy no tienes clientas asignadas; eso no cambia.{% endif %}</span>
+          </li>
+          <li class="flex items-start gap-2"><i class="fa fa-minus text-white/60 text-xs mt-1 shrink-0" aria-hidden="true"></i><span>Dejas de ver Pagos y Entrenadores.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <p role="note" class="mt-3 flex items-start gap-3 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-yellow-100 text-sm leading-relaxed">
+      <i class="fa fa-triangle-exclamation text-yellow-300 mt-0.5 shrink-0" aria-hidden="true"></i>
+      <span><strong class="font-bold">No puedes deshacerlo tú misma.</strong> Solo la nueva administradora podría devolverte la administración desde esta misma pantalla.</span>
+    </p>
+  </section>
+
+  <form method="post" action="{% url 'trainer_admin_transfer' %}"
+        aria-labelledby="transfer-form-title"
+        x-data="{ sending: false }" @submit="if (sending) { $event.preventDefault() } else { sending = true }" @pageshow.window="sending = false"
+        class="rounded-2xl border border-white/10 bg-zinc-900 p-5 sm:p-6 space-y-5">
+    {% csrf_token %}
+    <h2 id="transfer-form-title" class="text-white font-bold">Confirma el traspaso</h2>
+
+    <div>
+      <label for="acct-new_admin" class="block text-white/90 text-sm font-semibold mb-2">
+        ¿Quién recibe la administración? <span class="text-red-300" aria-hidden="true">*</span>
+      </label>
+      <select id="acct-new_admin" name="new_admin" required
+              aria-describedby="acct-new_admin-help{% if errors.new_admin %} acct-new_admin-error{% endif %}"{% if errors.new_admin %} aria-invalid="true"{% endif %}
+              class="w-full min-h-[48px] bg-zinc-950 [color-scheme:dark] border {% if errors.new_admin %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-base sm:text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+        <option value="">Elige un entrenador/a</option>
+        {% for t in targets %}<option value="{{ t.pk }}"{% if form.new_admin == t.pk|stringformat:"d" %} selected{% endif %}>{{ t.display_name }}</option>{% endfor %}
+      </select>
+      {% if errors.new_admin %}
+      <p id="acct-new_admin-error" class="mt-2 flex items-start gap-1.5 text-red-300 text-sm">
+        <i class="fa fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ errors.new_admin }}</span>
+      </p>
+      {% endif %}
+      <p id="acct-new_admin-help" class="mt-2 text-white/60 text-xs leading-relaxed">
+        Solo aparecen entrenadores con la cuenta activa. Si falta alguien, agrégalo primero en Entrenadores.
+      </p>
+    </div>
+
+    <div>
+      <label for="acct-password" class="block text-white/90 text-sm font-semibold mb-2">
+        Tu contraseña <span class="text-red-300" aria-hidden="true">*</span>
+      </label>
+      <input id="acct-password" name="password" type="password" required maxlength="128"
+             autocomplete="current-password"
+             aria-describedby="acct-password-help{% if errors.password %} acct-password-error{% endif %}"{% if errors.password %} aria-invalid="true"{% endif %}
+             class="w-full min-h-[48px] bg-black/40 border {% if errors.password %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-base sm:text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+      {% if errors.password %}
+      <p id="acct-password-error" class="mt-2 flex items-start gap-1.5 text-red-300 text-sm">
+        <i class="fa fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ errors.password }}</span>
+      </p>
+      {% endif %}
+      <p id="acct-password-help" class="mt-2 text-white/60 text-xs leading-relaxed">
+        Es la misma con la que inicias sesión. Por seguridad, después de varios intentos fallidos tendrás que esperar un rato.
+      </p>
+    </div>
+
+    <div>
+      <div class="flex items-start gap-3 rounded-xl border {% if errors.confirm %}border-red-500{% else %}border-white/10{% endif %} bg-black/30 px-4 py-3">
+        <input type="checkbox" id="acct-confirm" name="confirm" value="on" required
+               {% if errors.confirm %}aria-invalid="true" aria-describedby="acct-confirm-error"{% endif %}
+               class="mt-0.5 w-5 h-5 shrink-0 accent-orange-500 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        <label for="acct-confirm" class="text-white text-sm leading-snug cursor-pointer">Entiendo que dejaré de ser la administradora y que solo quien la recibe puede devolvérmela</label>
+      </div>
+      {% if errors.confirm %}
+      <p id="acct-confirm-error" class="mt-2 flex items-start gap-1.5 text-red-300 text-sm">
+        <i class="fa fa-circle-exclamation mt-0.5 shrink-0" aria-hidden="true"></i><span>{{ errors.confirm }}</span>
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- Qué pasa después -->
+    <div class="rounded-xl bg-white/5 px-4 py-4">
+      <h3 class="flex items-center gap-2 text-white text-sm font-bold">
+        <i class="fa fa-route text-primary" aria-hidden="true"></i> Después del cambio
+      </h3>
+      <ol class="mt-2 space-y-1.5 text-white/70 text-sm leading-snug list-decimal pl-5">
+        <li>Vuelves a tu panel de entrenador/a, ya sin Pagos ni Entrenadores. Nadie pierde la sesión.</li>
+        <li>Avísale a la nueva administradora para que entre y revise Pagos y Entrenadores.</li>
+        <li>En la página «Nosotros», la insignia «Entrenadora Principal» pasa a ella.</li>
+      </ol>
+    </div>
+
+    <div class="pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center gap-3">
+      <button type="submit" :aria-disabled="sending.toString()"
+              class="inline-flex items-center justify-center gap-2 min-h-[48px] bg-yellow-400 hover:bg-yellow-300 text-black text-sm font-bold px-6 rounded-xl transition-colors aria-disabled:opacity-60 aria-disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+        <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-user-shield'" aria-hidden="true"></i>
+        <span x-text="sending ? 'Transfiriendo...' : 'Transferir la administración'">Transferir la administración</span>
+      </button>
+      <a href="{% url 'trainer_staff_list' %}"
+         class="inline-flex items-center justify-center min-h-[48px] bg-white/10 hover:bg-white/20 text-white text-sm font-semibold px-6 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        Cancelar
+      </a>
+    </div>
+  </form>
+
+  {% else %}
+  <!-- Estado vacío: no hay a quién entregarla -->
+  <section aria-labelledby="empty-title" class="text-center py-12 bg-zinc-900 border border-white/10 rounded-2xl px-4 sm:px-8">
+    <div class="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <i class="fa fa-user-plus text-white/40 text-xl" aria-hidden="true"></i>
+    </div>
+    <h2 id="empty-title" class="text-white font-bold text-lg mb-2">Todavía no hay a quién entregarla</h2>
+    <p class="text-white/70 text-sm leading-relaxed max-w-md mx-auto mb-6">
+      La administración solo se puede entregar a otro entrenador/a con la cuenta activa.
+      Primero crea a esa persona en «Agregar entrenador/a» y luego vuelve aquí.
+    </p>
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+      <a href="{% url 'trainer_create_trainer' %}"
+         class="inline-flex items-center justify-center gap-2 min-h-[44px] w-full sm:w-auto bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-5 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+        <i class="fa fa-user-plus" aria-hidden="true"></i> Agregar entrenador/a
+      </a>
+      <a href="{% url 'trainer_staff_list' %}"
+         class="inline-flex items-center justify-center min-h-[44px] w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white text-sm font-semibold px-5 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        Volver a Entrenadores
+      </a>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
