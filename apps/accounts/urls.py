@@ -53,6 +53,8 @@ urlpatterns = [
     # ── Gestión de entrenadores (solo Yiseth) ──────────────────────────────────
     path('trainer/staff/', views.trainer_staff_list, name='trainer_staff_list'),
     path('trainer/staff/create/', views.trainer_create_trainer, name='trainer_create_trainer'),
+    # Transferir la administración a otro entrenador (docs/contracts/transferir-administracion.md)
+    path('trainer/staff/transfer-admin/', views.trainer_admin_transfer, name='trainer_admin_transfer'),
     path('trainer/staff/<int:pk>/edit/', views.trainer_edit_trainer, name='trainer_edit_trainer'),
     path('trainer/staff/<int:pk>/deactivate/', views.trainer_staff_deactivate, name='trainer_staff_deactivate'),
     path('trainer/staff/<int:pk>/reactivate/', views.trainer_staff_reactivate, name='trainer_staff_reactivate'),

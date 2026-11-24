@@ -56,6 +56,7 @@ El modelo `User` extiende `AbstractUser` con campo `role` ('trainer' / 'member')
 - Solo `is_superuser` puede crear/editar otros trainers y asignar clientes
 - `is_superuser` ve todos los clientes y es la única que los asigna; otros trainers ven SOLO los asignados (`assigned_trainer=request.user`). Los clientes auto-registrados quedan sin asignar (solo los ve la superusuaria); los que crea un trainer con "Agregar cliente" quedan asignados a ese trainer
 - Toda vista que reciba el pk de un cliente (o de una valoración, rutina, membresía, medición o pago manual) debe usar `apps/accounts/permissions.py` (`get_client_for_trainer`, `clients_for_trainer`, `ensure_client_access`); lo no accesible responde 404
+- La administración se cambia sin consola con «Transferir la administración» (`trainer_admin_transfer`, solo la superusuaria; `docs/contracts/transferir-administracion.md`): `is_superuser` pasa a otro entrenador activo y ella queda como entrenadora común con sus clientas. Ver "Desactivar y eliminar cuentas"
 
 ```python
 # Propiedades clave del User
@@ -250,4 +251,5 @@ Prompts meal/5 y meal/6; las notas libres de alimentación no se envían al prov
 - El admin de usuarios no borra (sin botón ni acción masiva) y deja `is_active`/`is_superuser` de solo lectura. `python manage.py purge_orphan_files [--delete]` cuenta o borra fotos y comprobantes que ninguna fila usa.
 - Pantallas C-01 a C-08 entregadas (`docs/contracts/requests.md`); parciales comunes en `templates/trainer/partials/account_*.html` y `person_name.html`. Los errores que una plantilla pinta junto al campo van en las listas `*_RENDERED` de `apps/accounts/views.py` para no repetirlos arriba.
 
-Optimización de recursos y grafo GitHub (2026-11-24): `docs/auditorias/2026-11-24-github-recursos.md`. El ejecutor rápido es exclusivo de pruebas; no cambiar hashers de la aplicación. En web hay dos generaciones activas como máximo por proceso; el resto permanece en la base. Tras cambiar requirements, regenerar y publicar el snapshot verificado: un envío manual tiene prioridad sobre análisis estático. No se añadió workflow con permisos de escritura.
+
+- **Transferir la administración** (`services.transfer_admin`, auditoría `transfer_admin`): contraseña de nuevo + casilla de confirmación, 5 intentos cada 15 min, transacción con `select_for_update()` sobre las dos filas. La antigua queda con `is_superuser=False` e `is_staff=True` (como cualquier entrenador), conserva sus clientas y no se cierra ninguna sesión (Django relee la cuenta en cada petición); siempre queda una superusuaria activa. `create_trainer --superuser` (lo corre `start.sh` en cada despliegue) no promueve ni crea a nadie si ya hay otra superusuaria activa, para no deshacer el traspaso. La insignia pública «Entrenadora Principal» de «Nosotros» sigue a `is_superuser`.

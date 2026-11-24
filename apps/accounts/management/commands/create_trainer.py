@@ -30,6 +30,19 @@ class Command(BaseCommand):
         password = options['password']
         make_superuser = options['superuser']
 
+        # start.sh corre este comando en CADA despliegue con --superuser. Si la administración ya se
+        # entregó a otra persona (panel: Entrenadores > Transferir la administración), no se vuelve
+        # a promover ni a crear a «username»: se desharía el traspaso en el siguiente despliegue.
+        # Sin ninguna otra superusuaria activa (arranque inicial o recuperación) funciona como siempre.
+        if make_superuser and User.objects.filter(
+            role=User.ROLE_TRAINER, is_superuser=True, is_active=True, erased_at__isnull=True,
+        ).exclude(username=username).exists():
+            self.stdout.write(self.style.WARNING(
+                f'Ya hay otra superusuaria activa: no se crea ni se promueve a "{username}". '
+                'La administración se cambia desde el panel (Entrenadores > Transferir la administración).'
+            ))
+            return
+
         if User.objects.filter(username=username).exists():
             if make_superuser:
                 # Si ya existe pero le faltan permisos de superusuario, los aplicamos
