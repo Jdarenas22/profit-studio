@@ -842,6 +842,8 @@ def _render_transfer(request, candidates, errors, form_data, status=200):
 @require_http_methods(['GET', 'POST'])
 @never_cache
 @superuser_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def trainer_admin_transfer(request):
     """Transferir la administración: la superusuaria se la entrega a otro entrenador activo y pasa a
     ser un entrenador común. GET muestra el formulario; POST transfiere (contraseña de nuevo + casilla)."""

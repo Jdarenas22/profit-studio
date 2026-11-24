@@ -50,7 +50,7 @@ class PasswordWidgetTests(SimpleTestCase):
     def test_password_widgets_hide_and_never_repopulate_values(self):
         for form_class in (forms.RegisterForm, forms.TrainerAddClientForm,
                            forms.TrainerClientEditForm, forms.MemberProfileForm,
-                           forms.TrainerCreateTrainerForm):
+                           forms.TrainerCreateTrainerForm, forms.TransferAdminForm):
             for name, field in form_class.base_fields.items():
                 if name not in views.PASSWORD_FIELDS:
                     continue
@@ -71,6 +71,7 @@ class CredentialResponseTests(ScenarioTestCase):
             ('trainer_client_edit', (self.client_a.pk,), self.boss),
             ('member_profile_edit', (), self.client_a),
             ('trainer_create_trainer', (), self.boss),
+            ('trainer_admin_transfer', (), self.boss),
         ]
         for route, args, actor in cases:
             with self.subTest(route=route):

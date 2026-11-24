@@ -71,3 +71,17 @@ Fuentes oficiales:
 
 - [Almacenamiento y actualización de contraseñas de Django 5.2](https://docs.djangoproject.com/en/5.2/topics/auth/passwords/).
 - [Filtrado de información sensible en informes de error](https://docs.djangoproject.com/en/5.2/howto/error-reporting/#filtering-sensitive-information).
+
+
+## Integración con la transferencia de administración de Claude
+
+Se incorporó main con PR #43 (commit da45e4b) mientras se cerraba esta auditoría. Se conservaron
+el formulario de transferencia, el servicio, los controles de contraseña/permisos y sus pruebas.
+Su campo ya usaba PasswordInput y su contexto ya excluía la clave. Se añadieron además los mismos
+decoradores de información sensible al nuevo endpoint, y quedó cubierto por las pruebas de widgets,
+POST ocultos y ausencia de claves en respuestas.
+
+La migración accounts 0006 pertenece a main: añade la opción transfer_admin al registro de auditoría,
+sin cambios de contraseñas o permisos de cuentas. No se editó esa migración. Se regeneró CSS después
+de combinar las plantillas, conservando la documentación de ambas entregas. El resultado anterior
+de 1.808 pruebas corresponde al estado anterior a integrar main; el CI final registra la suite combinada.
