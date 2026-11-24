@@ -469,6 +469,15 @@ class MealOptionItem(models.Model):
         ordering = ['order', 'pk']
 
 
+class GeminiDailyUsage(models.Model):
+    """Presupuesto global de llamadas reales, sin datos de las personas."""
+    day = models.DateField(unique=True)
+    calls = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-day']
+
+
 class MealChoice(models.Model):
     """La opción que la clienta eligió para una comida de un día (adherencia en la fase D)."""
     client = models.ForeignKey(

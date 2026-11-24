@@ -31,13 +31,13 @@ class ProductionAISettingsTests(SimpleTestCase):
                 ({'GEMINI_API_KEY': KEY}, 'GEMINI_MODEL'),
                 ({'GEMINI_API_KEY': KEY, 'GEMINI_MODEL': 'm'}, 'GEMINI_BILLING_CONFIRMED=true')):
             with self.subTest(missing=missing):
-                code, _data, err = load_production(AI_PLANS_MODE='live', **overrides)
+                code, _data, err = load_production(AI_PLANS_MODE='live', GEMINI_ACCESS_TIER='paid', **overrides)
                 self.assertNotEqual(code, 0)
                 self.assertIn(missing, err)
                 self.assertNotIn(KEY, err)
 
     def test_live_complete_loads(self):
-        code, _data, err = load_production(AI_PLANS_MODE='live', GEMINI_API_KEY=KEY, GEMINI_MODEL='m',
+        code, _data, err = load_production(AI_PLANS_MODE='live', GEMINI_ACCESS_TIER='paid', GEMINI_API_KEY=KEY, GEMINI_MODEL='m',
                                            GEMINI_BILLING_CONFIRMED='true')
         self.assertEqual(code, 0, err)
 
@@ -139,7 +139,7 @@ class CheckInfraAITests(TestCase):
         self.assertIn(('AI_PLANS_MODE', ci.WARN), self.run_check(AI_PLANS_MODE='simulated'))
         self.assertIn(('AI_PLANS_MODE', ci.ERROR), self.run_check(AI_PLANS_MODE='live', GEMINI_API_KEY=''))
         self.assertIn(('AI_PLANS_MODE', ci.OK), self.run_check(
-            AI_PLANS_MODE='live', GEMINI_API_KEY=KEY, GEMINI_MODEL='m', GEMINI_BILLING_CONFIRMED=True,
+            AI_PLANS_MODE='live', GEMINI_ACCESS_TIER='paid', GEMINI_API_KEY=KEY, GEMINI_MODEL='m', GEMINI_BILLING_CONFIRMED=True,
             HEALTH_FEATURES_ENABLED=True))
 
     def test_untagged_exercises_warn(self):
@@ -176,7 +176,7 @@ class CheckInfraAITests(TestCase):
             self.assertIn(KEY, ci.collect_secrets(ctx))
 
 
-class CheckGeminiCommandTests(SimpleTestCase):
+class CheckGeminiCommandTests(TestCase):
     def run_command(self, result=None, error=None):
         from unittest import mock
 
@@ -187,7 +187,7 @@ class CheckGeminiCommandTests(SimpleTestCase):
                 raise error
             return result(kwargs['payload'])
         out = StringIO()
-        with override_settings(GEMINI_API_KEY=KEY, GEMINI_MODEL='m', GEMINI_BILLING_CONFIRMED=True), \
+        with override_settings(GEMINI_ACCESS_TIER='paid', GEMINI_API_KEY=KEY, GEMINI_MODEL='m', GEMINI_BILLING_CONFIRMED=True), \
                 mock.patch.object(GeminiClient, 'generate_json', fake_generate):
             call_command('check_gemini', stdout=out)
         return out.getvalue()

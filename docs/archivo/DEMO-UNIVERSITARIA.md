@@ -1,3 +1,9 @@
+# Documento histórico retirado de ejecución
+
+Este procedimiento fue reemplazado por `docs/EJECUCION-INTEGRADA.md`.
+No ejecutar sus comandos: la aplicación actual no utiliza settings, rutas ni bases de demo.
+Se conserva únicamente como evidencia del desarrollo anterior.
+
 # Demostración universitaria de ProFit Studio
 
 Esta entrega permite mostrar planes alimenticios y rutinas con perfiles ficticios, sin preparar

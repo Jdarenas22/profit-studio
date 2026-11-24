@@ -2,11 +2,10 @@
 
 Modos (`AI_PLANS_MODE`):
 - `off` (por defecto en producción): la función no se ofrece.
-- `simulated` (por defecto con DEBUG): `FakeAIClient`, sin red ni costo; los planes quedan
+- `simulated` (solo para pruebas automatizadas): `FakeAIClient`, sin red ni costo; los planes quedan
   marcados "MODO DE PRUEBA" y no se pueden aprobar fuera de DEBUG.
-- `demo`: Gemini real, solo en config.settings.demo con perfiles ficticios y Free confirmado.
 - `live`: `GeminiClient`. production.py no arranca en `live` sin `GEMINI_API_KEY`,
-  `GEMINI_MODEL` y `GEMINI_BILLING_CONFIRMED=true`.
+  `GEMINI_MODEL` y un nivel Free confirmado o pago explícitamente confirmado.
 
 Las pruebas reemplazan el cliente con `mock.patch('apps.plans.ai.get_ai_client', ...)` o con
 `override_settings(AI_PLANS_MODE='simulated')`.
@@ -18,15 +17,14 @@ from .base import AIBlockedError, AIClient, AIError, AIInvalidOutput, AIPermanen
 MODE_OFF = 'off'
 MODE_SIMULATED = 'simulated'
 MODE_LIVE = 'live'
-MODE_DEMO = 'demo'
-MODES = (MODE_OFF, MODE_SIMULATED, MODE_LIVE, MODE_DEMO)
+MODES = (MODE_OFF, MODE_SIMULATED, MODE_LIVE)
 
 
 def ai_mode():
-    """Modo vigente. Vacío = `simulated` con DEBUG y `off` sin él. Un valor desconocido = `off`."""
+    """Modo vigente. Vacío = `off`; nunca se sustituye Gemini por un generador ficticio. Un valor desconocido = `off`."""
     mode = (getattr(settings, 'AI_PLANS_MODE', '') or '').strip().lower()
     if not mode:
-        return MODE_SIMULATED if settings.DEBUG else MODE_OFF
+        return MODE_OFF
     return mode if mode in MODES else MODE_OFF
 
 
@@ -35,8 +33,8 @@ def ai_enabled():
 
 
 def live_is_configured():
-    return bool(getattr(settings, 'GEMINI_API_KEY', '') and getattr(settings, 'GEMINI_MODEL', '')
-                and getattr(settings, 'GEMINI_BILLING_CONFIRMED', False))
+    from .policy import configuration_errors
+    return not configuration_errors(settings)
 
 
 def get_ai_client():
@@ -45,15 +43,9 @@ def get_ai_client():
     if mode == MODE_SIMULATED:
         from .fake import FakeAIClient
         return FakeAIClient()
-    if mode == MODE_DEMO:
-        from .demo import DemoGeminiClient, configured
-        if not configured():
-            raise AIPermanentError('demo_not_configured')
-        return DemoGeminiClient(api_key=settings.GEMINI_API_KEY, model=settings.GEMINI_MODEL,
-                                timeout=settings.GEMINI_TIMEOUT_SECONDS, schema_field=settings.GEMINI_SCHEMA_FIELD)
     if mode == MODE_LIVE and live_is_configured():
-        from .gemini import GeminiClient
-        return GeminiClient(
+        from .runtime import RuntimeGeminiClient
+        return RuntimeGeminiClient(
             api_key=settings.GEMINI_API_KEY, model=settings.GEMINI_MODEL,
             timeout=settings.GEMINI_TIMEOUT_SECONDS, schema_field=settings.GEMINI_SCHEMA_FIELD,
         )
@@ -63,5 +55,5 @@ def get_ai_client():
 __all__ = [
     'AIBlockedError', 'AIClient', 'AIError', 'AIInvalidOutput', 'AIPermanentError', 'AIResult',
     'AITransientError', 'MODES', 'MODE_LIVE', 'MODE_OFF', 'MODE_SIMULATED', 'ai_enabled', 'ai_mode',
-    'get_ai_client', 'live_is_configured', 'MODE_DEMO',
+    'get_ai_client', 'live_is_configured',
 ]

@@ -1,5 +1,6 @@
 # Entorno local con SQLite — sin psycopg2 (PostgreSQL solo en producción)
 Django==5.2.19
+waitress==3.0.2
 django-environ==0.11.2
 Pillow==13.0.0
 django-storages[s3]==1.14.6

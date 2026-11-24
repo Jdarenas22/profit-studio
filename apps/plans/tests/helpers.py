@@ -20,7 +20,7 @@ from apps.plans.foods_data import food_rows
 from apps.plans.models import KIND_EXERCISE, KIND_NUTRITION, Food, Plan, TrainerCredential
 
 PLAN_SETTINGS = override_settings(
-    HEALTH_FEATURES_ENABLED=True, AI_PLANS_MODE='simulated', AI_PLANS_RUN_INLINE=True,
+    HEALTH_FEATURES_ENABLED=True, NUTRITION_REQUIRE_USDA_REFERENCE=False, AI_PLANS_MODE='simulated', AI_PLANS_RUN_INLINE=True,
     AI_PLANS_CLIENT_WEEKLY_LIMIT=3, AI_PLANS_TRAINER_DAILY_LIMIT=10, AI_PLANS_DAILY_JOB_LIMIT=100,
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
 )

@@ -73,15 +73,11 @@ _ai_mode = (AI_PLANS_MODE or '').strip().lower()
 if _ai_mode not in ('', 'off', 'simulated', 'live'):
     raise ImproperlyConfigured('AI_PLANS_MODE debe ser off, simulated o live.')
 if _ai_mode == 'live':
-    _ai_missing = [name for name, value in (('GEMINI_API_KEY', GEMINI_API_KEY), ('GEMINI_MODEL', GEMINI_MODEL))
-                   if not (value or '').strip()]
-    if not GEMINI_BILLING_CONFIRMED:
-        _ai_missing.append('GEMINI_BILLING_CONFIRMED=true')
+    from types import SimpleNamespace
+    from apps.plans.ai.policy import configuration_errors
+    _ai_missing = configuration_errors(SimpleNamespace(**globals()))
     if _ai_missing:
-        raise ImproperlyConfigured(
-            'AI_PLANS_MODE=live exige ' + ', '.join(_ai_missing) + '. La clave de Gemini debe ser de un '
-            'proyecto con facturación habilitada: el nivel gratuito no sirve para datos de salud.'
-        )
+        raise ImproperlyConfigured('AI_PLANS_MODE=live exige ' + ', '.join(_ai_missing) + '.')
 if GEMINI_SCHEMA_FIELD not in ('responseJsonSchema', 'none'):
     raise ImproperlyConfigured('GEMINI_SCHEMA_FIELD debe ser responseJsonSchema o none.')
 

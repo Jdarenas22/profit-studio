@@ -1,4 +1,4 @@
-"""Cliente REAL de Google Gemini (modos `live` y demo académica), por REST con la biblioteca estándar.
+"""Cliente REAL de Google Gemini (modo `live`), por REST con la biblioteca estándar.
 
 Sin SDK de Google ni dependencias nuevas (`urllib`): control total del tiempo de espera y de lo
 que se registra. Endpoint `generateContent` de la API de Gemini (v1beta).
@@ -9,8 +9,7 @@ Seguridad (contrato, sección 4):
 - No sigue redirecciones y limita la lectura de respuestas a 2 MiB más un byte de detección.
 - Los errores solo llevan un código corto (`ai_http_429`, `ai_timeout`...): nunca el cuerpo de
   error de Google, el prompt ni la respuesta.
-- `live` exige facturación confirmada. La demo usa un cliente restringido a un entorno local
-  separado, perfiles ficticios y nivel gratuito confirmado (ai/demo.py).
+- La configuración, minimización de datos y presupuesto se aplican en ai/runtime.py.
 
 El campo del esquema de salida es configurable (`GEMINI_SCHEMA_FIELD`) porque Google lo ha ido
 cambiando de nombre: `responseJsonSchema` (por defecto) o `none` (el formato solo va en la

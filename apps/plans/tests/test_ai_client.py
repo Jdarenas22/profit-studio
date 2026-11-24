@@ -140,8 +140,10 @@ class ModeTests(SimpleTestCase):
             ai.get_ai_client()
 
     @override_settings(AI_PLANS_MODE='', DEBUG=True)
-    def test_default_is_simulated_with_debug(self):
-        self.assertIsInstance(ai.get_ai_client(), FakeAIClient)
+    def test_default_is_off_with_debug(self):
+        self.assertEqual(ai.ai_mode(), ai.MODE_OFF)
+        with self.assertRaises(AIPermanentError):
+            ai.get_ai_client()
 
     @override_settings(AI_PLANS_MODE='cualquiera')
     def test_unknown_mode_is_off(self):
@@ -152,7 +154,7 @@ class ModeTests(SimpleTestCase):
         with self.assertRaises(AIPermanentError):
             ai.get_ai_client()
 
-    @override_settings(AI_PLANS_MODE='live', GEMINI_API_KEY=KEY, GEMINI_MODEL=MODEL, GEMINI_BILLING_CONFIRMED=True,
+    @override_settings(AI_PLANS_MODE='live', GEMINI_ACCESS_TIER='paid', GEMINI_API_KEY=KEY, GEMINI_MODEL=MODEL, GEMINI_BILLING_CONFIRMED=True,
                        GEMINI_TIMEOUT_SECONDS=30, GEMINI_SCHEMA_FIELD='none')
     def test_live_configured(self):
         client = ai.get_ai_client()

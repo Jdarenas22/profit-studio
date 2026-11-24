@@ -22,7 +22,7 @@ siempre revisados por un entrenador antes de que la clienta los vea.
 - [Integraciones externas](#integraciones-externas)
 - [Puesta en marcha local](#puesta-en-marcha-local)
 - [Pruebas y calidad](#pruebas-y-calidad)
-- [Demostración académica](#demostración-académica)
+- [Ejecución única y gratuita](#ejecución-única-y-gratuita)
 - [Despliegue](#despliegue)
 - [Seguridad y privacidad](#seguridad-y-privacidad)
 - [Estado y limitaciones](#estado-y-limitaciones)
@@ -81,7 +81,7 @@ Borrador ──► el entrenador revisa y aprueba ──► la clienta lo ve
 - **Privacidad:** a la IA no viajan nombre, correo, teléfono, identificadores, fecha de nacimiento,
   diagnósticos ni texto libre de la ficha. No se registran prompts ni respuestas.
 - **Modos** (`AI_PLANS_MODE`): `off` (por defecto en producción), `simulated` (desarrollo, sin red),
-  `demo` (Gemini real solo con perfiles ficticios) y `live`.
+  `live` (Gemini real con nivel Free o pago explícitamente confirmado). No hay una aplicación demo.
 - **No hay chatbot ni modelos de intención:** la interacción es por formularios y acciones explícitas.
 
 Detalle técnico: [`docs/contracts/plan-ia.md`](docs/contracts/plan-ia.md) y
@@ -122,12 +122,12 @@ profit-studio/
 │   ├── plans/         Planes con IA: reglas, cliente Gemini, cola de trabajos, nutrición
 │   ├── whatsapp/      Avisos por WhatsApp Cloud API
 │   └── public/        Sitio público, PWA y diagnóstico de infraestructura
-├── config/            Settings (base, development, production, demo), URLs y middleware
+├── config/            Settings (base, development, production), URLs y middleware
 ├── templates/         Plantillas HTML
 ├── static/            CSS compilado, JS, imágenes, service worker
 ├── frontend/          Fuente de Tailwind
 ├── docs/              Contratos técnicos, despliegue, auditorías
-└── scripts/           Compilación de CSS y arranque de la demo
+└── scripts/           Compilación de CSS y arranque único de la aplicación
 ```
 
 **Roles:** `trainer` y `member`. La entrenadora principal (`is_superuser`) ve todas las clientas, pagos y
@@ -216,24 +216,20 @@ python -W error::DeprecationWarning manage.py test --settings=config.settings.de
 
 ---
 
-## Demostración académica
+## Ejecución única y gratuita
 
-El proyecto incluye una demo aislada con perfiles ficticios (base SQLite y medios separados, solo
-`localhost`):
-
-```powershell
-.\scripts\start-demo.ps1            # respuestas simuladas, sin red
-```
-
-Con Gemini real (solo tras confirmar el nivel gratuito del proyecto de Google AI Studio y con
-`GEMINI_API_KEY` definida):
+La aplicación normal utiliza una sola base `db.sqlite3`, sus cuentas existentes y el puerto 8000.
+Gemini Free selecciona recetas de catálogo; Django conserva la ficha, calcula porciones y revisa el día completo.
 
 ```powershell
-.\scripts\start-demo.ps1 -Real -FreeTierConfirmed
+.\scripts\start.ps1             # Aplicación real en http://127.0.0.1:8000/
+.\scripts\start.ps1 -Public     # La misma aplicación también por HTTPS en Internet
 ```
 
-Abre <http://127.0.0.1:8010/demo/>. Las cuentas y contraseñas se generan en `.demo/access.local.txt`
-(excluido de git). Guía completa: [`docs/DEMO-UNIVERSITARIA.md`](docs/DEMO-UNIVERSITARIA.md).
+Requiere `requirements/local.txt`, la clave privada del backend y nivel Free confirmado en `.env`.
+La publicación usa Cloudflare Quick Tunnel: no requiere comprar dominio ni hosting, pero el PC
+debe permanecer encendido y la dirección cambia al reiniciar. No se inicia otra web o base.
+Guía: [ejecución integrada](docs/EJECUCION-INTEGRADA.md).
 
 ---
 

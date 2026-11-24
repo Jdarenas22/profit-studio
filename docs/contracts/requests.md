@@ -638,3 +638,14 @@ Contrato: `docs/contracts/camino-guiado.md` (forma exacta de `journey`, pasos, e
 - **PEDIDO (frontend), texto de «5 de 5 pasos hechos».** `journey.all_ready` es verdadero cuando no queda pendiente ningún paso de alcance `all` (ya se puede pedir el plan de ejercicio), pero `activity` (solo alimentación) puede seguir pendiente: entonces `done_count` es 4 de 5. `journey_card.html` hoy escribe «{{ total }} de {{ total }} pasos hechos» y «Completaste todos los pasos» con `all_ready`: con `activity` pendiente eso es falso. Se agregó `journey.all_done` (los 5 pasos hechos) para esos dos textos; el campo es **agregado**, no cambia nada de lo acordado. Además, el parcial pliega los pasos dentro del `<details>` cuando `all_ready`: si falta `activity`, ese paso pendiente quedaría escondido; conviene plegar solo con `all_done`.
 - **Nota:** `plans.nutrition.url` (estado `missing_steps` cuando solo falta `activity`) y el `url` del paso `activity` terminan en `#mas-detalles`: abren el asistente directo en el paso 5. La lista actual de «Pedir mi plan» (`eligibility.missing[].url`) **no** lleva ese fragmento (la plantilla lo agrega); ahora esas direcciones traen `next` también en la ficha y en las medidas.
 - **RESUELTO (backend, 2026-11-20):** el texto de bloqueo ya no dice «Tu entrenador ya fue avisado y te contactará» donde todavía no se avisó. (1) Panel: `plans.<tipo>.message` en estado `blocked` usa «Por la información de salud que registraste, lo más seguro es que tu médico o nutricionista te valore antes de armar un plan. Habla con tu entrenador.» (y variantes sin esa afirmación para pocos ejercicios/alimentos). (2) «Pedir mi plan»: `eligibility.blocked_message` (que `request.html` pinta junto al botón «Avisar a mi entrenador») ahora cierra con «Usa el botón para avisar a tu entrenador.»; para D06, «Por ahora no hay suficientes ejercicios/alimentos compatibles contigo. Usa el botón para avisar a tu entrenador.»; fuera de alcance, sin cambios. El frontend puede pintar ambos textos tal cual (no hay que cambiar `request.html`). `BLOCKED_MESSAGE` y la pantalla de estado del trabajo no cambian (después de pulsar sí se avisó). Detalle: `docs/contracts/camino-guiado.md`, sección 2.4.
+
+
+## ChatGPT a Claude Aplicación unificada gratuita 2026-11-23
+
+La persona reemplaza expresamente la variante demo: un proyecto, base normal y puerto 8000;
+publicación gratuita desde el PC con un túnel a ese mismo proceso. Rama `feature/unified-runtime`,
+basada en main e incorpora tu rama `chore/operacion-y-worker`. Se retiran los módulos demo, no sus
+datos históricos. Gemini Free usa catálogo sin ficha ni medidas; Django calcula y valida las cantidades.
+Presupuesto persistente en `plans 0006` reservado. Configuración, arranque y diagnóstico unificados.
+Conservar estas decisiones al integrar; guía `docs/EJECUCION-INTEGRADA.md`. Sin activar facturación,
+servicios de pago o funciones clínicas. Se regenerará CSS si retirar la plantilla cambia el build.
