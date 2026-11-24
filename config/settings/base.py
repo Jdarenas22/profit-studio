@@ -1,5 +1,8 @@
 from pathlib import Path
 import environ
+from django.core.exceptions import ImproperlyConfigured as _ImproperlyConfigured
+
+from config import security as _security
 
 env = environ.Env()
 
@@ -214,6 +217,16 @@ AI_PLANS_REQUIRE_PROFESSIONAL = env.bool('AI_PLANS_REQUIRE_PROFESSIONAL', defaul
 AI_PLANS_ADAPTATION = env.bool('AI_PLANS_ADAPTATION', default=False)
 # Ejecutar el trabajo en la misma petición, sin hilo (pruebas y depuración)
 AI_PLANS_RUN_INLINE = env.bool('AI_PLANS_RUN_INLINE', default=False)
+# Modo trabajador (APAGADO por defecto). False = los trabajos de IA corren en un hilo del proceso web
+# (como siempre). True = la web NO lanza hilos: deja el trabajo `queued` y lo toma un servicio aparte con
+# `python manage.py process_plan_jobs --loop`. Ese servicio consulta la base cada pocos segundos, así que
+# mantiene despierto a Postgres y gasta crédito las 24 horas: es una decisión del dueño, no usarlo en el plan
+# gratuito (docs/DEPLOY.md, sección 12). AI_PLANS_RUN_INLINE (pruebas) tiene prioridad. Booleano estricto:
+# un valor que no sea true/false detiene el arranque (como SECURITY_STRICT_SECRETS).
+try:
+    AI_PLANS_WORKER = _security.parse_bool_flag('AI_PLANS_WORKER', env('AI_PLANS_WORKER', default=''))
+except ValueError as _exc:
+    raise _ImproperlyConfigured(str(_exc)) from None
 
 # ─── Avisos por WhatsApp (docs/contracts/whatsapp.md) ─────────────────────────
 # WhatsApp Business Cloud API de Meta. NO confundir con WHATSAPP_NUMBER / WHATSAPP_LINK (botón wa.me

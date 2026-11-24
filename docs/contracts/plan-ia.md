@@ -546,6 +546,7 @@ Si nadie del equipo tiene el título, la recomendación es contratar a un nutric
 | `GEMINI_TIMEOUT_SECONDS` | lectura por llamada | 60 |
 | `AI_PLANS_MAX_ATTEMPTS`, `AI_PLANS_DAILY_JOB_LIMIT`, `AI_PLANS_CLIENT_WEEKLY_LIMIT` | topes | 3, 100, 3 |
 | `AI_PLANS_RUN_INLINE` | ejecutar sin hilo (pruebas) | `false` |
+| `AI_PLANS_WORKER` | modo trabajador: la web no lanza hilos, deja el trabajo `queued` y lo toma `process_plan_jobs --loop` (`docs/DEPLOY.md`, sección 12); `AI_PLANS_RUN_INLINE` tiene prioridad | `false` |
 | `HEALTH_FEATURES_ENABLED` | interruptor de la ficha y medidas de la clienta | `false` en producción hasta aprobar el texto legal |
 | `HEALTH_RETENTION_MONTHS` | retención | 24 |
 

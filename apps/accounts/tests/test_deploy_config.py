@@ -36,7 +36,8 @@ CLEAN_ENV = {
     'R2_ACCESS_KEY_ID': '', 'R2_SECRET_ACCESS_KEY': '', 'R2_BUCKET_NAME': '',
     'R2_ENDPOINT_URL': '', 'R2_PUBLIC_URL': '', 'R2_RECEIPTS_BUCKET_NAME': '',
     'EMAIL_HOST_USER': '',
-    'AI_PLANS_MODE': '', 'GEMINI_API_KEY': '', 'GEMINI_MODEL': '', 'GEMINI_BILLING_CONFIRMED': 'false',
+    'AI_PLANS_MODE': '', 'AI_PLANS_WORKER': '', 'AI_PLANS_RUN_INLINE': '',
+    'GEMINI_API_KEY': '', 'GEMINI_MODEL': '', 'GEMINI_BILLING_CONFIRMED': 'false',
     'GEMINI_SCHEMA_FIELD': 'responseJsonSchema',
     'WHATSAPP_CLOUD_MODE': '', 'WHATSAPP_CLOUD_ACCESS_TOKEN': '', 'WHATSAPP_CLOUD_PHONE_NUMBER_ID': '',
     'WHATSAPP_CLOUD_WABA_ID': '', 'WHATSAPP_CLOUD_APP_SECRET': '', 'WHATSAPP_CLOUD_VERIFY_TOKEN': '',
@@ -72,6 +73,7 @@ PROBE = (
     " 'receipt_blocked': receipt_blocked,"
     " 'db_conn_max_age': settings.DATABASES['default'].get('CONN_MAX_AGE', 'AUSENTE'),"
     " 'db_health_checks': settings.DATABASES['default'].get('CONN_HEALTH_CHECKS', 'AUSENTE'),"
+    " 'ai_worker': settings.AI_PLANS_WORKER, 'ai_inline': settings.AI_PLANS_RUN_INLINE,"
     " 'db_engine': settings.DATABASES['default']['ENGINE'],"
     " 'db_name': settings.DATABASES['default']['NAME']}))"
 )

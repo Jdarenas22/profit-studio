@@ -2,6 +2,7 @@
 import json
 import smtplib
 import sys
+from datetime import date, timedelta
 from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
@@ -12,6 +13,7 @@ from django.core.management.base import CommandError
 from django.db import connection
 from django.db.migrations.recorder import MigrationRecorder
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.public.management.commands import check_infra as ci
@@ -150,6 +152,221 @@ class DatabaseChecks(TestCase):
         self.assertNotIn('clave-bd-inventada', all_text(results))
         # Sin conexión, la comprobación de la superusuaria se omite con aviso (no revienta)
         self.assertEqual(ci.check_superuser(ctx)[0].status, ci.WARN)
+
+
+class PostgresVersionChecks(TestCase):
+    """Versión de PostgreSQL contra la tabla de fin de soporte. Sin Postgres real: la versión del servidor
+    (`server_version_num`), el motor y el día de hoy se simulan."""
+
+    def check(self, number, today=date(2026, 11, 20), vendor='postgresql', **ctx_kw):
+        ctx = make_ctx(make_settings(DATABASES={'default': {'HOST': 'host-secreto.internal',
+                                                            'PASSWORD': 'clave-bd-inventada'}}),
+                       pg_version=lambda: number, today=lambda: today, **ctx_kw)
+        with mock.patch.object(ci, 'database_vendor', return_value=vendor):
+            results = ci.check_postgres_version(ctx)
+        self.assertNotIn('host-secreto', all_text(results))
+        self.assertNotIn('clave-bd-inventada', all_text(results))
+        return results
+
+    def one(self, number, **kwargs):
+        results = self.check(number, **kwargs)
+        self.assertEqual([c.name for c in results], ['Versión de PostgreSQL'])
+        self.assertEqual(results[0].area, 'Base de datos')
+        return results[0]
+
+    def test_14_is_a_warning_today_because_its_support_ended_on_2026_11_12(self):
+        result = self.one(140025)
+        self.assertEqual(result.status, ci.WARN)
+        self.assertIn('14.25', result.detail)                       # mayor.menor
+        self.assertIn('terminó su soporte el 2026-11-12', result.detail)
+        self.assertIn('correcciones de seguridad', result.detail)
+        self.assertIn('Django 5.2 exige PostgreSQL 14', result.action)      # la web sigue funcionando
+        self.assertIn('https://www.postgresql.org/support/versioning/', result.action)
+        self.assertIn('2026-11-20', result.action)                  # fecha de consulta de la tabla
+        self.assertIn('docs/BACKUPS.md', result.action)
+
+    def test_supported_versions_are_ok_and_say_until_when(self):
+        for number, until in ((150020, '2027-11-11'), (160016, '2028-11-09'), (170012, '2029-11-08'),
+                              (180007, '2030-11-14'), (190000, '2031-11-19')):
+            with self.subTest(number=number):
+                result = self.one(number)
+                self.assertEqual(result.status, ci.OK)
+                self.assertIn(f'soporte hasta el {until}', result.detail)
+                self.assertNotIn('pronto', result.action)
+
+    def test_the_check_uses_todays_date_so_a_version_expires_by_itself(self):
+        # 14: el día antes sigue OK (con la nota de que termina pronto); el día de la última versión y después, AVISO
+        self.assertEqual(self.one(140025, today=date(2026, 11, 11)).status, ci.OK)
+        self.assertIn('termina pronto', self.one(140025, today=date(2026, 11, 11)).action)
+        for today in (date(2026, 11, 12), date(2027, 1, 1)):
+            self.assertEqual(self.one(140025, today=today).status, ci.WARN, today)
+        # 15: lejos de su fin es OK sin nota; a menos de 180 días, OK con nota; después, AVISO
+        self.assertNotIn('pronto', self.one(150020, today=date(2026, 11, 20)).action)
+        soon = self.one(150020, today=date(2027, 6, 1))
+        self.assertEqual(soon.status, ci.OK)
+        self.assertIn('termina pronto (2027-11-11)', soon.action)
+        self.assertEqual(self.one(150020, today=date(2027, 11, 11)).status, ci.WARN)
+
+    def test_older_versions_are_warnings_even_the_ones_missing_from_the_table(self):
+        for number, text in ((130023, '13.23'), (120022, '12.22'), (110022, '11.22'), (90624, '9.6.24')):
+            with self.subTest(number=number):
+                result = self.one(number)
+                self.assertEqual(result.status, ci.WARN)
+                self.assertIn(text, result.detail)
+                self.assertIn('ya no recibe correcciones de seguridad', result.detail)
+        self.assertIn('terminó su soporte el 2025-11-13', self.one(130023).detail)
+        self.assertIn('anterior a las de la tabla', self.one(120022).detail)
+
+    def test_a_major_newer_than_the_table_is_ok_with_a_note_to_update_it(self):
+        result = self.one(200001)
+        self.assertEqual(result.status, ci.OK)
+        self.assertIn('20.1', result.detail)
+        self.assertIn('más nueva que la tabla', result.detail)
+        self.assertIn('POSTGRES_FINAL_RELEASE', result.action)
+        self.assertIn('https://www.postgresql.org/support/versioning/', result.action)
+
+    def test_a_table_older_than_a_year_asks_to_be_reviewed_without_changing_the_status(self):
+        old = self.one(160016, today=date(2027, 12, 1))
+        self.assertEqual(old.status, ci.OK)
+        self.assertIn('más de un año', old.action)
+        self.assertNotIn('más de un año', self.one(160016, today=date(2027, 11, 20)).action)
+        self.assertIn('más de un año', self.one(200001, today=date(2028, 1, 1)).action)   # también si es desconocida
+        self.assertIn('más de un año', self.one(140025, today=date(2028, 1, 1)).action)
+
+    def test_the_table_has_the_official_dates(self):
+        # Copia de https://www.postgresql.org/support/versioning/ (columna «Final Release»), consultada el 2026-11-20
+        self.assertEqual(ci.POSTGRES_SUPPORT_CONSULTED, date(2026, 11, 20))
+        self.assertEqual(ci.POSTGRES_FINAL_RELEASE[14], date(2026, 11, 12))
+        self.assertEqual(ci.POSTGRES_FINAL_RELEASE[13], date(2025, 11, 13))
+        self.assertEqual(ci.POSTGRES_FINAL_RELEASE[15], date(2027, 11, 11))
+        majors = sorted(ci.POSTGRES_FINAL_RELEASE)
+        self.assertEqual(majors, list(range(majors[0], majors[-1] + 1)))             # sin huecos
+        dates = [ci.POSTGRES_FINAL_RELEASE[major] for major in majors]
+        self.assertEqual(dates, sorted(dates))                                       # fechas crecientes
+
+    def test_with_sqlite_or_without_connection_there_is_nothing_new(self):
+        self.assertEqual(self.check(140025, vendor='sqlite'), [])
+        self.assertEqual(ci.check_postgres_version(make_ctx()), [])       # motor real de las pruebas: SQLite
+        broken = make_ctx(pg_version=lambda: self.fail('no debe consultarse'))
+        broken.db_ok = False
+        with mock.patch.object(ci, 'database_vendor', return_value='postgresql'):
+            self.assertEqual(ci.check_postgres_version(broken), [])
+
+    def test_an_unreadable_version_is_a_warning_that_never_shows_the_message(self):
+        from django.db import OperationalError
+
+        def boom():
+            raise OperationalError('no se pudo conectar a ' + SECRETS['DATABASE_URL'])
+        ctx = make_ctx(pg_version=boom)
+        with mock.patch.object(ci, 'database_vendor', return_value='postgresql'):
+            results = ci.check_postgres_version(ctx)
+        self.assertEqual(results[0].status, ci.WARN)
+        self.assertIn('OperationalError', results[0].detail)
+        self.assertNotIn('clave-bd-inventada', all_text(results))
+        for garbage in (None, 'abc', 0):
+            with self.subTest(garbage=garbage), mock.patch.object(ci, 'database_vendor', return_value='postgresql'):
+                results = ci.check_postgres_version(make_ctx(pg_version=lambda: garbage))
+            self.assertEqual(results[0].status, ci.WARN)
+
+    def test_split_pg_version(self):
+        self.assertEqual(ci.split_pg_version(160004), (16, 4, '16.4'))
+        self.assertEqual(ci.split_pg_version(140025), (14, 25, '14.25'))
+        self.assertEqual(ci.split_pg_version(100001), (10, 1, '10.1'))
+        self.assertEqual(ci.split_pg_version('150002'), (15, 2, '15.2'))
+        self.assertEqual(ci.split_pg_version(90624), (9, 24, '9.6.24'))
+
+    def test_the_full_command_shows_the_line_in_the_database_area_without_the_host(self):
+        out = StringIO()
+        env = {**SECRETS}
+        with mock.patch.dict('os.environ', env), mock.patch.object(ci, 'database_vendor', return_value='postgresql'), \
+                mock.patch.object(ci, 'default_pg_version', return_value=140025), \
+                mock.patch.object(ci, 'default_today', return_value=date(2026, 11, 20)), \
+                mock.patch.object(ci, 'default_s3_client_factory', mock.Mock(return_value=fake_s3())):
+            try:
+                call_command('check_infra', '--json', stdout=out)
+            except CommandError:
+                pass
+        line = next(c for c in json.loads(out.getvalue())['checks'] if c['name'] == 'Versión de PostgreSQL')
+        self.assertEqual((line['area'], line['status']), ('Base de datos', 'AVISO'))
+        self.assertIn('14.25', line['detail'])
+        self.assertNotIn('host-secreto', out.getvalue())
+        self.assertNotIn('clave-bd-inventada', out.getvalue())
+
+
+class AIExecutionChecks(TestCase):
+    """Dónde corren los trabajos de IA (hilos en la web o trabajador aparte) y si hay trabajos atascados."""
+
+    def setUp(self):
+        self.member = User.objects.create_user(username='clienta-ci', password='Clave-De-Prueba-9182!', role='member')
+
+    def queued_job(self, minutes_ago, status='queued', kind='exercise'):
+        from apps.plans.models import PlanGenerationJob
+        from uuid import uuid4
+        return PlanGenerationJob.objects.create(
+            kind=kind, client=self.member, requested_by=self.member, requested_by_role='member',
+            request_token=uuid4(), status=status, created_at=timezone.now() - timedelta(minutes=minutes_ago))
+
+    def run_check(self, **settings_kw):
+        return ci.check_ai_execution(make_ctx(make_settings(**settings_kw)))
+
+    def test_default_is_threads_in_the_web_process(self):
+        for kw in ({}, {'AI_PLANS_WORKER': False}):
+            with self.subTest(kw=kw):
+                results = self.run_check(**kw)
+                self.assertEqual([(c.area, c.name, c.status) for c in results], [('IA', 'Ejecución de trabajos', ci.OK)])
+                self.assertIn('Hilos en el servidor web', results[0].detail)
+                self.assertIn('docs/DEPLOY.md, sección 12', results[0].action)
+
+    def test_threads_mode_ignores_the_queue_even_if_a_job_is_old(self):
+        self.queued_job(minutes_ago=60)
+        self.assertEqual([c.name for c in self.run_check(AI_PLANS_WORKER=False)], ['Ejecución de trabajos'])
+
+    def test_worker_mode_is_reported_with_the_cost_and_sleep_warning(self):
+        results = self.run_check(AI_PLANS_WORKER=True)
+        line = by_name(results, 'Ejecución de trabajos')
+        self.assertEqual(line.status, ci.OK)
+        self.assertIn('Trabajador aparte', line.detail)
+        self.assertIn('process_plan_jobs --loop', line.detail)
+        self.assertIn('mantiene despierto a Postgres', line.action)
+        self.assertEqual(by_name(results, 'Trabajos en cola').status, ci.OK)
+
+    def test_worker_mode_warns_about_jobs_queued_for_more_than_five_minutes(self):
+        self.queued_job(minutes_ago=6)
+        result = by_name(self.run_check(AI_PLANS_WORKER=True), 'Trabajos en cola')
+        self.assertEqual(result.status, ci.WARN)
+        self.assertIn('1 trabajo(s) llevan más de 5 minutos en cola', result.detail)
+        self.assertIn('servicio trabajador no está corriendo', result.detail)
+        self.assertIn('process_plan_jobs --loop', result.action)
+        self.assertIn('App Sleeping', result.action)
+
+    def test_recent_or_not_queued_jobs_do_not_trigger_the_warning(self):
+        self.queued_job(minutes_ago=4)                                             # reciente
+        self.queued_job(minutes_ago=90, status='succeeded', kind='nutrition')      # viejo pero ya terminó
+        self.queued_job(minutes_ago=90, status='running', kind='meal_alternative')
+        self.assertEqual(by_name(self.run_check(AI_PLANS_WORKER=True), 'Trabajos en cola').status, ci.OK)
+
+    def test_unreadable_queue_is_a_warning_not_a_crash(self):
+        from django.db import OperationalError
+        with mock.patch.object(ci, 'stuck_queued_job_count', side_effect=OperationalError('x')):
+            results = self.run_check(AI_PLANS_WORKER=True)
+        self.assertEqual(by_name(results, 'Trabajos en cola').status, ci.WARN)
+
+    def test_without_database_the_queue_is_not_read(self):
+        ctx = make_ctx(make_settings(AI_PLANS_WORKER=True))
+        ctx.db_ok = False
+        with mock.patch.object(ci, 'stuck_queued_job_count', side_effect=AssertionError('no debe consultarse')):
+            self.assertEqual([c.name for c in ci.check_ai_execution(ctx)], ['Ejecución de trabajos'])
+
+    def test_the_line_is_part_of_the_full_command(self):
+        out = StringIO()
+        with override_settings(AI_PLANS_WORKER=True), mock.patch.dict('os.environ', {}):
+            try:
+                call_command('check_infra', '--json', stdout=out)
+            except CommandError:
+                pass                # puede haber un ERROR ajeno a esta prueba; solo importa que las líneas salgan
+        names = [(c['area'], c['name']) for c in json.loads(out.getvalue())['checks']]
+        self.assertIn(('IA', 'Ejecución de trabajos'), names)
+        self.assertIn(('IA', 'Trabajos en cola'), names)
 
 
 class ConnectionReuseChecks(TestCase):

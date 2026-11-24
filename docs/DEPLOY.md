@@ -21,7 +21,7 @@ Cloudflare R2  (archivos subidos)
 - Dirección pública actual: `https://profit-studio-production.up.railway.app`
 - Healthcheck de Railway: `GET /health/` → `{"status": "ok"}` (no toca la base de datos).
 - `start.sh` hace, en este orden: `migrate` (si falla, **no arranca**) → `collectstatic` (solo si falta `staticfiles/staticfiles.json`; si falla, **no arranca**) → crea la superusuaria `yiseth` (solo si existe `TRAINER_INITIAL_PASSWORD`) → `load_initial_data` → `gunicorn`.
-- Los servicios de Railway están en modo «sleeping» (App Sleeping): tras ~10 min sin tráfico Railway detiene el servicio web **y** Postgres, y los despierta con la primera visita, que tarda entre 10 y 20 s. «Sleeping» en el panel **no** significa desconectado. Para que el despertar sea fiable, `start.sh` espera a que Postgres acepte conexiones antes de migrar (hasta `DB_WAIT_SECONDS`, 90 s por defecto). Si prefieres respuesta inmediata siempre, desactiva «Serverless» en Settings de cada servicio (los deja siempre encendidos y cuesta más).
+- Los servicios de Railway están en modo «sleeping» (App Sleeping): tras 5-10 min sin tráfico saliente (según la documentación de Railway, consultada el 2026-11-20) Railway detiene el servicio web **y** Postgres, y los despierta con la primera visita, que tarda entre 10 y 20 s. «Sleeping» en el panel **no** significa desconectado. Para que el despertar sea fiable, `start.sh` espera a que Postgres acepte conexiones antes de migrar (hasta `DB_WAIT_SECONDS`, 90 s por defecto). Si prefieres respuesta inmediata siempre, desactiva «Serverless» en Settings de cada servicio (los deja siempre encendidos y cuesta más).
 
 ## 2. Estado verificado (2026-10-08)
 
@@ -94,6 +94,7 @@ Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprim
 | `REDIS_URL` | Caché compartida entre los 2 workers (límite de intentos de login). Sin ella se usa memoria local de cada proceso |
 | `DB_CONN_MAX_AGE` | Segundos que cada worker reutiliza su conexión a Postgres (entero ≥ 0). **Sin definir: `0` = una conexión nueva por petición** (el servicio puede dormirse con App Sleeping). Con `60` las páginas con base de datos responden ~200 ms más rápido, pero **el servicio deja de dormirse**: ponerla al pasar a un plan de pago. Un valor que no sea un entero ≥ 0 detiene el arranque. Ver sección 11 |
 | `AI_PLANS_MODE` | Planes con IA: `off` (por defecto), `simulated` (borradores de ejemplo, sin costo, no se aprueban) o `live` (Gemini). Ver sección 7b |
+| `AI_PLANS_WORKER` | **Apagado por defecto (`false`).** `true` = la web no lanza hilos de IA: deja el trabajo en cola y lo toma un servicio trabajador aparte (`python manage.py process_plan_jobs --loop`). Ese servicio mantiene despierto a Postgres y gasta crédito las 24 horas: **no usarlo en el plan gratuito**; es decisión del dueño. Solo `true`/`false`: otro valor detiene el arranque. Ver sección 12 |
 | `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BILLING_CONFIRMED` | Obligatorias en `live` (el servidor no arranca sin ellas). La clave debe ser de un proyecto con facturación |
 
 ## 4. Cloudflare R2: comandos útiles
@@ -173,7 +174,7 @@ Además de lo anterior:
 4. `check_infra` informa si el catálogo está vacío, cuántos alimentos están sin validar y si nadie tiene la credencial. `check_gemini` prueba también una comida.
 5. Cupos opcionales de «otra opción»: `AI_PLANS_ALT_SLOT_WEEKLY_LIMIT` (por comida y semana, 3) y `AI_PLANS_ALT_DAILY_LIMIT` (por clienta y día, 6).
 
-Los borradores se generan en un hilo del mismo servidor (sin Redis ni Celery); si un despliegue corta uno a la mitad, se recupera solo al consultar su estado o con `python manage.py process_plan_jobs`.
+Los borradores se generan en un hilo del mismo servidor (sin Redis ni Celery); si un despliegue corta uno a la mitad, se recupera solo al consultar su estado o con `python manage.py process_plan_jobs`. Existe además un modo con servicio trabajador aparte (`AI_PLANS_WORKER`, apagado por defecto): sección 12.
 
 ## 8. Archivos de despliegue en el repositorio
 
@@ -258,6 +259,7 @@ Qué cambia al operar:
 | Hilos de avisos de WhatsApp | 1 por aviso, segundos | Cifra de trabajo: 2 |
 | `check_infra` y `load_initial_data` → `load_foods` (segundo plano de `start.sh`) | 2 | Solo el primer minuto tras arrancar |
 | Servicio cron `process_whatsapp_queue` (servicio aparte) | 1 | Hasta 4 min cada 15 |
+| Servicio trabajador de IA (opcional, sección 12) | 1 | Una por vuelta del bucle (con `DB_CONN_MAX_AGE=0` se abre y se cierra en cada vuelta). Con él los hilos de IA salen del servicio web (J = 0 allí). Durante un redeploy del trabajador hay 2 a la vez |
 
 - **Estable:** 2 + 5 + 2 = 9 por instancia (lo normal son 2-4), más 1 del cron.
 - **Durante un despliegue** (Railway mantiene el anterior hasta que el nuevo pasa el healthcheck): 9 (anterior) + 9 (nuevo) + 2 (arranque) + 1 (`migrate`) + 1 (cron) = **22 en el peor caso**, ~22 % de 100.
@@ -271,3 +273,55 @@ Qué cambia al operar:
 - Si se activa y se quiere comprobar el efecto: no visites la web durante unos 15 minutos y mira en el panel si el servicio `profit-studio` sigue «Active» en vez de «Sleeping».
 
 **Qué esperar al activarla.** Abrir una conexión nueva a Postgres necesita ~7 viajes de ida y vuelta (red, TLS, autenticación); si cuesta ~200-250 ms, cada viaje tarda unos 30 ms. Con la conexión reutilizada, la portada solo paga dos viajes (la comprobación y la consulta): debería bajar de ~585 ms hacia ~400-450 ms. Es una estimación hecha con las cifras medidas y no una medición posterior al cambio: vuelve a medir tras desplegar. Además, 30 ms por viaje es mucho más de lo normal dentro de la misma región de Railway (1-2 ms por la red privada), y cada consulta de cada página lo paga: conviene comprobar en el panel que `DATABASE_URL` use la dirección interna (`*.railway.internal`, no la pública `*.proxy.rlwy.net`) y que web y Postgres estén en la misma región. Es una hipótesis: no se verificó (no se leen las variables de Railway).
+
+## 12. Modo trabajador para los planes con IA (2026-11-20) — APAGADO por defecto
+
+**Resumen.** Hoy cada plan con IA se genera en un hilo del mismo servicio web (`apps/plans/jobs.py`). El **modo trabajador** saca ese trabajo de la web: con `AI_PLANS_WORKER=true` la web solo anota el pedido en la base de datos (estado `queued`) y otro servicio de Railway, que corre `python manage.py process_plan_jobs --loop`, lo toma y lo genera. **Está apagado por defecto y no cambia nada hasta que el dueño lo decida**: con `AI_PLANS_WORKER` sin definir (o `false`) todo sigue exactamente igual, con hilos en la web. Además, producción tiene hoy `AI_PLANS_MODE=off`, así que no se genera ningún plan con IA.
+
+### Decisión del dueño: lo que cuesta (léelo antes de activarlo)
+
+Fuentes de Railway, consultadas el **2026-11-20**: <https://docs.railway.com/reference/app-sleeping>, <https://docs.railway.com/pricing>, <https://docs.railway.com/reference/pricing/free-trial>, <https://docs.railway.com/deployments/restart-policy>.
+
+- **El trabajador nunca se duerme y mantiene despierto a Postgres.** App Sleeping duerme un servicio cuando deja de enviar tráfico: se considera inactivo a los 5 minutos y se duerme entre los 5 y 10 minutos. Cuenta *cualquier* paquete saliente, incluidas las conexiones a la base de datos, y el tráfico por la red privada entre servicios del mismo proyecto también impide el sueño. El trabajador pregunta a la base cada 5 segundos (`--interval`), así que él mismo no se duerme, y su tráfico hacia Postgres mantiene despierto también a ese servicio (la documentación no habla de bases de datos en concreto: esto es una deducción de sus reglas, no se probó en este proyecto). La web sí seguiría durmiéndose.
+- **Cuesta crédito las 24 horas.** Railway cobra por minuto el uso de memoria ($10 por GB al mes) y de CPU ($20 por vCPU al mes). *Estimación, no medida:* un trabajador de Python en reposo ocupa del orden de 0,2 GB, es decir, alrededor de $2 al mes solo de memoria, más lo que gaste Postgres por no dormirse.
+- **El plan gratuito no alcanza.** Incluye $1 de uso al mes y, cuando se acaba, «your services stop until the next billing cycle»: se detendría también la web. Además, en los planes Free y Trial la política de reinicio `Always` no está disponible y `On Failure` tiene un máximo de 10 reinicios: el trabajador quedaría apagado tras 10 fallos seguidos. El plan Hobby ($5 al mes, con $5 de uso incluidos) y los superiores funcionan siempre encendidos: ahí el trabajador sí tiene sentido.
+- **Si se activa y no existe el servicio trabajador, los planes se quedan «en cola» para siempre.** Por eso se crea y se comprueba el trabajador *antes* de encender la variable en la web, y `check_infra` avisa cuando hay trabajos en cola de más de 5 minutos.
+- **Alternativa más barata (no probada):** un servicio *cron* de Railway con `python manage.py process_plan_jobs` (sin `--loop`), como el de WhatsApp. Railway exige al menos 5 minutos entre ejecuciones, y ese modo solo toma los trabajos que lleven más de 1 minuto en cola: un plan tardaría entre 1 y 6 minutos en empezar, pero solo se paga mientras corre y el servicio sí puede dormirse.
+
+### Cómo funciona
+
+- `start_job` es el único punto por donde la web lanza hilos. Con `AI_PLANS_WORKER=true` no lanza ninguno: el trabajo queda `queued`. La recuperación de huérfanos que corre en la web (al consultar un estado o crear un trabajo) sigue devolviendo a la cola los trabajos colgados, pero **ya no los relanza en un hilo de la web**. `AI_PLANS_RUN_INLINE` (pruebas) tiene prioridad sobre los dos modos.
+- El comando `process_plan_jobs --loop [--interval N] [--max-jobs M]` repite: cierra la conexión vieja a la base → cada 60 segundos recupera huérfanos → toma el trabajo `queued` **más antiguo** (por fecha de creación) y lo corre → si no había nada, duerme `--interval` segundos (5 por defecto, mínimo 1). `--max-jobs` lo detiene después de M trabajos (para pruebas). Sin `--loop` el comando se comporta como siempre.
+- **Un trabajo nunca corre dos veces.** El reclamo (`queued` → `running`) es un `UPDATE` atómico en la base: si dos trabajadores compiten (por ejemplo, el viejo y el nuevo durante el traslape de un redeploy), solo uno gana y el otro sigue con el siguiente.
+- **Parada limpia.** Railway envía SIGTERM al redesplegar o detener el servicio y, pasado el tiempo de drenaje, SIGKILL. Con la primera señal (SIGTERM o SIGINT) el trabajador **termina el trabajo en curso y sale** sin tomar otro; con una segunda señal se corta (el trabajo queda `running` y se recupera solo cuando pasan 3 minutos sin latido). Un trabajo puede tardar hasta 4 minutos; el tiempo de drenaje de Railway se controla con la variable `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` (la documentación no da valor por defecto ni máximo). Si Railway corta antes, no se pierde nada: el trabajo se recupera y se vuelve a correr.
+- **Errores.** Si la base no responde (Postgres reiniciándose o despertando), el bucle no muere: registra solo la clase del error, descarta la conexión y reintenta con espera creciente (10 s, 20 s, 40 s, hasta 60 s).
+- **Logs.** Solo ids, estados, conteos y códigos (`plan worker started…`, `plan worker ran job_id=…`, `plan worker stopped processed=… reason=SIGTERM`). Nunca prompts, respuestas, datos de la ficha ni mensajes de error.
+
+### Cómo crear el servicio trabajador en Railway (cuando el dueño decida activarlo)
+
+Los nombres exactos de los menús de Railway pueden variar y **no se probaron desde aquí** (no hay acceso al panel): guíate por lo que veas.
+
+1. **Plan de pago** (Hobby o superior), por lo dicho arriba.
+2. En el mismo proyecto, crea un servicio nuevo desde el **mismo repositorio** de GitHub (`Jdarenas22/profit-studio`). Un nombre claro: `plan-worker`.
+3. **Settings › Deploy › Custom Start Command:** `python manage.py process_plan_jobs --loop`. **No** uses `bash start.sh`: ese script migra, copia estáticos y arranca gunicorn, y dos servicios migrando a la vez es un riesgo.
+4. **Variables:** las mismas que la web (`DJANGO_SETTINGS_MODULE=config.settings.production`, `SECRET_KEY`, `ALLOWED_HOSTS`, `DATABASE_URL` como referencia al Postgres, `AI_PLANS_MODE`, `GEMINI_*`, `HEALTH_FEATURES_ENABLED`, `EMAIL_*`, `AI_PLANS_WORKER=true`…). Sin `SECRET_KEY` o `ALLOWED_HOSTS` el servicio no arranca (los pide `production.py`). Pégalas solo en el panel, nunca en el chat ni en el repositorio.
+5. **Settings › Networking:** no generes un dominio público (el trabajador no atiende peticiones web). **Healthcheck Path:** vacío (un healthcheck HTTP haría fallar el despliegue).
+6. **Serverless / App Sleeping: apagado** en este servicio. Si se durmiera, nadie lo despertaría: no recibe tráfico.
+7. **Restart Policy:** `Always` (planes de pago). El trabajador solo sale por una señal de parada o con `--max-jobs`; con `On Failure` un fallo repetido lo dejaría apagado tras 10 intentos.
+8. Opcional: `RAILWAY_DEPLOYMENT_DRAINING_SECONDS=240` en el servicio trabajador, para darle al trabajo en curso hasta 4 minutos de gracia al redesplegar.
+9. **Comprueba el trabajador antes de tocar la web:** en sus logs debe aparecer `plan worker started interval=5 max_jobs=- db=postgresql`. Si dice `db=sqlite`, al servicio le falta `DJANGO_SETTINGS_MODULE=config.settings.production` (usaría la base local vacía del contenedor y no vería ningún trabajo). Recién entonces pon `AI_PLANS_WORKER=true` en el servicio `profit-studio` (redespliega solo). Después, `check_infra` (en los logs de arranque de la web) debe mostrar «IA · Ejecución de trabajos · Trabajador aparte» y «Trabajos en cola · OK». Haz un pedido de prueba con `AI_PLANS_MODE=simulated` y confirma que pasa de «En cola» a «Listo».
+10. **Volver atrás:** quita `AI_PLANS_WORKER` de la web (o ponla en `false`) y detén o borra el servicio trabajador. Lo que haya quedado `queued` lo recoge la recuperación de la web al consultar el estado, o `python manage.py process_plan_jobs`.
+
+### Qué se verificó y qué no
+
+Verificado con pruebas automáticas (sin red ni Gemini): que con `false` se lanza el hilo y con `true` no; que `AI_PLANS_RUN_INLINE` manda sobre ambos; que el bucle procesa por orden de creación, respeta `--max-jobs`, recupera huérfanos y no repite un trabajo cuando dos bucles compiten; que SIGTERM y SIGINT (señales reales entregadas con `signal.raise_signal`) terminan el trabajo en curso y salen sin tomar otro; y que los logs no llevan datos. **No verificado:** el servicio real en Railway (no se desplegó nada ni se consultaron sus variables), la entrega de SIGTERM por Railway en Linux, ni el consumo real de memoria y crédito.
+
+## 13. Versión de PostgreSQL y su fin de soporte (2026-11-20)
+
+`python manage.py check_infra` muestra la línea «Base de datos · Versión de PostgreSQL» (solo con PostgreSQL; con SQLite no agrega nada): la versión `mayor.menor` y si la mayor sigue recibiendo correcciones. No muestra el host ni las claves. `start.sh` lo ejecuta en cada arranque, así que la versión de producción queda en los logs de Railway (no se consultó desde aquí: **se desconoce la versión que usa hoy la base de producción**).
+
+- **Fuente oficial:** <https://www.postgresql.org/support/versioning/>, consultada el **2026-11-20**. PostgreSQL da soporte 5 años a cada versión mayor; después publica una última versión menor («Final Release») y la versión queda sin soporte.
+- **Tabla en el código** (`POSTGRES_FINAL_RELEASE` en `apps/public/management/commands/check_infra.py`, con la fecha de consulta en `POSTGRES_SUPPORT_CONSULTED`): 13 → 2025-11-13, **14 → 2026-11-12**, 15 → 2027-11-11, 16 → 2028-11-09, 17 → 2029-11-08, 18 → 2030-11-14, 19 → 2031-11-19.
+- **Cómo se decide el estado.** El chequeo compara esas fechas con la fecha de **hoy**, así que una versión pasa de OK a AVISO sola cuando llega su fecha, sin tocar el código: AVISO si el soporte ya terminó (o si la versión es anterior a la 13), OK con una nota «termina pronto» si faltan 180 días o menos, y OK en el resto. Una versión mayor más nueva que la tabla da OK con la nota de agregarla. Si la tabla tiene más de un año, el chequeo lo anota para que se revise. Al actualizar la tabla se copian las fechas de la fuente y se cambia `POSTGRES_SUPPORT_CONSULTED`.
+- **Qué significa un AVISO.** Con PostgreSQL 14 (sin soporte desde el 2026-11-12) la web sigue funcionando —Django 5.2 exige 14 o superior—, pero la base ya no recibe correcciones de seguridad: conviene planificar el salto a una versión con soporte. Con 13 o anterior, Django 5.2 no arranca.
+- **Cómo subir de versión mayor en Railway.** Según su documentación (<https://docs.railway.com/databases/postgresql-major-upgrade>, consultada el 2026-11-20; **no se ejecutó**): solo funciona con la imagen oficial de Railway y una etiqueta de versión fija (no `:latest`); admite partir de las versiones 14 a 17; hace una verificación previa de solo lectura, una copia automática antes y otra después, y ofrece «Revert and discard changes» por un tiempo limitado (lo escrito después de la actualización se pierde); la base se detiene mientras corre `pg_upgrade`, «típicamente unos minutos». Cambiar a mano la etiqueta de la imagen **no** migra los datos. La documentación no dice qué plan lo exige. **Antes de hacerlo, saca una copia manual** (`docs/BACKUPS.md`) y elige una hora de poca actividad.
