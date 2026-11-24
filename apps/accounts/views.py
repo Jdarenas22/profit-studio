@@ -1,3 +1,4 @@
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 import logging
 import urllib.parse
 import uuid
@@ -25,7 +26,7 @@ from .form_utils import errors_dict, flash_errors
 from .forms import (
     DeactivateAccountForm, EraseAccountForm, MemberProfileForm, RegisterForm, TrainerAddClientForm,
     TrainerClientEditForm, TrainerCreateTrainerForm, TrainerDeactivateForm, TrainerEditForm,
-    TrainerEraseForm,
+    TrainerEraseForm, TransferAdminForm,
 )
 from .models import User
 from .permissions import clients_for_trainer, get_client_for_trainer, reject_if_inactive
@@ -57,13 +58,34 @@ CLIENT_DEACTIVATE_RENDERED = ('reason',)
 CLIENT_ERASE_RENDERED = ('confirm_name', 'reason', 'ack_payments')
 TRAINER_DEACTIVATE_RENDERED = ('reason', 'reassign_to')
 TRAINER_ERASE_RENDERED = ('confirm_name', 'reason', 'reassign_to', 'ack_payments')
+# Transferir la administración (docs/contracts/transferir-administracion.md): el esqueleto pinta los tres.
+ADMIN_TRANSFER_RENDERED = ('new_admin', 'password', 'confirm')
 
 # Límites del registro público (por IP, ventana fija). Se pueden ajustar en settings.
 REGISTER_ATTEMPTS_LIMIT = getattr(settings, 'REGISTER_ATTEMPTS_LIMIT', 20)    # envíos de formulario / ventana
 REGISTER_SUCCESS_LIMIT = getattr(settings, 'REGISTER_SUCCESS_LIMIT', 5)       # cuentas creadas / ventana
 REGISTER_WINDOW_SECONDS = getattr(settings, 'REGISTER_WINDOW_SECONDS', 3600)
 
+# Límite de intentos al transferir la administración (por cuenta que entrega, ventana fija): frena a
+# quien tenga una sesión robada e intente adivinar la contraseña. Se puede ajustar en settings.
+TRANSFER_ADMIN_ATTEMPTS_LIMIT = getattr(settings, 'TRANSFER_ADMIN_ATTEMPTS_LIMIT', 5)
+TRANSFER_ADMIN_WINDOW_SECONDS = getattr(settings, 'TRANSFER_ADMIN_WINDOW_SECONDS', 900)
 
+
+PASSWORD_FIELDS = ('password', 'password1', 'password2', 'current_password',
+                   'new_password', 'confirm_password', 'new_password1', 'new_password2')
+
+
+def _safe_form_data(data):
+    """Conserva campos corregibles; las claves nunca vuelven al contexto ni al HTML."""
+    safe = data.copy()
+    for field in PASSWORD_FIELDS:
+        safe.pop(field, None)
+    return safe
+
+
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -215,7 +237,7 @@ def _register_context(plans, selected_plan_id, errors, form):
         'selected_plan_id': selected_plan_id,
         'goal_choices': User.GOAL_CHOICES,
         'errors': errors,
-        'form': form,
+        'form': _safe_form_data(form),
     }
 
 
@@ -231,6 +253,8 @@ def _register_rate_limited(request, plans, selected_plan_id):
     return response
 
 
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def register_view(request):
     """Auto-registro público: cualquier visitante puede crear su cuenta de miembro.
 
@@ -309,6 +333,8 @@ def register_success(request):
 
 
 @trainer_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def trainer_add_client(request):
     """La entrenadora crea una cuenta de cliente y opcionalmente activa su membresía."""
     from apps.memberships.models import MembershipPlan, Membership
@@ -347,7 +373,7 @@ def trainer_add_client(request):
         return render(request, 'trainer/client_add.html', {
             'plans': plans,
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'trainer/client_add.html', {
@@ -424,6 +450,8 @@ def trainer_client_detail(request, pk):
 
 
 @trainer_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def trainer_client_edit(request, pk):
     client = get_client_for_trainer(request, pk)
     blocked = reject_if_inactive(request, client)
@@ -460,7 +488,7 @@ def trainer_client_edit(request, pk):
             'client': get_client_for_trainer(request, pk),   # se relee: sin datos a medio editar
             'plans': plans,
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'trainer/client_edit.html', {
@@ -604,6 +632,8 @@ def trainer_client_delete(request, pk):
 
 
 @login_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def member_profile_edit(request):
     user = request.user
 
@@ -633,7 +663,7 @@ def member_profile_edit(request):
         flash_errors(request, form, errors, skip=PROFILE_RENDERED)
         return render(request, 'accounts/profile_edit.html', {
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'accounts/profile_edit.html', {
@@ -651,6 +681,8 @@ def member_profile_edit(request):
 
 # ── Solo Yiseth (superusuario) puede crear nuevos entrenadores ──────────────────
 @superuser_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def trainer_create_trainer(request):
     """Vista exclusiva del superusuario para crear cuentas de entrenadores."""
     if request.method == 'POST':
@@ -685,7 +717,7 @@ def trainer_create_trainer(request):
         flash_errors(request, form, errors, skip=TRAINER_FORM_RENDERED)
         return render(request, 'trainer/trainer_form.html', {
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'trainer/trainer_form.html', {'errors': {}, 'form': {}})
@@ -791,6 +823,63 @@ def trainer_staff_delete(request, pk):
     return render(request, 'trainer/trainer_confirm_delete.html', context)
 
 
+# ─── Transferir la administración (docs/contracts/transferir-administracion.md) ──────────────
+
+def _transfer_context(actor, candidates):
+    return {
+        'targets': list(candidates),
+        'kept_clients_count': User.objects.filter(assigned_trainer=actor, erased_at__isnull=True).count(),
+    }
+
+
+def _render_transfer(request, candidates, errors, form_data, status=200):
+    """Vuelve a pintar el formulario. La contraseña nunca llega a la plantilla (`form_data` no la trae)."""
+    context = _transfer_context(request.user, candidates)
+    context.update({'errors': errors, 'form': form_data})
+    return render(request, 'trainer/admin_transfer.html', context, status=status)
+
+
+@require_http_methods(['GET', 'POST'])
+@never_cache
+@superuser_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
+def trainer_admin_transfer(request):
+    """Transferir la administración: la superusuaria se la entrega a otro entrenador activo y pasa a
+    ser un entrenador común. GET muestra el formulario; POST transfiere (contraseña de nuevo + casilla)."""
+    candidates = account_services.transfer_admin_candidates(request.user)
+    if request.method != 'POST':
+        return _render_transfer(request, candidates, {}, {})
+
+    form = TransferAdminForm(request.POST, candidates=candidates)
+    form_data = {'new_admin': request.POST.get('new_admin', '')}    # sin la contraseña
+    errors = {} if form.is_valid() else errors_dict(form)
+    if errors:
+        flash_errors(request, form, errors, skip=ADMIN_TRANSFER_RENDERED)
+        return _render_transfer(request, candidates, errors, form_data)
+
+    if not hit('transfer-admin', request.user.pk, TRANSFER_ADMIN_ATTEMPTS_LIMIT,
+               TRANSFER_ADMIN_WINDOW_SECONDS):
+        logger.warning('admin transfer rate limited actor_id=%s', request.user.pk)
+        messages.error(request, 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.')
+        response = _render_transfer(request, candidates, {}, form_data, status=429)
+        response['Retry-After'] = str(TRANSFER_ADMIN_WINDOW_SECONDS)
+        return response
+
+    new_admin = form.cleaned_data['new_admin']
+    name = new_admin.display_name   # se toma ANTES de transferir
+    result, errors = _run_action(request, account_services.transfer_admin, request.user, new_admin,
+                                 form.cleaned_data['password'])
+    if result is not None:
+        messages.success(request, f'Traspasaste la administración a {name}. Sigues como entrenador/a '
+                                  'con tus clientas, pero ya no ves Pagos ni Entrenadores.')
+        return redirect('trainer_dashboard')
+    if errors is None:   # rechazo o fallo inesperado: el mensaje ya está puesto
+        return redirect('trainer_dashboard')
+    flash_errors(request, form, errors, skip=ADMIN_TRANSFER_RENDERED)
+    return _render_transfer(request, account_services.transfer_admin_candidates(request.user), errors, form_data)
+
+
 @superuser_required
 def trainer_edit_trainer(request, pk):
     """Editar datos de un entrenador — solo superusuario."""
@@ -816,7 +905,7 @@ def trainer_edit_trainer(request, pk):
         return render(request, 'trainer/trainer_edit.html', {
             'trainer_obj': get_object_or_404(User, pk=pk, role='trainer', erased_at__isnull=True),
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'trainer/trainer_edit.html', {

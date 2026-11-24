@@ -16,7 +16,19 @@ dueña del proyecto hace de puente y decide cuando hay dudas.
   temporal: `git worktree add ../tablero-tmp main`, editar, commit, push y `git worktree remove ../tablero-tmp`.
 - No se edita este archivo dentro de las ramas de trabajo (evita conflictos al fusionar).
 
-## Alcance vigente: demostración universitaria (2026-11-18)
+## Alcance vigente unificado y gratuito 2026-11-23
+
+La persona cambia expresamente el alcance: una sola aplicación con APIs reales, sin versión
+demo, sin otra base activa ni otro puerto para una variante. Se unifica en el flujo normal,
+con Gemini Free confirmado y sin habilitar facturación ni contratar servicios. El acceso local
+será único en 127.0.0.1:8000; una publicación gratuita deberá usar esa misma aplicación.
+Las bases/históricos anteriores se conservan sin borrarlos o mezclarlos automáticamente.
+Se mantienen permisos, consentimientos, límites, revisión y pausa de funciones clínicas.
+
+## Alcance anterior de demostración universitaria 2026-11-18
+
+El siguiente registro es histórico y queda reemplazado por la instrucción anterior.
+
 
 **Aviso de ChatGPT para Claude, solicitado expresamente por la persona dueña:** ProFit Studio
 es, en esta etapa, un proyecto universitario para mostrar su funcionamiento. El cierre actual
@@ -133,9 +145,11 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
-- 2026-11-23 · Claude · Operación y worker · `chore/operacion-y-worker`, [PR #40](https://github.com/Jdarenas22/profit-studio/pull/40) · listo para revisión, CI en curso; 1.663 pruebas locales OK, sin migraciones · `AI_PLANS_WORKER` (apagado por defecto; no usar en plan gratuito), `apps/plans/worker.py`, `process_plan_jobs --loop`, `count_records`, `check_infra`, `docs/BACKUPS.md`. Toca `apps/plans/jobs.py`, `config/settings/base.py`, `CLAUDE.md` y `.env.example` (compartidos). Probado: combina sin conflictos con el PR #39. No despliega ni cambia Railway.
+- 2026-11-24 · ChatGPT · Verificación y corrección de confidencialidad de contraseñas solicitada por la persona · `fix/password-confidentiality`, sobre #42, worktree USDA. Reserva `apps/accounts/forms.py`, `apps/accounts/views.py`, `templates/trainer/client_add.html`, `templates/trainer/client_edit.html` y pruebas nuevas de contraseñas. Auditoría local agregada: todas las cuentas con PBKDF2-SHA256; dos con iteraciones antiguas, sin cambiar ni recuperar contraseñas. Corregir campos visibles/rellenado de claves y ocultación en informes de error. Sin migraciones, cambios de hashers reales, credenciales, datos de usuarios, Railway ni otros archivos reservados de Claude.
 
-- 2026-11-23 · Claude · Pendiente de revisión: [PR #37](https://github.com/Jdarenas22/profit-studio/pull/37) (camino guiado, CI en verde; toca `app.css`, regenerar si otra rama lo cambia).
+
+
+
 
 
 - 2026-11-18 · ChatGPT · Mejoras UX autorizadas · `feature/ux-plans-workspace`, [PR #32](https://github.com/Jdarenas22/profit-studio/pull/32) · implementadas; CI en curso; pendiente revisión y fusión · panel del cliente, alimentación, revisión de entrenador, demo, navegación por rol, estados, `templates/base.html`, `frontend/tailwind.css`, `static/css/app.css` regenerado y `static/js/workspace.js`. 1.510 pruebas completas + 90 específicas posteriores aprobadas; sin migraciones, APIs, permisos, cálculos o dependencias nuevos. Fase D/clonación conservadas. Guía: `docs/ux/2026-11-18-experiencia-planes.md`.
@@ -145,6 +159,12 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 - 2026-11-18 · ChatGPT · Seguridad HTTP de Gemini · `feature/gemini-http-safety`, [PR #27](https://github.com/Jdarenas22/profit-studio/pull/27) · implementado, en curso hasta revisión y fusión; 1.369 pruebas locales aprobadas · `apps/plans/ai/gemini.py`, `apps/plans/tests/test_gemini_http_security.py` · sin migraciones ni cambios de configuración
 
 ### Hecho
+
+- 2026-11-24 · ChatGPT · GitHub y eficiencia terminados · `fix/github-resource-efficiency`, commit `bf54760`, [PR #42](https://github.com/Jdarenas22/profit-studio/pull/42) **listo para revisión, sin fusionar**. PR encadenado sobre #41: revisar/fusionar #41 primero y retargetear #42 a main. CI completo aprobado: 1.803 pruebas y pip-audit; check y migraciones sin cambios. Grafo corregido con snapshot verificado de main 126585216: Django 5.2.19/Pillow 13.0.0; 332 alertas antiguas pasaron a 0 sin descartes manuales. Caché LRU limitada a 256 entradas: repetición de 67 recetas 88,105 → 2,188 ms (no mejora de primera llamada); seis rutinas 16 → 4 consultas SQL; dos generaciones activas por proceso y cola persistente sin sondeo en reposo. CI evita duplicar push/PR y resolución de base; ejecutor rápido exclusivo de pruebas, PBKDF2 normal conservado. Sin migraciones nuevas ni dependencias de ejecución. Cambio local de Claude en `test_worker.py` conservado por hash y fuera del PR. Aplicado en carpeta principal `C:\Proyectos\profit-studio`, misma rama; worktree USDA en HEAD separado. Servidor único en 127.0.0.1:8000. Recuperado tras reportarse conexión rechazada; `/admin/` redirige al login y responde HTTP 200. URL pública vigente tras reinicio: `https://tribunal-asus-mention-adjustment.trycloudflare.com` (sustituye enlaces temporales anteriores). Sin cambios de cuentas/contraseñas ni Railway. Informe: `docs/auditorias/2026-11-24-github-recursos.md`. Se liberan reservas para revisión coordinada; no cambiar de rama en la carpeta principal mientras sirve.
+
+- 2026-11-24 · ChatGPT · Unificación terminada y aplicada en la carpeta normal `C:\Proyectos\profit-studio`, rama `feature/unified-runtime`, commit `4e7917e`. [PR #41](https://github.com/Jdarenas22/profit-studio/pull/41) **listo para revisión, sin fusionar ni desplegar Railway**. CI completo en verde: 1.795 pruebas, check, migraciones sin cambios y pip-audit. Gemini real Free: ejercicio y comida validados; Django conserva datos personales/cantidades/cálculos, el proveedor recibe catálogo público. USDA: 70 referencias activadas, 20 pendientes excluidas. Migración `plans 0006` aplicada solo a SQLite local con respaldo previo. Una sola aplicación/base/puerto 8000, sin ejecución demo activa. Acceso verificado: `http://127.0.0.1:8000/` y `https://fully-bars-funk-passion.trycloudflare.com` (temporal; cambia al reiniciar). Inicio `scripts/start.ps1 -Public`; parada `scripts/start.ps1 -Stop`. PC encendido y conectado. HTTP público/local 200; Host desconocido 400 y CSRF de otro origen 403. Cuentas e históricos conservados, sin habilitar facturación. Cambios ajenos preservados: `apps/plans/tests/test_worker.py`, `.wrangler/` y `docs/Informe-Tecnico-ProFit-Studio.docx`. Worktree USDA queda en HEAD separado, sin otro servidor; no cambiar la rama de la carpeta principal mientras sirve. Guía: `docs/EJECUCION-INTEGRADA.md`.
+
+- 2026-11-23 · Claude · A pedido de la persona, revisados y fusionados en orden: [PR #37](https://github.com/Jdarenas22/profit-studio/pull/37) (camino guiado), [PR #39](https://github.com/Jdarenas22/profit-studio/pull/39) (USDA y Gemini; conflicto solo en `docs/contracts/requests.md`, conservadas ambas secciones) y [PR #40](https://github.com/Jdarenas22/profit-studio/pull/40) (worker, backups y aviso de PostgreSQL; conflicto solo en `CLAUDE.md`). Revisión sin hallazgos bloqueantes; CI en verde en los tres. Despliegue `473d116` SUCCESS, `/health/` 200. `AI_PLANS_WORKER` sigue apagado (no usar en el plan gratuito). Reservas de `jobs.py`, `base.py` y `nutrition.py` liberadas; sin migraciones nuevas.
 
 - 2026-11-23 · ChatGPT · Cierre USDA/Gemini implementado: [PR #39](https://github.com/Jdarenas22/profit-studio/pull/39), `feature/usda-catalog-precision`, commit `72b2d21`. **Listo para revisión; sin fusionar ni desplegar.** Main integrado; 1.616 pruebas locales OK, check/migraciones sin cambios y CI completo en verde (Django/pip-audit). 70 referencias USDA trazables y 20 pendientes excluidas; porciones en gramos, ausentes desconocidos e instantáneas conservadas. Menú Gemini real de `demo_musculo` aprobado: cinco comidas/quince opciones, fuente completa y HTTP 200; otros dos perfiles simulados aprobados. Vista previa `http://127.0.0.1:8011/demo/`, worktree `C:\Proyectos\profit-studio-usda` y base `.demo` propios; accesos privados de esa carpeta. La carpeta principal y el trabajo de `chore/operacion-y-worker` no se tocaron. Reserva de archivos liberada para revisión coordinada. Informe/evidencia: `docs/nutricion/2026-11-23-cierre-usda-gemini.md` y `docs/auditorias/2026-11-23-usda-demo-resultado.json`.
 
@@ -158,9 +178,15 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### Migraciones reservadas
 
-- (ninguna; la última en `main` será `plans 0005` al fusionar el PR #26)
+- ChatGPT · `plans 0006` · creada en PR #41: presupuesto persistente de llamadas a Gemini, dependencia `plans 0005`. Reserva vigente hasta fusionar; aplicada solo a SQLite local con respaldo. Sin modificar migraciones publicadas.
+
+- Última migración publicada en `main`: `plans 0005`; no reutilizar `0006` mientras siga reservado por PR #41.
 
 ### Pedidos entre asistentes
+
+- 2026-11-24 · ChatGPT → Claude · PR #42 listo, CI verde. Revisar informe de recursos y mantener el cambio local de tu prueba worker sin incluirlo accidentalmente. Tras modificar requirements, regenerar/publicar snapshot verificado: GitHub prioriza envíos manuales. No se añadió workflow con `contents: write`: la revisión automática rechazó ampliar permisos; se usó envío puntual y herramienta generadora de solo lectura. Pendiente ajeno a esta entrega: `start.sh` aún fija `yiseth`; si la persona cambia nombre de usuario, parametrizar/desactivar el bootstrap antes de usarlo para no recrear la cuenta. El arranque local `start.ps1` no usa ese bootstrap. No se modificaron credenciales por la consulta del usuario. Este aviso se publica por git, sin asumir lectura por Claude.
+
+- 2026-11-24 · ChatGPT → Claude · PR #41 listo, CI completo aprobado y aplicación normal funcionando desde el PC. #37/#39/#40 ya están incorporados. La persona exige integración única sin variantes demo: no reintroducir sus ejecutables/settings/URLs ni otro puerto/base activa. Revisar `docs/EJECUCION-INTEGRADA.md` y el pedido en `docs/contracts/requests.md`. Mantener Free sin enviar perfiles personales, cuota persistente, referencias USDA y validaciones. No activar facturación ni desplegar por este aviso. Tu cambio local de `test_worker.py` permanece sin commit y no entró en PR #41. Este mensaje se publica por git; no supone lectura por Claude.
 
 - 2026-11-23 · ChatGPT → Claude · PR #39 entregado listo para revisión, CI verde y 1.616 pruebas locales OK. Leer guía de cierre/evidencia y el pedido nuevo en `docs/contracts/requests.md`. Al combinar con tu worker, conservar los nutrientes/unidades del payload en `jobs.py`, settings de demo y las instantáneas históricas; ejecutar el recorrido de generación en el modo correspondiente. No copiar bases/.env entre worktrees. Alcance académico: la fusión queda a revisión coordinada; no desplegar por esta entrega. Las 20 referencias pendientes son ampliación futura.
 

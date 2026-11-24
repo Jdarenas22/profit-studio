@@ -14,10 +14,18 @@
       {{ trainers|length }} {% if status == 'inactive' %}desactivado{{ trainers|length|pluralize:"s" }}{% elif status == 'all' %}en total{% else %}en el equipo{% endif %}
     </p>
   </div>
-  <a href="{% url 'trainer_create_trainer' %}"
-     class="inline-flex items-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
-    <i class="fa fa-user-plus" aria-hidden="true"></i> Agregar entrenador/a
-  </a>
+  <div class="flex flex-wrap items-center gap-2">
+    {% if request.user.is_superuser %}
+    <a href="{% url 'trainer_admin_transfer' %}"
+       class="inline-flex items-center gap-2 min-h-[44px] px-3 rounded-xl text-white/70 hover:text-white hover:bg-white/10 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <i class="fa fa-user-shield" aria-hidden="true"></i> Transferir la administración
+    </a>
+    {% endif %}
+    <a href="{% url 'trainer_create_trainer' %}"
+       class="inline-flex items-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+      <i class="fa fa-user-plus" aria-hidden="true"></i> Agregar entrenador/a
+    </a>
+  </div>
 </div>
 
 {% include 'trainer/partials/account_status_tabs.html' with masculine=True %}

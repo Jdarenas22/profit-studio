@@ -99,8 +99,7 @@
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Contraseña inicial *</label>
-          <input type="text" name="password" required
-                 value="{{ form.password|default:'' }}"
+          <input type="password" name="password" required autocomplete="new-password"
                  placeholder="Mínimo 8 caracteres"
                  class="w-full bg-black/40 border {% if errors.password %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
           {% if errors.password %}<p class="text-red-400 text-xs mt-1">{{ errors.password }}</p>{% endif %}
