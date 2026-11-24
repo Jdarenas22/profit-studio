@@ -145,7 +145,7 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
-- 2026-11-23 · ChatGPT · Unificación autorizada por la persona · `feature/unified-runtime`, trabajo aislado en `C:\Proyectos\profit-studio-usda`. Incorpora main con #37/#39 y la rama publicada del worker #40. Reserva: `apps/plans/ai/`, modelos y migración `plans 0006` para presupuesto de llamadas, `services.py`, comandos USDA/Gemini, settings, diagnóstico, arranque, rutas/plantilla demo a retirar, pruebas y documentación. Elimina la separación de ejecución demo; conserva históricos privados y cambios de Claude. No desplegar ni editar estos archivos en paralelo hasta entregar el PR.
+- 2026-11-23 · ChatGPT · Unificación autorizada · `feature/unified-runtime`, [PR #41](https://github.com/Jdarenas22/profit-studio/pull/41), implementación `13a79f3`, validación general en curso. Incorpora #37/#39/#40; retira ejecución demo y usa Gemini real Free con datos de catálogo. Migración `plans 0006` aplicada exclusivamente a SQLite normal local, con copia previa. Carpeta principal `C:\Proyectos\profit-studio` en rama local `integration/unified-local`: se conservó por hash el cambio sin commit de Claude en `apps/plans/tests/test_worker.py`, más `.wrangler/` y su DOCX sin seguimiento. No editar estos archivos de integración hasta terminar; no cambiar esa carpeta de rama mientras sirve. Aplicación única en puerto 8000, publicada por un túnel al mismo proceso; los servidores demo se detuvieron. Diagnóstico real de ejercicio y comida aprobado. Guía `docs/EJECUCION-INTEGRADA.md`; sin activar facturación o servicios pagos.
 
 
 
