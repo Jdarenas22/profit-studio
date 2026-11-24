@@ -9,6 +9,7 @@ La lista que se ofrece a la IA se recorta a `MAX_OFFERED` para no inflar el esqu
 import copy
 import random
 from decimal import Decimal
+from functools import lru_cache
 from typing import NamedTuple
 
 from . import meal_validate as meal
@@ -433,6 +434,32 @@ MAX_OFFERED = 36
 PROTEIN_PREFER, PROTEIN_REQUIRE, PROTEIN_IGNORE = 'prefer', 'require', 'ignore'
 
 
+@lru_cache(maxsize=256)
+def _fit_portions(name, ingredients, foods, kcal, protein_g):
+    """Reutiliza solo cálculos puros, con memoria acotada y claves por composición completa.
+
+    Nunca conserva fichas, modelos Django ni resultados del proveedor. Un cambio en alimentos,
+    nutrientes, rangos u objetivos produce otra clave; los filtros de dieta se ejecutan antes.
+    Las porciones son inmutables y cada llamada reconstruye sus propias opciones.
+    """
+    rules = meal.SlotRules(slot_code='', kcal=kcal, protein_g=protein_g, foods={})
+    rng = random.Random(f'{VERSION}:{name}:{kcal}:{protein_g}')
+    for _ in range(350):
+        rows = [(food, rng.randrange(low // 5, high // 5 + 1) * 5)
+                for food, (_ingredient, low, high) in zip(foods, ingredients)]
+        scaled, _totals, errors = meal.evaluate_option(rows, rules)
+        if errors:
+            continue
+        _checked_rows, checked, recheck_errors = meal.evaluate_option(scaled, rules)
+        if recheck_errors or checked.protein < protein_g or checked.fat_share < Decimal('.24'):
+            continue
+        if any(not Decimal(low) * Decimal('.7') <= grams <= Decimal(high) * Decimal('1.3')
+               for (_food, grams), (_name, low, high) in zip(scaled, ingredients)):
+            continue
+        return tuple(grams for _food, grams in scaled)
+    return None
+
+
 def candidates(rules, cooking='basic', seed=None):
     """Una porción viable por receta; sin sustituciones improvisadas cuando falta un ingrediente.
 
@@ -446,25 +473,13 @@ def candidates(rules, cooking='basic', seed=None):
             continue
         if any(ingredient not in by_name for ingredient, _low, _high in ingredients):
             continue
-        rng = random.Random(f'{VERSION}:{name}:{rules.kcal}:{rules.protein_g}')
-        for _ in range(350):
-            rows = [(by_name[ingredient], rng.randrange(low // 5, high // 5 + 1) * 5)
-                    for ingredient, low, high in ingredients]
-            scaled, _totals, errors = meal.evaluate_option(rows, rules)
-            if errors:
-                continue
-            # Margen para el redondeo por comida y TODA combinación del día (no solo una).
-            _checked_rows, checked, recheck_errors = meal.evaluate_option(scaled, rules)
-            if recheck_errors or checked.protein < rules.protein_g or checked.fat_share < Decimal('.24'):
-                continue
-            if any(not Decimal(low) * Decimal('.7') <= grams <= Decimal(high) * Decimal('1.3')
-                   for (_food, grams), (_name, low, high) in zip(scaled, ingredients)):
-                continue
+        foods = tuple(by_name[ingredient] for ingredient, _low, _high in ingredients)
+        grams = _fit_portions(name, ingredients, foods, rules.kcal, rules.protein_g)
+        if grams is not None:
             options.append({
                 'name': name, 'cuisine': cuisine, 'main_protein': family, 'preparation': preparation,
-                'items': [{'food_id': food.id, 'grams': grams} for food, grams in scaled],
+                'items': [{'food_id': food.id, 'grams': amount} for food, amount in zip(foods, grams)],
             })
-            break
     if seed is not None:
         random.Random(f'{VERSION}:{seed}:{rules.slot_code}').shuffle(options)
     return options

@@ -115,9 +115,9 @@ def dashboard(request):
             'membership': membership,
         })
 
-    routines = request.user.routines.filter(is_active=True).prefetch_related(
-        'days__exercises__exercise'
-    )
+    routines = request.user.routines.filter(is_active=True).select_related(
+        'plan__approved_by'
+    ).prefetch_related('days__exercises__exercise')
     from apps.plans.journey import client_journey
     from apps.whatsapp import conf as whatsapp_conf
     from apps.whatsapp import services as whatsapp_services

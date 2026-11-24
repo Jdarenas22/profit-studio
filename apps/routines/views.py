@@ -56,7 +56,7 @@ def member_routine(request):
 
     routines = Routine.objects.filter(
         user=request.user, is_active=True
-    ).prefetch_related('days__exercises__exercise')
+    ).select_related('plan__approved_by').prefetch_related('days__exercises__exercise')
 
     from apps.plans.texts import DISCLAIMER
     return render(request, 'routines/member_routine.html', {'routines': routines, 'plan_disclaimer': DISCLAIMER})
