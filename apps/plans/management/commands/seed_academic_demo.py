@@ -82,6 +82,7 @@ class Command(BaseCommand):
                     for order, exercise in enumerate(exercises[:5]):
                         RoutineExercise.objects.create(day=day, exercise=exercise, sets=3, reps='10', rest_seconds=60, order=order)
             call_command('load_foods', stdout=self.stdout)
+            call_command('load_usda_catalog', apply=True, activate_demo=True, stdout=self.stdout)
             access.write_text('CUENTAS FICTICIAS · SOLO localhost · no reutilizar estas claves\n' +
                               '\n'.join(credentials) + '\n', encoding='utf-8')
         self.stdout.write(self.style.SUCCESS('Demo preparada: 1 entrenador, 3 clientes y 5 comidas.'))

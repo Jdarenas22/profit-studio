@@ -156,8 +156,10 @@ class FDCImportTests(TestCase):
         self.assertEqual(FoodImportRevision.objects.count(), 1)
 
     def test_seed_loader_does_not_overwrite_imported_unvalidated_food(self):
-        food, _, _ = self.apply(name='Pechuga de pollo cocida sin piel')
-        # Deliberadamente mal llamado para probar la protección del cargador, no identidad culinaria.
+        food, _, _ = self.apply(name='Pechuga cruda de prueba')
+        # Simula un registro histórico mal nombrado: la importación nueva ya impide este error.
+        food.name = 'Pechuga de pollo cocida sin piel'
+        food.save(update_fields=['name'])
         call_command('load_foods', stdout=io.StringIO())
         food.refresh_from_db()
         self.assertEqual(food.kcal100, Decimal('120'))

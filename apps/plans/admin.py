@@ -39,11 +39,16 @@ class TrainerCredentialAdmin(SuperuserOnlyAdmin):
 class FoodAdmin(SuperuserOnlyAdmin):
     """Catálogo de alimentos. Un alimento sin `validated_by` solo se usa en DEBUG: quien verifica
     las cifras (nutricionista-dietista) lo marca aquí."""
-    list_display = ('name', 'group', 'kcal100', 'protein100', 'carbs100', 'fat100', 'is_active', 'validated_by')
-    list_filter = ('group', 'is_active', 'is_common')
+    list_display = ('name', 'group', 'kcal100', 'protein100', 'carbs100', 'fat100', 'preparation_state', 'fdc_id', 'source_consistent', 'is_active', 'validated_by')
+    list_filter = ('group', 'is_active', 'is_common', 'preparation_state')
     search_fields = ('name', 'fdc_id')
     readonly_fields = ('fdc_id', 'source_snapshot', 'source_hash', 'source_imported_at')
     actions = ('mark_validated', 'clear_validation')
+
+    @admin.display(boolean=True, description='Composición USDA consistente')
+    def source_consistent(self, obj):
+        from .sources.catalog import source_is_consistent
+        return source_is_consistent(obj)
 
     @admin.action(description='Marcar como validados (a nombre de quien lo hace)')
     def mark_validated(self, request, queryset):

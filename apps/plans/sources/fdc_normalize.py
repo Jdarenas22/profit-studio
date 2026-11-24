@@ -47,11 +47,14 @@ def normalize_food(payload, expected_id):
     values = {name: None for name in OPTIONAL_FIELDS}
     evidence = {}
     energy_alternatives = {}
+    seen = {}
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get('nutrient'), dict):
             continue
         nutrient = row['nutrient']
         identifier = nutrient.get('id')
+        if type(identifier) is not int:
+            raise FDCError('fdc_invalid_nutrient_id')
         if identifier not in NUTRIENTS and identifier not in (2047, 2048, 1063):
             continue
         if identifier == 1063:
@@ -67,8 +70,15 @@ def normalize_food(payload, expected_id):
             continue
         number = _amount(row['amount'], Decimal('100000') if field == 'sodium_mg100'
                          else Decimal('1000') if field == 'kcal100' else Decimal('100'))
-        detail = {'nutrient_id': identifier, 'unit': unit, 'amount': str(number),
-                  'derivation': str((row.get('foodNutrientDerivation') or {}).get('code', ''))[:40]}
+        exact = Decimal(str(row['amount']))
+        if identifier in seen and seen[identifier] != exact:
+            raise FDCError('fdc_conflicting_nutrients')
+        seen[identifier] = exact
+        derivation = row.get('foodNutrientDerivation') or {}
+        if not isinstance(derivation, dict):
+            raise FDCError('fdc_invalid_nutrient_metadata')
+        detail = {'nutrient_id': identifier, 'unit': unit, 'amount': str(number), 'source_amount': str(exact),
+                  'derivation': str(derivation.get('code', ''))[:40]}
         if identifier in (2047, 2048):
             energy_alternatives[identifier] = (number, detail)
             continue

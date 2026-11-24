@@ -60,6 +60,47 @@
   .pfs-job-steps li { border:1px solid #454b59; border-radius:999px; padding:.35rem .7rem; font-size:.8rem; color:#cbd0da; }
   .pfs-job-steps [aria-current=step] { border-color:#d98548; background:#33251d; color:#ffba8c; }
   .pfs-demo-layout { max-width:960px; margin:0 auto; padding:3rem 1.25rem; }
+  /* Camino guiado hacia el plan con IA (templates/plans/partials/journey_card.html). */
+  .pfs-journey { margin-bottom:2rem; box-shadow:0 0 0 1px #93613b; }
+  .pfs-journey-compact { margin-bottom:1.5rem; padding:1.25rem; box-shadow:none; }
+  .pfs-journey-head { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:.5rem 1rem; }
+  .pfs-journey-head h2 { font-size:1.35rem; font-weight:750; letter-spacing:-.02em; line-height:1.25; }
+  .pfs-journey-compact .pfs-journey-head h2 { font-size:1.05rem; }
+  .pfs-journey-count { color:#ffba8c; font-weight:700; font-size:.9375rem; }
+  .pfs-journey-count small { display:block; color:#b4bac6; font-weight:500; font-size:.8rem; }
+  .pfs-journey-steps { display:grid; gap:.75rem; margin-top:1.25rem; counter-reset:none; }
+  .pfs-step { display:flex; gap:.9rem; align-items:flex-start; border:1px solid #343842; border-radius:1rem; background:#16181d; padding:1rem; min-width:0; }
+  .pfs-step-body { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .pfs-step-title { font-weight:700; color:#f5f5f7; line-height:1.35; }
+  .pfs-step-mark { display:grid; place-items:center; width:2.25rem; height:2.25rem; flex-shrink:0; border-radius:.75rem; background:#292d37; color:#cbd0da; font-weight:750; font-size:.9rem; }
+  .pfs-step-label { display:inline-flex; align-items:center; gap:.35rem; margin-top:.35rem; margin-right:.75rem; font-size:.75rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#cbd0da; }
+  .pfs-step-note { display:inline-flex; align-items:center; gap:.35rem; margin-top:.35rem; margin-right:.75rem; font-size:.75rem; color:#b4bac6; }
+  .pfs-step-done .pfs-step-mark { background:#173a26; color:#86efac; }
+  .pfs-step-done .pfs-step-label { color:#86efac; }
+  .pfs-step-current { border-color:#d98548; background:#241a14; }
+  .pfs-step-current .pfs-step-mark { background:#ff7a24; color:#16100c; }
+  .pfs-step-current .pfs-step-label { color:#ffba8c; }
+  .pfs-step-locked { border-style:dashed; background:transparent; }
+  .pfs-step-locked .pfs-step-title { color:#cbd0da; }
+  .pfs-step-locked .pfs-step-mark { background:transparent; border:1px dashed #454b59; color:#aeb4c0; }
+  .pfs-step-link { display:inline-flex; align-items:center; gap:.4rem; min-height:44px; color:#ffb17d; font-size:.875rem; font-weight:600; text-decoration:underline; text-underline-offset:3px; border-radius:.5rem; }
+  .pfs-step-link:hover { color:#ffcfae; }
+  .pfs-step .pfs-button { margin-top:.85rem; }
+  .pfs-journey-done { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem; }
+  .pfs-journey-done li { display:inline-flex; align-items:center; gap:.45rem; border:1px solid #2f5a3f; background:#15241b; color:#d1fae5; border-radius:1rem; padding:.3rem .75rem; font-size:.8rem; font-weight:600; max-width:100%; overflow-wrap:anywhere; }
+  .pfs-journey-done i { color:#86efac; font-size:.75rem; }
+  .pfs-plan-grid { display:grid; gap:1rem; margin-top:1.25rem; }
+  .pfs-plan-card { display:flex; flex-direction:column; align-items:flex-start; gap:.75rem; border:1px solid #343842; border-radius:1rem; background:#16181d; padding:1.25rem; min-width:0; overflow-wrap:anywhere; }
+  .pfs-plan-card h3 { font-size:1.15rem; font-weight:750; line-height:1.3; }
+  .pfs-plan-card .pfs-button { margin-top:auto; }
+  .pfs-plan-ready { border-color:#d98548; background:#241a14; }
+  .pfs-plan-state { display:inline-flex; align-items:center; gap:.4rem; font-size:.75rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#cbd0da; }
+  .pfs-plan-ready .pfs-plan-state, .pfs-plan-generating .pfs-plan-state { color:#ffba8c; }
+  .pfs-plan-approved .pfs-plan-state { color:#86efac; }
+  .pfs-plan-attention .pfs-plan-state { color:#fde68a; }
+  .pfs-journey-more { margin-top:1.25rem; margin-bottom:0; background:#16181d; }
+  .pfs-journey-more .pfs-journey-steps { margin-top:0; }
+  @media(min-width:640px) { .pfs-plan-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media(min-width:640px) { .pfs-action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media(max-width:767px) {
     .pfs-app-member { padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
@@ -74,6 +115,9 @@
     .pfs-app #messages-container button { min-width:44px; min-height:44px; }
     .pfs-meal>summary { padding:1rem; gap:.75rem; }
     .pfs-meal-body { padding:0 .75rem 1rem; }
+    .pfs-journey { padding:1.1rem; }
+    .pfs-step { padding:.85rem; gap:.7rem; }
+    .pfs-plan-card { padding:1rem; }
   }
   @media(prefers-reduced-motion:reduce) { .pfs-app *, .pfs-app *::before, .pfs-app *::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
   @media print {

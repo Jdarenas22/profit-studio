@@ -36,6 +36,8 @@
     <form method="POST" action="{% url 'member_health_profile_confirm' %}" class="mt-4 sm:pl-7"
           x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
       {% csrf_token %}
+      {# Camino guiado: vuelve a donde empezó (docs/contracts/camino-guiado.md, sección 3). #}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
       <button type="submit" :disabled="sending"
               class="inline-flex items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold text-sm px-5 py-2 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
         <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>

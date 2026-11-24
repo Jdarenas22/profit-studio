@@ -193,6 +193,7 @@ AI_PLANS_MODE = env('AI_PLANS_MODE', default='')
 GEMINI_API_KEY = env('GEMINI_API_KEY', default='')            # solo entorno; nunca en código ni logs
 FDC_API_KEY = env('FDC_API_KEY', default='')
 FDC_TIMEOUT_SECONDS = env.int('FDC_TIMEOUT_SECONDS', default=15)
+NUTRITION_REQUIRE_USDA_REFERENCE = env.bool('NUTRITION_REQUIRE_USDA_REFERENCE', default=False)
 GEMINI_MODEL = env('GEMINI_MODEL', default='')                # p. ej. un modelo "flash-lite" estable
 GEMINI_BILLING_CONFIRMED = env.bool('GEMINI_BILLING_CONFIRMED', default=False)
 GEMINI_TIMEOUT_SECONDS = env.int('GEMINI_TIMEOUT_SECONDS', default=60)

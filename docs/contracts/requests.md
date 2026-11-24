@@ -561,6 +561,20 @@ si hay cambios paralelos, regenerar `static/css/app.css` desde la fuente, sin re
 La demo mantiene su alcance universitario y las cuentas ficticias. No se despliega esta entrega.
 
 
+## ChatGPT → Claude: precisión USDA (2026-11-18)
+
+Rama `feature/usda-catalog-precision`, worktree `C:\Proyectos\profit-studio-usda`.
+70 referencias con identidad, preparación, composición y etiqueta española verificadas;
+20 pendientes excluidas en demo. Registro offline sin claves, importación transaccional
+y conservación de planes/revisiones. Gemini recibe nutrientes opcionales con unidades y
+`null`; Django calcula totales. Etiquetas y cobertura se congelan por ingrediente.
+Sin migraciones. No activar servicios pagos, producción ni perfiles clínicos.
+Informe/comandos: `docs/nutricion/2026-11-18-catalogo-usda.md`.
+La reserva de `nutrition.py`, `jobs.py`, `nutrient_tables.py`, `services.py`, settings,
+admin y parciales de alimentación concluye al entregar el PR. Revisar si hay cambios
+paralelos; las plantillas conservan la fase D y las mejoras UX ya fusionadas.
+
+
 ## frontend → backend: PWA segura y prueba de Permissions-Policy (2026-11-20, rama `feature/arreglos-rapidos`)
 
 - Ruta `GET /sw.js` (backend): verificada en Chrome sin interfaz. Registro con `scope: '/'` correcto,
@@ -601,3 +615,26 @@ La demo mantiene su alcance universitario y las cuentas ficticias. No se desplie
   - Evitar `url(...)` en CSS hacia archivos que no existan: el post-proceso de `collectstatic` falla.
   - Al agregar o renombrar un archivo en `static/`, no hace falta nada más: el siguiente despliegue lo
     publica con huella nueva.
+
+
+## ChatGPT → Claude: cierre USDA/Gemini, PR #39 (2026-11-23)
+
+Main integrado sin modificar tu carpeta principal ni el trabajo local del worker.
+Prueba real aprobada para `demo_musculo`: cinco comidas, quince opciones y cobertura USDA
+completa; los otros dos perfiles son simulados, también aprobados. No confundir sus orígenes.
+Guía de cierre: `docs/nutricion/2026-11-23-cierre-usda-gemini.md`; evidencia JSON en auditorías.
+El worker toca `jobs.py`: conservar el payload nuevo de nutrientes/unidades y volver a verificar
+la generación al combinar las ramas. No copiar bases o .env; no desplegar por esta entrega.
+
+## backend → frontend: camino guiado, `next` y un campo agregado (2026-11-20, rama `feature/camino-guiado`)
+
+Contrato: `docs/contracts/camino-guiado.md` (forma exacta de `journey`, pasos, estados y reglas de `next`). Backend entregado: `apps/plans/journey.py`; `dashboard` y `member_plan_request` ya pasan `journey` (`None` cuando no aplica; `eligibility` no cambió).
+
+- **PEDIDO (frontend), campo oculto `next` en tres formularios. Verificado el 2026-11-20 en las plantillas del árbol de trabajo: los tres campos ya están puestos (`profile_wizard.html`, `profile_detail.html` y `member_measurement_add.html`); nada pendiente aquí.** Los pasos del camino mandan a la clienta a la ficha y a las medidas con `?next=` y ahora esas pantallas la devuelven allí al guardar. Hace falta que el formulario **repita** el destino:
+  1. `health/partials/profile_wizard.html` (solo modo `member`): `<input type="hidden" name="next" value="{{ next }}">` cuando `next` no esté vacío. El formulario envía a `action_url` (sin la query), así que sin este campo se pierde. En modo entrenador el contexto trae `next` vacío.
+  2. `health/profile_detail.html`, formulario de «confirmar mi ficha» (`member_health_profile_confirm`): el mismo campo oculto (el contexto del resumen ya trae `next`).
+  3. `assessments/member_measurement_add.html`: el mismo campo oculto (el formulario envía a la misma URL y conserva la query, pero conviene el campo igual, como en `health/consent.html`).
+  El contexto `next` es texto ya validado por el servidor (solo rutas internas; si el valor era externo llega vacío): se puede pintar en un atributo con el escape normal. Sin el campo, todo sigue funcionando como antes (la clienta vuelve a su ficha o a su historial).
+- **PEDIDO (frontend), texto de «5 de 5 pasos hechos».** `journey.all_ready` es verdadero cuando no queda pendiente ningún paso de alcance `all` (ya se puede pedir el plan de ejercicio), pero `activity` (solo alimentación) puede seguir pendiente: entonces `done_count` es 4 de 5. `journey_card.html` hoy escribe «{{ total }} de {{ total }} pasos hechos» y «Completaste todos los pasos» con `all_ready`: con `activity` pendiente eso es falso. Se agregó `journey.all_done` (los 5 pasos hechos) para esos dos textos; el campo es **agregado**, no cambia nada de lo acordado. Además, el parcial pliega los pasos dentro del `<details>` cuando `all_ready`: si falta `activity`, ese paso pendiente quedaría escondido; conviene plegar solo con `all_done`.
+- **Nota:** `plans.nutrition.url` (estado `missing_steps` cuando solo falta `activity`) y el `url` del paso `activity` terminan en `#mas-detalles`: abren el asistente directo en el paso 5. La lista actual de «Pedir mi plan» (`eligibility.missing[].url`) **no** lleva ese fragmento (la plantilla lo agrega); ahora esas direcciones traen `next` también en la ficha y en las medidas.
+- **RESUELTO (backend, 2026-11-20):** el texto de bloqueo ya no dice «Tu entrenador ya fue avisado y te contactará» donde todavía no se avisó. (1) Panel: `plans.<tipo>.message` en estado `blocked` usa «Por la información de salud que registraste, lo más seguro es que tu médico o nutricionista te valore antes de armar un plan. Habla con tu entrenador.» (y variantes sin esa afirmación para pocos ejercicios/alimentos). (2) «Pedir mi plan»: `eligibility.blocked_message` (que `request.html` pinta junto al botón «Avisar a mi entrenador») ahora cierra con «Usa el botón para avisar a tu entrenador.»; para D06, «Por ahora no hay suficientes ejercicios/alimentos compatibles contigo. Usa el botón para avisar a tu entrenador.»; fuera de alcance, sin cambios. El frontend puede pintar ambos textos tal cual (no hay que cambiar `request.html`). `BLOCKED_MESSAGE` y la pantalla de estado del trabajo no cambian (después de pulsar sí se avisó). Detalle: `docs/contracts/camino-guiado.md`, sección 2.4.

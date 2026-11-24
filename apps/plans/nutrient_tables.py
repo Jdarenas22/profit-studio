@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from django.utils import timezone
+from django.conf import settings
 
 from .models import Food
 from .rules.foods import items_totals, Totals, round_totals
@@ -12,15 +13,22 @@ EXTRA = ('fiber', 'sugars', 'added_sugars', 'saturated_fat', 'sodium_mg')
 
 
 def capture(items, expected_totals=None):
+    from .sources.catalog import source_is_consistent, reviewed_reference_matches, reference_qualifier
     foods = Food.objects.in_bulk([item['food_id'] for item in items])
     rows, ingredients = [], []
     for item in items:
         food = foods[item['food_id']]
+        verified = source_is_consistent(food) and reviewed_reference_matches(food)
+        if getattr(settings, 'NUTRITION_REQUIRE_USDA_REFERENCE', False) and not verified:
+            raise ValueError('nutrient_catalog_changed')
         rows.append((food, item['grams']))
         ingredients.append({
             'food_id': food.pk, 'food_name': food.name, 'grams': item['grams'],
             'basis': '100g', 'state': food.preparation_state,
             'source': food.source, 'fdc_id': food.fdc_id, 'source_hash': food.source_hash,
+            'source_verified': verified,
+            'source_qualifier': reference_qualifier(food) if verified else '',
+            'source_description': food.source_snapshot.get('description', '') if isinstance(food.source_snapshot, dict) else '',
             'per100': {key: str(getattr(food, key)) if getattr(food, key) is not None else None for key in PER100},
         })
     total = items_totals(rows)
@@ -45,7 +53,14 @@ def option_totals(option):
 
 
 def option_table(option):
-    return round_totals(option_totals(option))
+    result = round_totals(option_totals(option))
+    ingredients = (option.nutrient_snapshot or {}).get('ingredients', [])
+    if not isinstance(ingredients, list):
+        ingredients = []
+    verified = sum(isinstance(row, dict) and row.get('source_verified') is True for row in ingredients)
+    result['source_coverage'] = {'verified': verified, 'total': len(ingredients),
+                                 'complete': bool(ingredients) and verified == len(ingredients)}
+    return result
 
 
 def compare_limits(total, limits):

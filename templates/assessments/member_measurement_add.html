@@ -28,6 +28,8 @@
   <form method="POST" novalidate class="space-y-5"
         x-data="{ sending: false }" @submit="sending = true" @pageshow.window="sending = false">
     {% csrf_token %}
+    {# Camino guiado: vuelve a donde empezó (docs/contracts/camino-guiado.md, sección 3). #}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 sm:p-6 space-y-5">
       <h2 class="text-white font-bold text-sm uppercase tracking-wider">Medidas</h2>

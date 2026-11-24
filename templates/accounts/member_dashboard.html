@@ -9,6 +9,9 @@
     </div>
     <a href="{% url 'member_profile_edit' %}" class="pfs-button pfs-button-secondary"><i class="fa fa-sliders" aria-hidden="true"></i> Mi perfil</a>
   </header>
+  {% comment %}Camino guiado (docs/contracts/camino-guiado.md): journey es None cuando no aplica y no se dibuja nada.
+     Con los dos planes aprobados el camino ya cumplió su función y se oculta (sección 2.4 del contrato).{% endcomment %}
+  {% if journey and journey.plans.exercise.state == 'approved' and journey.plans.nutrition.state == 'approved' %}{% elif journey %}{% include 'plans/partials/journey_card.html' %}{% endif %}
   <div class="pfs-action-grid">
     <article class="pfs-card pfs-action-card">
       <span class="pfs-icon"><i class="fa fa-dumbbell" aria-hidden="true"></i></span>
@@ -190,7 +193,9 @@
   </section>
   {% endwith %}
 
-  <!-- Ficha de salud y alimentación (misma condición: sin la función encendida sus rutas dan 404) -->
+  <!-- Ficha de salud y alimentación (misma condición: sin la función encendida sus rutas dan 404).
+       Mientras se ve el camino guiado la ficha ya es uno de sus pasos (con enlace «Revisar»): no se repite aquí. -->
+  {% if not journey or journey.plans.exercise.state == 'approved' and journey.plans.nutrition.state == 'approved' %}
   <section aria-labelledby="dash-health-title" class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div class="flex items-start gap-4 min-w-0">
       <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
@@ -208,6 +213,7 @@
       <i class="fa fa-arrow-right" aria-hidden="true"></i> Abrir mi ficha
     </a>
   </section>
+  {% endif %}
   {% endif %}
 
 <h2 class="pfs-section-title">Tu membresía</h2>

@@ -14,7 +14,6 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
@@ -33,6 +32,7 @@ from .forms import (
     form_values_from_post, form_values_from_profile,
 )
 from .models import PURPOSE_AI, PURPOSE_CHOICES, PURPOSE_HEALTH_DATA, HealthAccessLog
+from .navigation import safe_next, with_next
 
 PURPOSE_LABELS = dict(PURPOSE_CHOICES)
 DEFAULT_NEXT = 'member_measurement_list'
@@ -41,16 +41,6 @@ DEFAULT_NEXT = 'member_measurement_list'
 def _check_purpose(purpose):
     if not services.is_valid_purpose(purpose):
         raise Http404
-
-
-def _safe_next(request):
-    """Destino al terminar (`next`), solo si es una ruta interna; si no, el historial de medidas."""
-    target = request.POST.get('next') or request.GET.get('next') or ''
-    if target and url_has_allowed_host_and_scheme(
-        target, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
-    ):
-        return target
-    return None
 
 
 def _consent_context(request, purpose, text, record, errors=None, form=None):
@@ -62,7 +52,7 @@ def _consent_context(request, purpose, text, record, errors=None, form=None):
         'already_granted': record is not None,
         'granted_at': record.granted_at if record else None,
         'text_available': text is not None,
-        'next': _safe_next(request) or '',
+        'next': safe_next(request) or '',
         'privacy_policy_url': getattr(settings, 'PRIVACY_POLICY_URL', ''),
         'errors': errors or {},
         'form': form or {},
@@ -96,7 +86,7 @@ def member_consent(request, purpose):
                 errors['text_version' if isinstance(exc, services.ConsentTextChanged) else 'general'] = str(exc)
             else:
                 messages.success(request, 'Tu autorización quedó registrada.')
-                return redirect(_safe_next(request) or DEFAULT_NEXT)
+                return redirect(safe_next(request) or DEFAULT_NEXT)
         # La plantilla solo pinta `errors.accept` junto a la casilla; el resto se avisa arriba
         for key, text_error in errors.items():
             if key != 'accept':
@@ -119,7 +109,7 @@ def member_consent_revoke(request, purpose):
             return redirect(f"{reverse('member_health_delete')}?{urlencode({'from_revoke': 1})}")
     else:
         messages.info(request, 'No tenías una autorización activa para esta finalidad.')
-    return redirect(_safe_next(request) or DEFAULT_NEXT)
+    return redirect(safe_next(request) or DEFAULT_NEXT)
 
 
 # ─── Ficha de salud y alimentación — contexto común ───────────────────────────
@@ -150,7 +140,7 @@ def _choices_context():
     }
 
 
-def _form_context(*, mode, client, profile, values, errors, last_height):
+def _form_context(*, mode, client, profile, values, errors, last_height, next_url=''):
     """Contexto de las plantillas del formulario (FB-01: la clienta y el entrenador usan el mismo
     diccionario). Ficha básica: `form.health_screen` / `form.food_screen` ('yes' | 'no' | ''),
     `form.defaulted_fields`, `choices.screen` y `screen_was_yes` / `food_screen_was_yes` (la
@@ -184,6 +174,7 @@ def _form_context(*, mode, client, profile, values, errors, last_height):
         'first_error_step': first_error_step(errors),
         'form': values,
         'last_height': last_height,
+        'next': next_url or '',                # solo modo 'member': a dónde vuelve al guardar (campo oculto)
         'birth_date_min': add_months(today, -12 * services.MAX_AGE).isoformat(),
         'birth_date_max': add_months(today, -12 * services.ADULT_AGE).isoformat(),
         'today': today.isoformat(),
@@ -212,19 +203,24 @@ def _consent_redirect(next_url):
 @member_required
 def member_health_profile(request):
     """GET: resumen de la ficha (o el formulario si aún no tiene, o con `?edit=1`). POST: guarda
-    una versión nueva. Menores de 18: 403 con `health/minor_blocked.html`."""
+    una versión nueva. Menores de 18: 403 con `health/minor_blocked.html`.
+
+    `next` (ruta interna, del POST o de la URL): a dónde vuelve la clienta al guardar (camino guiado).
+    Se conserva si antes tiene que dar el consentimiento y se ofrece a las plantillas como `next`."""
     user = request.user
     if request.method not in ('GET', 'HEAD', 'POST'):
         return HttpResponse(status=405)
     if services.is_minor(user):
         return render(request, 'health/minor_blocked.html', status=403)
     profile = services.current_profile(user)
+    next_url = safe_next(request)
     here = reverse('member_health_profile')
+    here_with_next = with_next(here, next_url)
 
     if request.method == 'POST':
         if not services.has_health_consent(user):
             messages.error(request, 'Para guardar tu ficha necesitamos tu autorización vigente.')
-            return _consent_redirect(here)
+            return _consent_redirect(here_with_next)
         known_height = latest_height(user)
         form, errors, values = _validate_posted_profile(request, known_height)
         if not errors:
@@ -232,16 +228,16 @@ def member_health_profile(request):
                 services.save_profile(user, form.cleaned_data, actor=user)
             except services.ProfileConsentRequired:
                 messages.error(request, 'Para guardar tu ficha necesitamos tu autorización vigente.')
-                return _consent_redirect(here)
+                return _consent_redirect(here_with_next)
             except services.ProfileError as exc:
                 errors = {'general': str(exc)}
                 messages.error(request, str(exc))
             else:
                 messages.success(request, 'Tu ficha quedó guardada.')
-                return redirect('member_health_profile')
+                return redirect(next_url or 'member_health_profile')
         return render(request, 'health/profile_form.html', _form_context(
             mode='member', client=None, profile=profile, values=values, errors=errors,
-            last_height=known_height))
+            last_height=known_height, next_url=next_url))
 
     if profile is not None and request.GET.get('edit') != '1':
         return render(request, 'health/profile_detail.html', {
@@ -253,32 +249,35 @@ def member_health_profile(request):
             'health_consent_valid': services.has_health_consent(user),
             'consent_cards': services.consent_cards(user),
             'versions': services.profile_versions(user),
+            'next': next_url or '',
         })
 
     if not services.has_health_consent(user):
-        return _consent_redirect(f'{here}?edit=1' if profile is not None else here)
+        return _consent_redirect(with_next(f'{here}?edit=1', next_url) if profile is not None else here_with_next)
     values = (form_values_from_profile(profile, user.training_goal) if profile is not None
               else {**empty_form_values(), 'training_goal': user.training_goal})
     return render(request, 'health/profile_form.html', _form_context(
         mode='member', client=None, profile=profile, values=values, errors={},
-        last_height=latest_height(user)))
+        last_height=latest_height(user), next_url=next_url))
 
 
 @health_feature_required
 @member_required
 @require_POST
 def member_health_profile_confirm(request):
-    """La clienta confirma la versión vigente (la corrigió su entrenador)."""
+    """La clienta confirma la versión vigente (la corrigió su entrenador). Con `next` (ruta interna)
+    vuelve allí; si no, a su ficha."""
+    next_url = safe_next(request)
     try:
         _, changed = services.confirm_profile(request.user)
     except services.ProfileConsentRequired:
         messages.error(request, 'Para confirmar tu ficha necesitamos tu autorización vigente.')
-        return _consent_redirect(reverse('member_health_profile'))
+        return _consent_redirect(with_next(reverse('member_health_profile'), next_url))
     except services.ProfileNotFound:
         messages.error(request, 'Aún no tienes una ficha para confirmar.')
         return redirect('member_health_profile')
     messages.success(request, 'Confirmaste tus datos.' if changed else 'Tu ficha ya estaba confirmada.')
-    return redirect('member_health_profile')
+    return redirect(next_url or 'member_health_profile')
 
 
 @health_feature_required

@@ -133,6 +133,10 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
+- 2026-11-23 · Claude · Operación y worker · `chore/operacion-y-worker`, [PR #40](https://github.com/Jdarenas22/profit-studio/pull/40) · listo para revisión, CI en curso; 1.663 pruebas locales OK, sin migraciones · `AI_PLANS_WORKER` (apagado por defecto; no usar en plan gratuito), `apps/plans/worker.py`, `process_plan_jobs --loop`, `count_records`, `check_infra`, `docs/BACKUPS.md`. Toca `apps/plans/jobs.py`, `config/settings/base.py`, `CLAUDE.md` y `.env.example` (compartidos). Probado: combina sin conflictos con el PR #39. No despliega ni cambia Railway.
+
+- 2026-11-23 · Claude · Pendiente de revisión: [PR #37](https://github.com/Jdarenas22/profit-studio/pull/37) (camino guiado, CI en verde; toca `app.css`, regenerar si otra rama lo cambia).
+
 
 - 2026-11-18 · ChatGPT · Mejoras UX autorizadas · `feature/ux-plans-workspace`, [PR #32](https://github.com/Jdarenas22/profit-studio/pull/32) · implementadas; CI en curso; pendiente revisión y fusión · panel del cliente, alimentación, revisión de entrenador, demo, navegación por rol, estados, `templates/base.html`, `frontend/tailwind.css`, `static/css/app.css` regenerado y `static/js/workspace.js`. 1.510 pruebas completas + 90 específicas posteriores aprobadas; sin migraciones, APIs, permisos, cálculos o dependencias nuevos. Fase D/clonación conservadas. Guía: `docs/ux/2026-11-18-experiencia-planes.md`.
 - 2026-11-18 · ChatGPT · Demo universitaria autorizada · `feature/gemini-academic-demo`, [PR #31](https://github.com/Jdarenas22/profit-studio/pull/31) · implementada, CI en verde; pendiente revisión y fusión · cliente Gemini demo, `jobs.py`, resumen de rutina, comandos/perfil/URLs/plantilla propios, pruebas, guía y pedidos. Sin migraciones, fase D ni CSS. Base ficticia `.demo/`; incorpora fixes #29/#27.

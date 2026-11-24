@@ -1,4 +1,5 @@
 <div class="text-white/60 text-xs mt-2">
+  {% if nutrients.source_coverage.total %}<p class="text-white/70 mb-1">{% if nutrients.source_coverage.complete %}Composición de referencia USDA{% else %}Fuentes mixtas o sin verificar{% endif %}: {{ nutrients.source_coverage.verified }} de {{ nutrients.source_coverage.total }} ingredientes con origen comprobado en este registro.</p>{% endif %}
   <p>Sodio: {% if nutrients.sodium_mg != None %}{{ nutrients.sodium_mg|floatformat:1 }} mg{% else %}Sin datos completos{% endif %} ·
     Azúcares totales: {% if nutrients.sugars != None %}{{ nutrients.sugars|floatformat:1 }} g{% else %}Sin datos completos{% endif %}</p>
   <p>Azúcares añadidos: {% if nutrients.added_sugars != None %}{{ nutrients.added_sugars|floatformat:1 }} g{% else %}Sin datos completos{% endif %} ·

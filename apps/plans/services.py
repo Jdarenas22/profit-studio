@@ -50,6 +50,7 @@ PLAN_VALID_DAYS = 28                 # vigencia del plan aprobado (4 semanas)
 WEEK = timedelta(days=7)
 DAY = timedelta(days=1)
 AVAILABLE_KINDS = (KIND_EXERCISE, KIND_NUTRITION)
+_UNSET = object()                    # «no lo leí»: distinto de `None` (que significa «no hay»)
 TRAINER_NOTES_MAX = 500
 ARCHIVE_REASON_MAX = 300
 NOTE_FOR_CLIENT_MAX = 500
@@ -181,6 +182,7 @@ def training_profile(profile, yellow_codes):
 def food_items():
     """Catálogo de alimentos activo como datos simples para el motor. Fuera de DEBUG solo cuentan
     los alimentos validados por un profesional (`validated_by`), salvo que la validación esté suspendida."""
+    from .sources.catalog import source_is_consistent, reviewed_reference_matches
     rows = Food.objects.filter(is_active=True)
     if not settings.DEBUG and professional_required():
         rows = rows.exclude(validated_by='')
@@ -196,6 +198,8 @@ def food_items():
             condition_tags=tuple(row.condition_tags or ()), is_common=row.is_common,
         )
         for row in rows
+        if not getattr(settings, 'NUTRITION_REQUIRE_USDA_REFERENCE', False)
+        or (source_is_consistent(row) and reviewed_reference_matches(row))
     ]
 
 
@@ -207,9 +211,11 @@ def nutrition_profile(profile, yellow_codes):
     )
 
 
-def energy_and_slots(client, profile, yellow_codes):
-    """Objetivos del día y por comida (Python, `Decimal`). `ValueError` si los datos no alcanzan."""
-    anth = latest_anthropometrics(client)
+def energy_and_slots(client, profile, yellow_codes, anth=_UNSET):
+    """Objetivos del día y por comida (Python, `Decimal`). `ValueError` si los datos no alcanzan.
+    `anth`: las medidas (`latest_anthropometrics`) si quien llama ya las leyó (`None` = no hay)."""
+    if anth is _UNSET:
+        anth = latest_anthropometrics(client)
     if anth is None or anth.height is None:
         raise ValueError('faltan peso o estatura')
     data = rules_energy.EnergyInput(
@@ -222,22 +228,58 @@ def energy_and_slots(client, profile, yellow_codes):
     return energy, tuple(rules_energy.split_meals(energy, profile.meal_slots))
 
 
-def assess(client, kind, actor, check_quota=True):
-    """Evalúa si se puede generar un plan `kind` para `client` pedido por `actor`.
-    `check_quota=False` lo usa el trabajo ya creado (su cupo ya se contó)."""
-    profile = health.current_profile(client)
-    report = health.profile_flags(client, profile)
-    eligibility = rules_eligibility.evaluate(
-        report, kind,
-        available=feature_available() and kind in AVAILABLE_KINDS,
+@dataclasses.dataclass(frozen=True)
+class AssessmentBase:
+    """Lo que `assess` calcula igual para los dos tipos de plan: la ficha vigente, las banderas, la
+    disponibilidad, el consentimiento de salud y el cupo. Quien evalúa los dos tipos (el camino
+    guiado) lo calcula una vez y lo pasa a `assess(..., base=...)` para no repetir consultas."""
+    profile: object                              # HealthProfile vigente o None
+    anthropometrics: object                      # última medición (`latest_anthropometrics`) o None
+    report: rules_flags.FlagReport
+    available: bool
+    health_consent: bool
+    quota_ok: bool
+
+
+def assess_base(client, actor, check_quota=True, profile=_UNSET, available=None):
+    """La parte de `assess` que no depende del tipo de plan. `profile` (la ficha vigente, o `None`)
+    y `available` se pasan si quien llama ya los tiene."""
+    if profile is _UNSET:
+        profile = health.current_profile(client)
+    anth = latest_anthropometrics(client)     # las comparten las banderas y el cálculo de energía
+    return AssessmentBase(
+        profile=profile,
+        anthropometrics=anth,
+        report=health.profile_flags(client, profile, anth),
+        available=feature_available() if available is None else available,
         health_consent=health.has_valid_consent(client, PURPOSE_HEALTH_DATA),
         quota_ok=quota_ok(client, actor) if check_quota else True,
+    )
+
+
+def assess(client, kind, actor, check_quota=True, base=None, deep=True):
+    """Evalúa si se puede generar un plan `kind` para `client` pedido por `actor`.
+    `check_quota=False` lo usa el trabajo ya creado (su cupo ya se contó).
+
+    `base`: el `AssessmentBase` ya calculado (si no, se calcula aquí). `deep=False` no filtra el
+    catálogo de ejercicios ni de alimentos (no detecta `D06` ni los datos que impiden calcular la
+    energía): lo usa el camino guiado cuando el estado del plan ya lo decide otra cosa."""
+    if base is None:
+        base = assess_base(client, actor, check_quota)
+    profile, report = base.profile, base.report
+    eligibility = rules_eligibility.evaluate(
+        report, kind,
+        available=base.available and kind in AVAILABLE_KINDS,
+        health_consent=base.health_consent,
+        quota_ok=base.quota_ok,
     )
     catalog_result = None
     from . import wellness
     if kind == KIND_NUTRITION and wellness.outside_scope(profile):
         eligibility = dataclasses.replace(
             eligibility, red_codes=tuple(dict.fromkeys((*eligibility.red_codes, wellness.OUT_OF_SCOPE))))
+    if not deep:
+        return Assessment(eligibility=eligibility, report=report, profile=profile)
     if kind == KIND_EXERCISE and profile is not None and not eligibility.missing and not eligibility.red_codes:
         catalog_result = rules_catalog.filter_exercises(
             exercise_items(), training_profile(profile, eligibility.yellow_codes))
@@ -249,7 +291,7 @@ def assess(client, kind, actor, check_quota=True):
         foods = rules_foods.filter_foods(food_items(), nutrition_profile(profile, eligibility.yellow_codes))
         if foods.enough:
             try:
-                energy, slots = energy_and_slots(client, profile, eligibility.yellow_codes)
+                energy, slots = energy_and_slots(client, profile, eligibility.yellow_codes, base.anthropometrics)
             except ValueError:
                 # Datos que el motor no puede calcular: se corrige en la ficha o las medidas
                 eligibility = dataclasses.replace(eligibility, missing=(rules_eligibility.D04_INCOHERENT,))
