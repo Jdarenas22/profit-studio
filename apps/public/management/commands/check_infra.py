@@ -241,6 +241,40 @@ def check_database(ctx):
     return results
 
 
+def check_connection_reuse(ctx):
+    """Conexiones persistentes a la base (CONN_MAX_AGE y CONN_HEALTH_CHECKS de DATABASES['default']).
+
+    Solo lee la configuración: no abre ninguna conexión ni muestra el host, el usuario ni la contraseña
+    (solo dos números/estados). Ver docs/DEPLOY.md, sección 11.
+    """
+    area, name = 'Base de datos', 'Conexiones persistentes'
+    database = (getattr(ctx.settings, 'DATABASES', None) or {}).get('default') or {}
+    age = database.get('CONN_MAX_AGE', 0)
+    health = bool(database.get('CONN_HEALTH_CHECKS', False))
+    if age is None:
+        reuse = 'se reutilizan sin límite de edad (CONN_MAX_AGE=None)'
+    elif not age:
+        return [Check(area, name, OK,
+                      'Desactivadas (CONN_MAX_AGE=0, lo normal con App Sleeping): se abre una conexión nueva a '
+                      'la base en cada petición, lo que suma cientos de milisegundos a cada página que la usa.',
+                      'Es a propósito: reutilizar conexiones impide App Sleeping (Railway cuenta las conexiones '
+                      'abiertas como actividad). Con un plan de pago, o si prefieres el servicio siempre '
+                      'despierto, define DB_CONN_MAX_AGE=60 en Railway > Variables.')]
+    else:
+        reuse = f'se reutilizan hasta {age} s (CONN_MAX_AGE)'
+    sleeping_note = ('Con conexiones abiertas, el servicio web deja de dormirse (App Sleeping): Railway las cuenta '
+                     'como actividad. Para que vuelva a dormir, quita DB_CONN_MAX_AGE (o pon 0).')
+    if health:
+        return [Check(area, name, OK,
+                      f'Activas: {reuse}; una conexión muerta se detecta y se reabre (CONN_HEALTH_CHECKS=True).',
+                      sleeping_note)]
+    return [Check(area, name, WARN,
+                  f'{reuse.capitalize()}, pero CONN_HEALTH_CHECKS está apagado: si Postgres se reinicia o se '
+                  'duerme, la primera petición de cada worker responde con error.',
+                  'Activa CONN_HEALTH_CHECKS=True en DATABASES (config/settings/production.py). '
+                  + sleeping_note)]
+
+
 def _validate_public_url(url):
     """Mismas reglas que config/settings/production.py: https, con host y sin ruta."""
     parts = urlsplit(url)
@@ -700,6 +734,7 @@ CHECKS = (
     check_settings,
     check_secret_key_and_hosts,
     check_database,
+    check_connection_reuse,
     check_r2,
     check_wompi,
     check_email,

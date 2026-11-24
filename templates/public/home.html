@@ -273,6 +273,9 @@
           <div class="absolute -inset-6 bg-primary/20 rounded-3xl blur-3xl pointer-events-none"></div>
           <!-- Imagen real -->
           <img src="{% static 'images/entrenadora.webp' %}"
+               srcset="{% static 'images/entrenadora-480.webp' %} 480w, {% static 'images/entrenadora-720.webp' %} 720w, {% static 'images/entrenadora.webp' %} 960w"
+               sizes="(min-width: 480px) 448px, calc(100vw - 2rem)"
+               width="960" height="1280" loading="lazy" decoding="async"
                alt="Yiseth Misas García — Entrenadora ProFit Studio"
                class="relative z-10 w-full rounded-2xl shadow-2xl shadow-primary/30 object-cover object-top"
                style="max-height:600px;"
@@ -370,7 +373,7 @@
         <!-- Autor -->
         <div class="flex items-center gap-3 pt-5 border-t border-white/10">
           {% if t.photo %}
-          <img src="{{ t.photo.url }}" alt="{{ t.name }}"
+          <img src="{{ t.photo.url }}" alt="{{ t.name }}" width="40" height="40" loading="lazy" decoding="async"
                class="w-10 h-10 rounded-xl object-cover shrink-0">
           {% else %}
           <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">

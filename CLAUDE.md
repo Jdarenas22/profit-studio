@@ -97,6 +97,7 @@ Variables de entorno requeridas en Railway:
 
   Los chequeos `profit.*` (`config/checks.py`) solo salen con `check --deploy`. Con `true`, `production.py` lanza `ImproperlyConfigured` y no arranca. Activarla en Railway solo después de ver `SECRET_KEY` y "Bucket de comprobantes" en OK en `check_infra`. Los mensajes nombran variables, nunca valores
 - `REDIS_URL` (opcional): sin ella la caché es memoria por proceso de gunicorn. Solo el límite del registro de cuentas (`apps/accounts/ratelimit.py`) se cuenta por proceso; las sesiones y `django-axes` usan la base de datos. `check_infra` lo avisa en producción (área "Caché"). Con Redis, las sesiones viven allí: si Redis cae, nadie inicia sesión (`check_infra` hace un PING y da ERROR)
+- `DB_CONN_MAX_AGE` (opcional): segundos que cada worker de gunicorn reutiliza su conexión a PostgreSQL (`CONN_MAX_AGE`; entero ≥ 0). **Por defecto `0`: una conexión nueva por petición (~200 ms más por página con base de datos), a propósito**: Railway está en plan gratuito con App Sleeping y cuenta las conexiones abiertas como actividad, así que reutilizarlas impide que el servicio se duerma. **Al pasar a un plan de pago (o si se quiere el servicio siempre despierto), definir `DB_CONN_MAX_AGE=60`.** `CONN_HEALTH_CHECKS=True` va siempre (descarta y reabre una conexión muerta si Postgres se reinició o despertó). Un valor que no sea un entero ≥ 0 detiene el arranque; sobrescribe `?conn_max_age=` de `DATABASE_URL`. `check_infra` lo muestra («Conexiones persistentes», con la nota de App Sleeping). Detalle y cálculo de conexiones máximas: `docs/DEPLOY.md`, sección 11
 - `TRAINER_INITIAL_PASSWORD` (opcional; también se acepta el nombre antiguo `TRAINER_PASSWORD`): si existe, `start.sh` crea la superusuaria `yiseth` con esa contraseña. Sin ella no se crea la cuenta. Nunca hay contraseña por defecto en el código
 - R2: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL`, `R2_PUBLIC_URL`, `R2_RECEIPTS_BUCKET_NAME` (bucket PRIVADO para comprobantes)
 - Wompi: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`
@@ -129,6 +130,9 @@ La suite no necesita variables de entorno: sin `.env`, development.py usa sus va
 
 - **CSS**: Tailwind CSS v3.4.19 compilado en local (Railway no compila). Fuente: `frontend/tailwind.css` + `tailwind.config.js` (tema, `content` y `safelist` para clases armadas por partes en las plantillas). Salida en git: `static/css/app.css` (minificado; en `base.html` va después de Font Awesome para que las utilidades ganen a `.fas`). Tras cambiar clases, regenerar con `.\scripts\build-css.ps1` o `scripts/build-css.sh` (`--watch` en desarrollo) y commitear `app.css`; `apps/public/tests/test_tailwind_build.py` falla si quedó desactualizado (se salta sin `npx`). No hay `package.json` a propósito: nixpacks detectaría Node y cambiaría el build de Railway
 - **CDN con versión fija y SRI** en `base.html`: Font Awesome 6.5.0, HTMX 1.9.10, Alpine 3.17.5 (`integrity` + `crossorigin="anonymous"` + `referrerpolicy="no-referrer"`). Al actualizar una versión hay que recalcular el `integrity` (sha384) con los bytes exactos del archivo
+- **Estáticos con huella en producción**: `CompressedManifestStaticFilesStorage` (caché de un año). Toda referencia a estáticos va con `{% static %}`; un archivo inexistente da 500 y `apps/public/tests/test_static_references.py` lo detecta. `start.sh` aborta el arranque si falta `staticfiles/staticfiles.json` y `collectstatic` falla
+- **PWA**: `/sw.js` lo sirve `apps/public/views.py::service_worker` (con `Service-Worker-Allowed: /`). El worker (`static/sw.js`) solo guarda `/static/` y `static/offline.html`; nunca páginas HTML ni rutas privadas. Al cerrar sesión se le envía `{type: 'logout'}`
+- **Permissions-Policy**: `config/middleware.py` con la lista `PERMISSIONS_POLICY` de `base.py` (respeta lo que pide el iframe de YouTube y el widget de Wompi)
 - **Contraseñas**: todo `input type="password"` lleva `autocomplete` (`current-password` para la actual, `new-password` para crear o cambiar)
 - **JS interactivo**: Alpine.js (directivas `x-data`, `x-model`, `x-show`)
 - **Tema**: dark (`bg-zinc-900`/`bg-black`), color acento `#FF6B00` (`text-primary`, `bg-primary`)
@@ -209,9 +213,12 @@ en MealOption.nutrient_snapshot. `load_foods` no pisa alimentos vinculados a USD
 **Actualización 2026-11-17:** el alcance actual es bienestar, con alimentación clínica pausada.
 Ver `docs/MENUS_BIENESTAR_GEMINI.md` (prevalece sobre las referencias a adaptación clínica de esta sección).
 `apps/plans/wellness.py` bloquea condiciones/medicamentos/embarazo/antecedentes alimentarios;
-`rules/recipes.py` ofrece 52 plantillas cotidianas e internacionales al simulador y a Gemini.
+`rules/recipes.py` ofrece 117 plantillas cotidianas e internacionales (`everyday-world/2`) al simulador y a Gemini.
 El backend valida selección exacta con V09_RECIPE y conserva preparación del recetario.
-Prompts meal/3 y meal/4; las notas libres de alimentación no se envían al proveedor.
+Variedad: la lista de recetas sale en un orden distinto por trabajo y comida; los nombres ya usados en el día se
+excluyen de la lista y del esquema (con respaldo a la lista completa si no queda un grupo válido) y, si se puede,
+las 3 opciones de una comida no repiten proteína principal (`main_protein`; V06). Ver `docs/MENUS_BIENESTAR_GEMINI.md`.
+Prompts meal/5 y meal/6; las notas libres de alimentación no se envían al proveedor.
 
 - Flujo: igual que el ejercicio (`services.request_plan(client, 'nutrition', ...)` -> trabajo -> hilo), pero `jobs._run_nutrition` hace **una llamada por comida** (`meal-slot/1`), valida cada una (`rules/meal_validate.py`, un reintento con códigos) y solo al final crea el `Plan` `draft_ai` con su `NutritionPlan` (objetivos calculados por Python: `rules/energy.py`), `MealSlot` y 3 `MealOption` activas por comida (`nutrition.create_nutrition_draft`). La IA **solo elige `food_id` y gramos**; kcal, macros y medidas caseras los calcula Python desde `Food`. Un fallo no guarda nada.
 - Catálogo: `Food` (admin solo superusuaria). `python manage.py load_foods` carga ~90 alimentos con cifras **aproximadas y sin validar**; **fuera de `DEBUG` solo se usan los que tienen `validated_by`** (acción «Marcar como validados» del admin, la hace quien verifica las cifras). Sin alimentos suficientes tras el filtro (alergias, trazas, dieta, intolerancias, etiquetas de advertencias) -> `D06_FEW_FOODS` y el trabajo queda `blocked` sin llamar a la IA.

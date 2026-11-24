@@ -50,7 +50,7 @@
       <div class="flex items-center gap-4 mb-4">
         <div class="w-12 h-12 {% if not client.is_active %}bg-white/10{% elif is_superuser and not client.assigned_trainer %}bg-yellow-500/10{% else %}bg-primary/10 group-hover:bg-primary/20{% endif %} rounded-2xl flex items-center justify-center shrink-0 transition-colors">
           {% if client.profile_photo %}
-          <img src="{{ client.profile_photo.url }}" alt="" width="48" height="48" loading="lazy" class="w-12 h-12 rounded-2xl object-cover{% if not client.is_active %} grayscale opacity-70{% endif %}">
+          <img src="{{ client.profile_photo.url }}" alt="" width="48" height="48" loading="lazy" decoding="async" class="w-12 h-12 rounded-2xl object-cover{% if not client.is_active %} grayscale opacity-70{% endif %}">
           {% else %}
           <span class="{% if not client.is_active %}text-white/70{% elif is_superuser and not client.assigned_trainer %}text-yellow-400{% else %}text-primary{% endif %} font-black text-lg">
             {{ client.first_name|first|upper|default:client.username|first|upper }}

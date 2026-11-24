@@ -92,18 +92,21 @@ fi
 
 # 4. Archivos estáticos — normalmente ya están: Railway ejecuta collectstatic en el BUILD
 #    (panel del servicio > Build Command) y quedan dentro de la imagen. Aquí solo se repite si
-#    falta la carpeta (p. ej. build sin variables o arranque local). Se tolera el fallo a
-#    propósito: production.py usa CompressedStaticFilesStorage (sin manifest), así que la
-#    app arranca y el login/health siguen funcionando aunque falte algún archivo estático
-#    (solo se vería sin estilos). Se avisa en voz alta para corregirlo.
-if [ -n "$(ls -A staticfiles 2>/dev/null)" ]; then
-    echo ">>> staticfiles ya generado en el build; se omite collectstatic."
+#    falta el manifest staticfiles/staticfiles.json (build sin variables, arranque local, o un
+#    collectstatic del build que se cortó a la mitad y dejó la carpeta a medias).
+#    production.py usa CompressedManifestStaticFilesStorage (nombres con huella): SIN manifest cada
+#    {% static %} lanza ValueError y TODAS las páginas responden 500, mientras /health/ sigue en 200
+#    (no usa estáticos) y Railway daría el despliegue por bueno. Por eso, si collectstatic falla
+#    aquí, NO se arranca: el healthcheck falla y Railway conserva el despliegue anterior.
+if [ -s staticfiles/staticfiles.json ]; then
+    echo ">>> staticfiles ya generado en el build (staticfiles.json presente); se omite collectstatic."
 else
-    echo ">>> staticfiles no existe; ejecutando collectstatic..."
+    echo ">>> staticfiles/staticfiles.json no existe; ejecutando collectstatic..."
     if python manage.py collectstatic --noinput 2>&1; then
         echo ">>> collectstatic OK"
     else
-        echo ">>> ADVERTENCIA: collectstatic FALLO (se continua; la web puede verse sin estilos)" >&2
+        echo ">>> ERROR: collectstatic FALLO. Sin el manifest de estaticos toda la web daria error 500. Abortando el arranque." >&2
+        exit 1
     fi
 fi
 

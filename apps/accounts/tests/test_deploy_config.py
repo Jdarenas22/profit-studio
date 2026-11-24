@@ -31,7 +31,7 @@ CLEAN_ENV = {
     'SECURITY_STRICT_SECRETS': '',
     'ALLOWED_HOSTS': 'profit-test.up.railway.app,www.ejemplo.com',
     'RAILWAY_PUBLIC_DOMAIN': '',
-    'DATABASE_URL': 'sqlite:///:memory:',
+    'DATABASE_URL': 'sqlite:///:memory:', 'DB_CONN_MAX_AGE': '',
     'REDIS_URL': '',
     'R2_ACCESS_KEY_ID': '', 'R2_SECRET_ACCESS_KEY': '', 'R2_BUCKET_NAME': '',
     'R2_ENDPOINT_URL': '', 'R2_PUBLIC_URL': '', 'R2_RECEIPTS_BUCKET_NAME': '',
@@ -69,7 +69,11 @@ PROBE = (
     " 'url_protocol': getattr(settings, 'AWS_S3_URL_PROTOCOL', None),"
     " 'file_url': default_storage.url('exercises/images/a.jpg'),"
     " 'receipt_url': None if receipt_blocked else receipt_store.url('receipts/x.png'),"
-    " 'receipt_blocked': receipt_blocked}))"
+    " 'receipt_blocked': receipt_blocked,"
+    " 'db_conn_max_age': settings.DATABASES['default'].get('CONN_MAX_AGE', 'AUSENTE'),"
+    " 'db_health_checks': settings.DATABASES['default'].get('CONN_HEALTH_CHECKS', 'AUSENTE'),"
+    " 'db_engine': settings.DATABASES['default']['ENGINE'],"
+    " 'db_name': settings.DATABASES['default']['NAME']}))"
 )
 
 
@@ -98,9 +102,10 @@ class ProductionSettingsTests(SimpleTestCase):
     # ── Almacenamiento: Django 5.1 eliminó DEFAULT_FILE_STORAGE y STATICFILES_STORAGE ─────
     # Esos nombres ya no se leen y no avisan: sin STORAGES, la media iría al disco del servidor
     # (que Railway borra en cada despliegue) en vez de a R2, y los estáticos perderían WhiteNoise.
+    # Los estáticos llevan huella en el nombre (manifest): caché de un año sin servir copias viejas.
     STORAGE_FILESYSTEM = 'django.core.files.storage.filesystem.FileSystemStorage'
     STORAGE_S3 = 'storages.backends.s3.S3Storage'                     # alias: S3Boto3Storage
-    STORAGE_STATIC_PROD = 'whitenoise.storage.CompressedStaticFilesStorage'
+    STORAGE_STATIC_PROD = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
     def test_without_r2_media_uses_the_local_disk_and_static_uses_whitenoise(self):
         code, data, err = load_production()
@@ -316,6 +321,65 @@ class ProductionSettingsTests(SimpleTestCase):
         self.assertEqual(code, 0, err)
         self.assertEqual(data['csrf'], ['https://*.ejemplo.com'])
 
+    # ── Conexiones a la base (DB_CONN_MAX_AGE) ────────────────────────────────────────
+    # Por defecto 0 (una conexión nueva por petición, ~200 ms en Railway): Railway está en plan gratuito
+    # con App Sleeping y las conexiones abiertas a la base impiden que el servicio se duerma. Se activan
+    # con DB_CONN_MAX_AGE=60 (docs/DEPLOY.md, sección 11).
+    def test_database_connections_are_not_persistent_by_default_but_health_checked(self):
+        code, data, err = load_production()
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['db_conn_max_age'], 0)
+        self.assertIs(data['db_health_checks'], True)
+
+    def test_empty_db_conn_max_age_means_the_default(self):
+        for raw in ('', '   '):
+            with self.subTest(raw=raw):
+                code, data, err = load_production(DB_CONN_MAX_AGE=raw)
+                self.assertEqual(code, 0, err)
+                self.assertEqual(data['db_conn_max_age'], 0)
+
+    def test_db_conn_max_age_zero_is_a_new_connection_per_request(self):
+        code, data, err = load_production(DB_CONN_MAX_AGE='0')
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['db_conn_max_age'], 0)
+        self.assertIs(data['db_health_checks'], True)
+
+    def test_db_conn_max_age_60_turns_persistent_connections_on_with_health_checks(self):
+        code, data, err = load_production(DB_CONN_MAX_AGE='60')
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['db_conn_max_age'], 60)
+        self.assertIs(data['db_health_checks'], True)
+
+    def test_db_conn_max_age_accepts_other_whole_numbers_even_with_spaces(self):
+        for raw, expected in (('300', 300), (' 120 ', 120), ('1', 1), ('007', 7)):
+            with self.subTest(raw=raw):
+                code, data, err = load_production(DB_CONN_MAX_AGE=raw)
+                self.assertEqual(code, 0, err)
+                self.assertEqual(data['db_conn_max_age'], expected)
+
+    def test_invalid_db_conn_max_age_stops_the_server_and_names_the_variable(self):
+        for bad in ('abc', '-1', '1.5', '60s', 'None', '1e3', '+5', '٦٠', '6 0'):
+            with self.subTest(raw=bad):
+                code, _, err = load_production(DB_CONN_MAX_AGE=bad)
+                self.assertNotEqual(code, 0)
+                self.assertIn('ImproperlyConfigured', err)
+                self.assertIn('DB_CONN_MAX_AGE', err)
+
+    def test_database_url_is_kept_and_only_the_connection_options_are_set(self):
+        # Lo que da env.db (motor, nombre...) no se pierde; DB_CONN_MAX_AGE es la única perilla y
+        # pisa lo que traiga la URL (django-environ entrega "false" como texto, que Django vería como verdadero).
+        code, data, err = load_production(
+            DATABASE_URL='sqlite:///:memory:?conn_max_age=5&conn_health_checks=false')
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['db_engine'], 'django.db.backends.sqlite3')
+        self.assertEqual(data['db_name'], ':memory:')
+        self.assertEqual(data['db_conn_max_age'], 0)       # sin DB_CONN_MAX_AGE, el valor por defecto pisa la URL
+        self.assertIs(data['db_health_checks'], True)
+        code, data, err = load_production(
+            DATABASE_URL='sqlite:///:memory:?conn_max_age=5', DB_CONN_MAX_AGE='90')
+        self.assertEqual(code, 0, err)
+        self.assertEqual(data['db_conn_max_age'], 90)
+
 
 def run_deploy_check(**overrides):
     """`manage.py check --deploy` con production.py en un subproceso. Devuelve (código, salida)."""
@@ -460,16 +524,22 @@ class StartScriptTests(SimpleTestCase):
         self.assertNotIn('set -e', self.text)
 
     def test_collectstatic_only_runs_at_boot_when_the_build_did_not_generate_it(self):
+        # La señal es el manifest (staticfiles.json), no que la carpeta tenga algo: un collectstatic
+        # cortado a la mitad deja archivos pero no manifest, y con CompressedManifestStaticFilesStorage
+        # eso daría error 500 en todas las páginas.
         self.assertEqual(self.text.count('python manage.py collectstatic'), 1)
-        guard = re.search(r'if \[ -n "\$\(ls -A staticfiles[^\n]*\)" \]; then\n(.*?)\nelse\n(.*?)\nfi', self.text, re.S)
+        self.assertNotIn('ls -A staticfiles', self.text)
+        guard = re.search(r'if \[ -s staticfiles/staticfiles\.json \]; then\n(.*?)\nelse\n(.*?)\nfi', self.text, re.S)
         self.assertIsNotNone(guard)
-        self.assertNotIn('collectstatic --noinput', guard.group(1))         # con staticfiles/ → se omite
-        self.assertIn('collectstatic --noinput', guard.group(2))            # sin staticfiles/ → se repite
+        self.assertNotIn('collectstatic --noinput', guard.group(1))         # con manifest → se omite
+        self.assertIn('collectstatic --noinput', guard.group(2))            # sin manifest → se repite
 
-    def test_collectstatic_failure_at_boot_does_not_abort(self):
+    def test_collectstatic_failure_at_boot_aborts(self):
+        # Sin manifest toda la web daría 500 mientras /health/ sigue en 200 (no usa estáticos): se aborta
+        # para que Railway conserve el despliegue anterior.
         match = re.search(r'collectstatic --noinput.*?\n\s*else\n(.*?)\n\s*fi', self.text, re.S)
         self.assertIsNotNone(match)
-        self.assertNotIn('exit', match.group(1))
+        self.assertIn('exit 1', match.group(1))
 
     def test_keeps_media_directories(self):
         self.assertIn('mkdir -p', self.text)

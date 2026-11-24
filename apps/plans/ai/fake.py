@@ -85,8 +85,10 @@ def sample_meal_slot(payload):
         from apps.plans.rules.recipes import select_options
         existing = tuple(m.ExistingOption(name=o['name'], food_ids=frozenset(o['food_ids']))
                          for o in payload.get('existing_options', []))
-        options = select_options(payload['recipe_options'], payload['options_requested'], existing,
-                                 payload.get('avoid_repeating_names', []))
+        wanted = payload['options_requested']
+        # Los nombres a evitar son una sugerencia: sin otra salida se repiten (como haría un modelo).
+        options = (select_options(payload['recipe_options'], wanted, existing, payload.get('avoid_repeating_names', []))
+                   or select_options(payload['recipe_options'], wanted, existing))
         return {'schema_version': m.MEAL_SCHEMA_VERSION, 'slot_code': payload['slot']['code'], 'options': options}
     foods = _food_items(payload)
     slot = payload['slot']

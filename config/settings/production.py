@@ -126,6 +126,43 @@ DATABASES = {
     'default': env.db('DATABASE_URL', default='sqlite:///db.sqlite3')
 }
 
+# ─── Conexiones a la base de datos (persistentes solo si se pide) ──────────────
+# Con CONN_MAX_AGE=0 (el valor por defecto de Django y de aquí) Django abre una conexión nueva a PostgreSQL
+# en CADA petición y la cierra al terminarla: TCP + TLS + autenticación, ~200-250 ms medidos en Railway (el
+# 2026-11-21 la portada tardaba ~585 ms con base de datos y ~225-340 ms sin ella). Con CONN_MAX_AGE > 0 cada
+# worker de gunicorn reutiliza su conexión mientras tenga menos de esos segundos de vida: se comprueba al
+# empezar y al terminar cada petición, así que la última conexión queda abierta hasta la siguiente visita.
+# POR DEFECTO ES 0 A PROPÓSITO: Railway está en plan gratuito con App Sleeping encendido, y su documentación
+# dice que las conexiones abiertas a la base de datos cuentan como actividad y evitan que el servicio se
+# duerma (docs/DEPLOY.md, sección 11). Al pasar a un plan de pago (o si se prefiere un servicio siempre
+# despierto y más rápido), se activa con DB_CONN_MAX_AGE=60.
+# CONN_HEALTH_CHECKS=True hace un `SELECT 1` antes de la primera consulta de cada petición que reutiliza la
+# conexión: si Postgres se reinició o se durmió, la conexión muerta se descarta y se abre otra en vez de
+# responder 500. Con CONN_MAX_AGE=0 no hace nada (la conexión se cierra en cada petición).
+#   DB_CONN_MAX_AGE=<segundos>  entero >= 0. Sin definir (o vacía): 0 = una conexión nueva por petición.
+#                               Un valor inválido detiene el arranque (como SECURITY_STRICT_SECRETS o
+#                               AI_PLANS_MODE): Railway no da por bueno el despliegue y conserva el anterior,
+#                               en vez de ignorar en silencio lo que se pidió.
+# DB_CONN_MAX_AGE es la ÚNICA perilla: si DATABASE_URL trae ?conn_max_age=... o ?conn_health_checks=... se
+# sobrescriben (django-environ entrega 'false' como texto, y un texto cualquiera cuenta como verdadero
+# para Django). El resto de lo que da env.db (motor, host, OPTIONS...) no se toca. Los hilos de IA y
+# WhatsApp cierran su conexión al terminar (apps/plans/jobs.py, apps/whatsapp/queue.py) y los comandos
+# de gestión terminan con el proceso.
+# Cuántas conexiones puede haber a la vez: docs/DEPLOY.md, sección 11.
+_DB_CONN_MAX_AGE_DEFAULT = 0
+_db_conn_max_age = env('DB_CONN_MAX_AGE', default='').strip()
+if _db_conn_max_age:
+    if not re.fullmatch(r'[0-9]+', _db_conn_max_age):
+        raise ImproperlyConfigured(
+            'DB_CONN_MAX_AGE debe ser un número entero de segundos, 0 o mayor (0 = una conexión nueva '
+            'por petición, el valor por defecto; 60 = reutilizarla un minuto). Quita la variable para '
+            'usar el valor por defecto.'
+        )
+    DATABASES['default']['CONN_MAX_AGE'] = int(_db_conn_max_age)
+else:
+    DATABASES['default']['CONN_MAX_AGE'] = _DB_CONN_MAX_AGE_DEFAULT
+DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+
 # ─── Seguridad ──────────────────────────────────────────────────────────────────
 # SECURE_SSL_REDIRECT = False porque Railway maneja el redireccionamiento HTTP→HTTPS
 # en su propio proxy/load balancer. Si Django también lo hace, el healthcheck de
@@ -139,12 +176,20 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-# ─── Archivos estáticos — sin manifest para evitar errores al iniciar ──────────
-# CompressedStaticFilesStorage comprime los archivos pero NO crea staticfiles.json
-# Evita el error "Missing staticfiles.json manifest" si collectstatic falla.
+# ─── Archivos estáticos — con huella en el nombre (manifest) ───────────────────
+# CompressedManifestStaticFilesStorage comprime y renombra cada archivo con una huella de su contenido
+# (app.css -> app.<12 hex>.css) y guarda la correspondencia en staticfiles/staticfiles.json. WhiteNoise
+# sirve los nombres con huella con `Cache-Control: max-age=315360000, public, immutable` (diez años) y los
+# nombres sin huella con caché corta (60 s): al cambiar un archivo cambia su URL, así que nadie queda
+# con una copia vieja ni hace falta esperar a que caduque.
+# Contrapartida: `collectstatic` TIENE que haber corrido (en el build de Railway; start.sh lo repite si
+# falta el manifest y NO arranca si falla). Con el manifest ausente, o si una plantilla pide con
+# {% static %} un archivo que no existe, Django lanza ValueError y la página responde 500: por eso
+# apps/public/tests/test_static_references.py revisa todas las plantillas. No se usa
+# WHITENOISE_MANIFEST_STRICT=False: taparía el error en vez de avisarlo.
 STORAGES = {
     **STORAGES,
-    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
 }
 
 # ─── Cloudflare R2 — almacenamiento de archivos (OPCIONAL) ─────────────────────

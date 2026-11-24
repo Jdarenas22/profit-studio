@@ -73,10 +73,13 @@
           <div class="relative aspect-[4/5] rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-primary/20">
             {% if trainer.profile_photo %}
             <img src="{{ trainer.profile_photo.url }}"
-                 alt="{{ trainer.get_full_name }}"
+                 alt="{{ trainer.get_full_name }}" width="800" height="1000" decoding="async"
                  class="w-full h-full object-cover object-top transition-transform duration-700 hover:scale-105">
             {% else %}
             <img src="{% static 'images/entrenadora.webp' %}"
+                 srcset="{% static 'images/entrenadora-480.webp' %} 480w, {% static 'images/entrenadora-720.webp' %} 720w, {% static 'images/entrenadora.webp' %} 960w"
+                 sizes="(min-width: 1024px) 480px, (min-width: 640px) 600px, calc(100vw - 2rem)"
+                 width="960" height="1280" decoding="async"
                  alt="{{ trainer.get_full_name }}"
                  class="w-full h-full object-cover object-top transition-transform duration-700 hover:scale-105"
                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
@@ -137,10 +140,13 @@
         <div class="aspect-[3/4] relative">
           {% if trainer.profile_photo %}
           <img src="{{ trainer.profile_photo.url }}"
-               alt="{{ trainer.get_full_name }}"
+               alt="{{ trainer.get_full_name }}" width="600" height="800" loading="lazy" decoding="async"
                class="w-full h-full object-cover object-top">
           {% else %}
           <img src="{% static 'images/entrenadora.webp' %}"
+               srcset="{% static 'images/entrenadora-480.webp' %} 480w, {% static 'images/entrenadora-720.webp' %} 720w, {% static 'images/entrenadora.webp' %} 960w"
+               sizes="(min-width: 1280px) 400px, (min-width: 768px) 50vw, calc(100vw - 2rem)"
+               width="960" height="1280" loading="lazy" decoding="async"
                alt="{{ trainer.get_full_name }}"
                class="w-full h-full object-cover object-top"
                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">

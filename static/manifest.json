@@ -1,22 +1,32 @@
 {
+  "id": "/",
   "name": "ProFit Studio",
   "short_name": "ProFit",
   "description": "Tu entrenamiento personalizado. Rutinas, ejercicios y seguimiento desde cualquier dispositivo.",
   "start_url": "/accounts/dashboard/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#FF6B00",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/static/pwa-icon-192.png",
+      "src": "images/pwa-icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/static/pwa-icon-512.png",
+      "src": "images/pwa-icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/pwa-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["health", "fitness", "sports"],

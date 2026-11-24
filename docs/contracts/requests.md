@@ -573,3 +573,45 @@ Informe/comandos: `docs/nutricion/2026-11-18-catalogo-usda.md`.
 La reserva de `nutrition.py`, `jobs.py`, `nutrient_tables.py`, `services.py`, settings,
 admin y parciales de alimentación concluye al entregar el PR. Revisar si hay cambios
 paralelos; las plantillas conservan la fase D y las mejoras UX ya fusionadas.
+
+
+## frontend → backend: PWA segura y prueba de Permissions-Policy (2026-11-20, rama `feature/arreglos-rapidos`)
+
+- Ruta `GET /sw.js` (backend): verificada en Chrome sin interfaz. Registro con `scope: '/'` correcto,
+  cabeceras `no-cache` + `Service-Worker-Allowed: /`. Resuelto, nada pendiente.
+- **Pedido**: `apps/public/tests/test_permissions_policy.py::test_every_kind_of_response_carries_the_header`
+  pide `/` sin anular el almacenamiento con manifest y falla con
+  `Missing staticfiles manifest entry` (la portada usa `{% static %}`; antes fallaba igual con
+  `css/app.css`). Aplicar `NO_MANIFEST` de `apps/accounts/tests/helpers.py` a esa clase.
+- Opcional (sin bloqueo): el service worker no guarda páginas ni datos de sesión; al cerrar sesión
+  `base.html` le pide vaciar la caché de estáticos. Si se quiere una barrera más del lado servidor,
+  la respuesta del logout puede enviar `Clear-Site-Data: "cache"`.
+
+## backend → frontend: respuesta y notas de estáticos con huella (2026-11-20, rama `feature/arreglos-rapidos`)
+
+- **RESUELTO (backend):** `test_permissions_policy.py::PermissionsPolicyHeaderTests` ahora lleva
+  `@NO_MANIFEST` (de `apps/accounts/tests/helpers.py`).
+- **Evaluado y NO aplicado: `Clear-Site-Data: "cache"` en el logout.** Motivos (MDN, consultado el 2026-11-20):
+  1. `"cache"` borra TODA la caché HTTP del origen, incluidos los estáticos con huella que ahora se
+     guardan diez años (`immutable`). `base.html` hace logout automático cada vez que se cierra y
+     reabre el navegador, así que cada reapertura volvería a descargar CSS e imágenes: se pierde justo
+     lo que gana el cambio a estáticos con huella.
+  2. No hace lo que se busca: `"cache"` es la caché HTTP, no `Cache Storage` (el de `caches.open`, donde
+     guarda el service worker); MDN no nombra Cache Storage ni en `"cache"` ni en `"storage"`.
+  3. `"storage"` sí desregistra el service worker, pero también vacía `localStorage` y `sessionStorage`
+     (rompería la lógica de «recordarme» y del cierre automático de `base.html`), así que tampoco.
+  4. No hay nada personal que limpiar: el worker solo guarda `/static/` (igual para todas las personas),
+     nunca HTML; el mensaje `{type: 'logout'}` ya vacía esa caché. Las pantallas de salud responden
+     `Cache-Control: no-store`.
+  Si algún día se quiere una barrera del servidor para las páginas con datos personales, la opción es
+  `Cache-Control: no-store` en esas vistas (decisión aparte), no `Clear-Site-Data`.
+- **Estáticos con huella en producción** (`CompressedManifestStaticFilesStorage`):
+  - `{% static %}` ya devuelve `css/app.<12 hex>.css`; la huella es de 12 caracteres hexadecimales,
+    igual que `HASHED_NAME` en `static/sw.js` (comprobado con un `collectstatic` real).
+  - Los nombres sin huella siguen existiendo y se sirven con caché de 60 s, por eso funcionan las rutas
+    escritas a mano. Hoy no queda ninguna en las plantillas; en el JS solo `OFFLINE_URL = '/static/offline.html'`
+    (`static/sw.js`), que existe. `apps/public/tests/test_static_references.py` falla si una plantilla pide
+    con `{% static %}` (o escribe `/static/...`) un archivo que no existe: en producción eso daría error 500.
+  - Evitar `url(...)` en CSS hacia archivos que no existan: el post-proceso de `collectstatic` falla.
+  - Al agregar o renombrar un archivo en `static/`, no hace falta nada más: el siguiente despliegue lo
+    publica con huella nueva.

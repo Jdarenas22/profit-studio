@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Prefetch, prefetch_related_objects
 from django.http import Http404, HttpResponse
 from django.utils.html import format_html
 from apps.accounts.decorators import trainer_required
@@ -115,7 +116,17 @@ def trainer_routine_create(request):
 @trainer_required
 def trainer_routine_builder(request, pk):
     from apps.exercises.models import Exercise, ExerciseCategory
+    # El permiso lo decide get_routine_for_trainer (404 si la clienta no es accesible); aquí solo se
+    # precargan los días y sus ejercicios (con el ejercicio de cada línea) que la plantilla recorre:
+    # 2 consultas fijas en vez de 2 por día + 1 por ejercicio. `exists` y `all` de la plantilla usan
+    # esa precarga, no consultas nuevas.
     routine = get_routine_for_trainer(request, pk)
+    prefetch_related_objects([routine], Prefetch(
+        'days',
+        queryset=RoutineDay.objects.prefetch_related(
+            Prefetch('exercises', queryset=RoutineExercise.objects.select_related('exercise')),
+        ),
+    ))
     exercises = Exercise.objects.filter(is_active=True).select_related('category').order_by('name')
     categories = ExerciseCategory.objects.all()
     return render(request, 'trainer/routine_builder.html', {
