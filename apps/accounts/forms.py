@@ -110,6 +110,7 @@ def _gender_field():
 def _password_field(label, required_message, strip=False):
     return forms.CharField(
         label=label, strip=strip, required=True, max_length=PASSWORD_MAX,
+        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'new-password'}),
         error_messages={'required': required_message,
                         'max_length': f'La contraseña es demasiado larga (máximo {PASSWORD_MAX} caracteres).'},
     )
@@ -225,6 +226,7 @@ class TrainerClientEditForm(_UsernameForm):
     )
     new_password = forms.CharField(
         label='Nueva contraseña', required=False, strip=False, max_length=PASSWORD_MAX,
+        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'new-password'}),
         error_messages={'max_length': f'La contraseña es demasiado larga (máximo {PASSWORD_MAX} caracteres).'},
     )
 
@@ -258,11 +260,11 @@ class MemberProfileForm(_PersonForm):
     )
     profile_photo = SafeImageField(label='Foto de perfil', required=False)
     current_password = forms.CharField(label='Contraseña actual', required=False, strip=False,
-                                       max_length=PASSWORD_MAX)
+                                       max_length=PASSWORD_MAX, widget=forms.PasswordInput(attrs={'autocomplete': 'current-password'}))
     new_password = forms.CharField(label='Nueva contraseña', required=False, strip=False,
-                                   max_length=PASSWORD_MAX)
+                                   max_length=PASSWORD_MAX, widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}))
     confirm_password = forms.CharField(label='Confirmar contraseña', required=False, strip=False,
-                                       max_length=PASSWORD_MAX)
+                                       max_length=PASSWORD_MAX, widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}))
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, exclude_pk=user.pk, **kwargs)

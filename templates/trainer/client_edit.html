@@ -106,7 +106,7 @@
       </label>
       <div x-show="changePass" x-cloak class="mt-4">
         <label class="block text-white/60 text-xs font-medium mb-2">Nueva contraseña</label>
-        <input type="text" name="new_password"
+        <input type="password" name="new_password" autocomplete="new-password"
                placeholder="Mínimo 8 caracteres"
                class="w-full bg-black/40 border {% if errors.new_password %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
         {% if errors.new_password %}<p class="text-red-400 text-xs mt-1">{{ errors.new_password }}</p>{% endif %}

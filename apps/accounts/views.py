@@ -1,3 +1,4 @@
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 import logging
 import urllib.parse
 import uuid
@@ -64,6 +65,20 @@ REGISTER_SUCCESS_LIMIT = getattr(settings, 'REGISTER_SUCCESS_LIMIT', 5)       # 
 REGISTER_WINDOW_SECONDS = getattr(settings, 'REGISTER_WINDOW_SECONDS', 3600)
 
 
+PASSWORD_FIELDS = ('password', 'password1', 'password2', 'current_password',
+                   'new_password', 'confirm_password', 'new_password1', 'new_password2')
+
+
+def _safe_form_data(data):
+    """Conserva campos corregibles; las claves nunca vuelven al contexto ni al HTML."""
+    safe = data.copy()
+    for field in PASSWORD_FIELDS:
+        safe.pop(field, None)
+    return safe
+
+
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -215,7 +230,7 @@ def _register_context(plans, selected_plan_id, errors, form):
         'selected_plan_id': selected_plan_id,
         'goal_choices': User.GOAL_CHOICES,
         'errors': errors,
-        'form': form,
+        'form': _safe_form_data(form),
     }
 
 
@@ -231,6 +246,8 @@ def _register_rate_limited(request, plans, selected_plan_id):
     return response
 
 
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def register_view(request):
     """Auto-registro público: cualquier visitante puede crear su cuenta de miembro.
 
@@ -309,6 +326,8 @@ def register_success(request):
 
 
 @trainer_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def trainer_add_client(request):
     """La entrenadora crea una cuenta de cliente y opcionalmente activa su membresía."""
     from apps.memberships.models import MembershipPlan, Membership
@@ -347,7 +366,7 @@ def trainer_add_client(request):
         return render(request, 'trainer/client_add.html', {
             'plans': plans,
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'trainer/client_add.html', {
@@ -424,6 +443,8 @@ def trainer_client_detail(request, pk):
 
 
 @trainer_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def trainer_client_edit(request, pk):
     client = get_client_for_trainer(request, pk)
     blocked = reject_if_inactive(request, client)
@@ -460,7 +481,7 @@ def trainer_client_edit(request, pk):
             'client': get_client_for_trainer(request, pk),   # se relee: sin datos a medio editar
             'plans': plans,
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'trainer/client_edit.html', {
@@ -604,6 +625,8 @@ def trainer_client_delete(request, pk):
 
 
 @login_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def member_profile_edit(request):
     user = request.user
 
@@ -633,7 +656,7 @@ def member_profile_edit(request):
         flash_errors(request, form, errors, skip=PROFILE_RENDERED)
         return render(request, 'accounts/profile_edit.html', {
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'accounts/profile_edit.html', {
@@ -651,6 +674,8 @@ def member_profile_edit(request):
 
 # ── Solo Yiseth (superusuario) puede crear nuevos entrenadores ──────────────────
 @superuser_required
+@sensitive_post_parameters(*PASSWORD_FIELDS)
+@sensitive_variables()
 def trainer_create_trainer(request):
     """Vista exclusiva del superusuario para crear cuentas de entrenadores."""
     if request.method == 'POST':
@@ -685,7 +710,7 @@ def trainer_create_trainer(request):
         flash_errors(request, form, errors, skip=TRAINER_FORM_RENDERED)
         return render(request, 'trainer/trainer_form.html', {
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'trainer/trainer_form.html', {'errors': {}, 'form': {}})
@@ -816,7 +841,7 @@ def trainer_edit_trainer(request, pk):
         return render(request, 'trainer/trainer_edit.html', {
             'trainer_obj': get_object_or_404(User, pk=pk, role='trainer', erased_at__isnull=True),
             'errors': errors,
-            'form': request.POST,
+            'form': _safe_form_data(request.POST),
         })
 
     return render(request, 'trainer/trainer_edit.html', {
