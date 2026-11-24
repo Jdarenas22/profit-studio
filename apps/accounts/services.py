@@ -1,6 +1,8 @@
-"""Casos de uso del ciclo de vida de las cuentas: desactivar, reactivar y eliminar definitivamente.
+"""Casos de uso del ciclo de vida de las cuentas: desactivar, reactivar, eliminar definitivamente y
+transferir la administración.
 
-Contrato: docs/contracts/cuentas-eliminar.md (aprobado el 2026-11-17 con las respuestas 1a a 10a).
+Contratos: docs/contracts/cuentas-eliminar.md (aprobado el 2026-11-17 con las respuestas 1a a 10a) y
+docs/contracts/transferir-administracion.md.
 
 - Las vistas solo manejan HTTP; las reglas de permiso se repiten aquí (defensa en profundidad):
   nunca sobre una superusuaria, nunca sobre la propia cuenta, nunca sobre una cuenta eliminada, y
@@ -32,6 +34,9 @@ NOT_ALLOWED_MESSAGE = 'No se puede hacer esto con esta cuenta.'
 REASSIGN_REQUIRED_MESSAGE = 'Elige a quién pasar sus clientas.'
 REASSIGN_UNAVAILABLE_MESSAGE = 'Ese entrenador ya no está disponible. Elige otro.'
 REASON_REQUIRED_MESSAGE = 'Elige un motivo.'
+
+TRANSFER_PASSWORD_MESSAGE = 'La contraseña no es correcta.'
+TRANSFER_TARGET_MESSAGE = 'Esa persona ya no está disponible. Elige otra.'
 
 ERASED_TEXT = '[dato eliminado]'
 TOMBSTONE_USERNAME = 'cuenta-eliminada-{pk}'
@@ -576,3 +581,79 @@ def erase_account(target, actor, reason, reassign_to=None):
         transaction.on_commit(after_commit)
     _sync(target)
     return result
+
+
+# ─── Transferir la administración ─────────────────────────────────────────────
+
+def transfer_admin_candidates(actor):
+    """Entrenadores a los que `actor` puede entregar la administración: activos, no eliminados,
+    no superusuarios y distintos de quien entrega. Es la lista del formulario y la fuente de la
+    regla de elegibilidad (la misma que `check_can_transfer_admin` aplica dentro de la transacción)."""
+    return (User.objects.filter(role=User.ROLE_TRAINER, is_active=True, erased_at__isnull=True,
+                                is_superuser=False)
+            .exclude(pk=actor.pk).order_by('first_name', 'last_name', 'pk'))
+
+
+def check_can_transfer_admin(actor, target):
+    """Lanza `AccountNotAllowed` o `AccountFieldError` si `actor` no puede entregarle la
+    administración a `target`. Quien entrega: entrenador + superusuaria + activa + no eliminada.
+    Quien recibe: entrenador activo, no eliminado, no superusuario y distinto de quien entrega."""
+    if not (actor is not None and getattr(actor, 'is_authenticated', False) and actor.is_trainer
+            and actor.is_superuser and actor.is_active and not actor.is_erased):
+        raise AccountNotAllowed('not_allowed')
+    if target.pk == actor.pk:
+        raise AccountNotAllowed('account_self')
+    if target.is_superuser:
+        raise AccountNotAllowed('account_protected')
+    if not target.is_trainer:
+        raise AccountNotAllowed('not_allowed')
+    if target.is_erased or not target.is_active:
+        # Lo normal es una carrera (se desactivó mientras la página estaba abierta): error del campo
+        raise AccountFieldError('target_unavailable', 'new_admin', TRANSFER_TARGET_MESSAGE)
+
+
+def transfer_admin(actor, target, password):
+    """La superusuaria `actor` le entrega la administración al entrenador `target` (y deja de serlo).
+
+    Una sola transacción con `select_for_update()` sobre las DOS filas (en orden de id, para que dos
+    traspasos cruzados no se bloqueen entre sí). Comprueba las reglas con las filas ya bloqueadas, así
+    que un doble clic o una carrera no deja a nadie sin permiso ni con dos superusuarias.
+
+    - `password` es la contraseña de quien entrega, escrita de nuevo (reautenticación); si no
+      coincide, `AccountFieldError('password_invalid')` con un mensaje genérico y no cambia nada.
+      El límite de intentos lo pone la vista (`ratelimit.hit`), porque es una regla de HTTP.
+    - `target` pasa a `is_superuser=True, is_staff=True`. `actor` queda como un entrenador común:
+      `is_superuser=False` e `is_staff=True` (así los crean `create_trainer` y «Agregar entrenador»).
+    - No se reasigna ninguna clienta: `actor` conserva las suyas (`assigned_clients`).
+    - Sesiones: no se toca ninguna. Django vuelve a cargar la cuenta en cada petición, así que el
+      cambio rige de inmediato en todas las sesiones abiertas de las dos personas, y `is_superuser`
+      no forma parte del hash de la sesión (solo la contraseña), así que nadie queda desconectada.
+      Para cortar el acceso de la persona anterior, la nueva administradora la desactiva desde
+      «Entrenadores» (eso sí cierra sus sesiones).
+    - Auditoría: `AccountAuditLog` con `action='transfer_admin'` (actor = quien entrega, target =
+      quien recibe). El log solo lleva ids.
+    """
+    if not getattr(actor, 'pk', None) or not getattr(target, 'pk', None):
+        raise AccountNotAllowed('not_allowed')
+    with transaction.atomic():
+        rows = {row.pk: row for row in
+                User.objects.select_for_update().filter(pk__in={actor.pk, target.pk}).order_by('pk')}
+        locked_actor, locked_target = rows.get(actor.pk), rows.get(target.pk)
+        if locked_actor is None or locked_target is None:
+            raise AccountNotAllowed('not_allowed')
+        check_can_transfer_admin(locked_actor, locked_target)
+        if not password or not locked_actor.check_password(password):
+            logger.warning('admin transfer rejected code=password_invalid actor_id=%s', locked_actor.pk)
+            raise AccountFieldError('password_invalid', 'password', TRANSFER_PASSWORD_MESSAGE)
+        locked_target.is_superuser = True
+        locked_target.is_staff = True
+        locked_target.save(update_fields=['is_superuser', 'is_staff'])
+        locked_actor.is_superuser = False
+        locked_actor.is_staff = True
+        locked_actor.save(update_fields=['is_superuser', 'is_staff'])
+        _ensure_superuser_left()
+        _audit(locked_actor, locked_target, choices.ACTION_TRANSFER_ADMIN)
+    logger.info('admin transferred actor_id=%s target_id=%s', locked_actor.pk, locked_target.pk)
+    _sync(actor)
+    _sync(target)
+    return ActionResult(changed=True)

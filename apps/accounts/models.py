@@ -117,7 +117,8 @@ class User(AbstractUser):
 
 
 class AccountAuditLog(models.Model):
-    """Quién desactivó, reactivó o eliminó qué cuenta y cuándo (sección 11 del contrato).
+    """Quién desactivó, reactivó, eliminó o traspasó la administración a qué cuenta y cuándo
+    (sección 11 de docs/contracts/cuentas-eliminar.md y docs/contracts/transferir-administracion.md).
 
     Sin nombres, correos, IP ni texto libre: solo ids, rol, acción, motivo (lista cerrada) y
     conteos. Las claves son PROTECT: las superusuarias no se eliminan y el resto queda como
@@ -128,7 +129,7 @@ class AccountAuditLog(models.Model):
     target = models.ForeignKey(User, on_delete=models.PROTECT, related_name='account_audit',
                                verbose_name='Cuenta')
     target_role = models.CharField(max_length=10, choices=User.ROLE_CHOICES, verbose_name='Rol de la cuenta')
-    action = models.CharField(max_length=12, choices=choices.ACTION_CHOICES, verbose_name='Acción')
+    action = models.CharField(max_length=20, choices=choices.ACTION_CHOICES, verbose_name='Acción')
     reason = models.CharField(max_length=20, choices=choices.REASON_CHOICES, blank=True, default='',
                               verbose_name='Motivo')
     reassigned_to = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True,

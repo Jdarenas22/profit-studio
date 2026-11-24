@@ -25,7 +25,7 @@ from .form_utils import errors_dict, flash_errors
 from .forms import (
     DeactivateAccountForm, EraseAccountForm, MemberProfileForm, RegisterForm, TrainerAddClientForm,
     TrainerClientEditForm, TrainerCreateTrainerForm, TrainerDeactivateForm, TrainerEditForm,
-    TrainerEraseForm,
+    TrainerEraseForm, TransferAdminForm,
 )
 from .models import User
 from .permissions import clients_for_trainer, get_client_for_trainer, reject_if_inactive
@@ -57,11 +57,18 @@ CLIENT_DEACTIVATE_RENDERED = ('reason',)
 CLIENT_ERASE_RENDERED = ('confirm_name', 'reason', 'ack_payments')
 TRAINER_DEACTIVATE_RENDERED = ('reason', 'reassign_to')
 TRAINER_ERASE_RENDERED = ('confirm_name', 'reason', 'reassign_to', 'ack_payments')
+# Transferir la administración (docs/contracts/transferir-administracion.md): el esqueleto pinta los tres.
+ADMIN_TRANSFER_RENDERED = ('new_admin', 'password', 'confirm')
 
 # Límites del registro público (por IP, ventana fija). Se pueden ajustar en settings.
 REGISTER_ATTEMPTS_LIMIT = getattr(settings, 'REGISTER_ATTEMPTS_LIMIT', 20)    # envíos de formulario / ventana
 REGISTER_SUCCESS_LIMIT = getattr(settings, 'REGISTER_SUCCESS_LIMIT', 5)       # cuentas creadas / ventana
 REGISTER_WINDOW_SECONDS = getattr(settings, 'REGISTER_WINDOW_SECONDS', 3600)
+
+# Límite de intentos al transferir la administración (por cuenta que entrega, ventana fija): frena a
+# quien tenga una sesión robada e intente adivinar la contraseña. Se puede ajustar en settings.
+TRANSFER_ADMIN_ATTEMPTS_LIMIT = getattr(settings, 'TRANSFER_ADMIN_ATTEMPTS_LIMIT', 5)
+TRANSFER_ADMIN_WINDOW_SECONDS = getattr(settings, 'TRANSFER_ADMIN_WINDOW_SECONDS', 900)
 
 
 def login_view(request):
@@ -789,6 +796,61 @@ def trainer_staff_delete(request, pk):
                                    TRAINER_ERASE_RENDERED)
     context.update({'errors': {}, 'form': {}})
     return render(request, 'trainer/trainer_confirm_delete.html', context)
+
+
+# ─── Transferir la administración (docs/contracts/transferir-administracion.md) ──────────────
+
+def _transfer_context(actor, candidates):
+    return {
+        'targets': list(candidates),
+        'kept_clients_count': User.objects.filter(assigned_trainer=actor, erased_at__isnull=True).count(),
+    }
+
+
+def _render_transfer(request, candidates, errors, form_data, status=200):
+    """Vuelve a pintar el formulario. La contraseña nunca llega a la plantilla (`form_data` no la trae)."""
+    context = _transfer_context(request.user, candidates)
+    context.update({'errors': errors, 'form': form_data})
+    return render(request, 'trainer/admin_transfer.html', context, status=status)
+
+
+@require_http_methods(['GET', 'POST'])
+@never_cache
+@superuser_required
+def trainer_admin_transfer(request):
+    """Transferir la administración: la superusuaria se la entrega a otro entrenador activo y pasa a
+    ser un entrenador común. GET muestra el formulario; POST transfiere (contraseña de nuevo + casilla)."""
+    candidates = account_services.transfer_admin_candidates(request.user)
+    if request.method != 'POST':
+        return _render_transfer(request, candidates, {}, {})
+
+    form = TransferAdminForm(request.POST, candidates=candidates)
+    form_data = {'new_admin': request.POST.get('new_admin', '')}    # sin la contraseña
+    errors = {} if form.is_valid() else errors_dict(form)
+    if errors:
+        flash_errors(request, form, errors, skip=ADMIN_TRANSFER_RENDERED)
+        return _render_transfer(request, candidates, errors, form_data)
+
+    if not hit('transfer-admin', request.user.pk, TRANSFER_ADMIN_ATTEMPTS_LIMIT,
+               TRANSFER_ADMIN_WINDOW_SECONDS):
+        logger.warning('admin transfer rate limited actor_id=%s', request.user.pk)
+        messages.error(request, 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.')
+        response = _render_transfer(request, candidates, {}, form_data, status=429)
+        response['Retry-After'] = str(TRANSFER_ADMIN_WINDOW_SECONDS)
+        return response
+
+    new_admin = form.cleaned_data['new_admin']
+    name = new_admin.display_name   # se toma ANTES de transferir
+    result, errors = _run_action(request, account_services.transfer_admin, request.user, new_admin,
+                                 form.cleaned_data['password'])
+    if result is not None:
+        messages.success(request, f'Traspasaste la administración a {name}. Sigues como entrenador/a '
+                                  'con tus clientas, pero ya no ves Pagos ni Entrenadores.')
+        return redirect('trainer_dashboard')
+    if errors is None:   # rechazo o fallo inesperado: el mensaje ya está puesto
+        return redirect('trainer_dashboard')
+    flash_errors(request, form, errors, skip=ADMIN_TRANSFER_RENDERED)
+    return _render_transfer(request, account_services.transfer_admin_candidates(request.user), errors, form_data)
 
 
 @superuser_required
