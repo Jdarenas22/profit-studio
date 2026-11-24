@@ -206,7 +206,7 @@ python manage.py create_trainer --username entrenadora --first-name Nombre --las
 ```powershell
 python manage.py check --settings=config.settings.development
 python manage.py makemigrations --check --dry-run --settings=config.settings.development
-python -W error::DeprecationWarning manage.py test --settings=config.settings.development
+python -W error::DeprecationWarning manage.py test --settings=config.settings.development --testrunner=config.test_runner.ResourceTestRunner
 ```
 
 - Más de 1.700 pruebas automatizadas; **ninguna usa proveedores reales** (clientes simulados de IA,
@@ -289,3 +289,5 @@ Flujo de trabajo: cada cambio entra por *pull request* con el CI en verde.
 
 Proyecto académico de prácticas desarrollado con apoyo de asistentes de IA (Claude Code y ChatGPT),
 con revisión humana de cada cambio.
+
+Revisión de errores de GitHub, mediciones y límites de consumo: [auditoría de recursos](docs/auditorias/2026-11-24-github-recursos.md).

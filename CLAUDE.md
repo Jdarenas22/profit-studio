@@ -114,10 +114,10 @@ La configuración del servicio web vive en el **panel** de Railway (proyecto `al
 
 ### Integración continua (`.github/workflows/ci.yml`)
 
-En cada push y pull request, sin secretos ni despliegue (`permissions: contents: read`):
+En cada pull request y push a main (excepto cambios exclusivos del tablero), sin secretos ni despliegue (`permissions: contents: read`):
 
-- Job "pruebas": Python 3.11 con caché de pip, `requirements/development.txt`, `check`, `makemigrations --check --dry-run` y `python -W error::DeprecationWarning manage.py test`. Node 24 con `actions/setup-node` para que la prueba de Tailwind compile con `npx` (sigue sin `package.json`).
-- Job "dependencias": `pip-audit` sobre `requirements/base.txt`, `development.txt` y `local.txt`.
+- Job "pruebas": Python 3.11 con caché de pip, `requirements/development.txt`, `check`, `makemigrations --check --dry-run` y `python -W error::DeprecationWarning manage.py test --testrunner=config.test_runner.ResourceTestRunner`. Node 24 con `actions/setup-node` para que la prueba de Tailwind compile con `npx` (sigue sin `package.json`).
+- Job "dependencias": `pip-audit` sobre `requirements/development.txt` (incluye íntegramente base) y `requirements/local.txt`, sin duplicar resolución.
 
 La suite no necesita variables de entorno: sin `.env`, development.py usa sus valores por defecto. Si una prueba nueva necesita una, se define en el workflow con un valor ficticio.
 
@@ -249,3 +249,5 @@ Prompts meal/5 y meal/6; las notas libres de alimentación no se envían al prov
 - Eliminar borra los datos de la persona y conserva, sin datos personales y apuntando a la lápida, pagos (`ManualPayment.user` y `Payment.user` son `PROTECT`; `raw_webhook` queda en una lista blanca), comprobantes (bucket privado, solo la superusuaria, `receipt_retained_at`), consentimientos (retirados), registro de accesos a la ficha y auditoría. La foto se borra con `transaction.on_commit`. **Toda clave foránea nueva a `User` debe clasificarse en `services.ERASE_POLICY`** (una prueba falla si no).
 - El admin de usuarios no borra (sin botón ni acción masiva) y deja `is_active`/`is_superuser` de solo lectura. `python manage.py purge_orphan_files [--delete]` cuenta o borra fotos y comprobantes que ninguna fila usa.
 - Pantallas C-01 a C-08 entregadas (`docs/contracts/requests.md`); parciales comunes en `templates/trainer/partials/account_*.html` y `person_name.html`. Los errores que una plantilla pinta junto al campo van en las listas `*_RENDERED` de `apps/accounts/views.py` para no repetirlos arriba.
+
+Optimización de recursos y grafo GitHub (2026-11-24): `docs/auditorias/2026-11-24-github-recursos.md`. El ejecutor rápido es exclusivo de pruebas; no cambiar hashers de la aplicación. En web hay dos generaciones activas como máximo por proceso; el resto permanece en la base. Tras cambiar requirements, regenerar y publicar el snapshot verificado: un envío manual tiene prioridad sobre análisis estático. No se añadió workflow con permisos de escritura.

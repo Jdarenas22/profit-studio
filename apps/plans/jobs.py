@@ -54,6 +54,10 @@ MAX_RETRY_AFTER = 30
 VALIDATION_TRIES = 2          # la primera respuesta + un reintento con los códigos
 CLAIM_CANDIDATES = 5          # trabajos `queued` que `run_next_queued` intenta reclamar antes de rendirse
 
+# Límite por proceso web: la cola persistente sigue en la base, no en memoria Python.
+MAX_WEB_JOBS = 2
+_web_slots = threading.BoundedSemaphore(MAX_WEB_JOBS)
+
 _sleep = time.sleep           # las pruebas lo reemplazan
 
 
@@ -86,13 +90,23 @@ def start_job(job_id):
 
 
 def _thread_main(job_id):
-    close_old_connections()
+    # No esperar en un hilo ni abrir conexión si los dos cupos están ocupados.
+    # El trabajo sigue en SQLite; los hilos activos lo recogerán al terminar.
+    if not _web_slots.acquire(blocking=False):
+        return
     try:
+        close_old_connections()
         run_job(job_id)
+        # El mismo hilo atiende el resto de la cola y termina al quedar vacía: sin sondeo en reposo.
+        while run_next_queued() is not None:
+            close_old_connections()
     except Exception as exc:   # nunca dejar morir el hilo sin registro
         logger.error('plan job thread crashed job_id=%s error=%s', job_id, type(exc).__name__)
     finally:
-        connection.close()
+        try:
+            connection.close()
+        finally:
+            _web_slots.release()
 
 
 def claim(job_id):
