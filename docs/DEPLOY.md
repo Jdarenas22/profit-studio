@@ -73,7 +73,7 @@ Lo que el código hace cumplir: una `R2_PUBLIC_URL` mal formada detiene el arran
 
 Además, en el panel de Wompi registra la **URL de eventos (webhook)**: `https://profit-studio-production.up.railway.app/payments/webhook/`. Sin las claves de Wompi la web funciona, pero «Pagar online» no.
 
-### Correo (recuperación de contraseña)
+### Correo (confirmar el correo, invitaciones y recuperación de contraseña)
 
 | Variable | Qué es |
 | --- | --- |
@@ -81,7 +81,9 @@ Además, en el panel de Wompi registra la **URL de eventos (webhook)**: `https:/
 | `EMAIL_HOST_PASSWORD` | **Contraseña de aplicación** de Gmail (Cuenta de Google → Seguridad → Contraseñas de aplicaciones), no la contraseña normal |
 | `EMAIL_HOST`, `EMAIL_PORT`, `DEFAULT_FROM_EMAIL` | Opcionales (por defecto `smtp.gmail.com`, `587` y `ProFit Studio <EMAIL_HOST_USER>`) |
 
-Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprimen en los logs de Railway.
+Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprimen en los logs de Railway (**con sus enlaces**).
+
+**El registro público depende del correo** (`docs/contracts/verificacion-correo.md`): la cuenta nace inactiva y solo se activa con el enlace del correo, y «Agregar cliente» invita a la clienta por correo para que cree su contraseña. Con el correo sin configurar nadie puede confirmar su cuenta: configurar SMTP **antes** de desplegar esta función (probar con `check_infra --smtp`). Opcional: programar `python manage.py purge_unverified_accounts --delete` (por ejemplo, una vez por semana, como un servicio con Cron Schedule) para borrar los registros que nunca confirmaron y no tienen datos.
 
 ### Opcionales
 
@@ -91,6 +93,7 @@ Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprim
 | `WHATSAPP_NUMBER`, `WHATSAPP_LINK`, `INSTAGRAM_URL` | Datos de contacto (ya tienen valores por defecto en el código) |
 | `HEALTH_FEATURES_ENABLED` | `true` enciende «Mis medidas» y la ficha de salud de la clienta. Ver sección 7 antes de activarla |
 | `PRIVACY_POLICY_URL` | Enlace a la política de tratamiento de datos que se muestra junto al consentimiento |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Antirrobots opcional (Cloudflare Turnstile) en el registro y en «Reenviar el correo». Solo se enciende con **las dos**; la secreta solo va aquí. Si Cloudflare no responde, esas pantallas rechazan. Ver el contrato, sección 8 |
 | `REDIS_URL` | Caché compartida entre los 2 workers (límite de intentos de login). Sin ella se usa memoria local de cada proceso |
 | `DB_CONN_MAX_AGE` | Segundos que cada worker reutiliza su conexión a Postgres (entero ≥ 0). **Sin definir: `0` = una conexión nueva por petición** (el servicio puede dormirse con App Sleeping). Con `60` las páginas con base de datos responden ~200 ms más rápido, pero **el servicio deja de dormirse**: ponerla al pasar a un plan de pago. Un valor que no sea un entero ≥ 0 detiene el arranque. Ver sección 11 |
 | `AI_PLANS_MODE` | Planes con IA: `off` (por defecto), `simulated` (borradores de ejemplo, sin costo, no se aprueban) o `live` (Gemini). Ver sección 7b |

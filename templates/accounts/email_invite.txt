@@ -1,0 +1,18 @@
+{% autoescape off %}ProFit Studio — Crea tu contraseña
+
+Hola{% if user.first_name %}, {{ user.first_name }}{% endif %},
+
+Tu entrenador/a te creó una cuenta en ProFit Studio.
+
+Tu usuario es: {{ user.username }}
+
+Para entrar, crea tu contraseña con este enlace:
+
+{{ url }}
+
+Este enlace vence en {{ valid_hours }} horas y solo sirve una vez. Si vence, pide a tu entrenador/a que te lo envíe de nuevo.
+
+Si no esperabas este correo, puedes ignorarlo: sin crear la contraseña nadie puede entrar a la cuenta.
+
+— Equipo ProFit Studio
+{% endautoescape %}

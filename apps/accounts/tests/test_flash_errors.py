@@ -63,7 +63,7 @@ class TrainerAddClientFlashTests(InlineErrorAssertions, ScenarioTestCase):
 
     def post(self, **over):
         data = {'first_name': 'Nueva', 'last_name': 'Persona', 'email': 'nueva.flash@example.com',
-                'username': 'nueva.flash', 'password': STRONG}
+                'username': 'nueva.flash'}
         data.update(over)
         return self.client.post(reverse('trainer_add_client'), data)
 

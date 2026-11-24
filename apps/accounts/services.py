@@ -125,8 +125,8 @@ class AccountActionError(Exception):
 
 
 class AccountNotAllowed(AccountActionError):
-    """Códigos: `account_protected` (superusuaria), `account_self`, `account_erased`,
-    `last_superuser`, `not_allowed`."""
+    """Códigos: `account_protected` (superusuaria), `account_self`, `account_erased`, `account_pending`
+    (registro sin confirmar), `last_superuser`, `not_allowed`."""
 
 
 class AccountFieldError(AccountActionError):
@@ -155,6 +155,10 @@ def check_can_act(actor, target, action):
         raise AccountNotAllowed('not_allowed')
     if target.is_erased:
         raise AccountNotAllowed('account_erased')
+    if target.is_pending_registration:
+        # Registrada que aún no confirma su correo: no es una clienta del panel (docs/contracts/verificacion-correo.md).
+        # Reactivarla la activaría sin verificar el correo; se limpia sola con `purge_unverified_accounts`.
+        raise AccountNotAllowed('account_pending')
     if target.is_superuser:
         raise AccountNotAllowed('account_protected')
     if target.pk == actor.pk:

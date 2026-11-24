@@ -1,21 +1,24 @@
 {% extends 'base.html' %}
 
-{% block title %}¡Cuenta creada! — ProFit Studio{% endblock %}
+{% block title %}Correo confirmado — ProFit Studio{% endblock %}
 
 {% block content %}
 <section class="min-h-screen flex items-center justify-center py-20 bg-black">
   <div class="max-w-lg w-full px-4 text-center">
 
     <!-- Icono de éxito -->
-    <div class="w-20 h-20 bg-green-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-      <i class="fa fa-check-circle text-green-400 text-4xl"></i>
+    <div class="w-20 h-20 bg-green-500/10 border border-green-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6">
+      <i class="fa fa-envelope-circle-check text-green-400 text-4xl" aria-hidden="true"></i>
     </div>
+    <p class="inline-flex items-center gap-2 rounded-full border border-green-500/30 bg-green-500/10 px-3 py-1 text-green-300 text-xs font-semibold mb-4">
+      <i class="fa fa-check" aria-hidden="true"></i> Confirmamos tu correo
+    </p>
 
     <h1 class="text-3xl font-black text-white mb-3">
-      {% if user.gender == 'M' %}¡Bienvenido{% elif user.gender == 'F' %}¡Bienvenida{% else %}¡Bienvenido/a{% endif %}, {{ user.first_name }}!
+      {% if user.gender == 'M' %}¡Bienvenido{% elif user.gender == 'F' %}¡Bienvenida{% else %}¡Te damos la bienvenida{% endif %}{% if user.first_name %}, <span class="[overflow-wrap:anywhere]">{{ user.first_name }}</span>{% endif %}!
     </h1>
-    <p class="text-white/50 text-lg mb-8 leading-relaxed">
-      Tu cuenta fue creada correctamente.
+    <p class="text-white/70 text-lg mb-8 leading-relaxed">
+      Tu cuenta ya está activa y entraste con tu usuario.
       {% if plan %}
       Elegiste el plan <span class="text-primary font-bold">{{ plan.name }}</span>.
       {% endif %}

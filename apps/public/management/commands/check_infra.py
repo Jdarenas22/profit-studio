@@ -38,10 +38,10 @@ WOMPI_VARS = ('WOMPI_PUBLIC_KEY', 'WOMPI_PRIVATE_KEY', 'WOMPI_INTEGRITY_SECRET',
 SECRET_ENV_NAMES = (
     'SECRET_KEY', 'DATABASE_URL', 'REDIS_URL', 'TRAINER_INITIAL_PASSWORD', 'TRAINER_PASSWORD',
     'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT_URL', 'EMAIL_HOST_PASSWORD',
-    *WOMPI_VARS, 'GEMINI_API_KEY', 'FDC_API_KEY', 'WHATSAPP_CLOUD_ACCESS_TOKEN', 'WHATSAPP_CLOUD_APP_SECRET',
+    'TURNSTILE_SECRET_KEY', *WOMPI_VARS, 'GEMINI_API_KEY', 'FDC_API_KEY', 'WHATSAPP_CLOUD_ACCESS_TOKEN', 'WHATSAPP_CLOUD_APP_SECRET',
     'WHATSAPP_CLOUD_VERIFY_TOKEN',
 )
-SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', *WOMPI_VARS, 'GEMINI_API_KEY', 'FDC_API_KEY',
+SECRET_SETTING_NAMES = ('SECRET_KEY', 'EMAIL_HOST_PASSWORD', 'TURNSTILE_SECRET_KEY', *WOMPI_VARS, 'GEMINI_API_KEY', 'FDC_API_KEY',
                         'WHATSAPP_CLOUD_ACCESS_TOKEN', 'WHATSAPP_CLOUD_APP_SECRET', 'WHATSAPP_CLOUD_VERIFY_TOKEN')
 
 NETWORK_TIMEOUT_SECONDS = 10
@@ -519,7 +519,7 @@ def check_email(ctx):
     if 'smtp' not in backend:
         if ctx.is_production:
             return [Check(area, 'Envío de correos', WARN,
-                          'Backend de consola: los correos (recuperar contraseña) NO se envían, solo salen en el log.',
+                          'Backend de consola: los correos (confirmar correo, invitaciones, recuperar contraseña) NO se envían, solo salen en el log.',
                           'Define EMAIL_HOST_USER y EMAIL_HOST_PASSWORD (contraseña de aplicación de Gmail).')]
         return [Check(area, 'Envío de correos', OK, 'Backend de consola: los correos salen por la terminal (desarrollo).')]
 
@@ -880,6 +880,23 @@ def check_whatsapp(ctx):
     return results
 
 
+def check_turnstile(ctx):
+    """Antirrobots opcional (Cloudflare Turnstile) del registro y de «Reenviar el correo»
+    (docs/contracts/verificacion-correo.md, sección 8). Apagado sin claves; con una sola, queda apagado."""
+    area = 'Antirrobots'
+    site = str(get_setting(ctx.settings, 'TURNSTILE_SITE_KEY') or '').strip()
+    secret = str(get_setting(ctx.settings, 'TURNSTILE_SECRET_KEY') or '').strip()
+    if site and secret:
+        return [Check(area, 'Turnstile', OK, 'Activo: el registro y «Reenviar el correo» piden la comprobación. '
+                                             'Si Cloudflare no responde, esas pantallas rechazan (falla cerrado).')]
+    if site or secret:
+        missing = 'TURNSTILE_SECRET_KEY' if site else 'TURNSTILE_SITE_KEY'
+        return [Check(area, 'Turnstile', WARN, f'Configuración a medias: falta {missing}. Turnstile queda APAGADO.',
+                      'Define las dos variables (panel de Cloudflare > Turnstile) o quita la que sobra.')]
+    return [Check(area, 'Turnstile', OK, 'Apagado (opcional): sin TURNSTILE_SITE_KEY ni TURNSTILE_SECRET_KEY el '
+                                         'registro no pide comprobación antirrobots.')]
+
+
 CHECKS = (
     check_settings,
     check_secret_key_and_hosts,
@@ -895,6 +912,7 @@ CHECKS = (
     check_ai_plans,
     check_ai_execution,
     check_whatsapp,
+    check_turnstile,
 )
 
 

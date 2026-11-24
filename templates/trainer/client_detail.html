@@ -31,6 +31,7 @@
       <h1 class="text-2xl font-black text-white [overflow-wrap:anywhere]">
         {{ client.display_name }}
         {% if not client.is_active %}<span class="align-middle ml-1 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-white/80"><i class="fa fa-user-slash" aria-hidden="true"></i> Desactivada</span>{% endif %}
+        {% if client.is_invitation_pending %}<span class="align-middle ml-1 inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-400/10 px-2.5 py-0.5 text-xs font-semibold text-sky-200"><i class="fa fa-envelope" aria-hidden="true"></i> Invitación pendiente</span>{% endif %}
       </h1>
       <p class="text-white/60 text-sm [overflow-wrap:anywhere]">{{ client.email|default:"Sin email" }}{% if client.phone %} · {{ client.phone }}{% endif %}</p>
       <p class="text-white/60 text-xs mt-1">Miembro desde {{ client.date_joined|date:"d/m/Y" }}</p>
@@ -43,6 +44,36 @@
   </a>
   {% endif %}
 </div>
+
+{% if client.is_invitation_pending and client.is_active %}
+<!-- V-06 (docs/contracts/requests.md, «Verificación de correo»): la clienta aún no crea su contraseña con la invitación -->
+<section aria-labelledby="client-invitation-title"
+         class="mb-8 flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-sky-400/30 bg-sky-400/10 px-4 py-4 sm:px-5">
+  <div class="flex items-start gap-3 flex-1 min-w-0">
+    <i class="fa fa-envelope-open-text text-sky-300 mt-1 shrink-0" aria-hidden="true"></i>
+    <div class="min-w-0">
+      <h2 id="client-invitation-title" class="text-sky-100 text-sm font-bold">Aún no crea su contraseña</h2>
+      {% if client.email %}
+      <p class="text-sky-50/90 text-sm leading-relaxed mt-0.5">Le enviamos una invitación a <strong class="text-white [overflow-wrap:anywhere]">{{ client.email }}</strong>. Hasta que la acepte no puede iniciar sesión, pero ya puedes asignarle membresía, valoración y rutina.</p>
+      <p class="text-sky-50/80 text-xs leading-relaxed mt-1">El enlace vale 72 horas. Si se le venció o no lo encuentra (que revise Spam), reenvíalo: el anterior deja de servir.</p>
+      {% else %}
+      <p class="text-sky-50/90 text-sm leading-relaxed mt-0.5">La cuenta no tiene correo, así que no le podemos enviar la invitación. Agrégalo en «Editar» y le llegará una invitación nueva.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% if client.email %}
+  <form method="POST" action="{% url 'trainer_client_resend_invitation' client.pk %}" class="shrink-0"
+        x-data="{ sending: false }" @submit="if (sending) { $event.preventDefault() } else { sending = true }" @pageshow.window="sending = false">
+    {% csrf_token %}
+    <button type="submit" :aria-disabled="sending.toString()"
+            class="inline-flex w-full sm:w-auto items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black text-sm font-bold px-5 rounded-xl transition-colors aria-disabled:opacity-60 aria-disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+      <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-paper-plane'" aria-hidden="true"></i>
+      <span x-text="sending ? 'Enviando...' : 'Reenviar invitación'">Reenviar invitación</span>
+    </button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
 
 {% if not client.is_active %}
 <!-- C-02: cuenta desactivada = solo lectura -->

@@ -102,7 +102,7 @@ class ProgressAuthorizationTests(ProgressTestCase):
                 self.assertEqual(self.client.get(url).status_code, 404)
 
     def test_inactive_is_visible_and_erased_is_a_404(self):
-        User.objects.filter(pk=self.client_a.pk).update(is_active=False)
+        User.objects.filter(pk=self.client_a.pk).update(is_active=False, deactivated_at=timezone.now())
         self.assertFalse(self.context()['client_active'])
         User.objects.filter(pk=self.client_a.pk).update(erased_at=timezone.now())
         self.assertEqual(self.page().status_code, 404)

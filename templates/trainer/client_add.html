@@ -12,7 +12,7 @@
 
 <div class="max-w-xl">
   <h1 class="text-2xl font-black text-white mb-2">Agregar cliente</h1>
-  <p class="text-white/40 text-sm mb-8">Crea la cuenta del cliente y opcionalmente activa su membresía al instante.</p>
+  <p class="text-white/40 text-sm mb-8">Crea la cuenta del cliente, invítalo por correo a crear su contraseña y, si quieres, activa su membresía al instante.</p>
 
   <form method="POST" class="space-y-5">
     {% csrf_token %}
@@ -88,23 +88,27 @@
         {% if errors.gender %}<p class="text-red-400 text-xs mt-1">{{ errors.gender }}</p>{% endif %}
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-white/60 text-xs font-medium mb-2">Nombre de usuario *</label>
-          <input type="text" name="username" required
-                 value="{{ form.username|default:'' }}"
-                 placeholder="adri.garcia"
-                 class="w-full bg-black/40 border {% if errors.username %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
-          {% if errors.username %}<p class="text-red-400 text-xs mt-1">{{ errors.username }}</p>{% endif %}
-        </div>
-        <div>
-          <label class="block text-white/60 text-xs font-medium mb-2">Contraseña inicial *</label>
-          <input type="text" name="password" required
-                 value="{{ form.password|default:'' }}"
-                 placeholder="Mínimo 8 caracteres"
-                 class="w-full bg-black/40 border {% if errors.password %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
-          {% if errors.password %}<p class="text-red-400 text-xs mt-1">{{ errors.password }}</p>{% endif %}
-          <p class="text-white/20 text-xs mt-1">El cliente puede cambiarla después.</p>
+      <div>
+        <label for="add-username" class="block text-white/60 text-xs font-medium mb-2">Nombre de usuario *</label>
+        <input type="text" name="username" id="add-username" required autocomplete="off"
+               value="{{ form.username|default:'' }}"
+               placeholder="adri.garcia"
+               aria-describedby="add-username-help{% if errors.username %} add-username-error{% endif %}"{% if errors.username %} aria-invalid="true"{% endif %}
+               class="w-full bg-black/40 border {% if errors.username %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
+        <p id="add-username-help" class="text-white/60 text-xs mt-1">Con este usuario iniciará sesión. Se lo enviamos en la invitación.</p>
+        {% if errors.username %}<p id="add-username-error" class="text-red-400 text-xs mt-1" role="alert">{{ errors.username }}</p>{% endif %}
+      </div>
+
+      {# V-06: la contraseña ya no la fija el entrenador; la clienta la crea con la invitación del correo #}
+      <div class="flex items-start gap-3 rounded-xl border border-sky-400/30 bg-sky-400/10 p-4">
+        <i class="fa fa-envelope-open-text text-sky-300 mt-0.5 shrink-0" aria-hidden="true"></i>
+        <div class="min-w-0">
+          <p class="text-sky-100 text-sm font-bold">La clienta crea su propia contraseña</p>
+          <ul class="text-sky-50/90 text-xs leading-relaxed mt-1.5 space-y-1 list-disc pl-4">
+            <li>Al guardar le enviamos un correo de invitación con su usuario y un enlace para crear la contraseña.</li>
+            <li>El enlace vale <strong>72 horas</strong>. Si se le vence o no lo encuentra, puedes reenviarlo desde su ficha.</li>
+            <li>Mientras tanto verás su cuenta como «Invitación pendiente» y ya puedes asignarle membresía, valoración y rutina.</li>
+          </ul>
         </div>
       </div>
     </div>
