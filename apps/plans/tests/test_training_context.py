@@ -18,7 +18,7 @@ class AssignedRoutineTests(NutritionScenarioTestCase):
         self.routine_a.save()
         self.assertFalse(assigned_training_summary(self.client_a)["assigned"])
 
-    def test_five_meal_calls_contain_assigned_routine_summary(self):
+    def test_five_meal_calls_keep_personal_training_summary_local(self):
         self.ready(
             self.client_a,
             meal_slots=["breakfast", "mid_morning", "lunch", "snack", "dinner"],
@@ -26,7 +26,9 @@ class AssignedRoutineTests(NutritionScenarioTestCase):
         job, fake = self.request_nutrition(self.client_a)
         self.assertEqual(job.status, job.STATUS_SUCCEEDED, job.error_code)
         self.assertEqual(len(fake.calls), 5)
+        summary = assigned_training_summary(self.client_a)
+        self.assertTrue(summary['assigned'])
+        self.assertEqual(summary['days_per_cycle'], 1)
         for call in fake.calls:
-            summary = call["payload"]["training"]["assigned_routine"]
-            self.assertTrue(summary["assigned"])
-            self.assertEqual(summary["days_per_cycle"], 1)
+            self.assertNotIn('training', call['payload'])
+            self.assertEqual(call['payload']['days'], 7)

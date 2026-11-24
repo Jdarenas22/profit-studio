@@ -49,7 +49,7 @@ def names(options):
 
 class CatalogTests(SimpleTestCase):
     def test_version_and_unique_names(self):
-        self.assertEqual(recipes.VERSION, 'everyday-world/2')
+        self.assertEqual(recipes.VERSION, 'everyday-world/3')
         lowered = [recipe[0].casefold() for recipe in recipes.RECIPES]
         self.assertEqual(len(lowered), len(set(lowered)))
 
@@ -295,7 +295,7 @@ class ProteinValidationTests(SimpleTestCase):
 
 def plan_names(plan):
     result = {}
-    for slot in plan.nutrition.slots.all():
+    for slot in plan.nutrition.slots.filter(day_index=1):
         result[slot.code] = list(slot.options.filter(is_active=True).order_by('position').values_list('name', flat=True))
     return result
 
@@ -334,17 +334,17 @@ class VarietyFlowTests(NutritionScenarioTestCase):
 
     def test_names_used_earlier_in_the_day_leave_the_list_and_the_schema(self):
         job, fake = self.five_meals(self.client_a)
-        used = set()
+        for day in range(1, 8):
+            used = set()
+            for slot in job.plan.nutrition.slots.filter(day_index=day):
+                dishes = set(slot.options.values_list('name', flat=True))
+                self.assertFalse(used & dishes)
+                used.update(dishes)
+        self.assertEqual(len(fake.calls), 5)
         for call in fake.calls:
             offered = names(call['payload']['recipe_options'])
             self.assertLessEqual(len(offered), recipes.MAX_OFFERED)
-            self.assertFalse(used & set(offered))                                  # fuera de la lista...
-            self.assertFalse(used & set(name_enum(call)))                          # ...y del esquema
-            self.assertEqual(set(name_enum(call)), set(offered))
-            self.assertEqual(set(call['payload']['avoid_repeating_names']), used)  # sigue la sugerencia
-            produced = sample_meal_slot(call['payload'])
-            used |= {option['name'] for option in produced['options']}
-        self.assertEqual(len(fake.calls), 5)
+            self.assertEqual(call['schema']['properties']['recipe_names']['maxItems'], len(offered))
 
     def test_each_meal_gets_its_own_order_and_every_job_a_different_one(self):
         job, fake = self.five_meals(self.client_a)
@@ -364,55 +364,45 @@ class VarietyFlowTests(NutritionScenarioTestCase):
         _job, fake = self.five_meals(self.client_a)
         for call in fake.calls:
             payload = call['payload']
-            self.assertEqual(payload['recipe_catalog_version'], 'everyday-world/2')
+            self.assertEqual(payload['schema_version'], 'weekly-menu/1')
             self.assertTrue(all(option['main_protein'] for option in payload['recipe_options']))
-            self.assertEqual(set(payload['recipe_options'][0]), {'name', 'cuisine', 'main_protein', 'preparation', 'items'})
+            self.assertEqual(set(payload['recipe_options'][0]), {'name', 'cuisine', 'main_protein', 'preparation'})
         self.assertIn('main_protein', prompts.MEAL_SYSTEM)
         self.assertEqual(prompts.meal_prompt(False)[1], 'meal/5')
 
-    def test_a_model_that_repeats_the_protein_is_rejected_once_and_then_corrected(self):
-        class SameProteinFirst(FakeAIClient):
-            @staticmethod
-            def _meal_data(payload, scenario):
-                if payload['previous_errors']:
-                    return sample_meal_slot(payload)
-                for family in sorted({option['main_protein'] for option in payload['recipe_options']}):
-                    same = [option for option in payload['recipe_options'] if option['main_protein'] == family]
-                    group = recipes.select_options(same, payload['options_requested'], protein='ignore')
-                    if group:
-                        return {'schema_version': meal.MEAL_SCHEMA_VERSION, 'slot_code': payload['slot']['code'],
-                                'options': group}
-                raise AssertionError('el catálogo no tiene tres platos con la misma proteína')
-
+    def test_a_model_that_repeats_a_recipe_is_rejected_once_and_then_corrected(self):
+        class RepeatedNameFirst(FakeAIClient):
+            def generate_json(self, **kwargs):
+                result = super().generate_json(**kwargs)
+                if not kwargs['payload']['previous_errors']:
+                    bad = list(result.data['recipe_names'])
+                    bad[-1] = bad[0]
+                    return replace(result, data={'recipe_names': bad})
+                return result
         self.ready(self.client_a)
-        fake = SameProteinFirst()
+        fake = RepeatedNameFirst()
         with mock.patch('apps.plans.ai.get_ai_client', return_value=fake), self.captureOnCommitCallbacks(execute=True):
-            job, _created = services.request_plan(self.client_a, KIND_NUTRITION, self.client_a,
-                                                  services.new_request_token())
+            job, _ = services.request_plan(self.client_a, KIND_NUTRITION, self.client_a, services.new_request_token())
         job.refresh_from_db()
         self.assertEqual(job.status, job.STATUS_SUCCEEDED, job.error_code)
-        self.assertEqual(fake.calls[1]['payload']['previous_errors'], [meal.V06_VARIETY])
-        for dishes in plan_names(job.plan).values():
-            self.assertEqual(len({recipes.protein_of(name) for name in dishes}), 3, dishes)
+        self.assertEqual(fake.calls[1]['payload']['previous_errors'], ['V01_SCHEMA'])
+        self.assertEqual(job.plan.nutrition.duration_days, 7)
 
-    def test_with_very_few_recipes_the_full_list_is_used_instead_of_failing(self):
+    def test_with_very_few_recipes_weekly_variety_fails_before_spending_quota(self):
         keep = {'Pollo con arroz y ensalada', 'Bowl de res magra con quinua', 'Pescado con papa y brócoli',
                 'Arepa con huevo y aguacate', 'Calentado de arroz, fríjol y huevo', 'Tostadas con huevo y tomate'}
         self.ready(self.client_a)
         with mock.patch.object(recipes, 'RECIPES', [recipe for recipe in recipes.RECIPES if recipe[0] in keep]):
             job, fake = self.request_nutrition(self.client_a)
-        self.assertEqual(job.status, job.STATUS_SUCCEEDED, job.error_code)
-        dishes = plan_names(job.plan)
-        self.assertEqual(set(dishes['lunch']), set(dishes['dinner']))               # sin otra salida, se repiten
-        self.assertEqual(len(dishes['lunch']), 3)
-        self.assertEqual(set(name_enum(fake.calls[2])), set(dishes['lunch']))      # cena: lista completa
-        self.assertTrue(set(fake.calls[2]['payload']['avoid_repeating_names']))    # y la sugerencia sigue ahí
+        self.assertEqual(job.status, job.STATUS_FAILED)
+        self.assertEqual(job.error_code, 'weekly_variety_unavailable')
+        self.assertEqual(fake.calls, [])
 
     def test_unavailable_recipes_still_stop_the_job_before_calling_the_ai(self):
         self.ready(self.client_a)
         with mock.patch.object(recipes, 'RECIPES', []):
             job, fake = self.request_nutrition(self.client_a)
-        self.assertEqual((job.status, job.error_code), (PlanGenerationJob.STATUS_FAILED, 'recipes_unavailable'))
+        self.assertEqual((job.status, job.error_code), (PlanGenerationJob.STATUS_FAILED, 'weekly_variety_unavailable'))
         self.assertEqual(fake.calls, [])
 
 

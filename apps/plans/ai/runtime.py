@@ -35,6 +35,10 @@ def reserve_call():
 
 def free_request(task, payload, schema):
     """No exporta ficha, medidas, metas energéticas, notas ni historial personal."""
+    if task == 'weekly_meal_slot':
+        from apps.plans.rules import weekly
+        return weekly.SYSTEM, weekly.public_payload(
+            payload['recipe_options'], payload['slot_code'], payload.get('previous_errors', ())), schema
     common = {"task": task, "schema_version": payload["schema_version"]}
     errors = payload.get("previous_errors", ())
     common["previous_errors"] = [

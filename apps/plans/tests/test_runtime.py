@@ -225,20 +225,7 @@ class NormalFreeFlowTests(NutritionScenarioTestCase):
         def provider(**kwargs):
             payload = kwargs["payload"]
             calls.append(payload)
-            from apps.plans.rules.recipes import select_options
-
-            # El sustituto usa solo ingredientes públicos, igual que la solicitud Free.
-            catalog = [
-                {
-                    **recipe,
-                    "items": [{"food_id": value} for value in recipe["food_ids"]],
-                }
-                for recipe in payload["recipe_options"]
-            ]
-            names = [
-                row["name"]
-                for row in select_options(catalog, payload["options_requested"])
-            ]
+            names = [row['name'] for row in payload['recipe_options']]
             return AIResult(data={"recipe_names": names}, model="gemini-3.5-flash-lite")
 
         options = {

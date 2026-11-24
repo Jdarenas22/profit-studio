@@ -44,7 +44,7 @@ las comidas con sus opciones. Parámetros: plan, nutrition_review, approval_prob
 {% for entry in nutrition_review.slots %}
 {% with slot=entry.slot %}
 <details class="pfs-disclosure" {% if forloop.first or approval_problems or nutrition_review.conflicts %}open{% endif %}>
-  <summary><span class="font-bold">{{ slot.name }}</span><span class="pfs-muted ml-2">{{ entry.options|length }} opciones · ≈ {{ slot.kcal_target }} kcal</span></summary>
+  <summary><span class="font-bold">{% if nutrition_review.nutrition.duration_days == 7 %}Día {{ slot.day_index }} · {% endif %}{{ slot.name }}</span><span class="pfs-muted ml-2">{{ entry.options|length }} opciones · ≈ {{ slot.kcal_target }} kcal</span></summary>
   <div class="pfs-disclosure-content">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
     <h3 class="text-white font-bold">{{ slot.name }}{% if slot.time_hint %} <span class="text-white/50 text-sm font-medium">· {{ slot.time_hint }}</span>{% endif %}</h3>

@@ -42,6 +42,7 @@ from .rules import energy as rules_energy
 from .rules import meal_validate as rules_meal
 from .rules import validate as rules_validate
 from .rules import recipes
+from .rules import weekly
 
 logger = logging.getLogger(__name__)
 
@@ -378,12 +379,14 @@ def _evaluate_for_run(job, kind):
     return assessment
 
 
-def _adaptation_for(job, assessment):
+def _adaptation_for(job, assessment, send_history=True):
     """Adaptación a la clienta (apagada por defecto). Guarda en el trabajo el resumen de qué se tuvo en
     cuenta, solo con códigos y conteos."""
     adaptation = adaptation_service.for_job(job, assessment)
     if adaptation is not None:
         summary = adaptation.summary()
+        if not send_history:
+            summary['history_sent'] = False
         job.adaptation_summary = summary
         PlanGenerationJob.objects.filter(pk=job.pk).update(adaptation_summary=summary)
     return adaptation
@@ -518,35 +521,67 @@ def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_optio
 
 def _run_nutrition(job, started):
     assessment = _evaluate_for_run(job, KIND_NUTRITION)
-    adaptation = _adaptation_for(job, assessment)
+    adaptation = _adaptation_for(job, assessment, send_history=False)
     slots = assessment.slots
     PlanGenerationJob.objects.filter(pk=job.pk).update(flags=job.flags, progress_total=len(slots), progress_done=0)
 
-    client = ai.get_ai_client()
-    generated, names, model = [], [], ''
-    for index, target in enumerate(slots, start=1):
+    prepared = []
+    for target in slots:
         _check_budget(started)
-        options, result = _generate_slot_options(job, started, client, assessment, target, n_options=3,
-                                                 avoid_names=names, adaptation=adaptation)
+        rules = nutrition.slot_rules(target.code, target.kcal, target.protein_g, assessment)
+        if adaptation is not None and adaptation.foods is not None:
+            rules = replace(rules, foods={key: food for key, food in rules.foods.items() if key in adaptation.food_ids})
+        candidates = recipes.candidates(rules, cooking=assessment.profile.cooking_access, seed=str(job.job_ref))
+        offered = recipes.offer(candidates, 3).options
+        try:
+            weekly.schedule(offered)  # Reject insufficient variety before spending API quota.
+        except ValueError:
+            raise JobFailed('weekly_variety_unavailable') from None
+        prepared.append((target, rules, offered))
+
+    client = ai.get_ai_client()
+    generated, model, names_by_day = [], '', {}
+    for index, (target, rules, offered) in enumerate(prepared, start=1):
+        _check_budget(started)
+        validation, result = _generate_validated(
+            job, started, client, task='weekly_meal_slot', system=weekly.SYSTEM,
+            make_payload=lambda errors: weekly.public_payload(offered, target.code, errors),
+            make_schema=lambda payload: weekly.schema(len(offered)),
+            validate=lambda data: weekly.validate_ranking(data, offered))
         model = model or result.model
-        names.extend(option['name'] for option in options)
-        generated.append((target, options))
+        ranked = validation.data['options']
+        if adaptation is not None and adaptation.profile.liked_food_ids:
+            liked = set(adaptation.profile.liked_food_ids)
+            ranked = sorted(ranked, key=lambda row: -len(liked & {item['food_id'] for item in row['items']}))
+        try:
+            days = weekly.schedule(ranked, avoid_by_day=names_by_day)
+        except ValueError:
+            raise JobFailed('weekly_variety_unavailable') from None
+        for day_index, options in enumerate(days, start=1):
+            validated = rules_meal.validate_meal_slot({
+                'schema_version': rules_meal.MEAL_SCHEMA_VERSION, 'slot_code': target.code,
+                'options': options}, rules)
+            if not validated.ok:
+                raise JobFailed(validated.error_code)
+            generated.append((day_index, target, validated.data['options']))
+            names_by_day.setdefault(day_index, set()).update(option['name'] for option in options)
         job.progress_done = index
         PlanGenerationJob.objects.filter(pk=job.pk, status=PlanGenerationJob.STATUS_RUNNING).update(progress_done=index)
 
     # Segunda comprobación sobre el día completo (toda combinación de opciones)
     energy = assessment.energy
-    day_codes = rules_meal.check_day(
-        [[option['totals'] for option in options] for _target, options in generated],
-        energy.kcal, energy.protein_g, rules_energy.KCAL_FLOOR[assessment.profile.sex_for_calculation])
-    if day_codes:
-        raise JobFailed(f'validation_failed:{day_codes[0]}')
+    for day in range(1, weekly.DAYS + 1):
+        day_codes = rules_meal.check_day(
+            [[option['totals'] for option in options] for day_index, _target, options in generated if day_index == day],
+            energy.kcal, energy.protein_g, rules_energy.KCAL_FLOOR[assessment.profile.sex_for_calculation])
+        if day_codes:
+            raise JobFailed(f'validation_failed:{day_codes[0]}')
     _check_budget(started)
     with transaction.atomic():
         _lock_running(job)
         plan = nutrition.create_nutrition_draft(
             job, assessment, generated, model_name=model or client.model_name,
-            prompt_version=prompts.meal_prompt(adaptation is not None and bool(adaptation.history))[1],
+            prompt_version=weekly.VERSION,
             is_simulated=client.is_simulated)
         _finish(job, PlanGenerationJob.STATUS_SUCCEEDED, plan=plan)
     return plan
@@ -575,6 +610,8 @@ def _run_alternative(job, started):
     options, result = _generate_slot_options(job, started, client, assessment, target, n_options=1,
                                              existing=existing, avoid_names=[o.name for o in others] + day_names,
                                              adaptation=adaptation)
+    if options[0]['name'].casefold() in nutrition.adjacent_recipe_names(slot):
+        raise JobFailed('validation_failed:V06_VARIETY')
     _check_budget(started)
     with transaction.atomic():
         _lock_running(job)

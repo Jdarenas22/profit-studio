@@ -313,13 +313,11 @@ class StrictCatalogFlowTests(PlanScenarioTestCase):
                     )
                 job.refresh_from_db()
                 self.assertEqual(job.status, job.STATUS_SUCCEEDED, job.error_code)
-                self.assertEqual(job.plan.nutrition.slots.count(), 5)
+                self.assertEqual(job.plan.nutrition.slots.count(), 35)
                 payload = fake.calls[0]["payload"]
-                self.assertEqual(payload["food_nutrient_units"]["sodium_mg100"], "mg")
-                self.assertEqual(payload["food_nutrient_units"]["basis"], "100g")
-                for food in payload["allowed_foods"]:
-                    self.assertIn("sugars100", food)
-                    self.assertIsNone(food["added_sugars100"])
+                self.assertNotIn('allowed_foods', payload)
+                self.assertNotIn('food_nutrient_units', payload)
+                self.assertEqual(payload['schema_version'], 'weekly-menu/1')
 
                 for slot in job.plan.nutrition.slots.all():
                     for option in slot.options.all():

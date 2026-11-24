@@ -14,7 +14,7 @@
 
   <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
     <div>
-      <p class="pfs-eyebrow mb-2">Tu plan, a tu manera</p><h1 class="pfs-title">Mi alimentación</h1>
+      <p class="pfs-eyebrow mb-2">{% if nutrition.duration_days == 7 %}Tu semana, con variedad{% else %}Tu plan, a tu manera{% endif %}</p><h1 class="pfs-title">Mi alimentación</h1>
       <p class="text-white/60 text-sm mt-1">
         Aprobada el {{ plan.approved_at|date:"d/m/Y" }}{% if plan.approved_by and not plan.approved_by.is_erased %} por {{ plan.approved_by.display_name }}{% endif %}{% if plan.reviewer_credential %} ({{ plan.reviewer_credential }}){% endif %}.
         {% if plan.valid_until %}Vigente hasta el {{ plan.valid_until|date:"d/m/Y" }}.{% endif %}
@@ -32,6 +32,18 @@
       </button>
     </div>
   </div>
+
+  {% if nutrition.duration_days == 7 %}
+  <p class="pfs-muted mb-6">Plan de 7 días. Cada comida ofrece tres platos diferentes a los del día anterior. Elige tu día para ver sus propuestas; al terminar la semana puedes solicitar un nuevo plan.</p>
+  {% endif %}
+  {% if week_expired %}
+  <p role="status" class="pfs-muted mb-6">Esta semana terminó. Puedes consultar tus registros o <a class="text-primary underline" href="{% url 'member_plan_request' %}">solicitar tu siguiente plan</a>.</p>
+  {% endif %}
+
+  <details class="pfs-disclosure"><summary>Cómo organizar tus comidas y el entrenamiento</summary><div class="pfs-disclosure-content">
+    <p>En almuerzo y cena, usa como guía visual medio plato de verduras, un cuarto de proteína y un cuarto de arroz, papa, yuca u otro carbohidrato. Añade una porción moderada de aguacate, aceite de oliva, semillas o frutos secos cuando sean compatibles contigo.</p>
+    <p class="mt-3">Reparte las fuentes de proteína entre las comidas. Ajusta el momento de comer a tu comodidad al entrenar y mantén agua disponible antes, durante y después. La guía visual no sustituye las cantidades indicadas en cada plato.</p>
+  </div></details>
 
   {% if plan.note_for_client %}
   <blockquote class="mb-4 rounded-xl bg-black/40 border-l-4 border-primary p-3 text-white/90 text-sm [overflow-wrap:anywhere]">{{ plan.note_for_client }}</blockquote>

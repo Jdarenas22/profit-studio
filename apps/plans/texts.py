@@ -83,6 +83,7 @@ JOB_FAILED_EXACT = {
     'ai_no_candidates': JOB_TEXT_UNREADABLE, 'ai_unknown': JOB_TEXT_UNREADABLE,
     'ai_response_too_large': JOB_TEXT_UNREADABLE,
     'recipes_unavailable': JOB_TEXT_RECIPES,
+    'weekly_variety_unavailable': 'No hay suficientes platos compatibles para variar las tres opciones entre días. Tu entrenador puede ampliar el catálogo o preparar el plan manualmente.',
     'worker_lost': JOB_TEXT_LOST, 'lost_lock': JOB_TEXT_LOST,
     'client_inactive': JOB_TEXT_INACTIVE,
     'kind_not_available': JOB_TEXT_KIND,

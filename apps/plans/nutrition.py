@@ -91,6 +91,9 @@ def create_nutrition_draft(job, assessment, generated, *, model_name, prompt_ver
     """`generated` = [(SlotTarget, [opción validada, ...])] en el orden del día. Crea el `Plan`
     `draft_ai`, sus objetivos, comidas y opciones. Debe llamarse dentro de una transacción."""
     client, profile, energy = job.client, assessment.profile, assessment.energy
+    # Legacy callers can still save a single reusable daily menu. New jobs pass seven days.
+    weekly = bool(generated and len(generated[0]) == 3)
+    generated = list(generated) if weekly else [(1, target, options) for target, options in generated]
     anth = latest_anthropometrics(client)
     plan = Plan.objects.create(
         client=client, kind=KIND_NUTRITION, version=services.next_version(client, KIND_NUTRITION),
@@ -98,7 +101,7 @@ def create_nutrition_draft(job, assessment, generated, *, model_name, prompt_ver
         profile_version=profile.version, measurement=anth.measurement if anth else None,
         flags=list(job.flags or ()), is_simulated=is_simulated, model_name=model_name[:80],
         prompt_version=prompt_version, ruleset_version=f'{rules_flags.RULESET_VERSION};{energy.formula}'[:40],
-        ai_item_ids=sorted({item['food_id'] for _target, options in generated for option in options
+        ai_item_ids=sorted({item['food_id'] for _day, _target, options in generated for option in options
                             for item in option['items']}),
     )
     nutrition = NutritionPlan.objects.create(
@@ -106,12 +109,13 @@ def create_nutrition_draft(job, assessment, generated, *, model_name, prompt_ver
         fat_g=int(energy.fat_g), fiber_g=int(energy.fiber_g), tmb=energy.tmb, get=int(energy.get),
         activity_factor=energy.activity_factor, adjustment_pct=energy.adjustment_pct,
         weekly_change_kg=energy.weekly_change_kg, floor_applied=energy.floor_applied,
-        warnings=list(energy.warnings), meals_per_day=len(generated), formula=energy.formula,
+        warnings=list(energy.warnings), meals_per_day=len(assessment.slots), formula=energy.formula,
+        duration_days=7 if weekly else 1,
     )
     times = profile.meal_times or {}
-    for target, options in generated:
+    for day_index, target, options in generated:
         slot = MealSlot.objects.create(
-            nutrition_plan=nutrition, code=target.code, name=target.name, order=target.order,
+            nutrition_plan=nutrition, day_index=day_index, code=target.code, name=target.name, order=target.order,
             time_hint=str(times.get(target.code, ''))[:10], kcal_target=int(target.kcal),
             protein_g=int(target.protein_g), carbs_g=int(target.carbs_g), fat_g=int(target.fat_g),
         )
@@ -138,17 +142,29 @@ def _option_view(option):
             'letter': 'ABC'[option.position - 1] if option.position in (1, 2, 3) else ''}
 
 
-def plan_slots(plan, only_active=True):
+def plan_slots(plan, only_active=True, day_index=None):
     """Comidas del plan con sus opciones (items, medidas caseras y macros ya calculados)."""
     options = MealOption.objects.order_by('position', 'pk').prefetch_related('items__food')
     if only_active:
         options = options.filter(is_active=True)
-    slots = plan.nutrition.slots.prefetch_related(Prefetch('options', queryset=options, to_attr='shown_options'))
+    slots = plan.nutrition.slots.all()
+    if day_index is not None and plan.nutrition.duration_days == 7:
+        slots = slots.filter(day_index=day_index)
+    slots = slots.prefetch_related(Prefetch('options', queryset=options, to_attr='shown_options'))
     return [{'slot': slot, 'options': [_option_view(o) for o in slot.shown_options]} for slot in slots]
 
 
 def macros_row(totals_like):
     return rules_foods.round_totals(totals_like)
+
+
+def adjacent_recipe_names(slot):
+    if slot.nutrition_plan.duration_days != 7:
+        return set()
+    return {name.casefold() for name in MealOption.objects.filter(
+        slot__nutrition_plan_id=slot.nutrition_plan_id, slot__code=slot.code,
+        slot__day_index__in=(slot.day_index - 1, slot.day_index + 1), is_active=True,
+    ).values_list('name', flat=True)}
 
 
 # ─── Revisión y aprobación ────────────────────────────────────────────────────
@@ -196,8 +212,22 @@ def approval_problems(plan):
     nutrition = NutritionPlan.objects.filter(plan=plan).first()
     if nutrition is None:
         return ['El plan no tiene objetivos calculados.']
-    for slot in nutrition.slots.all():
-        positions = sorted(slot.options.filter(is_active=True).values_list('position', flat=True))
+    slots = list(nutrition.slots.prefetch_related('options'))
+    if nutrition.duration_days == 7:
+        codes_by_day = {}
+        previous = {}
+        for slot in slots:
+            codes_by_day.setdefault(slot.day_index, set()).add(slot.code)
+            names = {option.name.casefold() for option in slot.options.all() if option.is_active}
+            if previous.get(slot.code, set()) & names:
+                problems.append(f'Hay platos repetidos en días consecutivos en {slot.name}.')
+            previous[slot.code] = names
+        if (set(codes_by_day) != set(range(1, 8))
+                or any(len(codes) != nutrition.meals_per_day for codes in codes_by_day.values())
+                or len({frozenset(codes) for codes in codes_by_day.values()}) != 1):
+            problems.append('El menú debe tener siete días completos con las mismas comidas cada día.')
+    for slot in slots:
+        positions = sorted(option.position for option in slot.options.all() if option.is_active)
         if positions != list(OPTION_POSITIONS):
             problems.append(f'La comida «{slot.name}» no tiene exactamente 3 opciones activas.')
     _allowed, red = current_allowed_ids(plan)
@@ -238,6 +268,8 @@ def edit_option(plan, option, actor, name, preparation, items):
     slot = option.slot
     if slot.nutrition_plan.plan_id != plan.pk or not option.is_active:
         raise services.PlanStateError('Esa opción ya no está activa en el plan.')
+    if name.casefold() in adjacent_recipe_names(slot):
+        raise services.PlanStateError('Ese plato ya aparece en la misma comida del día anterior o siguiente.')
     assessment = services.assess(plan.client, KIND_NUTRITION, actor, check_quota=False)
     if assessment.foods is None:
         raise services.PlanStateError('No se puede validar la opción: faltan requisitos de la clienta o su '
@@ -306,19 +338,22 @@ def member_plan(client):
     return plan
 
 
-def meal_dates():
+def meal_dates(plan=None):
     today = health_dates.today()
+    if plan is not None and plan.nutrition.duration_days == 7 and plan.valid_until:
+        start = plan.valid_until - timedelta(days=6)
+        return [start + timedelta(days=offset) for offset in range(7)]
     return [today + timedelta(days=offset) for offset in range(MEAL_WINDOW_DAYS)]
 
 
-def parse_meal_date(raw):
+def parse_meal_date(raw, plan=None):
     """La fecha pedida si está en la ventana de 7 días; si no, hoy."""
-    dates = meal_dates()
+    dates = meal_dates(plan)
     try:
         value = datetime.strptime(raw or '', '%Y-%m-%d').date()
     except ValueError:
-        return dates[0]
-    return value if value in dates else dates[0]
+        return health_dates.today() if health_dates.today() in dates else dates[0]
+    return value if value in dates else (health_dates.today() if health_dates.today() in dates else dates[0])
 
 
 def alternatives_left(client, slot):
@@ -333,7 +368,9 @@ def alternatives_left(client, slot):
 def day_view(client, plan, on_date):
     from . import nutrient_tables
     """Comidas con 3 opciones, lo elegido ese día y el total estimado contra el objetivo."""
-    slots = plan_slots(plan, only_active=True)
+    dates = meal_dates(plan)
+    day_index = dates.index(on_date) + 1 if on_date in dates else 0
+    slots = plan_slots(plan, only_active=True, day_index=day_index)
     conflicts = conflicting_option_ids(plan)
     for entry in slots:
         for opt in entry['options']:
@@ -386,8 +423,9 @@ def _member_slot_option(client, slot_pk, option_pk):
 def choose_option(client, slot_pk, option_pk, on_date):
     """Guarda la opción elegida para una comida de un día (cambiarla el mismo día es válido)."""
     plan, slot, option = _member_slot_option(client, slot_pk, option_pk)
-    if on_date not in meal_dates():
-        raise services.PlanStateError('Elige un día entre hoy y los próximos 6 días.')
+    dates = meal_dates(plan)
+    if on_date not in dates or (plan.nutrition.duration_days == 7 and slot.day_index != dates.index(on_date) + 1):
+        raise services.PlanStateError('Elige una opción que corresponda al día de tu plan semanal.')
     if option.pk in conflicting_option_ids(plan):
         raise services.PlanStateError('Esa opción incluye un alimento que ya no es compatible con tu ficha. '
                                       'Pide otra opción o habla con tu entrenador.')
@@ -444,6 +482,8 @@ def request_alternative(client, slot_pk, option_pk, request_token):
             raise services.PlanError('El formulario expiró. Recarga la página e inténtalo de nuevo.')
         return existing, False
     plan, slot, option = _member_slot_option(client, slot_pk, option_pk)
+    if plan.nutrition.duration_days == 7 and plan.valid_until and plan.valid_until < health_dates.today():
+        raise services.PlanStateError('Tu semana terminó. Solicita un nuevo plan para recibir otras propuestas.')
     running = services.active_job(client, ALTERNATIVE)
     if running is not None:
         return running, False
@@ -518,7 +558,7 @@ def exchange_rows(client, plan):
 def shopping_list(client, plan):
     """Suma de gramos por alimento para los próximos 7 días según lo elegido; donde no hay elección
     se supone que rota A-B-C. Devuelve `(filas, días_con_suposición)`."""
-    dates = meal_dates()
+    dates = [day for day in meal_dates(plan) if day >= health_dates.today()]
     slots = plan_slots(plan, only_active=True)
     chosen = {(c.slot_id, c.date): c.option_id for c in MealChoice.objects.filter(
         client=client, date__in=dates, slot__nutrition_plan__plan=plan, option__is_active=True)}
@@ -530,6 +570,8 @@ def shopping_list(client, plan):
             continue
         by_id = {o['option'].id: o for o in options}
         for index, day in enumerate(dates):
+            if plan.nutrition.duration_days == 7 and slot.day_index != meal_dates(plan).index(day) + 1:
+                continue
             picked = by_id.get(chosen.get((slot.id, day)))
             if picked is None:
                 picked = options[index % len(options)]

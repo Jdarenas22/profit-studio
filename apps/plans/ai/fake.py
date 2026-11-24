@@ -173,7 +173,13 @@ class FakeAIClient(AIClient):
             raise AIBlockedError('ai_blocked_safety')
         if scenario == 'invalid_json':
             raise AIInvalidOutput('ai_invalid_json')
-        if task == 'meal_slot':
+        if task == 'weekly_meal_slot':
+            data = {'recipe_names': [row['name'] for row in payload['recipe_options']]}
+            if scenario == 'wrong_count':
+                data['recipe_names'] = data['recipe_names'][:-1]
+            elif scenario not in ('ok', 'valid', 'success', 'max_tokens'):
+                data['recipe_names'][0] = 'Receta no ofrecida'
+        elif task == 'meal_slot':
             data = self._meal_data(payload, scenario)
         else:
             data = sample_exercise_plan(payload)

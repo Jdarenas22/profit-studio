@@ -10,7 +10,7 @@ comida. Es una propuesta técnica, no una prescripción.
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 
-FORMULA = 'mifflin_st_jeor/1'
+FORMULA = 'mifflin_st_jeor/2'
 
 D = Decimal
 ACTIVITY_FACTORS = {'sedentary': D('1.2'), 'light': D('1.375'), 'moderate': D('1.55'), 'active': D('1.725')}
@@ -33,9 +33,12 @@ REFERENCE_BMI = D('27')                 # peso de referencia para la proteína =
 PROTEIN_G_PER_KG = {'weight_loss': D('1.6'), 'muscle_gain': D('1.8')}
 PROTEIN_G_PER_KG_DEFAULT = D('1.2')
 PROTEIN_MAX_G_PER_KG = D('2.0')
-PROTEIN_MAX_ENERGY_SHARE = D('0.35')
+PROTEIN_MAX_ENERGY_SHARE = D('0.25')
+PROTEIN_MIN_ENERGY_SHARE = D('0.15')
 FAT_ENERGY_SHARE = D('0.28')            # mínimo 20 % de la energía y 0,6 g/kg
 FAT_MIN_G_PER_KG = D('0.6')
+FAT_MAX_ENERGY_SHARE = D('0.35')
+CARBS_MIN_ENERGY_SHARE, CARBS_MAX_ENERGY_SHARE = D('0.45'), D('0.60')
 FIBER_MIN_G = D('25')
 FIBER_G_PER_1000_KCAL = D('14')
 LOW_CARBS_SHARE = D('0.15')
@@ -162,9 +165,16 @@ def compute_energy(data):
 
     reference_weight = min(weight, REFERENCE_BMI * height_m ** 2)
     per_kg = PROTEIN_G_PER_KG.get(data.goal, PROTEIN_G_PER_KG_DEFAULT)
-    protein = min(per_kg * reference_weight, PROTEIN_MAX_G_PER_KG * reference_weight,
+    protein = min(max(per_kg * reference_weight, PROTEIN_MIN_ENERGY_SHARE * kcal / 4),
+                  PROTEIN_MAX_G_PER_KG * reference_weight,
                   PROTEIN_MAX_ENERGY_SHARE * kcal / 4)
-    fat = max(FAT_ENERGY_SHARE * kcal / 9, FAT_MIN_G_PER_KG * weight)
+    # Percentages are orientation, not independent additive prescriptions. Preserve the
+    # protein/kg ceiling, cap fat and allocate remaining energy to carbohydrate.
+    fat = min(max(FAT_ENERGY_SHARE * kcal / 9, FAT_MIN_G_PER_KG * weight),
+              FAT_MAX_ENERGY_SHARE * kcal / 9)
+    fat = min(fat, max(D('0.20') * kcal / 9, (kcal * (1 - CARBS_MIN_ENERGY_SHARE) - 4 * protein) / 9))
+    fat = max(fat, min(FAT_MAX_ENERGY_SHARE * kcal / 9,
+                      (kcal * (1 - CARBS_MAX_ENERGY_SHARE) - 4 * protein) / 9))
     carbs = max((kcal - 4 * protein - 9 * fat) / 4, D('0'))
     if carbs * 4 < LOW_CARBS_SHARE * kcal:
         warnings.append(W_LOW_CARBS)

@@ -15,7 +15,7 @@
   <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
     <div>
       <h1 class="text-2xl font-black text-white">Lista de compras</h1>
-      <p class="text-white/60 text-sm mt-1">Del {{ first_day|date:"j/n" }} al {{ last_day|date:"j/n" }}. Son cantidades aproximadas (en crudo o cocido, según cada alimento).</p>
+      <p class="text-white/60 text-sm mt-1">{% if first_day %}Del {{ first_day|date:"j/n" }} al {{ last_day|date:"j/n" }}.{% else %}La semana de este plan terminó.{% endif %} Son cantidades aproximadas (en crudo o cocido, según cada alimento).</p>
     </div>
     <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 min-h-[44px] bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 rounded-xl transition-colors print:hidden">
       <i class="fa fa-print" aria-hidden="true"></i> Imprimir
