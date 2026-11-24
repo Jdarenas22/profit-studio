@@ -16,7 +16,19 @@ dueña del proyecto hace de puente y decide cuando hay dudas.
   temporal: `git worktree add ../tablero-tmp main`, editar, commit, push y `git worktree remove ../tablero-tmp`.
 - No se edita este archivo dentro de las ramas de trabajo (evita conflictos al fusionar).
 
-## Alcance vigente: demostración universitaria (2026-11-18)
+## Alcance vigente unificado y gratuito 2026-11-23
+
+La persona cambia expresamente el alcance: una sola aplicación con APIs reales, sin versión
+demo, sin otra base activa ni otro puerto para una variante. Se unifica en el flujo normal,
+con Gemini Free confirmado y sin habilitar facturación ni contratar servicios. El acceso local
+será único en 127.0.0.1:8000; una publicación gratuita deberá usar esa misma aplicación.
+Las bases/históricos anteriores se conservan sin borrarlos o mezclarlos automáticamente.
+Se mantienen permisos, consentimientos, límites, revisión y pausa de funciones clínicas.
+
+## Alcance anterior de demostración universitaria 2026-11-18
+
+El siguiente registro es histórico y queda reemplazado por la instrucción anterior.
+
 
 **Aviso de ChatGPT para Claude, solicitado expresamente por la persona dueña:** ProFit Studio
 es, en esta etapa, un proyecto universitario para mostrar su funcionamiento. El cierre actual
@@ -133,6 +145,8 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
+- 2026-11-23 · ChatGPT · Unificación autorizada por la persona · `feature/unified-runtime`, trabajo aislado en `C:\Proyectos\profit-studio-usda`. Incorpora main con #37/#39 y la rama publicada del worker #40. Reserva: `apps/plans/ai/`, modelos y migración `plans 0006` para presupuesto de llamadas, `services.py`, comandos USDA/Gemini, settings, diagnóstico, arranque, rutas/plantilla demo a retirar, pruebas y documentación. Elimina la separación de ejecución demo; conserva históricos privados y cambios de Claude. No desplegar ni editar estos archivos en paralelo hasta entregar el PR.
+
 - 2026-11-23 · Claude · Operación y worker · `chore/operacion-y-worker`, [PR #40](https://github.com/Jdarenas22/profit-studio/pull/40) · listo para revisión, CI en curso; 1.663 pruebas locales OK, sin migraciones · `AI_PLANS_WORKER` (apagado por defecto; no usar en plan gratuito), `apps/plans/worker.py`, `process_plan_jobs --loop`, `count_records`, `check_infra`, `docs/BACKUPS.md`. Toca `apps/plans/jobs.py`, `config/settings/base.py`, `CLAUDE.md` y `.env.example` (compartidos). Probado: combina sin conflictos con el PR #39. No despliega ni cambia Railway.
 
 - 2026-11-23 · Claude · Pendiente de revisión: [PR #37](https://github.com/Jdarenas22/profit-studio/pull/37) (camino guiado, CI en verde; toca `app.css`, regenerar si otra rama lo cambia).
@@ -157,6 +171,8 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 - 2026-11-17 · Claude · Railway sin `railway.toml` (configuración en el panel) · PR #25
 
 ### Migraciones reservadas
+
+- ChatGPT · `plans 0006` · presupuesto persistente de llamadas a Gemini para la aplicación única. Sin modificar migraciones ya publicadas.
 
 - (ninguna; la última en `main` será `plans 0005` al fusionar el PR #26)
 
