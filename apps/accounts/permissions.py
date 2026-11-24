@@ -20,12 +20,16 @@ from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 
-from .models import User
+from .models import User, pending_registration_q
 
 
 def clients_for_trainer(user):
     """Queryset de clientes (role='member') a los que `user` puede acceder."""
-    clients = User.objects.filter(role=User.ROLE_MEMBER, erased_at__isnull=True)
+    # Las cuentas registradas que todavía no confirmaron su correo (inactivas y sin verificar) no son
+    # clientas para el panel: no se listan ni se pueden abrir hasta que confirmen
+    # (docs/contracts/verificacion-correo.md, sección 6). La invitación pendiente SÍ se ve.
+    clients = User.objects.filter(role=User.ROLE_MEMBER, erased_at__isnull=True).exclude(
+        pending_registration_q())
     if not getattr(user, 'is_authenticated', False) or not user.is_trainer:
         return clients.none()
     if user.is_superuser:

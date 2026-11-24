@@ -149,11 +149,12 @@ class _UsernameForm(_PersonForm):
 # ─── Registro público ─────────────────────────────────────────────────────────
 
 class RegisterForm(_UsernameForm):
-    """Auto-registro. Mensajes iguales a los de la vista anterior, salvo el correo repetido.
+    """Auto-registro. Mensajes iguales a los de la vista anterior.
 
-    El aviso de "correo ya registrado" es GENÉRICO (no confirma que exista la cuenta):
-    reduce la enumeración de correos. El nombre de usuario sí informa si está ocupado,
-    porque la persona necesita elegir otro para poder registrarse.
+    El correo repetido YA NO es un error del formulario: la respuesta del registro es idéntica exista
+    o no la cuenta (docs/contracts/verificacion-correo.md); la vista le manda a la dueña del correo lo
+    que le sirve. El nombre de usuario sí informa si está ocupado, porque la persona necesita elegir
+    otro para poder registrarse.
     """
 
     required_messages = {
@@ -162,9 +163,10 @@ class RegisterForm(_UsernameForm):
         'email': 'El correo es obligatorio.',
         'username': 'El usuario es obligatorio.',
     }
-    email_taken_message = ('No pudimos usar ese correo. Si ya tienes una cuenta, '
-                           'inicia sesión o recupera tu contraseña.')
     username_taken_message = 'Ese nombre de usuario ya está en uso.'
+
+    def clean_email(self):
+        return self.cleaned_data['email'].strip().lower()   # sin revisar si ya existe (cierra la enumeración)
 
     gender = _gender_field()
     training_goal = forms.ChoiceField(
@@ -198,22 +200,15 @@ class RegisterForm(_UsernameForm):
 # ─── Panel del entrenador: clientes ───────────────────────────────────────────
 
 class TrainerAddClientForm(_UsernameForm):
+    """Crear una clienta desde el panel. El entrenador YA NO fija su contraseña: la clienta la crea con el
+    enlace de la invitación que le llega por correo (docs/contracts/verificacion-correo.md)."""
+
     gender = _gender_field()
-    password = _password_field('Contraseña inicial', 'Mínimo 8 caracteres.')
     activate_plan = forms.ModelChoiceField(
         label='Plan a activar', required=False, empty_label=None,
         queryset=MembershipPlan.objects.filter(is_active=True),
         error_messages={'invalid_choice': 'Plan no válido.'},
     )
-
-    def clean(self):
-        cleaned = super().clean()
-        password = cleaned.get('password')
-        if password:
-            problems = password_problems(password, **self._user_attrs())
-            if problems:
-                self.add_error('password', problems)
-        return cleaned
 
 
 class TrainerClientEditForm(_UsernameForm):
@@ -228,14 +223,21 @@ class TrainerClientEditForm(_UsernameForm):
         error_messages={'max_length': f'La contraseña es demasiado larga (máximo {PASSWORD_MAX} caracteres).'},
     )
 
+    invitation_pending_password_message = ('Esta clienta todavía no acepta su invitación: ella crea su contraseña '
+                                           'con el enlace del correo. Usa «Reenviar invitación» si no le llegó.')
+
     def __init__(self, *args, client, **kwargs):
         super().__init__(*args, exclude_pk=client.pk, **kwargs)
         self.current_username = client.username
+        self.invitation_pending = client.is_invitation_pending
 
     def clean(self):
         cleaned = super().clean()
         new_password = cleaned.get('new_password')
-        if new_password:
+        if new_password and self.invitation_pending:
+            # Fijarle una contraseña saltaría la verificación del correo
+            self.add_error('new_password', self.invitation_pending_password_message)
+        elif new_password:
             problems = password_problems(new_password, **self._user_attrs())
             if problems:
                 self.add_error('new_password', problems)

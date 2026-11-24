@@ -52,8 +52,10 @@ class RegisterBase(ScenarioTestCase):
 class RegisterValidationTests(RegisterBase):
     def test_valid_registration_normalizes_email_and_username(self):
         response = self.register()
-        self.assertRedirects(response, reverse('register_success'), fetch_redirect_response=False)
+        # Verificación del correo: «Revisa tu correo»; la cuenta nace inactiva (test_email_verification.py)
+        self.assertRedirects(response, reverse('register_check_email'), fetch_redirect_response=False)
         user = User.objects.get(username='ana.perez')
+        self.assertFalse(user.is_active)
         self.assertEqual(user.email, 'ana.perez@example.com')
         self.assertEqual(user.role, User.ROLE_MEMBER)
         self.assertEqual(user.gender, 'F')
@@ -129,12 +131,10 @@ class RegisterValidationTests(RegisterBase):
         self.register(interested_plan=str(self.plan.pk))
         self.assertEqual(User.objects.get(username='ana.perez').interested_plan, self.plan)
 
-    def test_existing_email_gets_generic_message_without_confirming_the_account(self):
+    def test_existing_email_is_not_a_form_error_and_confirms_nothing(self):
+        # La respuesta del registro es la misma exista o no el correo (pruebas completas: test_email_verification.py)
         response = self.register(email='CLIENT_A@example.com', username='otro.usuario')
-        self.assertEqual(response.status_code, 200)
-        message = response.context['errors']['email']
-        self.assertNotIn('Ya existe', message)
-        self.assertNotIn('ya está registrado', message.lower())
+        self.assertRedirects(response, reverse('register_check_email'), fetch_redirect_response=False)
         self.assertFalse(User.objects.filter(username='otro.usuario').exists())
 
     def test_existing_username_is_reported_so_the_person_can_pick_another(self):
@@ -189,7 +189,7 @@ class TrainerAddClientValidationTests(ScenarioTestCase):
 
     def payload(self, **over):
         data = {'first_name': 'Nueva', 'last_name': 'Persona', 'email': 'nueva@example.com',
-                'username': 'nueva.persona', 'password': STRONG}
+                'username': 'nueva.persona'}
         data.update(over)
         return data
 
@@ -205,7 +205,6 @@ class TrainerAddClientValidationTests(ScenarioTestCase):
 
     def test_invalid_inputs_never_500_and_create_nothing(self):
         cases = {
-            'password': ['', 'corta', 'password', '12345678', 'nueva.persona1', 'x' * 200],
             'username': ['', 'abc', 'con espacio', '<b>x</b>', 'x' * 40],
             'email': ['', 'sin-arroba', 'a' * 300 + '@e.com'],
             'first_name': ['', '<script>', 'A' * 5000],
@@ -235,9 +234,8 @@ class TrainerAddClientValidationTests(ScenarioTestCase):
         self.assertEqual(response.context['errors']['username'], 'Nombre de usuario ya en uso.')
 
     def test_error_keys_match_what_the_template_reads(self):
-        response = self.post(first_name='', password='')
+        response = self.post(first_name='')
         self.assertEqual(response.context['errors']['first_name'], 'Requerido.')
-        self.assertEqual(response.context['errors']['password'], 'Mínimo 8 caracteres.')
         self.assertEqual(response.context['form']['username'], 'nueva.persona')   # se conserva lo escrito
 
 

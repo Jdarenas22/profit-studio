@@ -91,7 +91,7 @@ class ClientPlansAuthorizationTests(ClientPlansTestCase):
                 self.assertEqual(self.page().status_code, 404)
 
     def test_an_erased_client_is_a_404_and_an_inactive_one_is_visible(self):
-        User.objects.filter(pk=self.client_a.pk).update(is_active=False)
+        User.objects.filter(pk=self.client_a.pk).update(is_active=False, deactivated_at=timezone.now())
         context = self.context()
         self.assertFalse(context['client_active'])
         self.assertEqual(context['inactive_message'], INACTIVE_CLIENT_MESSAGE)
@@ -186,7 +186,7 @@ class ClientPlansContextTests(ClientPlansTestCase):
         make_plan(self.client_a, KIND_EXERCISE, 2, Plan.STATUS_IN_REVIEW)
         rows = {row['plan'].pk: row for row in self.group('exercise')['rows']}
         self.assertTrue(rows[archived.pk]['can_clone'])
-        User.objects.filter(pk=self.client_a.pk).update(is_active=False)
+        User.objects.filter(pk=self.client_a.pk).update(is_active=False, deactivated_at=timezone.now())
         self.assertFalse(any(row['can_clone'] for row in self.group('exercise')['rows']))
 
 
@@ -275,7 +275,7 @@ class GenerateInfoTests(ClientPlansTestCase):
         self.assertEqual((info['active_job'], info['can_request']), (job, False))
         self.assertTrue(self.generate(KIND_EXERCISE)['can_request'])      # el otro tipo no se afecta
         job.delete()
-        User.objects.filter(pk=self.client_a.pk).update(is_active=False)
+        User.objects.filter(pk=self.client_a.pk).update(is_active=False, deactivated_at=timezone.now())
         self.assertFalse(self.generate()['can_request'])
 
     def test_pending_draft_is_reported_without_blocking(self):

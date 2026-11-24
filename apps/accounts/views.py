@@ -7,8 +7,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import BadHeaderError, send_mail
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
+from django.contrib.auth.hashers import make_password
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -18,7 +20,9 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
 from . import choices
+from . import email_verification
 from . import services as account_services
+from . import turnstile
 from .axes_utils import get_client_ip
 from .decorators import trainer_required, superuser_required
 from .form_utils import errors_dict, flash_errors
@@ -40,9 +44,8 @@ logger = logging.getLogger(__name__)
 # client_add.html, client_edit.html, profile_edit.html, trainer_form.html, trainer_edit.html).
 # Si una plantilla deja de pintar un campo, hay que quitarlo de aquí para que vuelva el aviso.
 REGISTER_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'password1',
-                     'password2', 'gender', 'training_goal')
-CLIENT_ADD_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'password',
-                       'gender')
+                     'password2', 'gender', 'training_goal', 'captcha')
+CLIENT_ADD_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'gender')
 CLIENT_EDIT_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'username', 'new_password',
                         'gender')
 PROFILE_RENDERED = ('first_name', 'last_name', 'email', 'phone', 'gender', 'bio', 'profile_photo',
@@ -71,10 +74,15 @@ TRANSFER_ADMIN_ATTEMPTS_LIMIT = getattr(settings, 'TRANSFER_ADMIN_ATTEMPTS_LIMIT
 TRANSFER_ADMIN_WINDOW_SECONDS = getattr(settings, 'TRANSFER_ADMIN_WINDOW_SECONDS', 900)
 
 
+PENDING_LOGIN_MESSAGE = ('Tu cuenta todavía no está activa: falta confirmar tu correo. Abre el enlace del correo '
+                         'que te enviamos o pide que te lo enviemos de nuevo.')
+
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
 
+    email_pending = False   # contraseña correcta de una cuenta registrada que aún no confirma su correo
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
@@ -96,10 +104,18 @@ def login_view(request):
             ):
                 return redirect(next_url)
             return redirect('dashboard')
+        elif email_verification.pending_login_attempt(request, username, password):
+            # Solo con la contraseña correcta se dice que falta confirmar: no revela nada que el login
+            # normal no revele ya (una cuenta inactiva nunca autentica, así que `authenticate` dio None)
+            email_pending = True
+            messages.warning(request, PENDING_LOGIN_MESSAGE)
         else:
             messages.error(request, 'Usuario o contraseña incorrectos.')
 
-    return render(request, 'accounts/login.html')
+    return render(request, 'accounts/login.html', {
+        'email_pending': email_pending,
+        'resend_url': reverse('verification_resend'),
+    })
 
 
 @require_POST
@@ -218,6 +234,7 @@ def _notify_new_registration(user, plan):
 
 def _register_context(plans, selected_plan_id, errors, form):
     return {
+        **turnstile.widget_context(),   # clave pública del widget ('' si Turnstile está apagado)
         'plans': plans,
         'selected_plan_id': selected_plan_id,
         'goal_choices': User.GOAL_CHOICES,
@@ -242,13 +259,14 @@ def register_view(request):
     """Auto-registro público: cualquier visitante puede crear su cuenta de miembro.
 
     Protecciones: validación con `RegisterForm` (incluye `validate_password`), límite de
-    frecuencia por IP (envíos y cuentas creadas por hora) y aviso genérico si el correo
-    ya existe.
+    frecuencia por IP (envíos y cuentas creadas por hora) y Turnstile si está configurado.
 
-    NO implementado (opción para decidir): verificación de correo. Consistiría en crear la
-    cuenta como inactiva, enviar un enlace firmado (django.core.signing, con caducidad) y
-    activarla al abrirlo; con eso la respuesta del registro podría ser idéntica exista o no
-    el correo, que es la única forma de cerrar del todo la enumeración de cuentas.
+    Verificación del correo (docs/contracts/verificacion-correo.md): la cuenta nace INACTIVA y
+    sin `email_verified_at`; se envía un correo con un enlace firmado de 24 horas y se activa al
+    confirmarlo (`email_verify_confirm`). La respuesta es la misma exista o no el correo: siempre
+    la pantalla «Revisa tu correo». Si el correo ya tenía cuenta no se crea nada y la dueña del
+    correo recibe el aviso o la confirmación pendiente. El aviso a la superusuaria sale al
+    confirmar, no aquí.
     """
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -265,13 +283,25 @@ def register_view(request):
     if not hit('register-attempt', ip, REGISTER_ATTEMPTS_LIMIT, REGISTER_WINDOW_SECONDS):
         return _register_rate_limited(request, plans, plan_id)
 
+    # Turnstile (solo si hay claves): antes de validar nada, para no gastar trabajo en un robot
+    if not turnstile.verify(request.POST.get(turnstile.FORM_FIELD), ip):
+        return render(request, 'accounts/register.html',
+                      _register_context(plans, plan_id, {'captcha': turnstile.MESSAGE}, request.POST))
+
     form = RegisterForm(request.POST)
     if form.is_valid():
         # Solo las cuentas realmente creadas cuentan para el límite estricto, así un error de
-        # tecleo no bloquea a una persona legítima.
+        # tecleo no bloquea a una persona legítima. También cuenta cuando el correo ya existía:
+        # el límite no puede delatar si existe.
         if not hit('register-success', ip, REGISTER_SUCCESS_LIMIT, REGISTER_WINDOW_SECONDS):
             return _register_rate_limited(request, plans, plan_id)
         data = form.cleaned_data
+        if email_verification.accounts_with_email(data['email'], limit=1):
+            # Correo ya registrado: no se crea nada. Se calcula un hash igual de lento que el de crear
+            # la cuenta para que el tiempo de respuesta tampoco delate que existe.
+            make_password(data['password1'])
+            email_verification.handle_register_with_existing_email(request, data['email'])
+            return _registered(request, data['email'])
         try:
             with transaction.atomic():
                 user = User.objects.create_user(
@@ -285,17 +315,25 @@ def register_view(request):
                     role=User.ROLE_MEMBER,
                     interested_plan=data['interested_plan'],
                     training_goal=data['training_goal'],
+                    is_active=False,    # se activa al confirmar el correo
                 )
         except IntegrityError:   # carrera: otro registro tomó el mismo usuario justo ahora
             form.add_error('username', form.username_taken_message)
         else:
-            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-            _notify_new_registration(user, data['interested_plan'])
-            return redirect('register_success')
+            if email_verification.email_budget_ok(user.email):
+                email_verification.send_verification_email(request, user)
+            return _registered(request, data['email'])
 
     errors = errors_dict(form)
     flash_errors(request, form, errors, skip=REGISTER_RENDERED)
     return render(request, 'accounts/register.html', _register_context(plans, plan_id, errors, request.POST))
+
+
+def _registered(request, email):
+    """Respuesta única del registro: «Revisa tu correo». El correo escrito se recuerda en la sesión
+    solo para repetírselo a la persona (es lo que ella tecleó; no confirma nada)."""
+    request.session['register_email'] = email
+    return redirect('register_check_email')
 
 
 def register_success(request):
@@ -317,7 +355,13 @@ def register_success(request):
 
 @trainer_required
 def trainer_add_client(request):
-    """La entrenadora crea una cuenta de cliente y opcionalmente activa su membresía."""
+    """La entrenadora crea una cuenta de cliente y opcionalmente activa su membresía.
+
+    Ya no fija la contraseña (docs/contracts/verificacion-correo.md): la cuenta nace activa con una
+    contraseña inutilizable y la clienta recibe por correo una INVITACIÓN (enlace firmado de 72 horas)
+    para crear la suya; al hacerlo queda con el correo verificado. Mientras tanto la entrenadora la ve
+    marcada «invitación pendiente» y puede asignarle membresía, valoraciones, etc.
+    """
     from apps.memberships.models import MembershipPlan, Membership
     plans = MembershipPlan.objects.filter(is_active=True).order_by('duration_days')
 
@@ -328,7 +372,7 @@ def trainer_add_client(request):
             try:
                 with transaction.atomic():
                     client = User.objects.create_user(
-                        username=data['username'], email=data['email'], password=data['password'],
+                        username=data['username'], email=data['email'], password=None,
                         first_name=data['first_name'], last_name=data['last_name'],
                         phone=data['phone'], role=User.ROLE_MEMBER, gender=data['gender'],
                         # Asignación automática: el cliente queda a cargo de quien lo crea
@@ -337,6 +381,7 @@ def trainer_add_client(request):
             except IntegrityError:   # carrera con otra creación del mismo usuario
                 form.add_error('username', form.username_taken_message)
             else:
+                invited = email_verification.send_invitation_email(request, client)
                 plan = data['activate_plan']
                 if plan:
                     membership = Membership(user=client)
@@ -347,6 +392,11 @@ def trainer_add_client(request):
                     )
                 else:
                     messages.success(request, f'Cliente {client.get_full_name()} creado. Recuerda activar su membresía.')
+                if invited:
+                    messages.info(request, f'Enviamos una invitación a {client.email} para que cree su contraseña.')
+                else:
+                    messages.warning(request, 'No pudimos enviar la invitación por correo. Usa «Reenviar invitación» '
+                                              'en la ficha de la clienta cuando el correo funcione.')
                 return redirect('trainer_client_detail', pk=client.pk)
 
         errors = errors_dict(form)
@@ -443,6 +493,9 @@ def trainer_client_edit(request, pk):
         form = TrainerClientEditForm(request.POST, client=client)
         if form.is_valid():
             data = form.cleaned_data
+            # Si cambia el correo de una invitación pendiente, el enlace anterior ya no sirve (quedó en otro
+            # buzón): se envía una invitación nueva al correo nuevo.
+            reinvite = client.is_invitation_pending and data['email'].lower() != (client.email or '').lower()
             client.first_name = data['first_name']
             client.last_name = data['last_name']
             client.email = data['email']
@@ -459,6 +512,12 @@ def trainer_client_edit(request, pk):
                 form.add_error('username', form.username_taken_message)
             else:
                 messages.success(request, f'Datos de {client.get_full_name()} actualizados correctamente.')
+                if reinvite:
+                    if email_verification.send_invitation_email(request, client):
+                        messages.info(request, f'Como cambió el correo, enviamos una invitación nueva a {client.email}.')
+                    else:
+                        messages.warning(request, 'Cambió el correo pero no pudimos enviar la invitación. '
+                                                  'Usa «Reenviar invitación» en la ficha de la clienta.')
                 return redirect('trainer_client_detail', pk=client.pk)
 
         errors = errors_dict(form)
@@ -677,6 +736,8 @@ def trainer_create_trainer(request):
                         role=User.ROLE_TRAINER,
                         is_staff=True,
                         is_superuser=False,  # Solo Yiseth es superusuaria
+                        # La superusuaria fija su contraseña y le avisa: no pasan por la verificación
+                        email_verified_at=timezone.now(),
                     )
             except IntegrityError:   # carrera con otra creación del mismo usuario
                 form.add_error('username', form.username_taken_message)
@@ -897,7 +958,7 @@ def trainer_edit_trainer(request, pk):
 @superuser_required
 def trainer_assign_client(request, pk):
     """Asigna un entrenador a un cliente — solo superusuario (única que asigna)."""
-    client = get_object_or_404(User, pk=pk, role='member', erased_at__isnull=True)
+    client = get_object_or_404(clients_for_trainer(request.user), pk=pk)   # la superusuaria ve todas, menos registros sin confirmar
     # Solo entrenadores activos (un entrenador desactivado no puede tener clientas)
     trainers = User.objects.filter(role='trainer', is_active=True, erased_at__isnull=True).order_by('first_name')
 

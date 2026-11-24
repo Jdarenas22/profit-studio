@@ -46,12 +46,12 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ['role', 'is_active', 'date_joined']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
     ordering = ['-date_joined']
-    readonly_fields = ('is_active', 'is_superuser', 'deactivated_at', 'erased_at')
+    readonly_fields = ('is_active', 'is_superuser', 'deactivated_at', 'erased_at', 'email_verified_at')
     actions = ['erase_via_panel']
 
     fieldsets = UserAdmin.fieldsets + (
         ('ProFit Studio', {
-            'fields': ('role', 'phone', 'profile_photo', 'deactivated_at', 'erased_at'),
+            'fields': ('role', 'phone', 'profile_photo', 'deactivated_at', 'erased_at', 'email_verified_at'),
         }),
     )
     add_fieldsets = UserAdmin.add_fieldsets + (

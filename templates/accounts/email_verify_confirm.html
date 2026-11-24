@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% comment %}
+  V-02 (docs/contracts/verificacion-correo.md). El enlace del correo llega aquí (GET) y NO activa nada solo: el
+  botón envía un POST con CSRF a `confirm_url` con el token en un campo oculto (así un antivirus que abre el
+  enlace no lo gasta). El token va SOLO en ese campo oculto: nunca en una URL, un atributo data- ni un script.
+  Contexto: token, first_name, confirm_url.
+{% endcomment %}
+{% block title %}Confirmar mi correo — ProFit Studio{% endblock %}
+{% block content %}
+<section class="min-h-screen flex items-center justify-center py-20 bg-black">
+  <div class="w-full max-w-md px-4">
+    <div class="bg-zinc-900 border border-white/10 rounded-3xl px-5 py-8 sm:p-10 text-center">
+      <div class="w-16 h-16 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa fa-envelope-circle-check text-primary text-3xl" aria-hidden="true"></i>
+      </div>
+      <h1 class="text-2xl font-black text-white">Confirma tu correo</h1>
+      <p class="text-white/70 text-sm leading-relaxed mt-3">
+        {% if first_name %}Hola, <span class="[overflow-wrap:anywhere]">{{ first_name }}</span>. {% endif %}Falta un último paso para activar tu cuenta en ProFit Studio.
+      </p>
+      <p class="text-white/60 text-sm leading-relaxed mt-2 mb-8">Toca el botón para confirmar que este correo es tuyo.</p>
+
+      <form method="post" action="{{ confirm_url }}"
+            x-data="{ sending: false }"
+            @submit="if (sending) { $event.preventDefault() } else { sending = true }"
+            @pageshow.window="sending = false">
+        {% csrf_token %}
+        <input type="hidden" name="token" value="{{ token }}">
+        <button type="submit" :aria-disabled="sending.toString()"
+                class="flex w-full items-center justify-center gap-2 min-h-[48px] bg-primary hover:bg-primary-dark text-black font-bold py-3.5 rounded-xl transition-colors text-sm aria-disabled:opacity-60 aria-disabled:cursor-wait focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+          <i class="fa" :class="sending ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
+          <span x-text="sending ? 'Confirmando...' : 'Confirmar mi correo'">Confirmar mi correo</span>
+        </button>
+      </form>
+
+      <p class="text-white/60 text-xs leading-relaxed mt-6">
+        Después de confirmar te llevamos al inicio de sesión para que entres con tu usuario y tu contraseña.
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}
