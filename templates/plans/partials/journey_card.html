@@ -1,0 +1,87 @@
+{% comment %}
+Camino guiado de la clienta hasta su plan con IA (docs/contracts/camino-guiado.md).
+Uso: el include en el panel, o con compact=True en
+plans/request.html (solo progreso y estado de los pasos, sin botones ni tarjetas de plan).
+La vista pasa journey=None cuando no aplica; quien incluye este parcial debe envolverlo en {% if journey %}.
+Nunca se pintan códigos técnicos: solo title, description, cta y message del contrato.
+{% endcomment %}
+{% with steps=journey.steps next=journey.next_step done=journey.done_count total=journey.total %}
+<section class="pfs-card pfs-journey{% if compact %} pfs-journey-compact{% endif %}"
+         aria-labelledby="{% if compact %}journey-compact-title{% else %}journey-title{% endif %}">
+  <div class="pfs-journey-head">
+    <div class="min-w-0">
+      {% if not compact %}<p class="pfs-eyebrow mb-2">Planes con inteligencia artificial</p>{% endif %}
+      <h2 id="{% if compact %}journey-compact-title{% else %}journey-title{% endif %}">Tu camino a tu plan</h2>
+      {% if not compact %}
+      <p class="pfs-muted mt-1">{% if journey.all_done %}Completaste todos los pasos. Ya puedes pedir tus planes.{% elif journey.all_ready and next %}Completaste los pasos principales. Para el plan de alimentación te falta: {{ next.title }}.{% elif next %}Tu siguiente paso: {{ next.title }}.{% else %}Revisa lo que te falta para pedir tu plan.{% endif %}</p>
+      {% endif %}
+    </div>
+    <p class="pfs-journey-count">{% if journey.all_done %}{{ total }} de {{ total }} pasos hechos{% elif next %}Paso {% for s in steps %}{% if s.code == next.code %}{{ forloop.counter }}{% endif %}{% endfor %} de {{ total }}<small>{{ done }} de {{ total }} hechos</small>{% else %}{{ done }} de {{ total }} pasos hechos{% endif %}</p>
+  </div>
+  <progress class="pfs-progress" max="{{ total }}" value="{{ done }}"
+            aria-label="Avance hacia tu plan: {{ done }} de {{ total }} pasos hechos">{{ done }} de {{ total }}</progress>
+
+  {% if compact %}
+  {# Versión compacta («Pedir mi plan»): solo lo ya hecho; lo que falta lo lista la página debajo. #}
+  {% if done %}
+  <ul class="pfs-journey-done" aria-label="Pasos que ya hiciste">
+    {% for step in steps %}{% if step.status == 'done' %}
+    <li><i class="fa fa-check" aria-hidden="true"></i><span class="sr-only">Hecho: </span>{{ step.title }}</li>
+    {% endif %}{% endfor %}
+  </ul>
+  {% endif %}
+  {% else %}
+  {% if journey.all_ready and not compact %}
+  <div class="pfs-plan-grid">
+    {% with plan=journey.plans.exercise plan_name="Plan de ejercicio" plan_kind="ejercicio" plan_icon="fa-dumbbell" %}{% include 'plans/partials/journey_plan.html' %}{% endwith %}
+    {% with plan=journey.plans.nutrition plan_name="Plan de alimentación" plan_kind="alimentación" plan_icon="fa-utensils" %}{% include 'plans/partials/journey_plan.html' %}{% endwith %}
+  </div>
+  <details class="pfs-disclosure pfs-journey-more">
+    <summary>{% if journey.all_done %}Ver los pasos que completaste{% else %}Ver tus pasos ({{ done }} de {{ total }} hechos){% endif %}</summary>
+    <div class="pfs-disclosure-content">
+  {% endif %}
+
+  <ol class="pfs-journey-steps" aria-label="Pasos para pedir tu plan">
+    {% for step in steps %}
+    <li class="pfs-step{% if step.status == 'done' %} pfs-step-done{% elif step.status == 'locked' %} pfs-step-locked{% elif next and step.code == next.code %} pfs-step-current{% endif %}"
+        {% if step.status == 'todo' and next and step.code == next.code %}aria-current="step"{% endif %}>
+      <span class="pfs-step-mark" aria-hidden="true">{% if step.status == 'done' %}<i class="fa fa-check"></i>{% elif step.status == 'locked' %}<i class="fa fa-lock"></i>{% else %}{{ forloop.counter }}{% endif %}</span>
+      <div class="pfs-step-body">
+        <p class="pfs-step-title"><span class="sr-only">Paso {{ forloop.counter }}: </span>{{ step.title }}</p>
+        {% if step.description and not compact %}<p class="pfs-muted text-sm mt-1">{{ step.description }}</p>{% endif %}
+        <p>
+          {% if step.status == 'done' %}<span class="pfs-step-label"><i class="fa fa-circle-check" aria-hidden="true"></i> Hecho</span>
+          {% elif step.status == 'locked' %}<span class="pfs-step-label"><i class="fa fa-hourglass-half" aria-hidden="true"></i> Después</span><span class="sr-only">. Se habilita al completar el paso anterior.</span>
+          {% elif next and step.code == next.code %}<span class="pfs-step-label"><i class="fa fa-arrow-right" aria-hidden="true"></i> Siguiente</span>
+          {% else %}<span class="pfs-step-label"><i class="fa fa-circle-dot" aria-hidden="true"></i> Pendiente</span>{% endif %}
+          {% if step.scope == 'nutrition' %}<span class="pfs-step-note"><i class="fa fa-utensils" aria-hidden="true"></i> Solo para alimentación</span>{% endif %}
+        </p>
+        {% if not compact and step.status != 'locked' and step.url %}
+          {% if step.status == 'todo' and next and step.code == next.code %}
+          <a href="{{ step.url }}" class="pfs-button">{{ step.cta|default:"Hacer este paso" }} <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+          {% elif step.status == 'todo' %}
+          <a href="{{ step.url }}" class="pfs-step-link">{{ step.cta|default:"Hacer este paso" }}<span class="sr-only">: {{ step.title }}</span></a>
+          {% else %}
+          <a href="{{ step.url }}" class="pfs-step-link">Revisar<span class="sr-only">: {{ step.title }}</span></a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+
+  {% if journey.all_ready and not compact %}
+    </div>
+  </details>
+  {% elif not compact %}
+    {% if journey.plans.exercise.state != 'missing_steps' or journey.plans.nutrition.state != 'missing_steps' %}
+    {# Un plan aprobado, en curso o en revisión se muestra aunque falte un paso (p. ej. un consentimiento retirado después). #}
+    <div class="pfs-plan-grid">
+      {% with plan=journey.plans.exercise plan_name="Plan de ejercicio" plan_kind="ejercicio" plan_icon="fa-dumbbell" %}{% include 'plans/partials/journey_plan.html' %}{% endwith %}
+      {% with plan=journey.plans.nutrition plan_name="Plan de alimentación" plan_kind="alimentación" plan_icon="fa-utensils" %}{% include 'plans/partials/journey_plan.html' %}{% endwith %}
+    </div>
+    {% endif %}
+  {% endif %}
+  {% endif %}
+</section>
+{% endwith %}
