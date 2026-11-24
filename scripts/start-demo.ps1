@@ -11,5 +11,7 @@ $env:DEMO_FREE_TIER_CONFIRMED = if ($Real -and $FreeTierConfirmed) { 'true' } el
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo preparar la base académica.' }
 & $python manage.py seed_academic_demo --settings=config.settings.demo
 if ($LASTEXITCODE -ne 0) { throw 'No se pudieron preparar las cuentas ficticias.' }
+& $python manage.py load_usda_catalog --apply --activate-demo --settings=config.settings.demo
+if ($LASTEXITCODE -ne 0) { throw 'No se pudo preparar el catálogo USDA de la muestra.' }
 Write-Host 'Demo: http://127.0.0.1:8010/demo/ · Accesos: .demo/access.local.txt · Ctrl+C para detener.'
 & $python manage.py runserver 127.0.0.1:8010 --noreload --settings=config.settings.demo

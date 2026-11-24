@@ -1,0 +1,58 @@
+{
+  "checked_at": "2026-11-24T03:56:11.435466+00:00",
+  "scope": "isolated_academic_database",
+  "normal_database_untouched": true,
+  "offered_usda_references": 70,
+  "profiles": [
+    {
+      "profile": "demo_musculo",
+      "requested_mode": "demo",
+      "job_id": 12,
+      "job_status": "succeeded",
+      "error_code": "",
+      "plan_id": 12,
+      "plan_status": "approved",
+      "simulated": false,
+      "model": "gemini-3.5-flash-lite",
+      "meals": 5,
+      "options": 15,
+      "complete_source_coverage": true,
+      "sodium_available_options": 15,
+      "sugars_available_options": 15,
+      "added_sugars_unknown_options": 15,
+      "page_http": 200
+    },
+    {
+      "profile": "demo_grasa",
+      "requested_mode": "simulated",
+      "reused_todays_approved_plan": true,
+      "plan_id": 10,
+      "plan_status": "approved",
+      "simulated": true,
+      "model": "simulado",
+      "meals": 5,
+      "options": 15,
+      "complete_source_coverage": true,
+      "sodium_available_options": 15,
+      "sugars_available_options": 14,
+      "added_sugars_unknown_options": 15,
+      "page_http": 200
+    },
+    {
+      "profile": "demo_mantenimiento",
+      "requested_mode": "simulated",
+      "reused_todays_approved_plan": true,
+      "plan_id": 11,
+      "plan_status": "approved",
+      "simulated": true,
+      "model": "simulado",
+      "meals": 5,
+      "options": 15,
+      "complete_source_coverage": true,
+      "sodium_available_options": 15,
+      "sugars_available_options": 14,
+      "added_sugars_unknown_options": 15,
+      "page_http": 200
+    }
+  ]
+}

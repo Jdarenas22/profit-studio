@@ -5,6 +5,7 @@ from django.utils import timezone
 from ..models import Food, FoodImportRevision
 from .fdc import FDCError
 from .fdc_normalize import normalize_food
+from .preparation import validate_preparation
 
 STATES = ('raw', 'cooked', 'as_sold', 'prepared')
 
@@ -28,7 +29,10 @@ def import_food(payload, *, food_id=None, name=None, group=None, state, confirm_
             raise FDCError('fdc_local_food_missing')
         if name and Food.objects.filter(name=name.strip()).exists():
             raise FDCError('fdc_name_exists_use_food_id')
-        if food and food.fdc_id == identifier and food.source_hash == digest and food.preparation_state == state:
+        validate_preparation(snapshot['description'], state, food.name if food else name)
+        if (food and food.fdc_id == identifier and food.source_hash == digest
+                and food.preparation_state == state and food.source_snapshot == snapshot
+                and all(getattr(food, field) == value for field, value in values.items())):
             return food, snapshot, False
         if food and food.validated_by:
             raise FDCError('fdc_reviewed_food_not_overwritten')
@@ -49,6 +53,10 @@ def import_food(payload, *, food_id=None, name=None, group=None, state, confirm_
         food.source_imported_at = timezone.now()
         food.source = f'USDA FoodData Central / {identifier}'
         food.validated_by = ''
+        # La medida casera anterior no queda validada por importar composición por 100 g.
+        food.household_unit = ''
+        food.household_unit_plural = ''
+        food.household_grams = None
         food.is_active = False   # Revisar identidad, dieta y alérgenos en el admin antes de usar.
         food.full_clean()
         food.save()

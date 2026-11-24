@@ -104,7 +104,7 @@ class GenerationTests(NutritionScenarioTestCase):
         self.assertEqual(set(payload), {'task', 'schema_version', 'job_ref', 'slot', 'options_requested', 'client',
                                         'allowed_foods', 'existing_options', 'avoid_repeating_names',
                                         'trainer_notes', 'previous_errors', 'scope', 'training',
-                                        'recipe_options', 'recipe_catalog_version'})
+                                        'recipe_options', 'recipe_catalog_version', 'food_nutrient_units'})
         self.assertEqual(set(payload['client']), {'age', 'sex', 'goal', 'diet', 'cooking', 'budget', 'conservative'})
         self.assertTrue(payload['client']['conservative'])                    # alergia grave = advertencia Y07
         self.assertEqual(payload['client']['diet'], 'vegetarian')

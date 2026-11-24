@@ -33,3 +33,6 @@ MIDDLEWARE = ['apps.plans.academic.DemoBoundaryMiddleware', *MIDDLEWARE]
 
 # Presentación sin herramientas de depuración ni sus paneles de configuración.
 MIDDLEWARE = [item for item in MIDDLEWARE if not item.startswith('debug_toolbar.')]
+
+# La muestra alimenticia nueva ofrece solo perfiles de composición trazables.
+NUTRITION_REQUIRE_USDA_REFERENCE = True

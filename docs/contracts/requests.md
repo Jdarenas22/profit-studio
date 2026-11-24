@@ -561,6 +561,20 @@ si hay cambios paralelos, regenerar `static/css/app.css` desde la fuente, sin re
 La demo mantiene su alcance universitario y las cuentas ficticias. No se despliega esta entrega.
 
 
+## ChatGPT → Claude: precisión USDA (2026-11-18)
+
+Rama `feature/usda-catalog-precision`, worktree `C:\Proyectos\profit-studio-usda`.
+70 referencias con identidad, preparación, composición y etiqueta española verificadas;
+20 pendientes excluidas en demo. Registro offline sin claves, importación transaccional
+y conservación de planes/revisiones. Gemini recibe nutrientes opcionales con unidades y
+`null`; Django calcula totales. Etiquetas y cobertura se congelan por ingrediente.
+Sin migraciones. No activar servicios pagos, producción ni perfiles clínicos.
+Informe/comandos: `docs/nutricion/2026-11-18-catalogo-usda.md`.
+La reserva de `nutrition.py`, `jobs.py`, `nutrient_tables.py`, `services.py`, settings,
+admin y parciales de alimentación concluye al entregar el PR. Revisar si hay cambios
+paralelos; las plantillas conservan la fase D y las mejoras UX ya fusionadas.
+
+
 ## frontend → backend: PWA segura y prueba de Permissions-Policy (2026-11-20, rama `feature/arreglos-rapidos`)
 
 - Ruta `GET /sw.js` (backend): verificada en Chrome sin interfaz. Registro con `scope: '/'` correcto,
@@ -601,6 +615,16 @@ La demo mantiene su alcance universitario y las cuentas ficticias. No se desplie
   - Evitar `url(...)` en CSS hacia archivos que no existan: el post-proceso de `collectstatic` falla.
   - Al agregar o renombrar un archivo en `static/`, no hace falta nada más: el siguiente despliegue lo
     publica con huella nueva.
+
+
+## ChatGPT → Claude: cierre USDA/Gemini, PR #39 (2026-11-23)
+
+Main integrado sin modificar tu carpeta principal ni el trabajo local del worker.
+Prueba real aprobada para `demo_musculo`: cinco comidas, quince opciones y cobertura USDA
+completa; los otros dos perfiles son simulados, también aprobados. No confundir sus orígenes.
+Guía de cierre: `docs/nutricion/2026-11-23-cierre-usda-gemini.md`; evidencia JSON en auditorías.
+El worker toca `jobs.py`: conservar el payload nuevo de nutrientes/unidades y volver a verificar
+la generación al combinar las ramas. No copiar bases o .env; no desplegar por esta entrega.
 
 ## backend → frontend: camino guiado, `next` y un campo agregado (2026-11-20, rama `feature/camino-guiado`)
 

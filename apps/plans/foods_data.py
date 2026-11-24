@@ -1,20 +1,16 @@
-"""Catálogo INICIAL de alimentos (valores por 100 g, como se comen: cocidos salvo que diga "crudo").
+"""Catálogo inicial APROXIMADO para desarrollo y compatibilidad con registros existentes.
 
-Son cifras APROXIMADAS de referencia internacional (del orden de USDA FoodData Central) escritas a
-mano por el equipo técnico: NO se copió ninguna tabla (la licencia de la tabla del ICBF está por
-verificar) y NO están validadas. Un nutricionista-dietista debe revisarlas y marcarlas como
-validadas en el admin (Alimentos > acción "Marcar como validados") antes de usarlas con clientas
-reales: fuera de DEBUG, el sistema ignora los alimentos sin `validated_by`.
+Estas cifras se escribieron manualmente: no son una importación USDA. `load_foods` conserva
+los registros ya revisados o vinculados a FDC. La demo exige referencias trazables y usa
+`load_usda_catalog`; las coincidencias pendientes no se ofrecen bajo esa política.
 
-Cargar o actualizar: `python manage.py load_foods` (nunca pisa un alimento ya validado).
-
-Fila: (nombre, grupo, kcal, proteína, carbohidratos, grasa, fibra, medida casera (singular,
-plural, gramos), alérgenos, trazas, clase de dieta, etiquetas de condición, es_común)
-Clase de dieta: vegan | vegetarian | pescatarian | meat | pork | shellfish.
+Fila: nombre, grupo, kcal/proteína/carbohidratos/grasa/fibra por 100 g, medida casera,
+alérgenos, trazas, clase de dieta, etiquetas y disponibilidad común. Las medidas iniciales
+son aproximadas y no quedan verificadas por importar una tabla de composición por 100 g.
 """
 from decimal import Decimal
 
-SOURCE = 'Valores aproximados de referencia (tipo USDA FoodData Central); pendiente de verificación'
+SOURCE = 'Catálogo inicial aproximado; composición sin referencia verificada'
 
 # Dietas en las que cabe cada clase de alimento
 DIETS_BY_CLASS = {

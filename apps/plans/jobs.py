@@ -392,7 +392,9 @@ def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_name
         'allowed_foods': [
             {'id': food.id, 'name': food.name, 'group': food.group, 'kcal100': float(food.kcal100),
              'p100': float(food.protein100), 'c100': float(food.carbs100), 'f100': float(food.fat100),
-             'common': food.is_common}
+             'common': food.is_common,
+             **{field: float(getattr(food, field)) if getattr(food, field) is not None else None
+                for field in ('fiber100', 'sugars100', 'added_sugars100', 'saturated_fat100', 'sodium_mg100')}}
             for food in offered
         ],
         'existing_options': [{'name': option.name, 'food_ids': sorted(option.food_ids)} for option in existing],
@@ -402,6 +404,11 @@ def build_meal_payload(job, assessment, slot, *, n_options, existing, avoid_name
     }
     if adaptation is not None and adaptation.history:
         payload['history'] = adaptation.history      # resumen codificado, sin texto libre (rules/adaptation.py)
+    payload['food_nutrient_units'] = {
+        'basis': '100g', 'kcal100': 'kcal', 'p100': 'g', 'c100': 'g', 'f100': 'g',
+        'fiber100': 'g', 'sugars100': 'g', 'added_sugars100': 'g',
+        'saturated_fat100': 'g', 'sodium_mg100': 'mg', 'missing': 'null_is_not_zero',
+    }
     payload['scope'] = 'wellness_food_choices'
     payload['training'] = {
         'days_per_week': profile.training_days_per_week,
