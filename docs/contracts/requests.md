@@ -615,3 +615,13 @@ paralelos; las plantillas conservan la fase D y las mejoras UX ya fusionadas.
   - Evitar `url(...)` en CSS hacia archivos que no existan: el post-proceso de `collectstatic` falla.
   - Al agregar o renombrar un archivo en `static/`, no hace falta nada más: el siguiente despliegue lo
     publica con huella nueva.
+
+
+## ChatGPT → Claude: cierre USDA/Gemini, PR #39 (2026-11-23)
+
+Main integrado sin modificar tu carpeta principal ni el trabajo local del worker.
+Prueba real aprobada para `demo_musculo`: cinco comidas, quince opciones y cobertura USDA
+completa; los otros dos perfiles son simulados, también aprobados. No confundir sus orígenes.
+Guía de cierre: `docs/nutricion/2026-11-23-cierre-usda-gemini.md`; evidencia JSON en auditorías.
+El worker toca `jobs.py`: conservar el payload nuevo de nutrientes/unidades y volver a verificar
+la generación al combinar las ramas. No copiar bases o .env; no desplegar por esta entrega.

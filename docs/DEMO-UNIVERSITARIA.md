@@ -101,3 +101,5 @@ Las cuotas son por proyecto y varían por modelo; el nivel gratuito no implica u
 Actualización USDA: suite completa de 1.527 pruebas aprobadas; tres perfiles simulados
 con cinco comidas y cobertura de composición USDA en sus 45 opciones. La prueba real
 de Gemini descrita arriba es anterior a esta actualización del catálogo.
+
+Cierre actualizado: [USDA y Gemini real, 2026-11-23](nutricion/2026-11-23-cierre-usda-gemini.md).
