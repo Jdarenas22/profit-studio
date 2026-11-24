@@ -35,7 +35,7 @@ existente, crea antes una copia local en `.runtime/backups/`, privada e ignorada
 `-Public` conecta un Cloudflare Quick Tunnel al mismo puerto: no crea otro servidor Django.
 Si hace falta, instala cloudflared portable en `.tools/` con una versión y SHA256 verificadas
 contra el artefacto oficial. La URL HTTPS se muestra al iniciar y se guarda en `.runtime/public-url.txt`.
-Ctrl+C detiene servidor y túnel. Si el PC se apaga o pierde conexión, la web deja de estar disponible.
+Ctrl+C detiene servidor y túnel. Si el arranque está oculto, `scripts/start.ps1 -Stop` solicita la misma parada sin cerrar otros procesos. Si el PC se apaga o pierde conexión, la web deja de estar disponible.
 La URL cambia en cada nuevo túnel. El servicio no ofrece garantía de disponibilidad.
 Las cookies de sesión y CSRF llevan Secure en la URL pública; el mismo proceso permite el acceso local.
 

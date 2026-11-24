@@ -7,6 +7,7 @@ from pathlib import Path
 import queue
 import re
 import shutil
+import signal
 import socket
 import sqlite3
 import subprocess
@@ -123,6 +124,7 @@ def main():
                 "El puerto 8000 ya está ocupado. No se inicia otra aplicación."
             ) from None
     RUNTIME.mkdir(exist_ok=True)
+    (RUNTIME / "stop").unlink(missing_ok=True)
     tunnel = None
     try:
         public_url = ""
@@ -172,6 +174,15 @@ def main():
             flush=True,
         )
         from django.core.wsgi import get_wsgi_application
+
+        def watch_stop():
+            while True:
+                if (RUNTIME / "stop").exists():
+                    signal.raise_signal(signal.SIGINT)
+                    return
+                time.sleep(1)
+
+        threading.Thread(target=watch_stop, daemon=True).start()
         from waitress import serve
 
         serve(
@@ -184,6 +195,9 @@ def main():
             clear_untrusted_proxy_headers=True,
         )
     finally:
+        pid_path = RUNTIME / "server.pid"
+        if pid_path.exists() and pid_path.read_text().strip() == str(os.getpid()):
+            pid_path.unlink()
         if tunnel is not None:
             tunnel.terminate()
             try:
