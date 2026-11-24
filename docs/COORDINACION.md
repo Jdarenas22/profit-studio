@@ -145,6 +145,8 @@ Formato: fecha · asistente · tarea · rama o PR · estado · archivos que toca
 
 ### En curso
 
+- 2026-11-24 · ChatGPT · Errores de GitHub y consumo de recursos, autorizado por la persona · `fix/github-resource-efficiency`, worktree USDA aislado sobre #41. Reserva `apps/plans/rules/recipes.py`, `apps/plans/jobs.py`, consultas de rutinas/panel, pruebas de rendimiento y scripts de auditoría. Se revisarán alertas contra versiones efectivas, CPU de recetas, consultas SQL y concurrencia de IA. Aviso previo por archivos compartidos: settings/documentación solo si hacen falta. La petición expresa de optimizar todo incluye ajustes de CI; se avisa a Claude antes de tocar `.github/workflows/ci.yml`, sin cambios de Railway ni despliegue. No tocar el cambio local de Claude en `test_worker.py`; no migraciones nuevas, no datos ni servicios pagos.
+
 
 
 
