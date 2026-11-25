@@ -71,6 +71,21 @@
       <span x-text="sending ? 'Enviando...' : 'Reenviar invitación'">Reenviar invitación</span>
     </button>
   </form>
+  <form method="POST" action="{% url 'trainer_client_invitation_link' client.pk %}" class="shrink-0">
+    {% csrf_token %}
+    <button type="submit"
+            class="inline-flex w-full sm:w-auto items-center justify-center gap-2 min-h-[44px] border border-sky-300/40 text-sky-100 hover:bg-sky-400/10 text-sm font-bold px-5 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+      <i class="fa fa-link" aria-hidden="true"></i> Mostrar enlace
+    </button>
+  </form>
+  {% endif %}
+  {% if invitation_link %}
+  <div class="basis-full rounded-xl border border-white/10 bg-black/40 p-3" role="status">
+    <p class="text-white text-xs font-bold">Enlace de invitación (se muestra una sola vez; entrégaselo solo a ella)</p>
+    <input type="text" readonly value="{{ invitation_link }}" onclick="this.select()" aria-label="Enlace de invitación"
+           class="mt-2 w-full bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-white text-xs [overflow-wrap:anywhere]">
+    <p class="text-white/60 text-xs mt-1">Vale 72 horas. Si recargas esta página ya no se vuelve a mostrar.</p>
+  </div>
   {% endif %}
 </section>
 {% endif %}

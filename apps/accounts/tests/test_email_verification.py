@@ -1247,3 +1247,51 @@ class Migration0007Tests(TransactionTestCase):
         self.assertFalse(executor.loader.detect_conflicts())
         field = User._meta.get_field('email_verified_at')
         self.assertTrue(field.null)
+
+
+class ShowInvitationLinkTests(Base):
+    """La entrenadora ve el enlace de invitación en pantalla (una sola vez) por si el correo no llega."""
+
+    def setUp(self):
+        super().setUp()
+        self.login(self.trainer_a)
+        self.created = self.client.post(reverse('trainer_add_client'), {
+            'first_name': 'Nueva', 'last_name': 'Persona', 'email': 'nueva@example.com',
+            'username': 'nueva.persona'})
+        self.target = User.objects.get(username='nueva.persona')
+        self.detail = reverse('trainer_client_detail', args=[self.target.pk])
+
+    def test_link_is_shown_once_after_creating_and_it_works(self):
+        page = self.client.get(self.detail)
+        link = page.context['invitation_link']
+        self.assertIn('/accounts/invitation/', link)
+        self.assertContains(page, link)
+        self.assertEqual(page['Cache-Control'], 'no-store')
+        self.assertIsNone(self.client.get(self.detail).context['invitation_link'])
+        self.client.logout()
+        accept = self.client.get(path_of(link))
+        self.assertTemplateUsed(accept, 'accounts/invitation_set_password.html')
+
+    def test_button_shows_the_link_again(self):
+        self.client.get(self.detail)   # el enlace de la creación se consume
+        response = self.client.post(reverse('trainer_client_invitation_link', args=[self.target.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/invitation/', self.client.get(self.detail).context['invitation_link'])
+
+    def test_other_trainer_gets_404(self):
+        self.login(self.trainer_b)
+        response = self.client.post(reverse('trainer_client_invitation_link', args=[self.target.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_link_is_not_shown_after_the_client_set_a_password(self):
+        link = self.client.get(self.detail).context['invitation_link']
+        self.client.post(reverse('trainer_client_invitation_link', args=[self.target.pk]))
+        self.target.set_password('Contrasena-Segura-91!')
+        self.target.save()
+        self.assertIsNone(self.client.get(self.detail).context['invitation_link'])
+
+    def test_no_link_without_an_email(self):
+        User.objects.filter(pk=self.target.pk).update(email='')
+        self.client.get(self.detail)
+        self.client.post(reverse('trainer_client_invitation_link', args=[self.target.pk]))
+        self.assertIsNone(self.client.get(self.detail).context['invitation_link'])

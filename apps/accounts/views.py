@@ -75,6 +75,8 @@ TRANSFER_ADMIN_ATTEMPTS_LIMIT = getattr(settings, 'TRANSFER_ADMIN_ATTEMPTS_LIMIT
 TRANSFER_ADMIN_WINDOW_SECONDS = getattr(settings, 'TRANSFER_ADMIN_WINDOW_SECONDS', 900)
 
 
+INVITATION_LINK_SESSION_KEY = 'trainer_invitation_link'
+
 PASSWORD_FIELDS = ('password', 'password1', 'password2', 'current_password',
                    'new_password', 'confirm_password', 'new_password1', 'new_password2')
 
@@ -401,6 +403,9 @@ def trainer_add_client(request):
                 form.add_error('username', form.username_taken_message)
             else:
                 invited = email_verification.send_invitation_email(request, client)
+                # Se muestra una sola vez en la ficha, por si el correo no llega (se retira de la sesión al verlo)
+                request.session[INVITATION_LINK_SESSION_KEY] = {
+                    'pk': client.pk, 'url': email_verification.invitation_url(request, client)}
                 plan = data['activate_plan']
                 if plan:
                     membership = Membership(user=client)
@@ -483,8 +488,12 @@ def trainer_client_detail(request, pk):
         membership = None
     assessments = client.assessments.select_related('dixon_test').order_by('-date')
     routines = client.routines.filter(is_active=True).prefetch_related('days__exercises__exercise')
-    return render(request, 'trainer/client_detail.html', {
+    shown = request.session.pop(INVITATION_LINK_SESSION_KEY, None)
+    invitation_link = shown['url'] if (shown and shown.get('pk') == client.pk
+                                       and client.is_invitation_pending and client.is_active) else None
+    response = render(request, 'trainer/client_detail.html', {
         'client': client,
+        'invitation_link': invitation_link,
         'membership': membership,
         'assessments': assessments,
         'routines': routines,
@@ -497,6 +506,9 @@ def trainer_client_detail(request, pk):
             request.user, client, choices.ACTION_REACTIVATE),
         'can_erase': account_services.can_act(request.user, client, choices.ACTION_ERASE),
     })
+    if invitation_link:
+        response['Cache-Control'] = 'no-store'
+    return response
 
 
 @trainer_required
