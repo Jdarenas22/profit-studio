@@ -53,3 +53,4 @@ USUARIOS-PRUEBA.local.txt
 # Procesos locales, enlaces temporales y herramientas portables
 .runtime/
 .tools/
+.wrangler/

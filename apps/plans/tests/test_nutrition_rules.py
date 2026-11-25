@@ -19,15 +19,24 @@ def inp(**overrides):
 
 
 class EnergyTests(SimpleTestCase):
+    def test_requested_macro_orientation_without_exceeding_protein_cap(self):
+        for goal in ('weight_loss', 'muscle_gain', 'toning', 'cardio'):
+            plan = energy.compute_energy(inp(goal=goal))
+            self.assertLessEqual(plan.protein_g * 4 / plan.kcal, D('.255'))
+            self.assertGreaterEqual(plan.carbs_g * 4 / plan.kcal, D('.445'))
+            self.assertLessEqual(plan.carbs_g * 4 / plan.kcal, D('.605'))
+            self.assertGreaterEqual(plan.fat_g * 9 / plan.kcal, D('.195'))
+            self.assertLessEqual(plan.fat_g * 9 / plan.kcal, D('.355'))
+
     def test_mifflin_st_jeor_known_values(self):
         plan = energy.compute_energy(inp())
         # TMB = 10*68 + 6.25*165 - 5*34 - 161 = 1380.25 ; GET = TMB * 1.375 = 1897.84
         self.assertEqual(plan.tmb, D('1380.3'))
         self.assertEqual(plan.get, D('1900'))
         self.assertEqual(plan.kcal, D('1520'))                       # déficit de 20 % (379 kcal < 500)
-        self.assertEqual((plan.protein_g, plan.carbs_g, plan.fat_g), (D('109'), D('165'), D('47')))
+        self.assertEqual((plan.protein_g, plan.carbs_g, plan.fat_g), (D('95'), D('179'), D('47')))
         self.assertEqual(plan.adjustment_pct, D('-20.0'))
-        self.assertEqual(plan.formula, 'mifflin_st_jeor/1')
+        self.assertEqual(plan.formula, 'mifflin_st_jeor/2')
         self.assertEqual(plan.warnings, ())
 
     def test_sex_constants(self):

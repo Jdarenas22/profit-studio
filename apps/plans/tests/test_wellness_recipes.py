@@ -83,12 +83,12 @@ class WellnessFlowTests(NutritionScenarioTestCase):
         job, fake = self.request_nutrition(self.client_a, trainer_notes='Texto privado')
         self.assertEqual(job.status, job.STATUS_SUCCEEDED, job.error_code)
         self.assertEqual(len(fake.calls), 5)
-        self.assertEqual(job.plan.nutrition.slots.count(), 5)
+        self.assertEqual(job.plan.nutrition.slots.count(), 35)
         for call in fake.calls:
-            self.assertIsNone(call['payload']['trainer_notes'])
-            self.assertEqual(call['payload']['scope'], 'wellness_food_choices')
+            self.assertNotIn('trainer_notes', call['payload'])
+            self.assertEqual(call['payload']['schema_version'], 'weekly-menu/1')
             self.assertIn('recipe_options', call['payload'])
-            self.assertIn('training', call['payload'])
+            self.assertNotIn('training', call['payload'])
 
     def test_clinical_profiles_block_before_external_call(self):
         from .test_nutrition import hypertension_profile

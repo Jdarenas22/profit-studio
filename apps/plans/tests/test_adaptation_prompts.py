@@ -209,9 +209,11 @@ class NutritionJobPromptTests(NutritionScenarioTestCase):
 
     def test_history_uses_the_meal_prompt_version_2(self):
         job, fake_ai = self.new_plan()
-        self.assertTrue(all(call['system'] == p.MEAL_SYSTEM_V2 for call in fake_ai.calls))
-        self.assertTrue(all('history' in call['payload'] for call in fake_ai.calls))
-        self.assertEqual(job.plan.prompt_version, 'meal/6')
+        from apps.plans.rules import weekly
+        self.assertTrue(all(call['system'] == weekly.SYSTEM for call in fake_ai.calls))
+        self.assertTrue(all('history' not in call['payload'] for call in fake_ai.calls))
+        self.assertFalse(job.adaptation_summary['history_sent'])
+        self.assertEqual(job.plan.prompt_version, 'weekly-menu/1')
 
     def test_liked_foods_reach_the_ai_and_the_draft_stays_valid(self):
         slot = self.plan.nutrition.slots.get(code='lunch')
@@ -221,12 +223,14 @@ class NutritionJobPromptTests(NutritionScenarioTestCase):
                                       date=(timezone.localdate() - timedelta(days=ago)), completed_at=timezone.now())
         job, fake_ai = self.new_plan()
         liked = set(option.items.values_list('food_id', flat=True))
-        sent = set(fake_ai.calls[0]['payload']['history']['nutrition']['liked_food_ids'])
-        self.assertEqual(sent, liked)
+        self.assertNotIn('history', fake_ai.calls[0]['payload'])
+        used = set(job.plan.nutrition.slots.first().options.values_list('items__food_id', flat=True))
+        self.assertTrue(used & liked)
         self.assertEqual(job.adaptation_summary['liked_foods'], len(liked))
 
     def test_the_switch_off_keeps_the_meal_prompt_version_1(self):
         with override_settings(AI_PLANS_ADAPTATION=False):
             job, fake_ai = self.new_plan()
-        self.assertTrue(all(call['system'] == p.MEAL_SYSTEM for call in fake_ai.calls))
-        self.assertEqual(job.plan.prompt_version, 'meal/5')
+        from apps.plans.rules import weekly
+        self.assertTrue(all(call['system'] == weekly.SYSTEM for call in fake_ai.calls))
+        self.assertEqual(job.plan.prompt_version, 'weekly-menu/1')

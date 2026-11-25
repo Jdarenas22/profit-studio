@@ -306,6 +306,8 @@ class RunLoopTests(WorkerTestCase):
 
         def flaky():
             slept_at_each_call.append(len(self.slept))
+            if len(slept_at_each_call) > RUNAWAY_POLLS:      # esta prueba reemplaza la función protegida de setUp
+                raise RunawayLoop('el bucle sigue girando después de la parada')
             if len(slept_at_each_call) == 1:
                 raise OperationalError('could not connect to server host-secreto.internal password=clave-bd')
             if len(slept_at_each_call) == 2:

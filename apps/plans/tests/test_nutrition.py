@@ -52,10 +52,10 @@ class GenerationTests(NutritionScenarioTestCase):
         self.assertEqual((job.tokens_in, job.tokens_out), (3000, 1500))
         goal = plan.nutrition
         self.assertEqual(goal.meals_per_day, 3)
-        self.assertEqual(goal.formula, 'mifflin_st_jeor/1')
+        self.assertEqual(goal.formula, 'mifflin_st_jeor/2')
         slots = list(goal.slots.all())
-        self.assertEqual([s.code for s in slots], ['breakfast', 'lunch', 'dinner'])
-        self.assertEqual([s.time_hint for s in slots], ['07:00', '12:30', '19:00'])
+        self.assertEqual([s.code for s in slots], ['breakfast', 'lunch', 'dinner'] * 7)
+        self.assertEqual([s.time_hint for s in slots], ['07:00', '12:30', '19:00'] * 7)
         for slot in slots:
             options = list(slot.options.filter(is_active=True))
             self.assertEqual([o.position for o in options], [1, 2, 3])
@@ -101,18 +101,10 @@ class GenerationTests(NutritionScenarioTestCase):
                        self.client_a.last_name, self.trainer_a.username, 'Algo privado', 'Higado',
                        'peanut', 'anaphylaxis', 'Maní', 'birth_date'):
             self.assertNotIn(secret, sent)
-        self.assertEqual(set(payload), {'task', 'schema_version', 'job_ref', 'slot', 'options_requested', 'client',
-                                        'allowed_foods', 'existing_options', 'avoid_repeating_names',
-                                        'trainer_notes', 'previous_errors', 'scope', 'training',
-                                        'recipe_options', 'recipe_catalog_version', 'food_nutrient_units'})
-        self.assertEqual(set(payload['client']), {'age', 'sex', 'goal', 'diet', 'cooking', 'budget', 'conservative'})
-        self.assertTrue(payload['client']['conservative'])                    # alergia grave = advertencia Y07
-        self.assertEqual(payload['client']['diet'], 'vegetarian')
-        names = {row['name'] for row in payload['allowed_foods']}
-        self.assertFalse(names & {'Maní tostado sin sal', 'Almendras', 'Pechuga de pollo cocida sin piel'})
-        self.assertEqual(payload['slot']['code'], 'breakfast')
-        self.assertEqual(fake.calls[1]['payload']['slot']['code'], 'lunch')
-        self.assertTrue(set(fake.calls[1]['payload']['avoid_repeating_names']))   # no repite platos entre comidas
+        self.assertEqual(set(payload), {'schema_version', 'slot_code', 'days', 'previous_errors', 'recipe_options'})
+        self.assertEqual(payload['slot_code'], 'breakfast')
+        self.assertEqual(fake.calls[1]['payload']['slot_code'], 'lunch')
+        self.assertEqual(payload['days'], 7)
 
     def test_restrictions_reach_the_saved_plan(self):
         plan = self.nutrition_draft(self.client_a, allergies=['milk', 'gluten'], allergy_severity='mild',
@@ -132,11 +124,11 @@ class GenerationTests(NutritionScenarioTestCase):
 
     def test_bad_ai_output_retries_once_with_codes_and_saves_nothing(self):
         self.ready(self.client_a, allergies=['peanut'], allergy_severity='mild')
-        for scenario, code in (('allergen_text', 'validation_failed:V03_ALLERGEN'),
-                               ('unknown_id', 'validation_failed:V02_IDS'),
+        for scenario, code in (('allergen_text', 'validation_failed:V01_SCHEMA'),
+                               ('unknown_id', 'validation_failed:V01_SCHEMA'),
                                ('wrong_count', 'validation_failed:V01_SCHEMA'),
-                               ('kcal_out_of_band', 'validation_failed:V04_KCAL'),
-                               ('forbidden_text', 'validation_failed:V08_TEXT'),
+                               ('kcal_out_of_band', 'validation_failed:V01_SCHEMA'),
+                               ('forbidden_text', 'validation_failed:V01_SCHEMA'),
                                ('invalid_json', 'validation_failed:V01_SCHEMA'),
                                ('max_tokens', 'ai_finish_max_tokens')):
             with self.subTest(scenario=scenario):
@@ -153,8 +145,8 @@ class GenerationTests(NutritionScenarioTestCase):
         self.ready(self.client_a)
         job, fake = self.request_nutrition(self.client_a, scenario=['ok', 'unknown_id', 'ok', 'ok'])
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
-        self.assertEqual([c['payload']['slot']['code'] for c in fake.calls], ['breakfast', 'lunch', 'lunch', 'dinner'])
-        self.assertEqual(fake.calls[2]['payload']['previous_errors'], ['V02_IDS'])
+        self.assertEqual([c['payload']['slot_code'] for c in fake.calls], ['breakfast', 'lunch', 'lunch', 'dinner'])
+        self.assertEqual(fake.calls[2]['payload']['previous_errors'], ['V01_SCHEMA'])
 
     def test_transient_errors_are_retried(self):
         self.ready(self.client_a)
@@ -220,7 +212,7 @@ class GenerationTests(NutritionScenarioTestCase):
             job, _ = services.regenerate_plan(plan, self.trainer_a, 'Más económico', services.new_request_token())
         job.refresh_from_db()
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED)
-        self.assertIsNone(fake.calls[0]['payload']['trainer_notes'])
+        self.assertNotIn('trainer_notes', fake.calls[0]['payload'])
         plan.refresh_from_db()
         self.assertEqual(plan.status, Plan.STATUS_ARCHIVED)
         self.assertEqual((job.plan.version, job.plan.parent), (2, plan))
@@ -435,7 +427,7 @@ class AlternativeTests(NutritionScenarioTestCase):
     def setUp(self):
         super().setUp()
         self.plan = self.approved_nutrition(self.client_a)
-        self.slot = self.plan.nutrition.slots.get(code='lunch')
+        self.slot = self.plan.nutrition.slots.get(day_index=1, code='lunch')
         self.option = self.slot.options.get(position=2)
         mail.outbox.clear()
 
@@ -513,7 +505,7 @@ class AlternativeTests(NutritionScenarioTestCase):
         with self.assertRaises(services.QuotaExceeded):
             self.alternative(option=self.slot.options.get(position=3, is_active=True))
         # Otra comida tiene su propio cupo
-        breakfast = self.plan.nutrition.slots.get(code='breakfast')
+        breakfast = self.plan.nutrition.slots.get(day_index=1, code='breakfast')
         with self.fake_ai(), self.captureOnCommitCallbacks(execute=True):
             job, _ = nutrition.request_alternative(self.client_a, breakfast.pk, breakfast.options.first().pk,
                                                    services.new_request_token())
@@ -523,7 +515,7 @@ class AlternativeTests(NutritionScenarioTestCase):
     @override_settings(AI_PLANS_ALT_DAILY_LIMIT=1)
     def test_daily_limit_per_client(self):
         self.alternative()
-        breakfast = self.plan.nutrition.slots.get(code='breakfast')
+        breakfast = self.plan.nutrition.slots.get(day_index=1, code='breakfast')
         with self.assertRaises(services.QuotaExceeded):
             nutrition.request_alternative(self.client_a, breakfast.pk, breakfast.options.first().pk,
                                           services.new_request_token())
@@ -592,7 +584,7 @@ class AlternativeTests(NutritionScenarioTestCase):
 
     def test_blocked_dedup_is_per_client(self):
         other = self.approved_nutrition(self.client_b)
-        other_slot = other.nutrition.slots.get(code='lunch')
+        other_slot = other.nutrition.slots.get(day_index=1, code='lunch')
         other_option = other_slot.options.get(position=2)
         self.make_profile(self.client_a, pregnancy_status='pregnant')
         self.make_profile(self.client_b, pregnancy_status='pregnant')             # mismo bloqueo
@@ -660,7 +652,7 @@ class ChoiceTests(NutritionScenarioTestCase):
     def setUp(self):
         super().setUp()
         self.plan = self.approved_nutrition(self.client_a)
-        self.slot = self.plan.nutrition.slots.get(code='lunch')
+        self.slot = self.plan.nutrition.slots.get(day_index=1, code='lunch')
         self.today = health.dates.today()
 
     def test_choose_and_change_the_same_day(self):
@@ -686,7 +678,7 @@ class ChoiceTests(NutritionScenarioTestCase):
 
     def test_other_clients_options_are_not_found(self):
         other = self.approved_nutrition(self.client_b)
-        foreign_slot = other.nutrition.slots.get(code='lunch')
+        foreign_slot = other.nutrition.slots.get(day_index=1, code='lunch')
         foreign_option = foreign_slot.options.first()
         for slot, option in ((foreign_slot, foreign_option), (self.slot, foreign_option),
                              (foreign_slot, self.slot.options.first())):
@@ -750,7 +742,7 @@ class CompleteChoiceTests(NutritionScenarioTestCase):
     def setUp(self):
         super().setUp()
         self.plan = self.approved_nutrition(self.client_a)
-        self.slot = self.plan.nutrition.slots.get(code='lunch')
+        self.slot = self.plan.nutrition.slots.get(day_index=1, code='lunch')
         self.option = self.slot.options.get(position=1)
         self.today = health.dates.today()
 
@@ -828,7 +820,7 @@ class CompleteChoiceTests(NutritionScenarioTestCase):
 
     def test_someone_elses_choice_is_not_found_and_stays_untouched(self):
         other = self.approved_nutrition(self.client_b)
-        foreign_slot = other.nutrition.slots.get(code='lunch')
+        foreign_slot = other.nutrition.slots.get(day_index=1, code='lunch')
         foreign_option = foreign_slot.options.first()
         theirs = self.pick(client=self.client_b, slot=foreign_slot, option=foreign_option)
         known = timezone.now() - timedelta(days=1)
@@ -858,14 +850,14 @@ class CompleteChoiceTests(NutritionScenarioTestCase):
 
     def test_a_choice_from_a_draft_plan_is_not_found(self):
         job, _ = self.request_nutrition(self.client_a)                 # 2.º plan, en borrador
-        draft_slot = job.plan.nutrition.slots.get(code='lunch')
+        draft_slot = job.plan.nutrition.slots.get(day_index=1, code='lunch')
         choice = self.pick(slot=draft_slot, option=draft_slot.options.first())
         with self.assertRaises(nutrition.OptionNotFound):
             self.complete(choice)
         self.assertIsNone(self.completed_at(choice))
         # Y una clienta que solo tiene borrador no puede marcar nada
         draft_b = self.nutrition_draft(self.client_b)
-        slot_b = draft_b.nutrition.slots.get(code='lunch')
+        slot_b = draft_b.nutrition.slots.get(day_index=1, code='lunch')
         choice_b = self.pick(client=self.client_b, slot=slot_b, option=slot_b.options.first())
         with self.assertRaises(nutrition.OptionNotFound):
             self.complete(choice_b, client=self.client_b)
@@ -885,7 +877,7 @@ class CompleteChoiceTests(NutritionScenarioTestCase):
         self.assertEqual(Plan.objects.get(pk=self.plan.pk).status, Plan.STATUS_SUPERSEDED)
         with self.assertRaises(nutrition.OptionNotFound):
             self.complete(old)
-        new_slot = new_plan.nutrition.slots.get(code='lunch')
+        new_slot = new_plan.nutrition.slots.get(day_index=1, code='lunch')
         current = self.pick(slot=new_slot, option=new_slot.options.first())
         self.assertIsNotNone(self.complete(current).completed_at)
 
@@ -947,10 +939,8 @@ class BasicProfileNutritionTests(NutritionScenarioTestCase):
         job, fake = self.request_nutrition(self.client_a)
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
         payload = fake.calls[0]['payload']
-        self.assertEqual((payload['client']['diet'], payload['client']['cooking'], payload['client']['budget']),
-                         ('omnivore', 'basic', 'medium'))
-        self.assertFalse(payload['client']['conservative'])
-        self.assertEqual(set(payload['client']), {'age', 'sex', 'goal', 'diet', 'cooking', 'budget', 'conservative'})
+        self.assertNotIn('client', payload)
+        self.assertEqual(payload['schema_version'], 'weekly-menu/1')
         for call in fake.calls:
             sent = json.dumps(call['payload'], ensure_ascii=False)
             for word in ('health_screen', 'food_screen', 'defaulted_fields', 'legacy', 'no declar', 'Nivel de actividad'):

@@ -14,7 +14,7 @@ from typing import NamedTuple
 
 from . import meal_validate as meal
 
-VERSION = 'everyday-world/2'
+VERSION = 'everyday-world/3'
 B = ('breakfast',)
 S = ('mid_morning', 'snack')
 M = ('lunch', 'dinner')
@@ -430,6 +430,76 @@ _STRIPPED = ('cuisine', 'main_protein')      # solo para elegir; no viajan en la
 # Tope de recetas que se ofrecen a la IA en una llamada. Los nombres van en el enum del esquema y el
 # proveedor rechaza esquemas demasiado grandes ("trim large enum lists", docs de salida estructurada
 # de Gemini, consultado el 2026-11-19): antes de everyday-world/2 el máximo era 29. Ajustable.
+# Extra combinations for weekly menus. Ingredient names resolve against the allowed catalogue;
+# unavailable or incompatible foods exclude the whole recipe, without silent substitutions.
+add('Arepa con tofu y aguacate', 'colombiana', B + S,
+    'Calienta la arepa y sírvela con tofu cocido y aguacate en láminas.',
+    ('Arepa de maíz', 40, 130), ('Tofu firme', 70, 220), ('Aguacate', 20, 80))
+add('Tortillas con lentejas y tomate', 'mexicana inspirada', B + S,
+    'Rellena las tortillas calientes con lentejas cocidas, tomate y aguacate.',
+    ('Tortilla de maíz', 30, 110), ('Lentejas cocidas', 70, 200), ('Tomate', 30, 90), ('Aguacate', 20, 70))
+add('Quinua con tofu, pepino y semillas', 'internacional', B + S,
+    'Sirve la quinua cocida con tofu, pepino picado y semillas de chía. Usa el aceite como aderezo.',
+    ('Quinua cocida', 50, 170), ('Tofu firme', 70, 200), ('Pepino cohombro', 30, 90),
+    ('Semillas de chía', 5, 15), ('Aceite de oliva', 5, 15), cooking='none')
+add('Batata con tofu y brócoli', 'internacional', B + M,
+    'Sirve la batata, el tofu y el brócoli cocidos; añade aceite de oliva al servir.',
+    ('Batata (camote) cocida', 70, 240), ('Tofu firme', 80, 230), ('Brócoli cocido', 40, 130), ('Aceite de oliva', 5, 20))
+add('Papa con garbanzos y aguacate', 'cotidiana', B + S,
+    'Mezcla la papa cocida con garbanzos, tomate y aguacate en cubos.',
+    ('Papa pastusa cocida', 60, 190), ('Garbanzos cocidos', 70, 200), ('Tomate', 30, 90), ('Aguacate', 20, 70))
+add('Arroz con lentejas, zanahoria y maní', 'internacional', B + M,
+    'Sirve el arroz y las lentejas cocidos con zanahoria rallada y maní tostado sin sal.',
+    ('Arroz blanco cocido', 50, 180), ('Lentejas cocidas', 70, 230),
+    ('Zanahoria cruda', 30, 90), ('Maní tostado sin sal', 10, 30))
+add('Tortillas con pollo, lechuga y aguacate', 'mexicana inspirada', B + M,
+    'Rellena las tortillas con pollo cocido en tiras, lechuga y aguacate.',
+    ('Tortilla de maíz', 40, 130), ('Pechuga de pollo cocida sin piel', 50, 180),
+    ('Lechuga', 20, 70), ('Aguacate', 20, 80))
+add('Tostadas con cottage, pera y nueces', 'internacional', B + S,
+    'Sirve el pan tostado con cottage; acompaña con pera en gajos y nueces.',
+    ('Pan integral tajado', 30, 100), ('Queso cottage', 70, 200), ('Pera', 40, 150), ('Nueces', 10, 25))
+add('Bowl de soya, papaya y chía', 'internacional', B + S,
+    'Hidrata la avena y la chía en la bebida de soya en refrigeración y sirve con papaya cortada.',
+    ('Bebida de soya sin azúcar', 130, 350), ('Avena en hojuelas (cruda)', 20, 65),
+    ('Papaya', 40, 140), ('Semillas de chía', 10, 25), cooking='none')
+add('Batido de soya, fresa y almendras', 'internacional', B + S,
+    'Licúa la bebida de soya con las fresas, avena y almendras. Sirve sin añadir azúcar.',
+    ('Bebida de soya sin azúcar', 150, 350), ('Fresa', 50, 160),
+    ('Avena en hojuelas (cruda)', 20, 60), ('Almendras', 10, 30), cooking='none')
+add('Ensalada de garbanzos con pepino y maní', 'mediterránea inspirada', S + M,
+    'Mezcla los garbanzos cocidos con pepino, tomate y maní; añade aceite como aderezo.',
+    ('Garbanzos cocidos', 70, 240), ('Pepino cohombro', 30, 100), ('Tomate', 30, 100),
+    ('Maní tostado sin sal', 10, 25), ('Aceite de oliva', 5, 15), cooking='none')
+add('Ensalada de tofu, mango y quinua', 'internacional', S + M,
+    'Mezcla la quinua y el tofu cocidos y fríos con mango y pepino; añade aceite como aderezo.',
+    ('Tofu firme', 70, 230), ('Quinua cocida', 50, 200), ('Mango', 40, 130),
+    ('Pepino cohombro', 30, 90), ('Aceite de oliva', 5, 20), cooking='none')
+add('Pollo con pasta y brócoli', 'mediterránea inspirada', M,
+    'Mezcla la pasta y el brócoli cocidos con pollo en tiras. Añade aceite de oliva al servir.',
+    ('Pechuga de pollo cocida sin piel', 70, 210), ('Pasta cocida', 90, 260),
+    ('Brócoli cocido', 60, 160), ('Aceite de oliva', 10, 25))
+add('Pavo con papa criolla y habichuela', 'cotidiana', M,
+    'Sirve el pavo cocido con papa criolla y habichuela cocidas; acompaña con aguacate.',
+    ('Pechuga de pavo cocida', 80, 220), ('Papa criolla cocida', 100, 280),
+    ('Habichuela cocida', 50, 150), ('Aguacate', 30, 90))
+add('Tilapia con arroz integral y brócoli', 'cotidiana', M,
+    'Sirve la tilapia cocida con arroz integral y brócoli; añade aceite como aderezo.',
+    ('Tilapia cocida', 80, 230), ('Arroz integral cocido', 100, 260),
+    ('Brócoli cocido', 50, 160), ('Aceite de oliva', 10, 25))
+add('Ensalada de lentejas, batata y semillas', 'internacional', M,
+    'Mezcla las lentejas con batata cocida y tomate; termina con chía y aceite de oliva.',
+    ('Lentejas cocidas', 100, 260), ('Batata (camote) cocida', 80, 240), ('Tomate', 40, 120),
+    ('Semillas de chía', 10, 25), ('Aceite de oliva', 5, 20))
+add('Tofu con fríjol negro, arroz y pimentón', 'latina', M,
+    'Sirve el tofu con fríjoles negros y arroz cocidos; acompaña con pimentón y aguacate.',
+    ('Tofu firme', 60, 180), ('Fríjol negro cocido', 80, 220), ('Arroz blanco cocido', 60, 190),
+    ('Pimentón', 30, 100), ('Aguacate', 20, 80))
+add('Garbanzos con quinua, espinaca y almendras', 'mediterránea inspirada', M,
+    'Mezcla los garbanzos, la quinua y la espinaca cocidos; añade almendras y aceite de oliva.',
+    ('Garbanzos cocidos', 100, 250), ('Quinua cocida', 60, 190), ('Espinaca cocida', 40, 130),
+    ('Almendras', 10, 30), ('Aceite de oliva', 5, 15))
+
 MAX_OFFERED = 36
 PROTEIN_PREFER, PROTEIN_REQUIRE, PROTEIN_IGNORE = 'prefer', 'require', 'ignore'
 

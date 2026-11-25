@@ -17,7 +17,7 @@ from apps.health.tests.helpers import PURPOSE_AI, PURPOSE_HEALTH_DATA, HealthSce
 from apps.plans import jobs, services
 from apps.plans.ai.fake import FakeAIClient
 from apps.plans.foods_data import food_rows
-from apps.plans.models import KIND_EXERCISE, KIND_NUTRITION, Food, Plan, TrainerCredential
+from apps.plans.models import KIND_EXERCISE, KIND_NUTRITION, Food, Plan, TrainerCredential, MealOptionItem
 
 PLAN_SETTINGS = override_settings(
     HEALTH_FEATURES_ENABLED=True, NUTRITION_REQUIRE_USDA_REFERENCE=False, AI_PLANS_MODE='simulated', AI_PLANS_RUN_INLINE=True,
@@ -90,6 +90,15 @@ class NutritionScenarioTestCase(PlanScenarioTestCase):
 
     CREDENTIAL = 'Nutricionista-dietista, RETHUS N.º 12345'
 
+    @staticmethod
+    def _legacy_menu(plan):
+        plan.nutrition.slots.exclude(day_index=1).delete()
+        plan.nutrition.duration_days = 1
+        plan.nutrition.save(update_fields=['duration_days'])
+        plan.ai_item_ids = sorted(set(MealOptionItem.objects.filter(
+            option__slot__nutrition_plan__plan=plan).values_list('food_id', flat=True)))
+        plan.save(update_fields=['ai_item_ids'])
+
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
@@ -106,11 +115,17 @@ class NutritionScenarioTestCase(PlanScenarioTestCase):
         job.refresh_from_db()
         return job, fake
 
-    def nutrition_draft(self, client, **profile_overrides):
-        """Clienta lista + borrador de alimentación generado (simulado)."""
+    def nutrition_draft(self, client, weekly=False, **profile_overrides):
+        """Legacy daily fixture by default; weekly=True exercises the new seven-day format.
+
+        Existing editing/permissions regressions intentionally cover historical daily menus.
+        Generation and test_weekly_menus separately assert the complete new weekly contract.
+        """
         self.ready(client, **profile_overrides)
         job, _fake = self.request_nutrition(client)
         assert job.status == job.STATUS_SUCCEEDED, job.error_code
+        if not weekly:
+            self._legacy_menu(job.plan)
         return job.plan
 
     def approved_nutrition(self, client, **profile_overrides):
@@ -124,4 +139,6 @@ class NutritionScenarioTestCase(PlanScenarioTestCase):
         """Plan de alimentación de una clienta que YA está lista (no vuelve a guardar la ficha)."""
         job, _fake = self.request_nutrition(client, actor=self.boss)
         assert job.status == job.STATUS_SUCCEEDED, job.error_code
+        # Historical daily-menu fixture, as in nutrition_draft().
+        self._legacy_menu(job.plan)
         return self.approve(job.plan) if approve else job.plan
