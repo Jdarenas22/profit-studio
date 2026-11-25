@@ -4,6 +4,13 @@ from django.db import models
 
 from . import choices
 
+def pending_registration_q():
+    """Filtro de base de datos equivalente a `User.is_pending_registration` (sin el rol): inactiva, sin
+    correo verificado, no desactivada ni eliminada."""
+    return models.Q(is_active=False, email_verified_at__isnull=True, deactivated_at__isnull=True,
+                    erased_at__isnull=True)
+
+
 class User(AbstractUser):
     ROLE_TRAINER = 'trainer'
     ROLE_MEMBER = 'member'
@@ -78,6 +85,12 @@ class User(AbstractUser):
     # eliminada = lápida sin datos personales (erased_at). Solo los cambia apps/accounts/services.py.
     deactivated_at = models.DateTimeField(null=True, blank=True, verbose_name='Desactivada el')
     erased_at = models.DateTimeField(null=True, blank=True, verbose_name='Eliminada el')
+    # Verificación del correo (docs/contracts/verificacion-correo.md). Fecha en que la persona demostró
+    # que el correo es suyo: abrió el enlace de confirmación (registro) o creó su contraseña con el
+    # enlace de la invitación (cuenta creada por el entrenador). `None` = todavía no. Todas las cuentas
+    # anteriores a la función quedaron verificadas por la migración 0007. Solo la cambia
+    # apps/accounts/email_verification.py (y los comandos que crean entrenadores).
+    email_verified_at = models.DateTimeField(null=True, blank=True, verbose_name='Correo verificado el')
 
     class Meta:
         verbose_name = 'Usuario'
@@ -104,6 +117,26 @@ class User(AbstractUser):
     @property
     def is_erased(self):
         return self.erased_at is not None
+
+    @property
+    def is_pending_registration(self):
+        """Se registró sola y todavía no confirmó su correo: la cuenta existe pero está inactiva.
+
+        Se distingue de una cuenta DESACTIVADA (que siempre lleva `deactivated_at`) y de una eliminada.
+        No es una clienta para el panel: `clients_for_trainer` la excluye.
+        """
+        return (self.role == self.ROLE_MEMBER and not self.is_active and self.email_verified_at is None
+                and self.deactivated_at is None and self.erased_at is None)
+
+    @property
+    def is_invitation_pending(self):
+        """La creó un entrenador y todavía no creó su contraseña con el enlace de la invitación.
+
+        La cuenta está activa (el entrenador ya puede asignarle membresía, valoraciones, etc.) pero no
+        puede iniciar sesión: su contraseña es inutilizable hasta que acepte.
+        """
+        return (self.role == self.ROLE_MEMBER and self.is_active and self.email_verified_at is None
+                and self.erased_at is None and not self.has_usable_password())
 
     @property
     def display_name(self):

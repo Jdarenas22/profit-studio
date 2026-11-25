@@ -318,7 +318,7 @@ class ClientCreationTests(ScenarioTestCase):
     def post_new_client(self, username):
         return self.client.post(reverse('trainer_add_client'), {
             'first_name': 'Nueva', 'last_name': 'Persona', 'email': f'{username}@example.com',
-            'username': username, 'password': 'Clave-Nueva-5566!',
+            'username': username,
         })
 
     def test_client_created_by_trainer_is_assigned_to_that_trainer(self):
@@ -341,8 +341,16 @@ class ClientCreationTests(ScenarioTestCase):
         self.assertEqual(response.status_code, 302)
         created = User.objects.get(username='autoregistro')
         self.assertIsNone(created.assigned_trainer)
-        self.client.logout()
         url = reverse('trainer_client_detail', args=[created.pk])
+        # Mientras no confirme su correo (cuenta inactiva) nadie la ve como clienta, ni la superusuaria
+        self.login(self.boss)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.logout()
+        # Al confirmar el enlace del correo pasa a ser una clienta sin asignar
+        from django.core import mail
+        from apps.accounts import email_verification
+        email_verification.verify_email(email_verification.make_token(created, email_verification.PURPOSE_VERIFY))
+        self.assertEqual(len(mail.outbox), 1)
         self.login(self.trainer_a)
         self.assertEqual(self.client.get(url).status_code, 404)
         self.login(self.boss)

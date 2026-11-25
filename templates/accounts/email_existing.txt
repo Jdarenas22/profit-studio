@@ -1,0 +1,15 @@
+{% autoescape off %}ProFit Studio — Ya tienes una cuenta con este correo
+
+Hola{% if user.first_name %}, {{ user.first_name }}{% endif %},
+
+Alguien intentó crear una cuenta en ProFit Studio con este correo, pero ya existe una.
+
+Si fuiste tú, no necesitas registrarte de nuevo:
+
+- Para entrar: {{ login_url }}
+- Si olvidaste tu contraseña: {{ reset_url }}
+
+Si no fuiste tú, ignora este correo. No se creó ninguna cuenta nueva y tu cuenta no cambió.
+
+— Equipo ProFit Studio
+{% endautoescape %}

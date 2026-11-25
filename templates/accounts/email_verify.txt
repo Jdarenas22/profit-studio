@@ -1,0 +1,16 @@
+{% autoescape off %}ProFit Studio — Confirma tu correo
+
+Hola{% if user.first_name %}, {{ user.first_name }}{% endif %},
+
+Recibimos una solicitud para crear una cuenta en ProFit Studio con este correo.
+
+Para activarla, abre este enlace y pulsa "Confirmar mi correo":
+
+{{ url }}
+
+Este enlace vence en {{ valid_hours }} horas y solo sirve una vez.
+
+Si no fuiste tú, ignora este correo: no se activará ninguna cuenta.
+
+— Equipo ProFit Studio
+{% endautoescape %}

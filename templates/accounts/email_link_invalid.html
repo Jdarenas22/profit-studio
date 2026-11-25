@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% comment %}
+  V-03 (docs/contracts/verificacion-correo.md). Un enlace de confirmación o de invitación que no sirve (HTTP 200
+  a propósito). Contexto: purpose ('verify' | 'invite'), reason ('expired' | 'used' | 'invalid'), resend_url,
+  login_url. Nunca nombra ni describe la cuenta: solo qué le pasó al enlace y qué hacer.
+{% endcomment %}
+{% block title %}Este enlace no sirve — ProFit Studio{% endblock %}
+{% block content %}
+<section class="min-h-screen flex items-center justify-center py-20 bg-black">
+  <div class="w-full max-w-md px-4">
+    <div class="bg-zinc-900 border border-white/10 rounded-3xl px-5 py-8 sm:p-10 text-center">
+      <div class="w-16 h-16 {% if reason == 'used' %}bg-white/5 border border-white/10{% else %}bg-amber-500/10 border border-amber-500/20{% endif %} rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa {% if reason == 'expired' %}fa-hourglass-end text-amber-300{% elif reason == 'used' %}fa-circle-check text-white/70{% else %}fa-link-slash text-amber-300{% endif %} text-3xl" aria-hidden="true"></i>
+      </div>
+      <h1 class="text-2xl font-black text-white mb-3">
+        {% if reason == 'expired' %}Este enlace venció{% elif reason == 'used' %}Este enlace ya se usó{% else %}Este enlace no es válido{% endif %}
+      </h1>
+      <p class="text-white/70 text-sm leading-relaxed mb-8">
+        {% if reason == 'expired' %}
+          {% if purpose == 'invite' %}Las invitaciones valen 72 horas por tu seguridad.{% else %}Los enlaces de confirmación valen 24 horas por tu seguridad.{% endif %}
+          Pide uno nuevo y te lo enviamos al correo.
+        {% elif reason == 'used' %}
+          {% if purpose == 'invite' %}Si ya creaste tu contraseña, inicia sesión.{% else %}Si ya confirmaste tu correo, inicia sesión.{% endif %}
+          Si no, pide un enlace nuevo: solo sirve el último que te enviamos.
+        {% else %}
+          Puede estar cortado o haberse copiado mal. Abre el enlace completo desde el correo o pide uno nuevo.
+        {% endif %}
+      </p>
+
+      <div class="space-y-3">
+        <a href="{{ resend_url }}"
+           class="flex w-full items-center justify-center gap-2 min-h-[48px] bg-primary hover:bg-primary-dark text-black font-bold py-3 rounded-xl transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+          <i class="fa fa-paper-plane" aria-hidden="true"></i> Pedir un enlace nuevo
+        </a>
+        <a href="{{ login_url }}"
+           class="flex w-full items-center justify-center gap-2 min-h-[48px] border border-white/15 hover:border-white/30 text-white font-semibold py-3 rounded-xl transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <i class="fa fa-right-to-bracket" aria-hidden="true"></i> Ir al inicio de sesión
+        </a>
+      </div>
+
+      <p class="text-white/60 text-xs mt-6">
+        <i class="fab fa-whatsapp text-green-400 mr-1" aria-hidden="true"></i>
+        ¿Necesitas ayuda? Escríbenos al
+        <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener" class="text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">WhatsApp<span class="sr-only"> (se abre en otra pestaña)</span></a>.
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -165,6 +165,12 @@ AXES_LOCKOUT_TEMPLATE = 'accounts/lockout.html'
 AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
 AXES_RESET_ON_SUCCESS = True
 
+# ─── Antirrobots opcional: Cloudflare Turnstile (docs/contracts/verificacion-correo.md, sección 8) ──────────
+# Se exige y se muestra en el registro y en «Reenviar el correo» SOLO si existen las dos variables. La
+# secreta se usa únicamente en el servidor (apps/accounts/turnstile.py) y nunca va a una plantilla ni a un log.
+TURNSTILE_SITE_KEY = env('TURNSTILE_SITE_KEY', default='')
+TURNSTILE_SECRET_KEY = env('TURNSTILE_SECRET_KEY', default='')
+
 # ─── Contacto ProFit Studio ────────────────────────────────────────────────────
 WHATSAPP_NUMBER = env('WHATSAPP_NUMBER', default='+573005638196')
 WHATSAPP_LINK = env('WHATSAPP_LINK', default='https://wa.me/573005638196')

@@ -135,7 +135,7 @@ class CloneAuthorizationTests(CloneTestCase):
 
     def test_erased_client_is_a_404_and_an_inactive_one_is_refused(self):
         before = counts()
-        User.objects.filter(pk=self.client_a.pk).update(is_active=False)
+        User.objects.filter(pk=self.client_a.pk).update(is_active=False, deactivated_at=timezone.now())
         response = self.clone(self.plan)
         self.assertRedirects(response, reverse('trainer_plan_detail', args=[self.plan.pk]),
                              fetch_redirect_response=False)
@@ -543,5 +543,5 @@ class CloneStateContextTests(CloneTestCase):
         other = self.make_exercise(self.client_a)
         clone = self.detail_context(old)['clone']
         self.assertEqual((clone['allowed'], clone['other_draft']), (False, other))
-        User.objects.filter(pk=self.client_a.pk).update(is_active=False)
+        User.objects.filter(pk=self.client_a.pk).update(is_active=False, deactivated_at=timezone.now())
         self.assertEqual(self.detail_context(old)['clone']['blocked_reason'], INACTIVE_CLIENT_MESSAGE)

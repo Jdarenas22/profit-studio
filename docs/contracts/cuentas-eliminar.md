@@ -334,7 +334,15 @@ Sin nombres, correos, IP ni texto libre. Solo lectura en el admin para la superu
 | App | Cambio |
 | --- | --- |
 | `accounts` | `User.deactivated_at` y `User.erased_at` (`DateTimeField`, nulos). Propiedades `is_erased` y `display_name` ("Cuenta eliminada" si se eliminó; si no, el nombre completo o el usuario). Modelo `AccountAuditLog`. Con `erased_at` lleno, la restricción `CheckConstraint` exige `is_active=False`. |
-| `accounts` (admin) | `CustomUserAdmin.has_delete_permission` → `False` (el botón "Eliminar" del admin borra en cascada y se salta todo esto). Las acciones masivas de borrado se quitan. `is_active` y `is_superuser` quedan de solo lectura en el admin (pregunta 9). |
+| `accounts` (admin) | **Revisado el 2026-11-24 (pedido de la dueña: eliminar también desde el admin).** El borrado propio del admin (botón y `delete_selected`) es en cascada y se salta la lápida, la reasignación y la auditoría, así que el admin **ofrece «Eliminar» pero nunca borra**: lleva al flujo seguro del panel. Detalle abajo (12.1). `is_active` y `is_superuser` siguen de solo lectura en el admin (pregunta 9). |
+
+### 12.1 Eliminar desde el admin de Django (`CustomUserAdmin`)
+
+- `has_delete_permission(request, obj=None)`: `True` solo si quien pide es una superusuaria activa con `role='trainer'` y, cuando hay `obj`, `services.can_act(request.user, obj, ACTION_ERASE)` (no superusuaria, no la propia, no una lápida). Así el botón «Eliminar» de la ficha solo aparece donde tiene sentido. Un entrenador con `is_staff` no puede (403), ni sobre sus propias clientas.
+- `delete_view` (GET o POST): **no llama a `super()` y no borra**. Redirige a `trainer_client_delete` (cuenta `member`) o a `trainer_staff_delete` (cuenta `trainer`), que siguen siendo `@superuser_required` y piden motivo, reasignación, confirmación del nombre y escriben la auditoría. Si la cuenta no es eliminable: mensaje de error del admin (códigos de `check_can_act`: `account_protected`, `account_erased`) y vuelta a su ficha, sin 500. Cuenta que no existe: 404. Ventana emergente de campo relacionado (`_popup=1`): 403.
+- Acción masiva: `delete_selected` no existe. Se agrega «Eliminar (flujo seguro del panel)» (`erase_via_panel`, permiso `delete`): con **exactamente una** cuenta redirige igual que `delete_view`; con ninguna Django ni la llama, y con más de una (incluido «Seleccionar todas») muestra un aviso y no hace nada.
+- Defensa en profundidad: `delete_model` y `delete_queryset` lanzan `PermissionDenied`; ninguna ruta del admin llama a `delete()` sobre un usuario.
+- Otros `ModelAdmin` con clave foránea a `User`: con `has_delete_permission` en `True`, Django dibuja un botón de borrar la cuenta junto a los campos relacionados que no son en cascada. Solo `PaymentAdmin.user` lo mostraba; ahora es `raw_id_fields` (como `ManualPaymentAdmin`). Una prueba recorre todos los admin y falla si aparece otro caso.
 | `payments` | `ManualPayment.user`: `CASCADE` → `PROTECT`. `Payment.user`: `SET_NULL` → `PROTECT`. `ManualPayment.__str__` deja de usar el nombre (usa `display_name`). |
 | `plans` | `PlanEvent.ACTION_CHOICES` + `('released', 'Liberado: el entrenador se desactivó')`. La migración solo cambia las opciones (no toca la base). |
 | Datos | Sin migración de datos: las cuentas que ya existen quedan activas, sin fechas. |
@@ -388,7 +396,7 @@ Sin nombres, correos, IP ni texto libre. Solo lectura en el admin para la superu
 | `apps/accounts/services.py` (nuevo) | `deactivate_account`, `reactivate_account`, `erase_account`, `reassign_clients`, `close_sessions`, `erase_summary` (conteos para C-04 y C-07, sin datos). |
 | `apps/accounts/permissions.py` | `clients_for_trainer` excluye las cuentas eliminadas. Ayudante `ensure_client_active`. |
 | `apps/accounts/choices.py` (nuevo) | Motivos (11.2). |
-| `apps/accounts/admin.py` | Sin borrar; `AccountAuditLog` de solo lectura; campos de solo lectura (12). |
+| `apps/accounts/admin.py` | «Eliminar» redirige al flujo del panel y nunca borra (12.1); `AccountAuditLog` de solo lectura; campos de solo lectura (12). |
 | `apps/accounts/urls.py` | Rutas de la sección 4. |
 | Vistas que escriben datos de una clienta (`assessments`, `memberships`, `payments`, `routines`, `health` del entrenador, `plans`) | Llaman a `ensure_client_active` (5.2, punto 8). |
 | `apps/plans/services.py` y `jobs.py` | `request_plan` rechaza a una clienta inactiva o eliminada; el trabajo que está corriendo no guarda nada si la clienta ya no está activa. |
@@ -443,7 +451,7 @@ Eliminar:
 15. Las filas de `axes` del usuario original y los `LogEntry` del admin quedan sin el nombre.
 16. La foto se borra del almacenamiento (almacenamiento en memoria en la prueba) solo si la transacción se confirma; si falla a la mitad (se fuerza una excepción), no se borra nada, ni filas ni archivos.
 17. Un webhook de Wompi aprobado para una cuenta eliminada no crea membresía, guarda el pago y no vuelve a guardar los datos personales.
-18. `AccountAuditLog`: una fila por acción, con actor, objetivo, motivo y conteo, sin texto libre. En el admin no se puede agregar, editar ni borrar. El botón "Eliminar" del admin de usuarios no existe.
+18. `AccountAuditLog`: una fila por acción, con actor, objetivo, motivo y conteo, sin texto libre. En el admin no se puede agregar, editar ni borrar. El botón "Eliminar" del admin de usuarios solo redirige al flujo del panel y nunca borra (12.1): el POST a su URL deja la fila intacta, `delete_selected` no existe, la acción «Eliminar (flujo seguro del panel)» solo actúa con una cuenta, y un entrenador `is_staff` recibe 403.
 19. Que no se rompa nada: la suite completa (`python manage.py test --settings=config.settings.development`) y `manage.py check`.
 20. Contrapruebas: quitar la reasignación, el `PROTECT` o la verificación de la última superusuaria y comprobar que la prueba correspondiente falla.
 
@@ -531,6 +539,7 @@ Respuestas aplicadas: 1a, 2a, 3a, 4a, 5a, 6a, 7a, 8a, 9a y 10a.
 8. **Métodos:** la comprobación del método va primero: un GET a una ruta solo POST responde 405 incluso sin sesión (no revela nada).
 9. **C-04:** el contexto incluye además `summary.receipts` (comprobantes que se conservan).
 10. **`purge_orphan_files`** vive en `apps/payments` e imprime solo conteos (el nombre de una foto puede llevar el nombre de la persona).
+11. **Admin (2026-11-24):** reemplaza la decisión de "sin botón" por "botón que redirige al flujo seguro" (12.1), a pedido de la dueña. Sigue sin haber una sola ruta del admin que borre una cuenta. Contrapruebas: con `obj.delete()` dentro de `delete_view`, con `delete_selected` de vuelta, con `has_delete_permission` sin `can_act`, sin la guardia de ventana emergente y con `PaymentAdmin.user` como lista, las pruebas de `AdminTests` fallan.
 
 **Contrapruebas hechas (sección 17, punto 20):** sin la reasignación falla `test_deactivate_reassigns_all_clients_and_releases_plans`; sin la verificación de la última superusuaria falla `test_last_active_superuser_is_always_kept`; con `CASCADE` en `ManualPayment.user` falla `test_payments_are_protected_from_cascades`.
 

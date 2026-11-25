@@ -46,7 +46,11 @@
           <input type="email" name="email" required
                  value="{{ form.email|default:'' }}"
                  class="w-full bg-black/40 border {% if errors.email %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
-          {% if errors.email %}<p class="text-red-400 text-xs mt-1">{{ errors.email }}</p>{% endif %}
+          {% if errors.email %}<p class="text-red-400 text-xs mt-1" role="alert">{{ errors.email }}</p>{% endif %}
+          {% if client.is_invitation_pending %}
+          {# V-06: cambiar el correo de una invitación pendiente invalida el enlace anterior y envía una invitación nueva #}
+          <p class="text-sky-200 text-xs mt-1.5 leading-relaxed"><i class="fa fa-envelope mr-1" aria-hidden="true"></i>Si cambias el correo, le enviamos una invitación nueva a la dirección nueva y la anterior deja de servir.</p>
+          {% endif %}
         </div>
         <div>
           <label class="block text-white/60 text-xs font-medium mb-2">Teléfono</label>
@@ -95,6 +99,17 @@
       </div>
     </div>
 
+    {% if client.is_invitation_pending %}
+    <!-- V-06: invitación pendiente: la contraseña la crea la clienta con el enlace del correo (el servidor rechaza fijarla) -->
+    <div class="flex items-start gap-3 bg-zinc-900 border border-sky-400/30 rounded-2xl p-6">
+      <i class="fa fa-key text-sky-300 mt-0.5 shrink-0" aria-hidden="true"></i>
+      <div class="min-w-0">
+        <p class="text-white font-semibold text-sm">Contraseña</p>
+        <p class="text-white/70 text-xs leading-relaxed mt-1">Esta clienta todavía no acepta su invitación: ella crea su contraseña desde el enlace del correo. Si no le llegó, usa «Reenviar invitación» en su ficha.</p>
+        {% if errors.new_password %}<p class="text-red-400 text-xs mt-1.5" role="alert">{{ errors.new_password }}</p>{% endif %}
+      </div>
+    </div>
+    {% else %}
     <!-- Cambiar contraseña (opcional) -->
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ changePass: {% if errors.new_password %}true{% else %}false{% endif %} }">
       <label class="flex items-center gap-3 cursor-pointer">
@@ -112,6 +127,7 @@
         {% if errors.new_password %}<p class="text-red-400 text-xs mt-1">{{ errors.new_password }}</p>{% endif %}
       </div>
     </div>
+    {% endif %}
 
     <!-- Plan de interés -->
     {% if plans %}

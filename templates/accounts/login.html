@@ -15,18 +15,35 @@
         <p class="text-white/40 text-sm mt-1">Ingresa a tu cuenta de ProFit Studio</p>
       </div>
 
+      {% if email_pending %}
+      {# V-07: contraseña correcta de una cuenta que aún no confirma su correo (el aviso general llega por `messages`) #}
+      <div class="mb-6 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4" role="status" aria-labelledby="email-pending-title">
+        <div class="flex items-start gap-3">
+          <i class="fa fa-envelope-circle-check text-amber-300 text-lg mt-0.5 shrink-0" aria-hidden="true"></i>
+          <div class="min-w-0">
+            <h2 id="email-pending-title" class="text-amber-100 text-sm font-bold">Falta confirmar tu correo</h2>
+            <p class="text-amber-50/90 text-sm leading-relaxed mt-1">Abre el enlace que te enviamos al registrarte (revisa también Spam). Si no lo encuentras o se venció, te enviamos uno nuevo.</p>
+          </div>
+        </div>
+        <a href="{{ resend_url }}"
+           class="mt-4 flex w-full items-center justify-center gap-2 min-h-[44px] bg-primary hover:bg-primary-dark text-black font-bold rounded-xl transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
+          <i class="fa fa-paper-plane" aria-hidden="true"></i> Reenviar el correo de confirmación
+        </a>
+      </div>
+      {% endif %}
+
       <!-- Form -->
       <form method="post" class="space-y-5" id="login-form">
         {% csrf_token %}
         <div>
-          <label class="block text-white/70 text-sm font-medium mb-2">Usuario</label>
-          <input type="text" name="username" required autocomplete="username"
+          <label for="login-username" class="block text-white/70 text-sm font-medium mb-2">Usuario</label>
+          <input type="text" name="username" id="login-username" required autocomplete="username"
                  class="w-full bg-black/60 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors placeholder:text-white/20"
                  placeholder="Tu usuario" />
         </div>
         <div>
-          <label class="block text-white/70 text-sm font-medium mb-2">Contraseña</label>
-          <input type="password" name="password" required autocomplete="current-password"
+          <label for="login-password" class="block text-white/70 text-sm font-medium mb-2">Contraseña</label>
+          <input type="password" name="password" id="login-password" required autocomplete="current-password"
                  class="w-full bg-black/60 border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors placeholder:text-white/20"
                  placeholder="••••••••" />
         </div>
@@ -40,7 +57,7 @@
         </label>
 
         <button type="submit"
-                class="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3.5 rounded-xl transition-colors text-sm">
+                class="w-full bg-primary hover:bg-primary-dark text-black font-bold py-3.5 rounded-xl transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900">
           Ingresar
         </button>
       </form>

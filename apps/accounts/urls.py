@@ -1,6 +1,6 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
-from . import views
+from . import verification_views, views
 from .password_reset import RateLimitedPasswordResetView
 
 urlpatterns = [
@@ -9,6 +9,13 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('register/', views.register_view, name='register'),
     path('register/success/', views.register_success, name='register_success'),
+    # ── Verificación del correo e invitaciones (docs/contracts/verificacion-correo.md) ─────────────────────
+    path('register/check-email/', verification_views.register_check_email, name='register_check_email'),
+    path('verify/resend/', verification_views.verification_resend, name='verification_resend'),
+    path('verify/confirm/', verification_views.email_verify_confirm, name='email_verify_confirm'),
+    path('verify/<str:token>/', verification_views.email_verify, name='email_verify'),
+    path('invitation/accept/', verification_views.invitation_set_password, name='invitation_set_password'),
+    path('invitation/<str:token>/', verification_views.invitation_accept, name='invitation_accept'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('profile/edit/', views.member_profile_edit, name='member_profile_edit'),
 
@@ -44,6 +51,8 @@ urlpatterns = [
     path('trainer/clients/add/', views.trainer_add_client, name='trainer_add_client'),
     path('trainer/clients/<int:pk>/', views.trainer_client_detail, name='trainer_client_detail'),
     path('trainer/clients/<int:pk>/edit/', views.trainer_client_edit, name='trainer_client_edit'),
+    path('trainer/clients/<int:pk>/resend-invitation/', verification_views.trainer_client_resend_invitation,
+         name='trainer_client_resend_invitation'),
     path('trainer/clients/<int:pk>/deactivate/', views.trainer_client_deactivate, name='trainer_client_deactivate'),
     path('trainer/clients/<int:pk>/reactivate/', views.trainer_client_reactivate, name='trainer_client_reactivate'),
     # Eliminar definitivamente: solo la superusuaria (docs/contracts/cuentas-eliminar.md)
