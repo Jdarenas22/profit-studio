@@ -217,10 +217,10 @@ class RegistrationTests(Base):
     def test_link_pages_are_private(self):
         self.register()
         page = self.client.get(path_of(link_in(mail.outbox[0])))
-        self.assertEqual(page['Referrer-Policy'], 'same-origin')
+        self.assertEqual(page['Referrer-Policy'], 'origin')
         self.assertIn('no-store', page['Cache-Control'])
         invalid = self.client.get(reverse('email_verify', args=['basura']))
-        self.assertEqual(invalid['Referrer-Policy'], 'same-origin')
+        self.assertEqual(invalid['Referrer-Policy'], 'origin')
 
     def test_dead_links_do_not_put_the_token_in_django_request_logs(self):
         with self.assertNoLogs('django.request', level='WARNING'):
@@ -650,7 +650,7 @@ class InvitationTests(Base):
         self.assertTemplateUsed(page, 'accounts/invitation_set_password.html')
         self.assertEqual(page.context['username'], 'nueva.persona')
         self.assertEqual(page.context['token'], token_of(url))
-        self.assertEqual(page['Referrer-Policy'], 'same-origin')
+        self.assertEqual(page['Referrer-Policy'], 'origin')
 
     def set_password(self, page, password1=STRONG, password2=None):
         return self.client.post(page.context['accept_url'], {
