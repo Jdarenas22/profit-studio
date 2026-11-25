@@ -197,6 +197,10 @@ PRIVACY_POLICY_URL = env('PRIVACY_POLICY_URL', default='')
 AI_PLANS_MODE = env('AI_PLANS_MODE', default='')
 GEMINI_API_KEY = env('GEMINI_API_KEY', default='')            # solo entorno; nunca en código ni logs
 FDC_API_KEY = env('FDC_API_KEY', default='')
+# Tiempo máximo de una conexión de correo (SMTP o API): sin él un servidor mudo bloquea el proceso hasta que
+# gunicorn lo mata (WORKER TIMEOUT).
+EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=10)
+
 FDC_TIMEOUT_SECONDS = env.int('FDC_TIMEOUT_SECONDS', default=15)
 NUTRITION_REQUIRE_USDA_REFERENCE = env.bool('NUTRITION_REQUIRE_USDA_REFERENCE', default=True)
 GEMINI_MODEL = env('GEMINI_MODEL', default='')                # p. ej. un modelo "flash-lite" estable

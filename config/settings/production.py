@@ -309,6 +309,14 @@ if _email_user:
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# Brevo (API HTTPS): Railway bloquea el SMTP saliente en los planes sin Pro, así que con BREVO_API_KEY el correo sale
+# por la API (puerto 443) y tiene prioridad sobre SMTP. El remitente debe estar verificado en Brevo
+# (DEFAULT_FROM_EMAIL, o EMAIL_HOST_USER si ya hay una cuenta Gmail definida).
+BREVO_API_KEY = env('BREVO_API_KEY', default='')
+if BREVO_API_KEY:
+    EMAIL_BACKEND = 'config.email_backends.BrevoEmailBackend'
+    DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default=f'ProFit Studio <{_email_user}>' if _email_user else 'ProFit Studio <noreply@localhost>')
+
 PASSWORD_RESET_TIMEOUT = 3600  # 1 hora para usar el enlace de reseteo
 
 # ─── Logging ────────────────────────────────────────────────────────────────────
