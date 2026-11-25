@@ -52,7 +52,13 @@ class BrevoEmailBackend(BaseEmailBackend):
         except error.HTTPError as exc:
             raise BrevoError(f'brevo_http_{exc.code}') from None
         except (error.URLError, TimeoutError, OSError) as exc:
-            raise BrevoError('brevo_timeout' if isinstance(exc, TimeoutError) else 'brevo_unreachable') from None
+            reason = getattr(exc, 'reason', None)
+            timed_out = isinstance(exc, TimeoutError) or isinstance(reason, TimeoutError)
+            raise BrevoError('brevo_timeout' if timed_out else 'brevo_unreachable') from None
+        except ValueError:
+            # Una clave con saltos de línea u otros caracteres de control: el mensaje
+            # de Python podría contener la clave, así que solo se devuelve un código.
+            raise BrevoError('brevo_invalid_key') from None
 
     def verify(self):
         """Comprueba la clave con GET /account: no envía nada (lo usa `check_infra --smtp`)."""
