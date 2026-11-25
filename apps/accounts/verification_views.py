@@ -250,3 +250,27 @@ def trainer_client_resend_invitation(request, pk):
     else:
         messages.error(request, 'No pudimos enviar el correo. Inténtalo de nuevo en unos minutos.')
     return redirect('trainer_client_detail', pk=client.pk)
+
+
+@require_POST
+@trainer_required
+def trainer_client_show_invitation_link(request, pk):
+    """Prepara el enlace de invitación para mostrarlo una vez en la ficha (solo POST).
+
+    Mismas reglas de acceso y el mismo límite por entrenadora que reenviar.
+    """
+    from .views import INVITATION_LINK_SESSION_KEY
+    client = get_client_for_trainer(request, pk)
+    blocked = reject_if_inactive(request, client)
+    if blocked:
+        return blocked
+    if not client.is_invitation_pending:
+        messages.info(request, 'Esta clienta ya no tiene una invitación pendiente.')
+        return redirect('trainer_client_detail', pk=client.pk)
+    if not hit('invitation-resend-actor', request.user.pk, verification.INVITE_RESEND_ACTOR_LIMIT,
+               verification.INVITE_RESEND_WINDOW_SECONDS):
+        messages.error(request, TRAINER_INVITATION_LIMIT_MESSAGE)
+        return redirect('trainer_client_detail', pk=client.pk)
+    request.session[INVITATION_LINK_SESSION_KEY] = {
+        'pk': client.pk, 'url': verification.invitation_url(request, client)}
+    return redirect('trainer_client_detail', pk=client.pk)

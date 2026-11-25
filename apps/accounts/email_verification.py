@@ -198,6 +198,11 @@ def send_verification_email(request, user):
     return _send(request, user, PURPOSE_VERIFY, _absolute_url(request, 'email_verify', token), PURPOSE_VERIFY)
 
 
+def invitation_url(request, user):
+    """Enlace de invitación de `user` (para que la entrenadora lo entregue en persona). Es un secreto."""
+    return _absolute_url(request, 'invitation_accept', make_token(user, PURPOSE_INVITE))
+
+
 def send_invitation_email(request, user):
     token = make_token(user, PURPOSE_INVITE)
     return _send(request, user, PURPOSE_INVITE, _absolute_url(request, 'invitation_accept', token),
