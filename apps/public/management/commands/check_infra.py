@@ -687,7 +687,7 @@ def nutrition_catalog_state():
 def check_ai_plans(ctx):
     area = 'IA'
     raw = (getattr(ctx.settings, 'AI_PLANS_MODE', '') or '').strip().lower()
-    mode = raw or ('simulated' if getattr(ctx.settings, 'DEBUG', False) else 'off')
+    mode = raw or 'off'
     results = []
     if mode not in ('off', 'simulated', 'live'):
         return [Check(area, 'AI_PLANS_MODE', ERROR, f'Valor no válido: {raw}.', 'Usa off, simulated o live.')]
@@ -698,16 +698,14 @@ def check_ai_plans(ctx):
         results.append(Check(area, 'AI_PLANS_MODE', status,
                              'Modo de prueba: los borradores salen de un generador de ejemplo (sin Gemini) '
                              'y no se pueden aprobar en producción.',
-                             'Para usar Gemini: GEMINI_API_KEY, GEMINI_MODEL, GEMINI_BILLING_CONFIRMED=true y '
+                             'Para usar Gemini: GEMINI_API_KEY, GEMINI_MODEL, nivel Free/pago confirmado y '
                              'AI_PLANS_MODE=live.' if ctx.is_production else ''))
     else:
-        missing = [name for name in ('GEMINI_API_KEY', 'GEMINI_MODEL')
-                   if not str(get_setting(ctx.settings, name) or '').strip()]
-        if not getattr(ctx.settings, 'GEMINI_BILLING_CONFIRMED', False):
-            missing.append('GEMINI_BILLING_CONFIRMED=true')
+        from apps.plans.ai.policy import configuration_errors
+        missing = configuration_errors(ctx.settings)
         if missing:
             results.append(Check(area, 'AI_PLANS_MODE', ERROR, 'live sin configuración completa: falta ' + ', '.join(missing) + '.',
-                                 'La clave debe ser de un proyecto de Google AI Studio con facturación habilitada.'))
+                                 'Free admite catálogo sin ficha ni medidas; no se activa facturación.'))
         else:
             results.append(Check(area, 'AI_PLANS_MODE', OK,
                                  f'live con el modelo {get_setting(ctx.settings, "GEMINI_MODEL")} (conexión sin probar).',
@@ -813,7 +811,7 @@ def whatsapp_state(settings_):
     from apps.whatsapp.models import WhatsAppChannelState, WhatsAppMessage
 
     raw = (getattr(settings_, 'WHATSAPP_CLOUD_MODE', '') or '').strip().lower()
-    mode = raw or ('simulated' if getattr(settings_, 'DEBUG', False) else 'off')
+    mode = raw or 'off'
     missing, legal = [], []
     if mode == 'live':
         missing = [name for name in LIVE_REQUIRED if not str(get_setting(settings_, name) or '').strip()]
@@ -844,7 +842,7 @@ def check_whatsapp(ctx):
     raw = (getattr(ctx.settings, 'WHATSAPP_CLOUD_MODE', '') or '').strip().lower()
     if raw not in ('', 'off', 'simulated', 'live'):
         return [Check(area, 'WHATSAPP_CLOUD_MODE', ERROR, f'Valor no válido: {raw}.', 'Usa off, simulated o live.')]
-    if (raw or ('simulated' if getattr(ctx.settings, 'DEBUG', False) else 'off')) == 'off':
+    if (raw or 'off') == 'off':
         return [Check(area, 'WHATSAPP_CLOUD_MODE', OK, 'Apagado: no se ofrecen ni se envían avisos.')]
     if not ctx.db_ok:
         return [Check(area, 'WHATSAPP_CLOUD_MODE', WARN, 'Sin base de datos: no se pudo revisar.')]

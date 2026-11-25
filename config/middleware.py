@@ -36,3 +36,23 @@ class PermissionsPolicyMiddleware:
         if self.value and 'Permissions-Policy' not in response:
             response['Permissions-Policy'] = self.value
         return response
+
+
+class PublicOriginMiddleware:
+    """Una aplicación para loopback y el túnel; cookies Secure en la URL pública HTTPS."""
+    def __init__(self,get_response):
+        self.get_response=get_response
+
+    def __call__(self,request):
+        from urllib.parse import urlsplit
+        from django.http import HttpResponsePermanentRedirect
+        host=urlsplit('//' + request.get_host()).hostname
+        local=host in ('127.0.0.1','localhost','::1')
+        if not local and not request.is_secure():
+            return HttpResponsePermanentRedirect(settings.PUBLIC_BASE_URL + request.get_full_path())
+        response=self.get_response(request)
+        if not local:
+            for name in (settings.SESSION_COOKIE_NAME,settings.CSRF_COOKIE_NAME):
+                if name in response.cookies:
+                    response.cookies[name]['secure']=True
+        return response

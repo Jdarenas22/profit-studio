@@ -389,11 +389,14 @@ class NutritionPlan(models.Model):
     floor_applied = models.BooleanField(default=False, verbose_name='Se aplicó el piso calórico')
     warnings = models.JSONField(default=list, blank=True, verbose_name='Avisos del cálculo (códigos)')
     meals_per_day = models.PositiveSmallIntegerField(verbose_name='Comidas al día')
+    duration_days = models.PositiveSmallIntegerField(default=1, verbose_name='Días de menú distintos')
     formula = models.CharField(max_length=40, verbose_name='Fórmula')
 
     class Meta:
         verbose_name = 'Plan de alimentación'
         verbose_name_plural = 'Planes de alimentación'
+        constraints = [models.CheckConstraint(
+            condition=models.Q(duration_days__in=(1, 7)), name='plans_nutrition_duration')]
 
     def __str__(self):
         return f'Objetivos del plan {self.plan_id}: {self.kcal_target} kcal'
@@ -401,6 +404,7 @@ class NutritionPlan(models.Model):
 
 class MealSlot(models.Model):
     nutrition_plan = models.ForeignKey(NutritionPlan, on_delete=models.CASCADE, related_name='slots')
+    day_index = models.PositiveSmallIntegerField(default=1, verbose_name='Día del menú')
     code = models.CharField(max_length=12, verbose_name='Código')
     name = models.CharField(max_length=40, verbose_name='Comida')
     time_hint = models.CharField(max_length=10, blank=True, verbose_name='Hora sugerida')
@@ -411,8 +415,11 @@ class MealSlot(models.Model):
     fat_g = models.PositiveSmallIntegerField(verbose_name='Grasa (g)')
 
     class Meta:
-        ordering = ['order']
-        constraints = [models.UniqueConstraint(fields=['nutrition_plan', 'code'], name='plans_slot_unique_code')]
+        ordering = ['day_index', 'order']
+        constraints = [
+            models.UniqueConstraint(fields=['nutrition_plan', 'day_index', 'code'], name='plans_slot_unique_day_code'),
+            models.CheckConstraint(condition=models.Q(day_index__gte=1, day_index__lte=7), name='plans_slot_day_range'),
+        ]
 
     def __str__(self):
         return f'{self.name} (plan {self.nutrition_plan.plan_id})'
@@ -467,6 +474,15 @@ class MealOptionItem(models.Model):
 
     class Meta:
         ordering = ['order', 'pk']
+
+
+class GeminiDailyUsage(models.Model):
+    """Presupuesto global de llamadas reales, sin datos de las personas."""
+    day = models.DateField(unique=True)
+    calls = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-day']
 
 
 class MealChoice(models.Model):

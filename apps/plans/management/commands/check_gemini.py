@@ -24,7 +24,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.plans.ai import AIError
-from apps.plans.ai.gemini import GeminiClient
+from apps.plans.ai.runtime import RuntimeGeminiClient as GeminiClient
 from apps.plans.ai.prompts import (
     EXERCISE_SYSTEM, EXERCISE_SYSTEM_V2, MEAL_SYSTEM, MEAL_SYSTEM_V2, exercise_schema, meal_schema,
 )
@@ -115,10 +115,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not settings.GEMINI_API_KEY or not settings.GEMINI_MODEL:
             raise CommandError('Faltan GEMINI_API_KEY o GEMINI_MODEL.')
-        if not settings.GEMINI_BILLING_CONFIRMED:
-            self.stdout.write(self.style.WARNING(
-                'Aviso: GEMINI_BILLING_CONFIRMED no está en true. Con datos reales la clave debe ser de un '
-                'proyecto con facturación (esta prueba solo usa datos ficticios).'))
+        from apps.plans.ai.policy import configuration_errors
+        missing = configuration_errors(settings)
+        if missing:
+            raise CommandError('Configuración incompleta: ' + ', '.join(missing))
         client = GeminiClient(api_key=settings.GEMINI_API_KEY, model=settings.GEMINI_MODEL,
                               timeout=settings.GEMINI_TIMEOUT_SECONDS, schema_field=settings.GEMINI_SCHEMA_FIELD)
         payload = sample_payload()
@@ -141,7 +141,7 @@ class Command(BaseCommand):
             raise CommandError('La respuesta no pasó la validación: ' + ', '.join(check.codes))
         self.stdout.write(self.style.SUCCESS('Plan de ejercicio: Gemini responde y el formato es válido.'))
         self.check_meal(client)
-        if options['history']:
+        if options['history'] and settings.GEMINI_ACCESS_TIER != 'free':
             self.check_history(client)
 
     def check_meal(self, client):
@@ -151,6 +151,18 @@ class Command(BaseCommand):
         rules = meal_validate.SlotRules(
             slot_code='lunch', kcal=meal_validate.D(530), protein_g=meal_validate.D(38),
             foods={f.id: f for f in foods})
+        if settings.GEMINI_ACCESS_TIER == 'free':
+            from dataclasses import replace
+            from apps.plans import services
+            from apps.plans.rules import recipes
+            foods = services.food_items()
+            rules = replace(rules, foods={food.id: food for food in foods})
+            candidates = recipes.candidates(rules, 'basic', seed='connection-check')
+            offered = recipes.offer(candidates, 3)
+            if len(offered.options) < 3:
+                raise CommandError('Faltan recetas verificadas: ejecuta load_usda_catalog --apply --activate.')
+            rules = replace(rules, recipes=tuple(offered.options), distinct_protein=offered.distinct_protein)
+            payload['recipe_options'] = offered.options
         started = time.monotonic()
         try:
             result = client.generate_json(

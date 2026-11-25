@@ -1,7 +1,7 @@
 """Catálogo inicial APROXIMADO para desarrollo y compatibilidad con registros existentes.
 
 Estas cifras se escribieron manualmente: no son una importación USDA. `load_foods` conserva
-los registros ya revisados o vinculados a FDC. La demo exige referencias trazables y usa
+los registros ya revisados o vinculados a FDC. La aplicación exige referencias trazables y usa
 `load_usda_catalog`; las coincidencias pendientes no se ofrecen bajo esa política.
 
 Fila: nombre, grupo, kcal/proteína/carbohidratos/grasa/fibra por 100 g, medida casera,

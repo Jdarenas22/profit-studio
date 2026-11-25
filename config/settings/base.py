@@ -192,16 +192,18 @@ HEALTH_FEATURES_ENABLED = env.bool('HEALTH_FEATURES_ENABLED', default=False)
 PRIVACY_POLICY_URL = env('PRIVACY_POLICY_URL', default='')
 
 # ─── Planes con IA (fase B de docs/contracts/plan-ia.md) ──────────────────────
-# AI_PLANS_MODE: off | simulated | live. Vacío = simulated con DEBUG y off en producción.
-# live usa Google Gemini y EXIGE una clave de un proyecto CON FACTURACIÓN (el nivel gratuito permite
-# que Google use y revise los datos): production.py no arranca en live sin las tres variables.
+# AI_PLANS_MODE: off | live. simulated se reserva para las pruebas automatizadas.
+# Free envía únicamente catálogo y requisitos de estructura; la ficha se procesa en Django.
 AI_PLANS_MODE = env('AI_PLANS_MODE', default='')
 GEMINI_API_KEY = env('GEMINI_API_KEY', default='')            # solo entorno; nunca en código ni logs
 FDC_API_KEY = env('FDC_API_KEY', default='')
 FDC_TIMEOUT_SECONDS = env.int('FDC_TIMEOUT_SECONDS', default=15)
-NUTRITION_REQUIRE_USDA_REFERENCE = env.bool('NUTRITION_REQUIRE_USDA_REFERENCE', default=False)
+NUTRITION_REQUIRE_USDA_REFERENCE = env.bool('NUTRITION_REQUIRE_USDA_REFERENCE', default=True)
 GEMINI_MODEL = env('GEMINI_MODEL', default='')                # p. ej. un modelo "flash-lite" estable
 GEMINI_BILLING_CONFIRMED = env.bool('GEMINI_BILLING_CONFIRMED', default=False)
+GEMINI_ACCESS_TIER = env('GEMINI_ACCESS_TIER', default='free')
+GEMINI_FREE_TIER_CONFIRMED = env.bool('GEMINI_FREE_TIER_CONFIRMED', default=False)
+GEMINI_MAX_DAILY_CALLS = env.int('GEMINI_MAX_DAILY_CALLS', default=30)
 GEMINI_TIMEOUT_SECONDS = env.int('GEMINI_TIMEOUT_SECONDS', default=60)
 # Campo del esquema de salida en generationConfig: responseJsonSchema | none (ver apps/plans/ai/gemini.py)
 GEMINI_SCHEMA_FIELD = env('GEMINI_SCHEMA_FIELD', default='responseJsonSchema')

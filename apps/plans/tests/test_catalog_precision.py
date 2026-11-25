@@ -128,9 +128,9 @@ class SourcePrecisionTests(SimpleTestCase):
             snapshot["evidence"]["protein100"]["source_amount"], "22.55555"
         )
 
-    def test_demo_activation_is_not_a_billing_or_debug_bypass(self):
-        with self.assertRaisesMessage(CommandError, "fdc_catalog_demo_activation_only"):
-            call_command("load_usda_catalog", apply=True, activate_demo=True)
+    def test_activation_requires_explicit_apply(self):
+        with self.assertRaisesMessage(CommandError, "fdc_catalog_activation_requires_apply"):
+            call_command("load_usda_catalog", activate=True)
 
 
 class CatalogImportTests(TestCase):
@@ -177,23 +177,19 @@ class CatalogImportTests(TestCase):
     def test_offline_load_is_idempotent_and_preserves_unresolved_and_history(self):
         call_command("load_foods", stdout=io.StringIO())
         original = Food.objects.get(name="Yuca cocida").kcal100
-        with mock.patch(
-            "apps.plans.management.commands.load_usda_catalog.demo_environment",
-            return_value=True,
-        ):
-            call_command(
-                "load_usda_catalog",
-                apply=True,
-                activate_demo=True,
-                stdout=io.StringIO(),
-            )
-            self.assertEqual(FoodImportRevision.objects.count(), 70)
-            call_command(
-                "load_usda_catalog",
-                apply=True,
-                activate_demo=True,
-                stdout=io.StringIO(),
-            )
+        call_command(
+            "load_usda_catalog",
+            apply=True,
+            activate=True,
+            stdout=io.StringIO(),
+        )
+        self.assertEqual(FoodImportRevision.objects.count(), 70)
+        call_command(
+            "load_usda_catalog",
+            apply=True,
+            activate=True,
+            stdout=io.StringIO(),
+        )
         self.assertEqual(FoodImportRevision.objects.count(), 70)
         self.assertEqual(Food.objects.count(), 90)
         food = Food.objects.get(name="Yuca cocida")
@@ -244,16 +240,12 @@ class StrictCatalogFlowTests(PlanScenarioTestCase):
     def setUp(self):
         super().setUp()
         call_command("load_foods", stdout=io.StringIO())
-        with mock.patch(
-            "apps.plans.management.commands.load_usda_catalog.demo_environment",
-            return_value=True,
-        ):
-            call_command(
-                "load_usda_catalog",
-                apply=True,
-                activate_demo=True,
-                stdout=io.StringIO(),
-            )
+        call_command(
+            "load_usda_catalog",
+            apply=True,
+            activate=True,
+            stdout=io.StringIO(),
+        )
 
     def test_only_consistent_sources_are_offered_and_manual_edits_are_excluded(self):
         self.assertEqual(len(services.food_items()), 70)
@@ -321,13 +313,11 @@ class StrictCatalogFlowTests(PlanScenarioTestCase):
                     )
                 job.refresh_from_db()
                 self.assertEqual(job.status, job.STATUS_SUCCEEDED, job.error_code)
-                self.assertEqual(job.plan.nutrition.slots.count(), 5)
+                self.assertEqual(job.plan.nutrition.slots.count(), 35)
                 payload = fake.calls[0]["payload"]
-                self.assertEqual(payload["food_nutrient_units"]["sodium_mg100"], "mg")
-                self.assertEqual(payload["food_nutrient_units"]["basis"], "100g")
-                for food in payload["allowed_foods"]:
-                    self.assertIn("sugars100", food)
-                    self.assertIsNone(food["added_sugars100"])
+                self.assertNotIn('allowed_foods', payload)
+                self.assertNotIn('food_nutrient_units', payload)
+                self.assertEqual(payload['schema_version'], 'weekly-menu/1')
 
                 for slot in job.plan.nutrition.slots.all():
                     for option in slot.options.all():

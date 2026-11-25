@@ -640,6 +640,8 @@ Contrato: `docs/contracts/camino-guiado.md` (forma exacta de `journey`, pasos, e
 - **RESUELTO (backend, 2026-11-20):** el texto de bloqueo ya no dice «Tu entrenador ya fue avisado y te contactará» donde todavía no se avisó. (1) Panel: `plans.<tipo>.message` en estado `blocked` usa «Por la información de salud que registraste, lo más seguro es que tu médico o nutricionista te valore antes de armar un plan. Habla con tu entrenador.» (y variantes sin esa afirmación para pocos ejercicios/alimentos). (2) «Pedir mi plan»: `eligibility.blocked_message` (que `request.html` pinta junto al botón «Avisar a mi entrenador») ahora cierra con «Usa el botón para avisar a tu entrenador.»; para D06, «Por ahora no hay suficientes ejercicios/alimentos compatibles contigo. Usa el botón para avisar a tu entrenador.»; fuera de alcance, sin cambios. El frontend puede pintar ambos textos tal cual (no hay que cambiar `request.html`). `BLOCKED_MESSAGE` y la pantalla de estado del trabajo no cambian (después de pulsar sí se avisó). Detalle: `docs/contracts/camino-guiado.md`, sección 2.4.
 
 
+
+
 ## backend → frontend: Transferir la administración, pantalla T-01 (2026-11-24, rama `feature/transferir-administracion`)
 
 Contrato: `docs/contracts/transferir-administracion.md`. Backend implementado: servicio `transfer_admin`, vista `trainer_admin_transfer`, formulario, auditoría y pruebas. Pedido de la dueña: poder cambiar la superadministradora sin entrar al servidor.

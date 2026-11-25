@@ -48,5 +48,9 @@ package-lock.json
 # Cuentas de prueba locales
 USUARIOS-PRUEBA.local.txt
 
-# Datos y accesos privados de la demostración académica
+# Historial privado retirado de ejecución
 .demo/
+# Procesos locales, enlaces temporales y herramientas portables
+.runtime/
+.tools/
+.wrangler/

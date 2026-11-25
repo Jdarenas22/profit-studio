@@ -6,7 +6,7 @@ from unittest import mock
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import SimpleTestCase, override_settings
+from django.test import TestCase, override_settings
 
 from apps.plans.ai.base import AIResult, AIUsage
 from apps.plans.ai.fake import sample_exercise_plan, sample_meal_slot
@@ -33,14 +33,14 @@ def ignoring(payload):
     return sample_meal_slot(plain) if plain['task'] == 'meal_slot' else sample_exercise_plan(plain)
 
 
-class CheckGeminiHistoryTests(SimpleTestCase):
+class CheckGeminiHistoryTests(TestCase):
     def run_command(self, answer=following, history=True):
         calls, out = [], StringIO()
 
         def fake_generate(client, **kwargs):
             calls.append(kwargs)
             return AIResult(data=answer(kwargs['payload']), usage=AIUsage(10, 20), model='m')
-        with override_settings(GEMINI_API_KEY=KEY, GEMINI_MODEL='m', GEMINI_BILLING_CONFIRMED=True), \
+        with override_settings(GEMINI_ACCESS_TIER='paid', GEMINI_API_KEY=KEY, GEMINI_MODEL='m', GEMINI_BILLING_CONFIRMED=True), \
                 mock.patch.object(GeminiClient, 'generate_json', fake_generate):
             call_command('check_gemini', history=history, stdout=out)
         return out.getvalue(), calls

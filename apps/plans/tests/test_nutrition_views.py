@@ -171,7 +171,7 @@ class MemberNutritionViewsTests(NutritionScenarioTestCase):
     def setUp(self):
         super().setUp()
         self.plan = self.approved_nutrition(self.client_a)
-        self.slot = self.plan.nutrition.slots.get(code='lunch')
+        self.slot = self.plan.nutrition.slots.get(day_index=1, code='lunch')
         self.option = self.slot.options.get(position=1)
         self.today = health.dates.today()
         self.login(self.client_a)
@@ -233,7 +233,7 @@ class MemberNutritionViewsTests(NutritionScenarioTestCase):
 
     def test_other_clients_slot_or_option_is_a_404(self):
         other = self.approved_nutrition(self.client_b)
-        foreign_slot = other.nutrition.slots.get(code='lunch')
+        foreign_slot = other.nutrition.slots.get(day_index=1, code='lunch')
         foreign_option = foreign_slot.options.first()
         for slot, option in ((foreign_slot, foreign_option), (self.slot, foreign_option)):
             response = self.client.post(reverse('member_meal_choice'), {
@@ -401,7 +401,7 @@ class RequestAndTrainerFlowTests(NutritionScenarioTestCase):
 
     def test_inbox_marks_options_requested_by_the_client(self):
         plan = self.approved_nutrition(self.client_a)
-        slot = plan.nutrition.slots.get(code='lunch')
+        slot = plan.nutrition.slots.get(day_index=1, code='lunch')
         self.login(self.trainer_a)
         self.assertEqual(self.client.get(reverse('trainer_plan_inbox')).context['rows'], [])
         with self.fake_ai(), self.captureOnCommitCallbacks(execute=True):
@@ -426,7 +426,7 @@ class RequestAndTrainerFlowTests(NutritionScenarioTestCase):
 
     def test_revert_through_the_view(self):
         plan = self.approved_nutrition(self.client_a)
-        slot = plan.nutrition.slots.get(code='dinner')
+        slot = plan.nutrition.slots.get(day_index=1, code='dinner')
         old = slot.options.get(position=3)
         with self.fake_ai(), self.captureOnCommitCallbacks(execute=True):
             from apps.plans import nutrition
@@ -444,7 +444,7 @@ class MealCompleteViewTests(NutritionScenarioTestCase):
     def setUp(self):
         super().setUp()
         self.plan = self.approved_nutrition(self.client_a)
-        self.slot = self.plan.nutrition.slots.get(code='lunch')
+        self.slot = self.plan.nutrition.slots.get(day_index=1, code='lunch')
         self.option = self.slot.options.get(position=1)
         self.today = health.dates.today()
         self.choice = MealChoice.objects.create(client=self.client_a, slot=self.slot, option=self.option, date=self.today)
@@ -520,7 +520,7 @@ class MealCompleteViewTests(NutritionScenarioTestCase):
 
     def test_another_clients_choice_is_a_404_and_stays_untouched(self):
         other = self.approved_nutrition(self.client_b)
-        other_slot = other.nutrition.slots.get(code='lunch')
+        other_slot = other.nutrition.slots.get(day_index=1, code='lunch')
         theirs = MealChoice.objects.create(client=self.client_b, slot=other_slot, option=other_slot.options.first(),
                                            date=self.today)
         known = timezone.now() - timedelta(hours=2)
@@ -538,14 +538,14 @@ class MealCompleteViewTests(NutritionScenarioTestCase):
 
     def test_a_choice_of_an_unapproved_plan_is_a_404(self):
         draft = self.nutrition_draft(self.client_b)                       # solo borrador: sin plan aprobado
-        slot = draft.nutrition.slots.get(code='lunch')
+        slot = draft.nutrition.slots.get(day_index=1, code='lunch')
         choice = MealChoice.objects.create(client=self.client_b, slot=slot, option=slot.options.first(), date=self.today)
         self.login(self.client_b)
         self.assertEqual(self.post('1', choice).status_code, 404)
         self.assertIsNone(self.completed_at(choice))
         self.login(self.client_a)                                         # tiene plan aprobado + un borrador nuevo
         job, _ = self.request_nutrition(self.client_a)
-        draft_slot = job.plan.nutrition.slots.get(code='lunch')
+        draft_slot = job.plan.nutrition.slots.get(day_index=1, code='lunch')
         in_draft = MealChoice.objects.create(client=self.client_a, slot=draft_slot, option=draft_slot.options.first(),
                                              date=self.today)
         self.assertEqual(self.post('1', in_draft).status_code, 404)
@@ -612,7 +612,7 @@ class MealCompleteAdaptationTests(NutritionScenarioTestCase):
     def test_marking_meals_with_the_same_foods_makes_them_liked_foods(self):
         plan = self.approved_nutrition(self.client_a)
         Plan.objects.filter(pk=plan.pk).update(approved_at=timezone.now() - timedelta(days=30))   # ya hay historial
-        slot = plan.nutrition.slots.get(code='lunch')
+        slot = plan.nutrition.slots.get(day_index=1, code='lunch')
         option = slot.options.get(position=1)
         foods = set(option.items.values_list('food_id', flat=True))
         profile = health.current_profile(self.client_a)
@@ -638,7 +638,7 @@ class MealCompleteAdaptationTests(NutritionScenarioTestCase):
             job, _created = services.request_plan(self.client_a, 'nutrition', self.client_a, services.new_request_token())
         job.refresh_from_db()
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
-        self.assertEqual(set(fake.calls[0]['payload']['history']['nutrition']['liked_food_ids']), foods)
+        self.assertNotIn('history', fake.calls[0]['payload'])
         self.assertEqual(job.adaptation_summary['liked_foods'], len(foods))
         # Quitar una marca quita la señal
         self.client.post(reverse('member_meal_complete', args=[choices[-1].pk]), {'done': '0'})

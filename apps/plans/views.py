@@ -18,6 +18,7 @@ from apps.accounts.decorators import member_required, trainer_required
 from apps.accounts.form_utils import errors_dict
 from apps.accounts.permissions import clients_for_trainer, get_client_for_trainer
 from apps.health import services as health
+from apps.health import dates as health_dates
 from apps.health.choices import EQUIPMENT_CHOICES, labels_for
 from apps.health.models import HealthAccessLog
 
@@ -527,10 +528,10 @@ def _nutrition_plan_or_none(request):
     return nutrition.member_plan(request.user)
 
 
-def _date_pills(selected):
-    today = nutrition.meal_dates()[0]
+def _date_pills(selected, plan=None):
+    today = health_dates.today()
     pills = []
-    for day in nutrition.meal_dates():
+    for day in nutrition.meal_dates(plan):
         label = 'Hoy' if day == today else ('Mañana' if (day - today).days == 1 else '')
         pills.append({'date': day, 'iso': day.isoformat(), 'label': label, 'selected': day == selected})
     return pills
@@ -547,12 +548,13 @@ def member_nutrition_plan(request):
     if plan is None:
         messages.info(request, 'Aún no tienes un plan de alimentación aprobado.')
         return redirect('member_plans')
-    on_date = nutrition.parse_meal_date(request.GET.get('date'))
+    on_date = nutrition.parse_meal_date(request.GET.get('date'), plan)
     view = nutrition.day_view(user, plan, on_date)
     return render(request, 'plans/member_nutrition.html', {
-        **view, 'plan': plan, 'nutrition': plan.nutrition, 'date': on_date, 'date_pills': _date_pills(on_date),
+        **view, 'plan': plan, 'nutrition': plan.nutrition, 'date': on_date, 'date_pills': _date_pills(on_date, plan),
         'active_job': services.active_job(user, nutrition.ALTERNATIVE),
         'request_token': services.new_request_token(), 'disclaimer': DISCLAIMER,
+        'week_expired': bool(plan.nutrition.duration_days == 7 and plan.valid_until and plan.valid_until < health_dates.today()),
     })
 
 
@@ -645,9 +647,10 @@ def member_shopping_list(request):
     if plan is None:
         return redirect('member_plans')
     rows, assumed = nutrition.shopping_list(request.user, plan)
-    dates = nutrition.meal_dates()
+    dates = [day for day in nutrition.meal_dates(plan) if day >= health_dates.today()]
     return render(request, 'plans/member_shopping_list.html', {
-        'plan': plan, 'rows': rows, 'assumed': assumed, 'first_day': dates[0], 'last_day': dates[-1],
+        'plan': plan, 'rows': rows, 'assumed': assumed, 'first_day': dates[0] if dates else None,
+        'last_day': dates[-1] if dates else None,
         'disclaimer': DISCLAIMER})
 
 

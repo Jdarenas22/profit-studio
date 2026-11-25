@@ -1,5 +1,10 @@
 # Despliegue de ProFit Studio — Railway + Cloudflare
 
+Alcance actual de la persona: aplicación única publicada desde su PC sin contratar hosting ni dominio.
+El arranque vigente está en [Ejecución integrada](EJECUCION-INTEGRADA.md). Este documento conserva
+la operación opcional de Railway; sus servicios no son requisitos para usar las APIs o publicar el PC.
+
+
 Guía de referencia para tener la web publicada y conectada. **Nunca** pegues valores secretos en este archivo, en el repositorio ni en el chat: las claves viven solo en Railway (Variables) y en tu `.env` local (que git ignora).
 
 ## 1. Cómo encaja todo
@@ -98,7 +103,7 @@ Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprim
 | `DB_CONN_MAX_AGE` | Segundos que cada worker reutiliza su conexión a Postgres (entero ≥ 0). **Sin definir: `0` = una conexión nueva por petición** (el servicio puede dormirse con App Sleeping). Con `60` las páginas con base de datos responden ~200 ms más rápido, pero **el servicio deja de dormirse**: ponerla al pasar a un plan de pago. Un valor que no sea un entero ≥ 0 detiene el arranque. Ver sección 11 |
 | `AI_PLANS_MODE` | Planes con IA: `off` (por defecto), `simulated` (borradores de ejemplo, sin costo, no se aprueban) o `live` (Gemini). Ver sección 7b |
 | `AI_PLANS_WORKER` | **Apagado por defecto (`false`).** `true` = la web no lanza hilos de IA: deja el trabajo en cola y lo toma un servicio trabajador aparte (`python manage.py process_plan_jobs --loop`). Ese servicio mantiene despierto a Postgres y gasta crédito las 24 horas: **no usarlo en el plan gratuito**; es decisión del dueño. Solo `true`/`false`: otro valor detiene el arranque. Ver sección 12 |
-| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BILLING_CONFIRMED` | Obligatorias en `live` (el servidor no arranca sin ellas). La clave debe ser de un proyecto con facturación |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_ACCESS_TIER` | Obligatorias en `live`; Free requiere `GEMINI_FREE_TIER_CONFIRMED=true` y facturación false. El nivel pago requiere confirmación de facturación explícita |
 
 ## 4. Cloudflare R2: comandos útiles
 
@@ -162,9 +167,9 @@ Requieren la función de salud encendida (sección 7). Pasos:
 
 1. **Etiqueta los ejercicios** (panel → Ejercicios → Editar → «Etiquetas para planes automáticos»: intensidad, equipo y zonas de riesgo). Los que no tienen intensidad no se proponen a clientas con lesiones o advertencias, ni a quien entrena en casa. `check_infra` avisa cuántos faltan.
 2. **Prueba sin costo** con `AI_PLANS_MODE=simulated`: el flujo completo funciona (pedido, bandeja, revisión), pero los borradores salen de un generador de ejemplo, quedan marcados «MODO DE PRUEBA» y no se pueden aprobar en producción.
-3. **Gemini de pago**: en Google AI Studio crea la clave en un proyecto con **facturación habilitada** (prepago mínimo USD 5). En el nivel gratuito Google puede usar y revisar los datos: no sirve para datos de salud.
+3. **Gemini según el nivel**: Free admite el flujo de catálogo y selección de recetas sin exportar ficha, medidas, metas energéticas, notas ni historial; Django personaliza localmente. Configura el proyecto gratuito y confirma su estado en AI Studio. No es necesario habilitar facturación para ese flujo. El nivel pago queda como opción posterior explícita.
 4. **Prueba la clave con datos ficticios** desde tu equipo (no toca la base ni datos de clientas): pon `GEMINI_API_KEY` y `GEMINI_MODEL` en tu `.env` local y ejecuta `python manage.py check_gemini`. Debe terminar con «Gemini responde y el formato es válido» y muestra los tokens usados. Si responde `ai_http_400`, prueba `GEMINI_SCHEMA_FIELD=none` y confirma el nombre del modelo. Después borra la clave de tu `.env`.
-5. Define en Railway `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BILLING_CONFIRMED=true` y `AI_PLANS_MODE=live`.
+5. Si despliegas en Railway, define clave, modelo, `GEMINI_ACCESS_TIER=free`, `GEMINI_FREE_TIER_CONFIRMED=true`, `GEMINI_BILLING_CONFIRMED=false` y `AI_PLANS_MODE=live`. Para acceso gratuito desde tu PC usa la guía de ejecución integrada; no requiere Railway.
 
 ### Plan de alimentación (fase C)
 

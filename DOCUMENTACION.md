@@ -852,7 +852,7 @@ El archivo `.env` en la raíz del proyecto controla el comportamiento del sistem
 | `AI_PLANS_MODE` | Opcional | `off` (por defecto en producción), `simulated` (desarrollo) o `live` (Gemini) |
 | `GEMINI_API_KEY` | Solo en `live` | Clave de Google Gemini, de un proyecto con facturación habilitada |
 | `GEMINI_MODEL` | Solo en `live` | Nombre exacto del modelo, con versión (no un alias `-latest`, que cambia sin aviso) |
-| `GEMINI_BILLING_CONFIRMED` | Solo en `live` | `true` confirma que la clave es de un proyecto con facturación (el nivel gratuito permite que Google use los datos). En `live`, el servidor no arranca sin las tres variables de Gemini |
+| `GEMINI_BILLING_CONFIRMED` | Solo en nivel pago | `false` en Free. En nivel pago, `true` confirma facturación explícita. Free usa catálogo sin exportar ficha o medidas y exige `GEMINI_FREE_TIER_CONFIRMED=true` |
 | `AI_PLANS_ADAPTATION` | Opcional | Adaptación de los planes al historial de la clienta (apagada por defecto) |
 | `AI_PLANS_WORKER` | Opcional | `false` por defecto (los trabajos de IA corren en hilos de la web). `true` = la web los deja en cola y los toma un servicio aparte con `python manage.py process_plan_jobs --loop`; mantiene despierto a Postgres y gasta crédito las 24 h, no usarlo en el plan gratuito (`docs/DEPLOY.md`, sección 12). Solo `true`/`false` |
 | `AI_PLANS_REQUIRE_PROFESSIONAL` | Opcional | Si es `true`, aprobar planes de alimentación exige credencial de nutrición (hoy `False`) |
@@ -1041,3 +1041,7 @@ python manage.py migrate
 ---
 
 *Documentación generada el 2026-05-06 para ProFit Studio — versión 1.0*
+
+## Ejecución unificada vigente
+
+Una sola aplicación y base normal en el puerto 8000, con Gemini Free real y publicación desde el PC sin contratar hosting. Se retiraron los módulos ejecutables de demo; las evidencias anteriores son históricas. Ver `docs/EJECUCION-INTEGRADA.md`.

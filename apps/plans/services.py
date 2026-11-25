@@ -639,7 +639,8 @@ def approve_plan(plan, actor, *, note_for_client='', warnings_ack=False, stale_a
         plan.reviewed_by = plan.reviewed_by or actor
         plan.reviewer_credential = credential.registration_label if credential else ''
         plan.note_for_client = (note_for_client or '').strip()[:NOTE_FOR_CLIENT_MAX]
-        plan.valid_until = health_dates.today() + timedelta(days=PLAN_VALID_DAYS)
+        plan.valid_until = health_dates.today() + timedelta(
+            days=6 if plan.kind == KIND_NUTRITION and plan.nutrition.duration_days == 7 else PLAN_VALID_DAYS)
         if plan.flags:
             plan.warnings_ack_by, plan.warnings_ack_at = actor, now
         plan.save()

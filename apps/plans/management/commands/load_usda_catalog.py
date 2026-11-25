@@ -1,10 +1,9 @@
-"""Actualización offline; vista previa por defecto, activación solo en demo aislada."""
+"""Actualización offline; vista previa por defecto, activación explícita de referencias verificadas."""
 
 import json
 from django.core.management.base import BaseCommand, CommandError
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from apps.plans.academic import demo_environment
 from apps.plans.models import Food
 from apps.plans.sources.catalog import load_reference, source_is_consistent
 from apps.plans.sources.fdc import FDCError
@@ -12,17 +11,15 @@ from apps.plans.sources.fdc_import import import_food
 
 
 class Command(BaseCommand):
-    help = "Previsualiza referencias USDA locales. --apply importa INACTIVAS; --activate-demo solo en la base académica."
+    help = "Previsualiza referencias USDA locales. --apply importa INACTIVAS; --activate habilita referencias comprobadas."
 
     def add_arguments(self, parser):
         parser.add_argument("--apply", action="store_true")
-        parser.add_argument("--activate-demo", action="store_true")
+        parser.add_argument("--activate", action="store_true")
 
     def handle(self, **options):
-        if options["activate_demo"] and (
-            not options["apply"] or not demo_environment()
-        ):
-            raise CommandError("fdc_catalog_demo_activation_only")
+        if options["activate"] and not options["apply"]:
+            raise CommandError("fdc_catalog_activation_requires_apply")
         try:
             _data, entries, pending = load_reference()
             if not options["apply"]:
@@ -65,7 +62,7 @@ class Command(BaseCommand):
                         apply=True,
                     )
                     changed += int(updated)
-                    if options["activate_demo"] and not food.validated_by:
+                    if options["activate"] and not food.validated_by:
                         if not source_is_consistent(food):
                             raise FDCError("fdc_catalog_source_inconsistent")
                         if not food.is_active:
@@ -78,7 +75,7 @@ class Command(BaseCommand):
                         "operation": "applied",
                         "references": len(entries),
                         "changed": changed,
-                        "activated_demo": activated,
+                        "activated": activated,
                         "needs_specification": len(pending),
                         "pending_unchanged": True,
                         "historical_plans_unchanged": True,

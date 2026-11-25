@@ -277,9 +277,10 @@ class NutritionAdaptationTests(NutritionScenarioTestCase):
         job.refresh_from_db()
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
         payload = fake.calls[0]['payload']
-        avoid = payload['history']['nutrition']['avoid_food_ids']
+        self.assertNotIn('history', payload)
+        avoid = self.avoid()
         self.assertIn(self.food.pk, avoid)                    # estaba en los dos descartes
-        offered = {row['id'] for row in payload['allowed_foods']}
+        offered = set(MealOptionItem.objects.filter(option__slot__nutrition_plan__plan=job.plan).values_list('food_id', flat=True))
         self.assertFalse(offered & set(avoid))                 # nada de lo que evita se le vuelve a ofrecer
         self.assertEqual(job.adaptation_summary['excluded_foods'], len(avoid))
 

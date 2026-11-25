@@ -46,6 +46,8 @@ if settings.DEBUG:
                     {'document_root': settings.MEDIA_ROOT}),
         ]
     try:
+        if 'debug_toolbar' not in settings.INSTALLED_APPS:
+            raise ImportError
         import debug_toolbar
         urlpatterns = [path('__debug__/', include(debug_toolbar.urls))] + urlpatterns
     except ImportError:
