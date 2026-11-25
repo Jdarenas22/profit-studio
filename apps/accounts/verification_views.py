@@ -267,8 +267,14 @@ def trainer_client_show_invitation_link(request, pk):
     if not client.is_invitation_pending:
         messages.info(request, 'Esta clienta ya no tiene una invitación pendiente.')
         return redirect('trainer_client_detail', pk=client.pk)
-    if not hit('invitation-resend-actor', request.user.pk, verification.INVITE_RESEND_ACTOR_LIMIT,
-               verification.INVITE_RESEND_WINDOW_SECONDS):
+    if not client.email:
+        messages.error(request, 'La cuenta no tiene correo. Agrégalo en «Editar» para poder invitarla.')
+        return redirect('trainer_client_detail', pk=client.pk)
+    client_ok = hit('invitation-resend-client', client.pk, verification.INVITE_RESEND_CLIENT_LIMIT,
+                    verification.INVITE_RESEND_WINDOW_SECONDS)
+    actor_ok = hit('invitation-resend-actor', request.user.pk, verification.INVITE_RESEND_ACTOR_LIMIT,
+                   verification.INVITE_RESEND_WINDOW_SECONDS)
+    if not (client_ok and actor_ok):
         messages.error(request, TRAINER_INVITATION_LIMIT_MESSAGE)
         return redirect('trainer_client_detail', pk=client.pk)
     request.session[INVITATION_LINK_SESSION_KEY] = {

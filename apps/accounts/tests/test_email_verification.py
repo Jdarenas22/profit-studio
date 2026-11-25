@@ -1289,3 +1289,9 @@ class ShowInvitationLinkTests(Base):
         self.target.set_password('Contrasena-Segura-91!')
         self.target.save()
         self.assertIsNone(self.client.get(self.detail).context['invitation_link'])
+
+    def test_no_link_without_an_email(self):
+        User.objects.filter(pk=self.target.pk).update(email='')
+        self.client.get(self.detail)
+        self.client.post(reverse('trainer_client_invitation_link', args=[self.target.pk]))
+        self.assertIsNone(self.client.get(self.detail).context['invitation_link'])
