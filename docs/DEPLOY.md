@@ -84,6 +84,8 @@ Además, en el panel de Wompi registra la **URL de eventos (webhook)**: `https:/
 | --- | --- |
 | `EMAIL_HOST_USER` | Cuenta de Gmail que envía los correos |
 | `EMAIL_HOST_PASSWORD` | **Contraseña de aplicación** de Gmail (Cuenta de Google → Seguridad → Contraseñas de aplicaciones), no la contraseña normal |
+| `BREVO_API_KEY` | **Necesaria en Railway sin plan Pro**: Railway bloquea el SMTP saliente (la conexión a Gmail se cuelga y gunicorn mata el proceso, `WORKER TIMEOUT`). Con esta clave el correo sale por la API HTTPS de Brevo (`config/email_backends.py`) y tiene prioridad sobre SMTP. Crear cuenta en brevo.com, verificar el remitente en *Senders, Domains & Dedicated IPs* (basta una dirección Gmail, sin dominio) y crear una clave en *SMTP & API > API keys*. El remitente sale de `DEFAULT_FROM_EMAIL` (o `EMAIL_HOST_USER`) y debe ser el verificado. Probar sin enviar nada: `check_infra --smtp` |
+| `EMAIL_TIMEOUT` | Segundos máximos de una conexión de correo (SMTP o API); por defecto `10` |
 | `EMAIL_HOST`, `EMAIL_PORT`, `DEFAULT_FROM_EMAIL` | Opcionales (por defecto `smtp.gmail.com`, `587` y `ProFit Studio <EMAIL_HOST_USER>`) |
 
 Si `EMAIL_HOST_USER` no está definida, los correos **no se envían**: se imprimen en los logs de Railway (**con sus enlaces**).

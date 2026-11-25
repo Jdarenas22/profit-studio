@@ -516,6 +516,25 @@ def check_wompi(ctx):
 def check_email(ctx):
     area = 'Correo'
     backend = getattr(ctx.settings, 'EMAIL_BACKEND', '')
+    if 'brevo' in backend.lower():
+        sender = getattr(ctx.settings, 'DEFAULT_FROM_EMAIL', '')
+        if not getattr(ctx.settings, 'BREVO_API_KEY', ''):
+            return [Check(area, 'Envío de correos', ERROR, 'Backend Brevo activo pero falta BREVO_API_KEY.',
+                          'Define BREVO_API_KEY en Railway > Variables.')]
+        if not ctx.smtp:
+            return [Check(area, 'Envío de correos', OK,
+                          f'Brevo (API HTTPS) con clave definida; remitente {sender} (sin probar la conexión).',
+                          'Para probar la clave sin enviar nada: python manage.py check_infra --smtp')]
+        try:
+            connection_ = ctx.mail_connection_factory()
+            connection_.verify()
+        except Exception as exc:  # noqa: BLE001
+            return [Check(area, 'Conexión Brevo', ERROR, f'La API de Brevo no respondió bien ({exc}).',
+                          'brevo_http_401 = clave incorrecta; brevo_http_403 = la IP o la cuenta no está activada; '
+                          'brevo_unreachable/timeout = sin salida a internet. Revisa BREVO_API_KEY.')]
+        return [Check(area, 'Conexión Brevo', OK,
+                      f'La clave de Brevo es válida (remitente {sender}). No se envió ningún correo.',
+                      'Recuerda: el remitente debe estar verificado en Brevo > Senders.')]
     if 'smtp' not in backend:
         if ctx.is_production:
             return [Check(area, 'Envío de correos', WARN,
