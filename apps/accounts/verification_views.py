@@ -9,7 +9,7 @@ Cómo se protege el enlace del correo:
   nada solos.
 - El token viaja en el cuerpo del POST, no en su URL: el rechazo de un POST (CSRF, un error) queda en el
   registro de Django con una ruta sin token. Las páginas del enlace no se guardan en caché y no envían
-  `Referer` a nadie (`Referrer-Policy: no-referrer`).
+  `Referer` a nadie (`Referrer-Policy: same-origin`).
 - Los enlaces que no sirven (vencidos, ya usados, manipulados) responden con una pantalla informativa
   (HTTP 200) y no con un 4xx, para que Django no escriba la ruta con el token en su registro de avisos.
 """
@@ -49,11 +49,16 @@ TRAINER_INVITATION_LIMIT_MESSAGE = ('Ya reenviaste esta invitación varias veces
 
 
 def private_link_page(view):
-    """Páginas con un enlace firmado: sin caché y sin `Referer` hacia ningún otro sitio."""
+    """Páginas con un enlace firmado: sin caché y sin `Referer` hacia ningún otro sitio.
+
+    Es `same-origin` y no `no-referrer` a propósito: con `no-referrer` el navegador manda `Origin: null` en el
+    formulario de la página y la comprobación CSRF de Django lo rechaza (403), así que la clienta no podría
+    guardar su contraseña.
+    """
     @wraps(view)
     def wrapper(request, *args, **kwargs):
         response = view(request, *args, **kwargs)
-        response['Referrer-Policy'] = 'no-referrer'
+        response['Referrer-Policy'] = 'same-origin'
         return response
     return never_cache(wrapper)
 

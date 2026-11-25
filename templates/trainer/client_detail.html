@@ -48,7 +48,7 @@
 {% if client.is_invitation_pending and client.is_active %}
 <!-- V-06 (docs/contracts/requests.md, «Verificación de correo»): la clienta aún no crea su contraseña con la invitación -->
 <section aria-labelledby="client-invitation-title"
-         class="mb-8 flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-sky-400/30 bg-sky-400/10 px-4 py-4 sm:px-5">
+         class="mb-8 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-4 rounded-2xl border border-sky-400/30 bg-sky-400/10 px-4 py-4 sm:px-5">
   <div class="flex items-start gap-3 flex-1 min-w-0">
     <i class="fa fa-envelope-open-text text-sky-300 mt-1 shrink-0" aria-hidden="true"></i>
     <div class="min-w-0">
