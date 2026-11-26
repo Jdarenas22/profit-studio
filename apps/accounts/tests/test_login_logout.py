@@ -143,3 +143,34 @@ class AxesBehindProxyTests(TestCase):
         for _ in range(2):
             self.attempt('otra', 'mala', ip)
         self.assertEqual(self.attempt('otra', PASSWORD, ip).status_code, 302)
+
+
+@NO_MANIFEST
+class LoginUsernameCaseTests(TestCase):
+    """El usuario se guarda en minúsculas; escribirlo con mayúsculas no debe impedir entrar."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_user('daniel2210', User.ROLE_MEMBER)
+
+    def test_username_with_capitals_logs_in(self):
+        for typed in ('Daniel2210', 'DANIEL2210', ' daniel2210 '):
+            with self.subTest(typed=typed):
+                self.client.logout()
+                response = self.client.post(reverse('login'), {'username': typed, 'password': PASSWORD})
+                self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
+
+    def test_wrong_password_still_fails_with_capitals(self):
+        response = self.client.post(reverse('login'), {'username': 'Daniel2210', 'password': 'incorrecta'})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_ambiguous_case_insensitive_match_is_not_guessed(self):
+        # Cuentas heredadas que solo difieren en mayúsculas: se exige el nombre exacto
+        make_user('Ana', User.ROLE_MEMBER)
+        make_user('ana', User.ROLE_MEMBER)
+        response = self.client.post(reverse('login'), {'username': 'ANA', 'password': PASSWORD})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        response = self.client.post(reverse('login'), {'username': 'Ana', 'password': PASSWORD})
+        self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
