@@ -224,7 +224,9 @@ class NutritionJobPromptTests(NutritionScenarioTestCase):
         job, fake_ai = self.new_plan()
         liked = set(option.items.values_list('food_id', flat=True))
         self.assertNotIn('history', fake_ai.calls[0]['payload'])
-        used = set(job.plan.nutrition.slots.first().options.values_list('items__food_id', flat=True))
+        # Los alimentos preferidos salen del ALMUERZO: se comparan con los almuerzos del plan nuevo (todos los días).
+        # Antes se miraba `slots.first()`, que podía ser otra comida y fallaba según el orden aleatorio por trabajo.
+        used = set(job.plan.nutrition.slots.filter(code='lunch').values_list('options__items__food_id', flat=True))
         self.assertTrue(used & liked)
         self.assertEqual(job.adaptation_summary['liked_foods'], len(liked))
 
