@@ -98,7 +98,7 @@ Este bloque es la referencia final de la fase A1; si algo difiere de las filas F
 
 **Cambios a plantillas del entrenador existentes** (pedido): (a) `trainer/body_measurement_add.html`: agregar los campos `hip_cm` ("Cadera (cm)") y `body_fat_pct` ("Grasa corporal (%)") con su `errors.hip_cm` / `errors.body_fat_pct` junto al input (el backend ya no los avisa por `messages`) y columnas Cadera, % grasa, Origen en el historial. (b) `trainer/client_detail.html` y el historial: columnas cadera, % grasa y origen (`m.source` = `member` → "Clienta", `trainer` → "Entrenador"), insignia "Revisar" si `m.needs_review`, y por medición un enlace Editar (`trainer_measurement_edit`) y un botón Borrar (`trainer_measurement_delete`, formulario POST con `{% csrf_token %}` y confirmación).
 
-**Resuelto del frontend:** `privacy_policy_url` → se pasa desde la vista (ver arriba). No se creó una página de política: el enlace aparece cuando se defina `PRIVACY_POLICY_URL`.
+**Resuelto del frontend:** `privacy_policy_url` → se pasa desde la vista (ver arriba). **Actualización 2026-11-26:** la página de política ya existe en `/privacidad/` (`public.views.privacy`, nombre de URL `privacy`, enlace también en el pie del sitio). El enlace del consentimiento aparece cuando `PRIVACY_POLICY_URL` apunta a ella; en producción se definió como `https://profit-studio-production.up.railway.app/privacidad/`. El texto es un borrador pendiente de revisión legal.
 
 ### Contrato A2 para el frontend (IMPLEMENTADO por el backend, 2026-10-08)
 
@@ -450,7 +450,7 @@ Contexto que las plantillas esperan (si el contrato A1 difiere, avisar y se ajus
 - F-03: `purpose` (`health_data` / `ai_processing`), `text_version` (número; se reenvía como campo oculto `text_version`), `body`, `already_granted`, `granted_at`; opcional `errors.accept`. POST: `accept=on`. Revocar: POST a `member_consent_revoke`.
 - Dashboard: usa `user.measurements.all|slice:":3"` (sin cambio de vista; el modelo ordena por `-date,-pk`).
 
-**Dependencia backend (nueva):** no existe una página de política de tratamiento de datos. F-03 muestra el enlace solo si el contexto trae `privacy_policy_url`. Pedido: o bien una página pública (nombre de URL a definir) o bien pasar esa variable desde la vista. Mientras tanto la clienta ve el canal de WhatsApp para ejercer derechos.
+**Dependencia backend (RESUELTA 2026-11-26):** la política de tratamiento de datos ya existe como página pública en `/privacidad/` (URL `privacy`). F-03 muestra el enlace solo si el contexto trae `privacy_policy_url`, que sale de `PRIVACY_POLICY_URL` (definida en producción). Sigue pendiente la revisión legal del texto.
 
 ### Fase A2: plantillas entregadas (F-04, F-05 y pantallas del entrenador)
 

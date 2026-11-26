@@ -169,10 +169,8 @@ class AIFailureTests(PlanScenarioTestCase):
         job, fake = self.request(self.client_a, scenario=['wrong_count', 'ok'])
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED)
         sent = fake.calls[1]['payload']['previous_errors']
-        self.assertEqual(sent[0], 'V07_EXERCISE')
-        self.assertGreater(len(sent), 1)                      # además del código, el motivo fino
-        for code in sent:
-            self.assertRegex(code, r'^[A-Z0-9_]+$')           # el nivel gratuito solo deja pasar esto
+        # `wrong_count` quita un día del plan: el código y exactamente ese motivo, nada más
+        self.assertEqual(sent, ['V07_EXERCISE', 'V07_DAYS_COUNT'])
 
     def test_two_validation_failures_fail_and_save_nothing(self):
         for scenario, code in (('forbidden_text', 'validation_failed:V08_TEXT'),

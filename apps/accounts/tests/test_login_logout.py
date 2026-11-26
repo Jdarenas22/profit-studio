@@ -159,6 +159,7 @@ class LoginUsernameCaseTests(TestCase):
                 self.client.logout()
                 response = self.client.post(reverse('login'), {'username': typed, 'password': PASSWORD})
                 self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
+                self.assertEqual(self.client.session['_auth_user_id'], str(self.user.pk))   # de verdad inició sesión
 
     def test_wrong_password_still_fails_with_capitals(self):
         response = self.client.post(reverse('login'), {'username': 'Daniel2210', 'password': 'incorrecta'})
@@ -174,3 +175,4 @@ class LoginUsernameCaseTests(TestCase):
         self.assertNotIn('_auth_user_id', self.client.session)
         response = self.client.post(reverse('login'), {'username': 'Ana', 'password': PASSWORD})
         self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
+        self.assertEqual(self.client.session['_auth_user_id'], str(User.objects.get(username='Ana').pk))

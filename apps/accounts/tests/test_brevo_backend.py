@@ -89,6 +89,39 @@ class BrevoBackendTests(SimpleTestCase):
                                       ev.PURPOSE_INVITE, 'http://x/y', ev.PURPOSE_INVITE))
 
 
+@override_settings(**SETTINGS)
+class BrevoMessageShapeTests(SimpleTestCase):
+    def _sent_body(self, message):
+        with mock.patch('config.email_backends.request.urlopen', return_value=FakeResponse()) as urlopen:
+            message.send()
+        return json.loads(urlopen.call_args.args[0].data)
+
+    def test_html_subtype_goes_to_html_content(self):
+        from django.core.mail import EmailMessage
+        message = EmailMessage('A', '<p>hola</p>', None, ['x@example.com'])
+        message.content_subtype = 'html'
+        body = self._sent_body(message)
+        self.assertEqual(body['htmlContent'], '<p>hola</p>')
+        self.assertNotIn('<p>', body['textContent'])
+
+    def test_cc_only_message_still_has_a_to(self):
+        from django.core.mail import EmailMessage
+        message = EmailMessage('A', 'x', None, [], cc=['a@example.com', 'b@example.com'])
+        body = self._sent_body(message)
+        self.assertEqual(body['to'], [{'email': 'a@example.com'}])
+        self.assertEqual(body['cc'], [{'email': 'b@example.com'}])
+
+    def test_attachments_fail_loudly_instead_of_being_dropped(self):
+        from django.core.mail import EmailMessage
+        message = EmailMessage('A', 'x', None, ['x@example.com'])
+        message.attach('a.txt', 'datos', 'text/plain')
+        with mock.patch('config.email_backends.request.urlopen') as urlopen:
+            with self.assertRaises(BrevoError) as ctx:
+                message.send()
+        self.assertEqual(str(ctx.exception), 'brevo_attachments_unsupported')
+        urlopen.assert_not_called()
+
+
 class CheckInfraBrevoTests(SimpleTestCase):
     def _ctx(self, smtp, factory=None, key=CLAVE):
         from types import SimpleNamespace
@@ -116,3 +149,20 @@ class CheckInfraBrevoTests(SimpleTestCase):
         self.assertIn('brevo_http_401', bad.detail)
         self.assertNotIn(CLAVE, bad.detail)
         self.assertEqual(check_email(self._ctx(True, lambda: Good()))[0].status, OK)
+
+    def test_localhost_sender_is_an_error(self):
+        from apps.public.management.commands.check_infra import ERROR, check_email
+        ctx = self._ctx(False)
+        ctx.settings.DEFAULT_FROM_EMAIL = 'ProFit Studio <noreply@localhost>'
+        result = check_email(ctx)[0]
+        self.assertEqual(result.status, ERROR)
+        self.assertIn('DEFAULT_FROM_EMAIL', result.action)
+
+    def test_403_help_mentions_missing_transactional_permission(self):
+        from apps.public.management.commands.check_infra import check_email
+
+        class Denied:
+            def verify(self):
+                raise BrevoError('brevo_http_403')
+        result = check_email(self._ctx(True, lambda: Denied()))[0]
+        self.assertIn('transaccional', result.action)

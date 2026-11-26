@@ -28,7 +28,7 @@ MINUTES_PER_EXERCISE = 6
 MIN_SETS = 1
 MIN_REST, MAX_REST = 20, 180
 
-REPS_RE = re.compile(r'^(\d{1,2}(-\d{1,2})?|\d{1,3} ?seg)$')
+REPS_RE = re.compile(r'^(\d{1,2}(-\d{1,2})?|\d{1,3} ?seg)( por lado)?$')
 _TOP_KEYS = {'schema_version', 'routine_name', 'general_notes', 'days'}
 _DAY_KEYS = {'name', 'exercises'}
 _EXERCISE_KEYS = {'exercise_id', 'sets', 'reps', 'rest_seconds', 'observations'}
@@ -112,26 +112,32 @@ _V07_REASONS = (
 
 _DASHES_RE = re.compile(r'[‐-―−]')
 _REPS_RANGE_WORD_RE = re.compile(r'^(\d{1,2})\s*(?:a|to)\s*(\d{1,2})\b')
-_REPS_TRAILING_RE = re.compile(
-    r'\s*(?:repeticiones|repeticion|reps|rep|veces|por lado|por pierna|por brazo|cada lado|cada pierna|'
-    r'cada brazo|c/u|c/lado|x lado)\.?$')
-_REPS_SECONDS_RE = re.compile(r'^(\d{1,3})\s*(?:segundos|segundo|seg\.?|s)$')
+# «por lado», «por pierna», «cada brazo», «c/u»...: el ejercicio se hace de cada lado. Se conserva como
+# «por lado» (no se descarta: «12 por lado» no es lo mismo que «12»).
+_REPS_SIDE_RE = re.compile(r'\s*(?:\b(?:por|cada|x)\s+(?:lado|pierna|brazo)\b|\bc/(?:u|lado)(?![\w/]))\.?')
+# Palabras neutras que solo acompañan al número
+_REPS_NEUTRAL_RE = re.compile(r'\s*\b(?:repetici[oó]n(?:es)?|reps?|veces)\b\.?$')
+_REPS_SECONDS_RE = re.compile(r'^(\d{1,3})\s*(?:segundos|segundo|seg\.?|s)$')   # coincide con TODO el valor
 
 
 def normalize_reps(value):
     """Arregla variaciones de FORMATO que no cambian el sentido («10 a 12», «12–15», «12 repeticiones»,
-    «12 por lado», «30 segundos»). No inventa nada: si después de esto no cumple `REPS_RE`, el
-    validador lo rechaza igual."""
+    «30 segundos») y conserva «por lado» cuando el ejercicio se hace de cada lado. No inventa nada: si
+    después de esto no cumple `REPS_RE`, el validador lo rechaza igual."""
     text = _DASHES_RE.sub('-', clean_text(value).lower())
-    for _ in range(2):   # «12 repeticiones por lado»: quita cada sufijo, uno tras otro
-        stripped = _REPS_TRAILING_RE.sub('', text).strip()
+    per_side = bool(_REPS_SIDE_RE.search(text))
+    text = _REPS_SIDE_RE.sub('', text).strip()
+    for _ in range(2):   # «12 repeticiones»: quita las palabras neutras que acompañan al número
+        stripped = _REPS_NEUTRAL_RE.sub('', text).strip()
         if stripped == text:
             break
         text = stripped
     text = _REPS_RANGE_WORD_RE.sub(r'\1-\2', text)
     text = text.replace(' - ', '-')
     seconds = _REPS_SECONDS_RE.match(text)
-    return f'{seconds.group(1)} seg' if seconds else text
+    if seconds:
+        text = f'{seconds.group(1)} seg'
+    return f'{text} por lado' if per_side and text else text
 
 
 def normalize_for_search(text):

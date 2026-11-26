@@ -23,23 +23,37 @@ class NormalizeRepsTests(SimpleTestCase):
     def test_equivalent_formats_are_normalized(self):
         casos = {
             '12': '12', '10-12': '10-12', '10 a 12': '10-12', '10–12': '10-12', '10 — 12': '10-12',
-            '12 repeticiones': '12', '12 reps': '12', '12 por lado': '12', '12-15 por pierna': '12-15',
-            '12 repeticiones por lado': '12', '30 segundos': '30 seg', '30 seg.': '30 seg', '30s': '30 seg',
-            '  12  ': '12',
+            '12 repeticiones': '12', '12 reps': '12', '1 repetición': '1', '1 repeticion': '1', '12 veces': '12',
+            '30 segundos': '30 seg', '30 seg.': '30 seg', '30s': '30 seg', '  12  ': '12',
         }
         for entrada, esperado in casos.items():
             with self.subTest(entrada=entrada):
                 self.assertEqual(v.normalize_reps(entrada), esperado)
 
+    def test_per_side_meaning_is_kept_and_reaches_the_routine(self):
+        casos = {
+            '12 por lado': '12 por lado', '12-15 por pierna': '12-15 por lado', '10 c/u': '10 por lado',
+            '12 repeticiones por lado': '12 por lado', '12 cada brazo': '12 por lado',
+            '30 seg por lado': '30 seg por lado', '30 segundos por lado': '30 seg por lado',
+        }
+        for entrada, esperado in casos.items():
+            with self.subTest(entrada=entrada):
+                self.assertEqual(v.normalize_reps(entrada), esperado)
+                result = v.validate_exercise_plan(plan(reps=entrada), RULES)
+                self.assertTrue(result.ok, result.errors)
+                self.assertEqual(result.data['days'][0]['exercises'][0]['reps'], esperado)   # llega a la rutina
+                self.assertLessEqual(len(esperado), 50)                                       # cabe en RoutineExercise.reps
+
     def test_normalized_formats_pass_the_validator(self):
-        for reps in ('10 a 12', '12–15', '12 repeticiones', '12 por lado', '30 segundos'):
+        for reps in ('10 a 12', '12–15', '12 repeticiones', '1 repetición', '30 segundos'):
             with self.subTest(reps=reps):
                 result = v.validate_exercise_plan(plan(reps=reps), RULES)
                 self.assertTrue(result.ok, result.errors)
                 self.assertRegex(result.data['days'][0]['exercises'][0]['reps'], v.REPS_RE)
 
     def test_nonsense_is_still_rejected(self):
-        for reps in ('hasta el fallo', 'muchas', '100-200', '8 a doce', '', '12 kg'):
+        for reps in ('hasta el fallo', 'muchas', '100-200', '8 a doce', '', '12 kg',
+                     '30 segundos de plancha', '30 seg y descansa', '12 por lado y subir carga'):
             with self.subTest(reps=reps):
                 result = v.validate_exercise_plan(plan(reps=reps), RULES)
                 self.assertFalse(result.ok)
@@ -57,8 +71,7 @@ class RetryReasonsTests(SimpleTestCase):
         for reason, data in casos.items():
             with self.subTest(reason=reason):
                 result = v.validate_exercise_plan(data, RULES)
-                self.assertIn(reason, result.reasons)
-                self.assertEqual(result.retry_codes[0], 'V07_EXERCISE')
+                self.assertEqual(result.retry_codes, ('V07_EXERCISE', reason))   # exactamente el código y su motivo
 
     def test_sets_and_rest_reasons(self):
         data = plan()

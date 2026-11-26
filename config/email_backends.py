@@ -66,21 +66,33 @@ class BrevoEmailBackend(BaseEmailBackend):
 
     # ── Envío ──
     def _payload(self, message):
+        if getattr(message, 'attachments', None):
+            # La app no manda adjuntos; mejor fallar claro que entregar el correo sin ellos
+            raise BrevoError('brevo_attachments_unsupported')
+        to = list(message.to)
+        cc, bcc = list(message.cc), list(message.bcc)
+        if not to:
+            # Brevo exige al menos un destinatario en `to`: si solo hay CC/BCC, el primero pasa a `to`
+            to = [(cc or bcc).pop(0)]
         payload = {
             'sender': _address(message.from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', '')),
-            'to': [_address(a) for a in message.to],
+            'to': [_address(a) for a in to],
             'subject': message.subject,
         }
-        if message.cc:
-            payload['cc'] = [_address(a) for a in message.cc]
-        if message.bcc:
-            payload['bcc'] = [_address(a) for a in message.bcc]
+        if cc:
+            payload['cc'] = [_address(a) for a in cc]
+        if bcc:
+            payload['bcc'] = [_address(a) for a in bcc]
         if message.reply_to:
-            payload['replyTo'] = _address(message.reply_to[0])
+            payload['replyTo'] = _address(message.reply_to[0])   # Brevo admite una sola dirección de respuesta
         html = next((c for c, mime in getattr(message, 'alternatives', []) if mime == 'text/html'), None)
+        if html is None and getattr(message, 'content_subtype', 'plain') == 'html':
+            html = message.body
         if html:
             payload['htmlContent'] = html
-        payload['textContent'] = message.body or ' '
+            payload['textContent'] = message.body if html is not message.body else ' '
+        else:
+            payload['textContent'] = message.body or ' '
         return payload
 
     def send_messages(self, email_messages):
