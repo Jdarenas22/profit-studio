@@ -107,13 +107,13 @@
     <div class="flex flex-col sm:flex-row gap-3 pt-2">
       {% if not membership or not membership.is_valid %}
       <button type="submit" name="action" value="activate"
-              class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+              class="flex-1 bg-primary hover:bg-primary-dark text-black font-semibold py-3 rounded-xl transition-colors text-sm">
         <i class="fa fa-shield-halved mr-2"></i>
         {% if not membership %}Activar membresía{% else %}Reactivar membresía{% endif %}
       </button>
       {% else %}
       <button type="submit" name="action" value="renew" formnovalidate
-              class="flex-1 bg-primary hover:bg-primary-dark text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+              class="flex-1 bg-primary hover:bg-primary-dark text-black font-semibold py-3 rounded-xl transition-colors text-sm">
         <i class="fa fa-rotate mr-2"></i> Renovar membresía
       </button>
       <button type="submit" name="action" value="deactivate" formnovalidate

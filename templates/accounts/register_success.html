@@ -29,7 +29,7 @@
       <p class="text-white/50 text-xs font-semibold uppercase tracking-wider mb-5">¿Qué sigue?</p>
       <div class="space-y-4">
         <div class="flex items-start gap-4">
-          <div class="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shrink-0 text-white font-black text-sm">1</div>
+          <div class="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shrink-0 text-black font-black text-sm">1</div>
           <div>
             <p class="text-white font-semibold text-sm">Escríbele a la entrenadora</p>
             <p class="text-white/60 text-xs mt-0.5">Confirma el pago y cuéntale{% if plan %} que te interesa el plan <strong class="text-white">{{ plan.name }}</strong>{% endif %}.</p>
@@ -55,7 +55,7 @@
     {% if plan %}
     <!-- CTA Pago online (plan seleccionado) -->
     <a href="{% url 'payment_checkout' plan.pk %}"
-       class="flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-2xl transition-colors mb-3">
+       class="flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-black font-bold text-lg px-8 py-4 rounded-2xl transition-colors mb-3">
       <i class="fa fa-credit-card text-xl"></i>
       Pagar membresía ahora
     </a>
@@ -64,7 +64,7 @@
 
     <!-- CTA WhatsApp -->
     <a href="{{ wa_link }}" target="_blank" rel="noopener"
-       class="flex items-center justify-center gap-3 {% if plan %}bg-zinc-800 hover:bg-zinc-700{% else %}bg-green-500 hover:bg-green-600{% endif %} text-white font-bold text-lg px-8 py-4 rounded-2xl transition-colors mb-4">
+       class="flex items-center justify-center gap-3 {% if plan %}bg-zinc-800 hover:bg-zinc-700 text-white{% else %}bg-green-500 hover:bg-green-600 text-black{% endif %} font-bold text-lg px-8 py-4 rounded-2xl transition-colors mb-4">
       <i class="fab fa-whatsapp text-2xl"></i>
       {% if plan %}Pagar por WhatsApp{% else %}Escribirle a la entrenadora ahora{% endif %}
     </a>

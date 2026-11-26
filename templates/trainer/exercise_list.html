@@ -9,7 +9,7 @@
     <p class="text-white/60 text-sm mt-1">{{ exercises|length }} ejercicio{{ exercises|length|pluralize:"s" }}</p>
   </div>
   <a href="{% url 'trainer_exercise_create' %}"
-     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-black text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
     <i class="fa fa-plus"></i> Nuevo ejercicio
   </a>
 </div>
@@ -18,13 +18,13 @@
 <form method="GET" class="flex flex-wrap gap-2 mb-6">
   <a href="{% url 'trainer_exercise_list' %}"
      class="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors
-            {% if not selected_category %}bg-primary text-white{% else %}bg-white/5 text-white/50 hover:bg-white/10{% endif %}">
+            {% if not selected_category %}bg-primary text-black{% else %}bg-white/5 text-white/50 hover:bg-white/10{% endif %}">
     Todos
   </a>
   {% for cat in categories %}
   <a href="?category={{ cat.pk }}"
      class="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors
-            {% if selected_category == cat.pk|stringformat:'s' %}bg-primary text-white{% else %}bg-white/5 text-white/50 hover:bg-white/10{% endif %}">
+            {% if selected_category == cat.pk|stringformat:'s' %}bg-primary text-black{% else %}bg-white/5 text-white/50 hover:bg-white/10{% endif %}">
     {{ cat.name }}
   </a>
   {% endfor %}
@@ -83,7 +83,7 @@
   {% if not selected_category %}
   <p class="text-white/60 text-sm mb-7">Crea el primer ejercicio para empezar a construir tu banco.</p>
   <a href="{% url 'trainer_exercise_create' %}"
-     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+     class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-black font-semibold px-6 py-3 rounded-xl transition-colors">
     <i class="fa fa-plus"></i> Crear ejercicio
   </a>
   {% endif %}

@@ -41,7 +41,7 @@
       </div>
 
       <a href="{% url 'dashboard' %}"
-         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-xl transition-colors text-lg mb-4">
+         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-black font-bold px-8 py-4 rounded-xl transition-colors text-lg mb-4">
         <i class="fa fa-dumbbell"></i> Ir a mis rutinas
       </a>
 
@@ -56,7 +56,7 @@
       </p>
       {% if payment.plan %}
       <a href="{% url 'payment_checkout' payment.plan.pk %}"
-         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-xl transition-colors mb-4 block">
+         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-black font-bold px-8 py-4 rounded-xl transition-colors mb-4 block">
         <i class="fa fa-redo"></i> Intentar de nuevo
       </a>
       {% endif %}
@@ -75,7 +75,7 @@
         Referencia: <span class="text-white/70 font-mono break-all">{{ payment.reference }}</span>
       </p>
       <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener noreferrer"
-         class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 rounded-xl transition-colors mb-4">
+         class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-black font-bold px-8 py-4 rounded-xl transition-colors mb-4">
         <i class="fab fa-whatsapp text-xl" aria-hidden="true"></i> Escribir por WhatsApp
       </a>
 

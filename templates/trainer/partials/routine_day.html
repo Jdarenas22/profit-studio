@@ -11,7 +11,7 @@
     </div>
     <div class="flex items-center gap-2">
       <button @click="showAddExercise = !showAddExercise"
-              :class="showAddExercise ? 'bg-primary text-white' : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'"
+              :class="showAddExercise ? 'bg-primary text-black' : 'bg-white/5 text-white/50 hover:text-white hover:bg-white/10'"
               class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
         <i class="fa fa-plus text-xs"></i>
         <span x-text="showAddExercise ? 'Cerrar' : 'Agregar ejercicio'"></span>
@@ -104,7 +104,7 @@
       <p x-ref="formError" role="alert" class="text-red-400 text-xs empty:hidden"></p>
 
       <button type="submit"
-              class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-2.5 rounded-xl transition-colors text-sm">
+              class="w-full bg-primary hover:bg-primary-dark text-black font-semibold py-2.5 rounded-xl transition-colors text-sm">
         <i class="fa fa-plus mr-1.5"></i> Agregar ejercicio
       </button>
     </form>

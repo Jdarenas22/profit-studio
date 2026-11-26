@@ -26,7 +26,7 @@
       <p class="text-white font-bold">{{ client.get_full_name|default:client.username }}</p>
     </div>
     <a href="{% url 'trainer_manual_payment_add' client.pk %}"
-       class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+       class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-black text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
       <i class="fa fa-plus"></i> Nuevo
     </a>
   </div>

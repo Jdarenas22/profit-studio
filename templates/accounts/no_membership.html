@@ -13,7 +13,7 @@
 
     {% if user.interested_plan %}
     <a href="{% url 'payment_checkout' user.interested_plan.pk %}"
-       class="flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-xl transition-colors mb-3">
+       class="flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-black font-bold text-lg px-8 py-4 rounded-xl transition-colors mb-3">
       <i class="fa fa-credit-card text-xl"></i>
       Pagar plan {{ user.interested_plan.name }} ahora
     </a>

@@ -13,7 +13,7 @@
 
     {% if membership.plan %}
     <a href="{% url 'payment_checkout' membership.plan.pk %}"
-       class="flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-xl transition-colors mb-3">
+       class="flex items-center justify-center gap-3 bg-primary hover:bg-primary-dark text-black font-bold text-lg px-8 py-4 rounded-xl transition-colors mb-3">
       <i class="fa fa-credit-card text-xl"></i>
       Renovar plan {{ membership.plan.name }}
     </a>
