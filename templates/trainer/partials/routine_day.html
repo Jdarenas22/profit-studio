@@ -20,7 +20,7 @@
               hx-target="#day-{{ day.pk }}"
               hx-swap="outerHTML"
               hx-confirm="¿Eliminar el día '{{ day.name }}' con todos sus ejercicios?"
-              class="w-7 h-7 bg-white/5 hover:bg-red-600/20 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 transition-colors">
+              class="w-7 h-7 bg-white/5 hover:bg-red-600/20 rounded-lg flex items-center justify-center text-white/60 hover:text-red-400 transition-colors">
         <i class="fa fa-trash text-xs"></i>
       </button>
     </div>
@@ -34,7 +34,7 @@
   </div>
 
   {% if not day.exercises.exists %}
-  <div class="px-5 py-6 text-center text-white/20 text-sm" id="empty-exercises-{{ day.pk }}">
+  <div class="px-5 py-6 text-center text-white/60 text-sm" id="empty-exercises-{{ day.pk }}">
     <i class="fa fa-dumbbell mr-2"></i>Sin ejercicios aún
   </div>
   {% endif %}

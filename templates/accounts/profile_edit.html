@@ -5,7 +5,7 @@
 {% block content %}
 <section class="py-10 px-4 max-w-xl mx-auto">
 
-  <nav class="flex items-center gap-2 text-white/30 text-sm mb-8">
+  <nav class="flex items-center gap-2 text-white/60 text-sm mb-8">
     <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
     <i class="fa fa-chevron-right text-xs"></i>
     <span class="text-white/60">Editar perfil</span>
@@ -24,7 +24,7 @@
     </div>
     <div>
       <h1 class="text-2xl font-black text-white">Editar mi perfil</h1>
-      <p class="text-white/40 text-sm">@{{ user.username }}</p>
+      <p class="text-white/60 text-sm">@{{ user.username }}</p>
     </div>
   </div>
 
@@ -38,13 +38,13 @@
       <div class="flex items-center gap-4 mb-3">
         <img src="{{ user.profile_photo.url }}" alt="Foto actual" width="48" height="48" loading="lazy" decoding="async"
              class="w-12 h-12 rounded-xl object-cover border border-white/10">
-        <p class="text-white/40 text-xs"><i class="fa fa-check-circle text-green-400 mr-1"></i>Foto actual guardada</p>
+        <p class="text-white/60 text-xs"><i class="fa fa-check-circle text-green-400 mr-1"></i>Foto actual guardada</p>
       </div>
       {% endif %}
       <input type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp,image/gif"
              class="w-full bg-black/40 border {% if errors.profile_photo %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
       {% if errors.profile_photo %}<p class="text-red-400 text-xs mt-1">{{ errors.profile_photo }}</p>{% endif %}
-      <p class="text-white/20 text-xs mt-1.5">JPG, PNG, WEBP o GIF, máx. 5 MB. Se verá en tu panel y en el perfil de la entrenadora.</p>
+      <p class="text-white/60 text-xs mt-1.5">JPG, PNG, WEBP o GIF, máx. 5 MB. Se verá en tu panel y en el perfil de la entrenadora.</p>
     </div>
 
     <!-- Datos personales -->
@@ -120,7 +120,7 @@
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">
           Bio / Descripción
-          <span class="text-white/25 font-normal ml-1">(aparece en la sección Nosotros)</span>
+          <span class="text-white/60 font-normal ml-1">(aparece en la sección Nosotros)</span>
         </label>
         <textarea name="bio" maxlength="1500" rows="4"
                   class="w-full bg-black/40 border {% if errors.bio %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
@@ -130,7 +130,7 @@
       {% endif %}
 
       <div class="bg-black/20 rounded-xl px-4 py-3">
-        <p class="text-white/30 text-xs">
+        <p class="text-white/60 text-xs">
           <i class="fa fa-lock mr-1"></i>
           Tu nombre de usuario <span class="text-white/50 font-medium">@{{ user.username }}</span> no puede cambiarse. Contacta a la entrenadora si necesitas actualizarlo.
         </p>
@@ -143,7 +143,7 @@
         <input type="checkbox" x-model="changePass" class="w-4 h-4 accent-orange-500">
         <div>
           <span class="text-white font-semibold text-sm">Cambiar contraseña</span>
-          <p class="text-white/30 text-xs">Solo rellena esto si quieres cambiarla.</p>
+          <p class="text-white/60 text-xs">Solo rellena esto si quieres cambiarla.</p>
         </div>
       </label>
 
@@ -178,7 +178,7 @@
         <i class="fa fa-save mr-2"></i> Guardar cambios
       </button>
       <a href="{% url 'dashboard' %}"
-         class="px-5 py-3.5 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+         class="px-5 py-3.5 text-white/60 hover:text-white text-sm transition-colors">Cancelar</a>
     </div>
   </form>
 </section>

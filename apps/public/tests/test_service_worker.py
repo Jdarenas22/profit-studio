@@ -8,10 +8,12 @@ from django.test import TestCase, override_settings
 from django.urls import resolve, reverse
 
 from apps.accounts.models import User
+from apps.accounts.tests.helpers import NO_MANIFEST
 
 SOURCE = Path(settings.BASE_DIR) / 'static' / 'sw.js'
 
 
+@NO_MANIFEST   # el 404 ahora es la página de marca (extiende base.html y usa {% static %}); el CI no tiene manifiesto
 class ServiceWorkerViewTests(TestCase):
     def test_route_is_at_the_root(self):
         self.assertEqual(reverse('service_worker'), '/sw.js')

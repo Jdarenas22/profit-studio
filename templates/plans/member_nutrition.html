@@ -125,7 +125,7 @@
         </ul>
         {% include 'plans/partials/nutrients.html' with nutrients=opt.nutrients only %}
         {% if option.preparation %}<p class="mt-3 text-white/60 text-sm leading-relaxed [overflow-wrap:anywhere]">{{ option.preparation }}</p>{% endif %}
-        <p class="mt-2 text-white/40 text-xs">Proteína {{ option.protein_g|floatformat:0 }} g · Carbohidratos {{ option.carbs_g|floatformat:0 }} g · Grasa {{ option.fat_g|floatformat:0 }} g</p>
+        <p class="mt-2 text-white/60 text-xs">Proteína {{ option.protein_g|floatformat:0 }} g · Carbohidratos {{ option.carbs_g|floatformat:0 }} g · Grasa {{ option.fat_g|floatformat:0 }} g</p>
 
         <div class="mt-3 flex flex-wrap items-center gap-2 print:hidden">
           {% if not opt.conflict %}
@@ -175,7 +175,7 @@
       {% endwith %}
       {% endfor %}
     </div>
-    <p class="mt-2 text-white/40 text-xs print:hidden">Cambios de opción disponibles para esta comida esta semana: {{ entry.week_left }}.</p>
+    <p class="mt-2 text-white/60 text-xs print:hidden">Cambios de opción disponibles para esta comida esta semana: {{ entry.week_left }}.</p>
     </div>
   </details>
   {% endwith %}

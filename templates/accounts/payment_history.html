@@ -4,7 +4,7 @@
 
 {% block content %}
 <section class="py-10 px-4 max-w-3xl mx-auto">
-  <nav class="flex items-center gap-2 text-white/30 text-sm mb-8">
+  <nav class="flex items-center gap-2 text-white/60 text-sm mb-8">
     <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
     <i class="fa fa-chevron-right text-xs"></i>
     <span class="text-white/60">Mis pagos</span>
@@ -17,7 +17,7 @@
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="border-b border-white/10">
-          <tr class="text-white/30 text-xs uppercase tracking-wider">
+          <tr class="text-white/60 text-xs uppercase tracking-wider">
             <th class="text-left px-6 py-4">Fecha</th>
             <th class="text-left px-6 py-4">Plan</th>
             <th class="text-left px-6 py-4">Método</th>
@@ -40,7 +40,7 @@
     </div>
   </div>
   {% else %}
-  <div class="text-center py-20 text-white/20">
+  <div class="text-center py-20 text-white/60">
     <i class="fa fa-receipt text-5xl mb-4"></i>
     <p class="text-lg font-medium">Sin pagos registrados</p>
     <p class="text-sm mt-2">Tus pagos aparecerán aquí una vez que la entrenadora los registre.</p>
@@ -48,7 +48,7 @@
   {% endif %}
 
   <div class="mt-6 text-center">
-    <a href="{% url 'dashboard' %}" class="text-white/40 hover:text-primary text-sm transition-colors">
+    <a href="{% url 'dashboard' %}" class="text-white/60 hover:text-primary text-sm transition-colors">
       <i class="fa fa-arrow-left mr-1"></i>Volver al panel
     </a>
   </div>

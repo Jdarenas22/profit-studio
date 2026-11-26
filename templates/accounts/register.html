@@ -144,7 +144,7 @@
       <!-- Meta de entrenamiento -->
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6" x-data="{ goal: '{{ form.training_goal|default:''|escapejs }}' }">
         <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-1">¿Cuál es tu meta?</h2>
-        <p class="text-white/30 text-xs mb-5">Esto ayuda a asignarte el entrenador ideal para tu objetivo.</p>
+        <p class="text-white/60 text-xs mb-5">Esto ayuda a asignarte el entrenador ideal para tu objetivo.</p>
         <div class="grid grid-cols-2 gap-3">
           {% for val, label in goal_choices %}
           <label class="cursor-pointer">
@@ -163,7 +163,7 @@
       {% if plans %}
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
         <h2 class="text-white font-bold mb-1 text-sm uppercase tracking-wider">Plan de interés</h2>
-        <p class="text-white/30 text-xs mb-5">Elige el que más te guste. La entrenadora confirmará el pago y activará tu acceso.</p>
+        <p class="text-white/60 text-xs mb-5">Elige el que más te guste. La entrenadora confirmará el pago y activará tu acceso.</p>
 
         <div class="space-y-3" x-data="{ selected: '{{ selected_plan_id|default:''|escapejs }}' }">
           {% for plan in plans %}
@@ -178,7 +178,7 @@
                 <p class="text-white font-bold">{{ plan.name }}</p>
                 <div class="text-right">
                   <p class="text-primary font-black">${{ plan.reference_price|floatformat:0 }} COP</p>
-                  <p class="text-white/30 text-xs">{{ plan.duration_days }} días</p>
+                  <p class="text-white/60 text-xs">{{ plan.duration_days }} días</p>
                 </div>
               </div>
               {% if plan.description %}
@@ -195,7 +195,7 @@
                    class="mt-1 accent-orange-500 shrink-0">
             <div>
               <p class="text-white/60 font-medium text-sm">Decidir después</p>
-              <p class="text-white/30 text-xs">Puedo hablar con la entrenadora para escoger el mejor plan para mí.</p>
+              <p class="text-white/60 text-xs">Puedo hablar con la entrenadora para escoger el mejor plan para mí.</p>
             </div>
           </label>
         </div>

@@ -1,0 +1,41 @@
+{% comment %}
+Tarjeta común de las páginas de error (400, 403, 403_csrf, 404). Parámetros: code, title, message, icon (clase fa),
+tone ('red' o 'primary'). No muestra detalles técnicos: nada de rutas, trazas ni mensajes internos.
+{% endcomment %}
+<section class="min-h-[70vh] flex items-center justify-center py-20 bg-black">
+  <div class="w-full max-w-lg px-4">
+    <div class="bg-zinc-900 border border-white/10 rounded-3xl p-8 sm:p-10 text-center">
+      <div class="w-16 h-16 {% if tone == 'primary' %}bg-primary/10{% else %}bg-red-500/10{% endif %} rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <i class="fa {{ icon }} {% if tone == 'primary' %}text-primary{% else %}text-red-400{% endif %} text-2xl" aria-hidden="true"></i>
+      </div>
+      <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-2">Error {{ code }}</p>
+      <h1 class="text-2xl sm:text-3xl font-black text-white mb-3">{{ title }}</h1>
+      <p class="text-white/70 text-base mb-8">{{ message }}</p>
+
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="{% url 'home' %}"
+           class="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold px-6 py-3 rounded-xl transition-colors">
+          <i class="fa fa-house" aria-hidden="true"></i> Ir al inicio
+        </a>
+        {% if user.is_authenticated %}
+        <a href="{% url 'dashboard' %}"
+           class="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+          <i class="fa fa-gauge" aria-hidden="true"></i> Ir a mi panel
+        </a>
+        {% else %}
+        <a href="{% url 'login' %}"
+           class="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+          <i class="fa fa-right-to-bracket" aria-hidden="true"></i> Iniciar sesión
+        </a>
+        {% endif %}
+      </div>
+
+      {% if WHATSAPP_LINK %}
+      <p class="text-white/60 text-sm mt-8">
+        ¿Necesitas ayuda?
+        <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener" class="text-primary hover:underline">Escríbenos por WhatsApp</a>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</section>

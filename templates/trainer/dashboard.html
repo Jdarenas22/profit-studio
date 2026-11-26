@@ -10,7 +10,7 @@
       <h1 class="text-3xl font-black text-white">
         Panel <span class="text-primary">ProFit Studio</span>
       </h1>
-      <p class="text-white/40 text-sm mt-1">Hola, {{ user.first_name|default:user.username }} — aquí tienes el resumen de hoy.</p>
+      <p class="text-white/60 text-sm mt-1">Hola, {{ user.first_name|default:user.username }} — aquí tienes el resumen de hoy.</p>
     </div>
     <a href="/admin/" target="_blank"
        class="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
@@ -21,19 +21,19 @@
   <!-- Stats -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
     <a href="{% url 'trainer_clients' %}" class="bg-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl p-6 transition-colors group">
-      <p class="text-white/40 text-xs uppercase tracking-wider mb-2">Clientes</p>
+      <p class="text-white/60 text-xs uppercase tracking-wider mb-2">Clientes</p>
       <p class="text-4xl font-black text-white group-hover:text-primary transition-colors">{{ total_clients }}</p>
     </a>
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
-      <p class="text-white/40 text-xs uppercase tracking-wider mb-2">Membresías activas</p>
+      <p class="text-white/60 text-xs uppercase tracking-wider mb-2">Membresías activas</p>
       <p class="text-4xl font-black text-green-400">{{ active_memberships }}</p>
     </div>
     <a href="{% url 'trainer_exercise_list' %}" class="bg-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl p-6 transition-colors group">
-      <p class="text-white/40 text-xs uppercase tracking-wider mb-2">Ejercicios</p>
+      <p class="text-white/60 text-xs uppercase tracking-wider mb-2">Ejercicios</p>
       <p class="text-4xl font-black text-white group-hover:text-primary transition-colors">{{ total_exercises }}</p>
     </a>
     <a href="{% url 'trainer_routine_list' %}" class="bg-zinc-900 border border-white/10 hover:border-white/20 rounded-2xl p-6 transition-colors group">
-      <p class="text-white/40 text-xs uppercase tracking-wider mb-2">Rutinas activas</p>
+      <p class="text-white/60 text-xs uppercase tracking-wider mb-2">Rutinas activas</p>
       <p class="text-4xl font-black text-white group-hover:text-primary transition-colors">{{ total_routines }}</p>
     </a>
   </div>
@@ -61,7 +61,7 @@
     <div class="lg:col-span-1">
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 h-full">
         <h2 class="text-white font-bold mb-1">Vencen pronto</h2>
-        <p class="text-white/30 text-xs mb-5">Membresías en los próximos 7 días</p>
+        <p class="text-white/60 text-xs mb-5">Membresías en los próximos 7 días</p>
 
         {% if expiring_soon %}
         <div class="space-y-3">
@@ -73,13 +73,13 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-white text-sm font-medium truncate">{{ m.user.get_full_name|default:m.user.username }}</p>
-              <p class="text-white/40 text-xs">Vence: {{ m.end_date|date:"d/m/Y" }} — {{ m.days_remaining }}d</p>
+              <p class="text-white/60 text-xs">Vence: {{ m.end_date|date:"d/m/Y" }} — {{ m.days_remaining }}d</p>
             </div>
           </a>
           {% endfor %}
         </div>
         {% else %}
-        <div class="text-center py-8 text-white/20">
+        <div class="text-center py-8 text-white/60">
           <i class="fa fa-check-circle text-green-400/40 text-3xl mb-2"></i>
           <p class="text-sm">Ninguna membresía vence pronto</p>
         </div>
@@ -137,7 +137,7 @@
     <div class="lg:col-span-1">
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 h-full">
         <h2 class="text-white font-bold mb-1">Clientes recientes</h2>
-        <p class="text-white/30 text-xs mb-5">Últimos en registrarse</p>
+        <p class="text-white/60 text-xs mb-5">Últimos en registrarse</p>
 
         {% if recent_clients %}
         <div class="space-y-3">
@@ -151,11 +151,11 @@
               <p class="text-white text-sm font-medium truncate">
                 {{ client.get_full_name|default:client.username }}
               </p>
-              <p class="text-white/30 text-xs">
+              <p class="text-white/60 text-xs">
                 {% if client.has_active_membership %}
                 <span class="text-green-400">● Activo</span>
                 {% else %}
-                <span class="text-white/20">● Sin membresía</span>
+                <span class="text-white/60">● Sin membresía</span>
                 {% endif %}
               </p>
             </div>
@@ -168,7 +168,7 @@
           Ver todos los clientes <i class="fa fa-arrow-right text-xs"></i>
         </a>
         {% else %}
-        <div class="text-center py-8 text-white/20">
+        <div class="text-center py-8 text-white/60">
           <i class="fa fa-users text-3xl mb-2"></i>
           <p class="text-sm">Aún no hay clientes</p>
         </div>
@@ -185,7 +185,7 @@
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-white/30 text-xs uppercase tracking-wider">
+            <tr class="text-white/60 text-xs uppercase tracking-wider">
               <th class="text-left pb-3 pr-6">Cliente</th>
               <th class="text-left pb-3 pr-6">Fecha</th>
               <th class="text-left pb-3 pr-6">IMC</th>
@@ -210,7 +210,7 @@
               </td>
               <td class="py-3">
                 <a href="{% url 'trainer_assessment_detail' assessment.pk %}"
-                   class="text-white/30 hover:text-primary text-xs transition-colors">
+                   class="text-white/60 hover:text-primary text-xs transition-colors">
                   Ver detalle <i class="fa fa-arrow-right"></i>
                 </a>
               </td>

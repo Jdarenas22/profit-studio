@@ -11,7 +11,7 @@
   <p class="text-white/50 text-sm mb-2">
     Vas a desactivar <span class="text-white font-semibold">{{ exercise.name }}</span>.
   </p>
-  <p class="text-white/30 text-xs mb-8">El ejercicio se ocultará del banco pero no se borrará de las rutinas existentes.</p>
+  <p class="text-white/60 text-xs mb-8">El ejercicio se ocultará del banco pero no se borrará de las rutinas existentes.</p>
 
   <form method="POST" class="flex flex-col gap-3">
     {% csrf_token %}
@@ -20,7 +20,7 @@
       <i class="fa fa-trash mr-2"></i> Sí, eliminar
     </button>
     <a href="{% url 'trainer_exercise_list' %}"
-       class="py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+       class="py-3 text-white/60 hover:text-white text-sm transition-colors">Cancelar</a>
   </form>
 </div>
 {% endblock %}

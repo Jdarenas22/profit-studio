@@ -5,7 +5,7 @@
 {% block trainer_content %}
 
 <!-- Breadcrumb -->
-<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+<nav class="flex items-center gap-2 text-white/60 text-sm mb-6">
   <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
   <i class="fa fa-chevron-right text-xs"></i>
   <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
@@ -15,7 +15,7 @@
 
 <div class="max-w-2xl">
   <h1 class="text-2xl font-black text-white mb-2">Gestionar membresía</h1>
-  <p class="text-white/40 text-sm mb-8">Cliente: <span class="text-white font-medium">{{ client.get_full_name|default:client.username }}</span></p>
+  <p class="text-white/60 text-sm mb-8">Cliente: <span class="text-white font-medium">{{ client.get_full_name|default:client.username }}</span></p>
 
   <!-- Estado actual -->
   {% if membership %}
@@ -23,7 +23,7 @@
     <h2 class="text-white font-bold mb-4">Estado actual</h2>
     <div class="grid grid-cols-2 gap-4">
       <div>
-        <p class="text-white/40 text-xs mb-1">Estado</p>
+        <p class="text-white/60 text-xs mb-1">Estado</p>
         {% if membership.is_valid %}
         <p class="text-green-400 font-semibold text-sm">● Activa</p>
         {% else %}
@@ -32,17 +32,17 @@
       </div>
       {% if membership.plan %}
       <div>
-        <p class="text-white/40 text-xs mb-1">Plan actual</p>
+        <p class="text-white/60 text-xs mb-1">Plan actual</p>
         <p class="text-white font-medium text-sm">{{ membership.plan.name }}</p>
       </div>
       {% endif %}
       <div>
-        <p class="text-white/40 text-xs mb-1">Vencimiento</p>
+        <p class="text-white/60 text-xs mb-1">Vencimiento</p>
         <p class="text-white text-sm">{{ membership.end_date|date:"d/m/Y" }}</p>
       </div>
       {% if membership.is_valid %}
       <div>
-        <p class="text-white/40 text-xs mb-1">Días restantes</p>
+        <p class="text-white/60 text-xs mb-1">Días restantes</p>
         <p class="text-primary font-bold">{{ membership.days_remaining }}d</p>
       </div>
       {% endif %}
@@ -68,7 +68,7 @@
               <p class="text-white font-semibold">{{ plan.name }}</p>
               <p class="text-primary font-bold text-sm">${{ plan.reference_price|floatformat:0 }}</p>
             </div>
-            <p class="text-white/40 text-xs mt-0.5">{{ plan.duration_days }} días — {{ plan.description }}</p>
+            <p class="text-white/60 text-xs mt-0.5">{{ plan.duration_days }} días — {{ plan.description }}</p>
           </div>
         </label>
         {% endfor %}
@@ -88,7 +88,7 @@
                placeholder="Ej: 45"
                class="w-full bg-zinc-900 border {% if errors.duration_days %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
         {% if errors.duration_days %}<p class="text-red-400 text-xs mt-1">{{ errors.duration_days }}</p>{% endif %}
-        <p class="text-white/30 text-xs mt-1">Deja vacío para usar la duración predeterminada del plan seleccionado.</p>
+        <p class="text-white/60 text-xs mt-1">Deja vacío para usar la duración predeterminada del plan seleccionado.</p>
       </div>
     </div>
 
