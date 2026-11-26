@@ -12,22 +12,22 @@
 
     <a href="{{ url_dashboard }}"
        class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
-              {% if request.path == url_dashboard %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+              {% if request.path == url_dashboard %}bg-primary text-black{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-chart-bar"></i> Panel
     </a>
     <a href="{{ url_clients }}"
        class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
-              {% if 'clients' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+              {% if 'clients' in request.path %}bg-primary text-black{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-users"></i> Clientes
     </a>
     <a href="{{ url_exercises }}"
        class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
-              {% if '/exercises/trainer' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+              {% if '/exercises/trainer' in request.path %}bg-primary text-black{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-dumbbell"></i> Ejercicios
     </a>
     <a href="{{ url_routines }}"
        class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
-              {% if '/routines/trainer' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+              {% if '/routines/trainer' in request.path %}bg-primary text-black{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-clipboard-list"></i> Rutinas
     </a>
     {% if AI_PLANS_ENABLED %}
@@ -42,7 +42,7 @@
     <a href="{% url 'trainer_plan_inbox' %}"
        data-active="{% if '/plans/trainer' in request.path and '/plans/trainer/clients/' not in request.path %}true{% else %}false{% endif %}"
        class="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
-              {% if '/plans/trainer' in request.path and '/plans/trainer/clients/' not in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+              {% if '/plans/trainer' in request.path and '/plans/trainer/clients/' not in request.path %}bg-primary text-black{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-wand-magic-sparkles"></i>
       <span class="flex items-center">
         Planes por revisar
@@ -58,12 +58,12 @@
     {% if request.user.is_superuser %}
     <a href="{% url 'trainer_manual_payment_list' %}"
        class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
-              {% if '/payments/manual' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+              {% if '/payments/manual' in request.path %}bg-primary text-black{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-money-bill-wave"></i> Pagos
     </a>
     <a href="{% url 'trainer_staff_list' %}"
        class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap
-              {% if 'staff' in request.path %}bg-primary text-white{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
+              {% if 'staff' in request.path %}bg-primary text-black{% else %}text-white/50 hover:text-white hover:bg-white/5{% endif %}">
       <i class="fa fa-user-tie"></i> Entrenadores
     </a>
     {% endif %}

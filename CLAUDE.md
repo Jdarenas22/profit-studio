@@ -141,6 +141,7 @@ La suite no necesita variables de entorno: sin `.env`, development.py usa sus va
 - **Contraseñas**: todo `input type="password"` lleva `autocomplete` (`current-password` para la actual, `new-password` para crear o cambiar)
 - **JS interactivo**: Alpine.js (directivas `x-data`, `x-model`, `x-show`)
 - **Tema**: dark (`bg-zinc-900`/`bg-black`), color acento `#FF6B00` (`text-primary`, `bg-primary`)
+- **Contraste (WCAG AA, 4,5:1)**: el texto sobre fondo oscuro usa `text-white/60` o más (nunca `/10` a `/40`); los **rellenos claros llevan texto negro** (`bg-primary text-black`: 7,36:1; el blanco sobre `#FF6B00` da solo 2,86:1; igual con `bg-green-400/500/600`) y el texto naranja sobre oscuro va en `text-primary` pleno, no tenue. Los íconos decorativos (`<i class="fa ...">`) están exentos. `apps/public/tests/test_error_pages.py` y `test_button_contrast.py` fallan si se vuelve a escribir lo contrario
 - **Templates**: dos base templates — `base.html` (público y miembros) y `trainer/base.html` (panel admin)
 - **Parciales reutilizables**: `templates/partials/` (navbar, footer, whatsapp_btn)
 - **Context processor global**: `apps/public/context_processors.site_settings` inyecta `WHATSAPP_LINK`, `WHATSAPP_NUMBER`, `INSTAGRAM_URL` en todos los templates

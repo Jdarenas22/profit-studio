@@ -201,7 +201,7 @@
 
     <div class="flex items-center gap-3 pt-2">
       <button type="submit" :disabled="submitting"
-              class="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+              class="flex-1 bg-primary hover:bg-primary-dark disabled:opacity-60 text-black font-semibold py-3 rounded-xl transition-colors text-sm">
         <span x-show="!submitting"><i class="fa fa-check mr-2"></i>{% if exercise %}Guardar cambios{% else %}Crear ejercicio{% endif %}</span>
         <span x-show="submitting"><i class="fa fa-spinner fa-spin mr-2"></i>Guardando...</span>
       </button>

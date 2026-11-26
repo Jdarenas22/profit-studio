@@ -271,7 +271,7 @@
       <button type="submit"
               :disabled="dixonMissing || dixonNegative"
               :class="(dixonMissing || dixonNegative) ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary-dark'"
-              class="flex-1 bg-primary text-white font-semibold py-3.5 rounded-xl transition-colors text-sm">
+              class="flex-1 bg-primary text-black font-semibold py-3.5 rounded-xl transition-colors text-sm">
         <i class="fa fa-check mr-2"></i> Guardar valoración
       </button>
       <a href="{% url 'trainer_client_detail' client.pk %}"

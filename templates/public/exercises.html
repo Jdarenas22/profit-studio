@@ -108,7 +108,7 @@
           <!-- Acción -->
           {% if user.is_authenticated %}
             <a href="{% url 'exercise_detail' exercise.pk %}"
-               class="flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary text-primary hover:text-white text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 w-full">
+               class="flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary text-primary hover:text-black text-sm font-semibold py-2.5 rounded-xl transition-all duration-200 w-full">
               {% if exercise.video_file %}
               <i class="fa fa-play text-xs"></i> Ver ejercicio
               {% else %}
@@ -135,7 +135,7 @@
       <h3 class="text-white font-bold text-xl mb-2">No hay ejercicios disponibles</h3>
       <p class="text-white/60 text-sm mb-8">Pronto se añadirán ejercicios al banco. ¡Vuelve pronto!</p>
       <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
-         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+         class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-black font-semibold px-6 py-3 rounded-xl transition-colors">
         <i class="fab fa-whatsapp"></i> Consultar disponibilidad
       </a>
     </div>
@@ -155,7 +155,7 @@
       Con tu membresía accedes a los videos de técnica, tus rutinas personalizadas y el seguimiento de la entrenadora.
     </p>
     <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
-       class="inline-flex items-center gap-3 bg-primary hover:bg-primary-dark text-white font-bold text-lg px-8 py-4 rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20">
+       class="inline-flex items-center gap-3 bg-primary hover:bg-primary-dark text-black font-bold text-lg px-8 py-4 rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20">
       <i class="fab fa-whatsapp text-xl"></i> Contactar para ser miembro
     </a>
   </div>
