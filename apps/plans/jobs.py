@@ -356,7 +356,9 @@ def _generate_validated(job, started, ai_client, *, task, system, make_payload, 
             continue
         validation = validate(result.data)
         if not validation.ok:
-            previous_errors, last_code = validation.codes, validation.error_code
+            # Códigos + motivos finos (p. ej. V07_REPS_FORMAT): solo mayúsculas, números y «_»
+            previous_errors = getattr(validation, 'retry_codes', validation.codes)
+            last_code = validation.error_code
             continue
         return validation, result
     raise JobFailed(last_code)
