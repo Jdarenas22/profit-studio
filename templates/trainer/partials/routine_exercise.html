@@ -18,7 +18,7 @@
       </span>
     </div>
     {% if re.observations %}
-    <p class="text-white/30 text-xs mt-2">
+    <p class="text-white/60 text-xs mt-2">
       <i class="fa fa-note-sticky text-primary/60 mr-1"></i>{{ re.observations }}
     </p>
     {% endif %}
@@ -29,7 +29,7 @@
           hx-target="#re-{{ re.pk }}"
           hx-swap="outerHTML"
           hx-confirm="¿Quitar '{{ re.exercise.name }}' de este día?"
-          class="w-7 h-7 opacity-0 group-hover:opacity-100 bg-white/5 hover:bg-red-600/20 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 transition-all shrink-0 mt-0.5">
+          class="w-7 h-7 opacity-0 group-hover:opacity-100 bg-white/5 hover:bg-red-600/20 rounded-lg flex items-center justify-center text-white/60 hover:text-red-400 transition-all shrink-0 mt-0.5">
     <i class="fa fa-times text-xs"></i>
   </button>
 </div>

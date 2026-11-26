@@ -159,7 +159,7 @@
                    value="{{ form.phone|default:'' }}" placeholder="300 123 4567"
                    aria-describedby="wa-phone-help{% if errors.phone %} wa-phone-error{% endif %}"
                    {% if errors.phone %}aria-invalid="true" autofocus{% endif %}
-                   class="w-full sm:max-w-xs bg-black/40 border {% if errors.phone %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/60 placeholder:text-white/40">
+                   class="w-full sm:max-w-xs bg-black/40 border {% if errors.phone %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-base outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/60 placeholder:text-white/50">
             <p id="wa-phone-help" class="text-white/60 text-xs leading-relaxed mt-1.5">
               Celular de Colombia. Lo usamos solo para estos avisos y no cambia el teléfono de tu perfil.
               Te enviaremos un mensaje para confirmar que es tuyo.

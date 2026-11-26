@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+{% comment %}
+Error 500: página INDEPENDIENTE a propósito. Django la renderiza sin contexto cuando algo ya falló, así que no
+extiende base.html, no usa {% static %} (un archivo faltante daría otro 500) ni consulta la base de datos.
+Estilos en línea; sin JavaScript.
+{% endcomment %}
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Algo salió mal — ProFit Studio</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+           background: #000; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .card { width: 100%; max-width: 32rem; text-align: center; padding: 2.5rem 2rem; background: #18181b;
+            border: 1px solid rgba(255,255,255,.1); border-radius: 1.5rem; }
+    .code { margin: 0 0 .5rem; color: #FF6B00; font-size: .8rem; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; }
+    h1 { margin: 0 0 .75rem; font-size: 1.75rem; font-weight: 900; line-height: 1.2; }
+    p { margin: 0 0 2rem; color: rgba(255,255,255,.7); font-size: 1rem; line-height: 1.5; }
+    a { display: inline-block; padding: .8rem 1.5rem; border-radius: .75rem; background: #FF6B00; color: #fff;
+        font-weight: 700; text-decoration: none; }
+    a:hover, a:focus-visible { background: #e55f00; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <p class="code">Error 500</p>
+    <h1>Algo salió mal de nuestro lado</h1>
+    <p>Ya quedó registrado el problema. Espera unos minutos e inténtalo de nuevo; si sigue pasando, escríbenos por WhatsApp o avísale a tu entrenadora.</p>
+    <a href="/">Volver al inicio</a>
+  </main>
+</body>
+</html>

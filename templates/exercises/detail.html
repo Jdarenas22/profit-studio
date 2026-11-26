@@ -6,7 +6,7 @@
 <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
   <!-- Breadcrumb -->
-  <nav class="flex items-center gap-2 text-white/30 text-sm mb-8">
+  <nav class="flex items-center gap-2 text-white/60 text-sm mb-8">
     <a href="{% url 'exercises' %}" class="hover:text-primary transition-colors">Ejercicios</a>
     <i class="fa fa-chevron-right text-xs"></i>
     <span class="text-white/60">{{ exercise.name }}</span>
@@ -89,7 +89,7 @@
       {% else %}
       <!-- Sin imagen ni video -->
       <div class="aspect-video bg-zinc-900 rounded-2xl border border-white/10 flex items-center justify-center">
-        <div class="text-center text-white/20">
+        <div class="text-center text-white/60">
           <i class="fa fa-dumbbell text-5xl mb-3"></i>
           <p class="text-sm">Sin video disponible aún</p>
         </div>
@@ -98,7 +98,7 @@
 
       <!-- Músculos -->
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mt-5">
-        <h3 class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Músculos trabajados</h3>
+        <h3 class="text-white/60 text-xs font-semibold uppercase tracking-wider mb-3">Músculos trabajados</h3>
         <p class="text-white text-sm leading-relaxed">{{ exercise.muscles }}</p>
       </div>
 
@@ -140,7 +140,7 @@
       <h1 class="text-3xl font-black text-white">{{ exercise.name }}</h1>
 
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6">
-        <h3 class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Descripción</h3>
+        <h3 class="text-white/60 text-xs font-semibold uppercase tracking-wider mb-3">Descripción</h3>
         <div class="text-white/70 text-sm leading-relaxed space-y-1">
           {{ exercise.description|linebreaksbr }}
         </div>
@@ -157,7 +157,7 @@
 
       <!-- Back -->
       <a href="{% url 'exercises' %}"
-         class="flex items-center gap-2 text-white/40 hover:text-primary text-sm transition-colors mt-4">
+         class="flex items-center gap-2 text-white/60 hover:text-primary text-sm transition-colors mt-4">
         <i class="fa fa-arrow-left text-xs"></i> Volver a ejercicios
       </a>
     </div>

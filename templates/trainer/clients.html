@@ -86,12 +86,12 @@
             <span class="w-1.5 h-1.5 bg-primary rounded-full"></span> Interesado: {{ client.interested_plan.name }}
           </span>
           {% else %}
-          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-white/30 bg-white/5 px-2.5 py-1 rounded-full">
+          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-white/60 bg-white/5 px-2.5 py-1 rounded-full">
             <span class="w-1.5 h-1.5 bg-white/20 rounded-full"></span> Sin membresía
           </span>
           {% endif %}
         </div>
-        <span class="text-white/20 group-hover:text-primary text-xs transition-colors">
+        <span class="text-white/60 group-hover:text-primary text-xs transition-colors">
           Ver detalle <i class="fa fa-arrow-right ml-1"></i>
         </span>
       </div>
@@ -101,12 +101,12 @@
     {% if is_superuser %}
     <div class="border-t {% if not client.assigned_trainer %}border-yellow-500/15 bg-yellow-500/5{% else %}border-white/5{% endif %} px-5 py-3 flex items-center justify-between">
       {% if client.assigned_trainer %}
-      <span class="text-white/30 text-xs flex items-center gap-1.5">
+      <span class="text-white/60 text-xs flex items-center gap-1.5">
         <i class="fa fa-user-tie text-white/20" aria-hidden="true"></i>
         {% include 'trainer/partials/person_name.html' with person=client.assigned_trainer %}
       </span>
       <a href="{% url 'trainer_assign_client' client.pk %}"
-         class="text-white/20 hover:text-primary text-xs font-medium transition-colors">
+         class="text-white/60 hover:text-primary text-xs font-medium transition-colors">
         <i class="fa fa-arrows-rotate mr-1"></i>Cambiar
       </a>
       {% else %}
@@ -143,7 +143,7 @@
     <i class="fa fa-users text-white/20 text-2xl"></i>
   </div>
   <h3 class="text-white font-bold text-xl mb-2">Aún no hay clientes</h3>
-  <p class="text-white/40 text-sm mb-7">Agrega el primer cliente desde el panel de administración.</p>
+  <p class="text-white/60 text-sm mb-7">Agrega el primer cliente desde el panel de administración.</p>
   <a href="{% url 'trainer_add_client' %}"
      class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors">
     <i class="fa fa-user-plus"></i> Agregar cliente

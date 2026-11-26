@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+
+{% block title %}Página no encontrada — ProFit Studio{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex" />{% endblock %}
+
+{% block content %}
+{% include 'partials/error_card.html' with code='404' icon='fa-compass' tone='primary' title='No encontramos esa página' message='El enlace puede estar mal escrito, haber vencido o la página ya no existe. Revisa la dirección o vuelve al inicio.' %}
+{% endblock %}

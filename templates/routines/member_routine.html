@@ -8,9 +8,9 @@
   <div class="flex items-center justify-between mb-10">
     <div>
       <h1 class="text-3xl font-black text-white">Mi Rutina</h1>
-      <p class="text-white/40 text-sm mt-1">Tu plan de entrenamiento personalizado</p>
+      <p class="text-white/60 text-sm mt-1">Tu plan de entrenamiento personalizado</p>
     </div>
-    <a href="{% url 'dashboard' %}" class="text-white/30 hover:text-primary text-sm transition-colors">
+    <a href="{% url 'dashboard' %}" class="text-white/60 hover:text-primary text-sm transition-colors">
       <i class="fa fa-arrow-left mr-1"></i>Panel
     </a>
   </div>
@@ -22,13 +22,13 @@
         <div>
           <h2 class="text-2xl font-bold text-white">{{ routine.name }}</h2>
           {% if routine.notes %}
-          <p class="text-white/40 text-sm mt-1">{{ routine.notes }}</p>
+          <p class="text-white/60 text-sm mt-1">{{ routine.notes }}</p>
           {% endif %}
           {% if routine.plan and routine.plan.is_approved %}
           <p class="text-white/60 text-xs mt-2">
             Plan revisado y aprobado por {% if routine.plan.approved_by and not routine.plan.approved_by.is_erased %}{{ routine.plan.approved_by.display_name }}{% else %}tu entrenador{% endif %}{% if routine.plan.reviewer_credential %} ({{ routine.plan.reviewer_credential }}){% endif %}{% if routine.plan.valid_until %} · vigente hasta el {{ routine.plan.valid_until|date:"d/m/Y" }}{% endif %}.
           </p>
-          <p class="text-white/40 text-xs mt-2 max-w-3xl leading-relaxed">{{ plan_disclaimer }}</p>
+          <p class="text-white/60 text-xs mt-2 max-w-3xl leading-relaxed">{{ plan_disclaimer }}</p>
           {% endif %}
         </div>
       </div>
@@ -158,7 +158,7 @@
       <i class="fa fa-clipboard-list text-white/20 text-2xl"></i>
     </div>
     <h3 class="text-white font-bold text-xl mb-2">Aún no tienes rutinas asignadas</h3>
-    <p class="text-white/40 text-sm mb-7">La entrenadora está preparando tu plan personalizado.</p>
+    <p class="text-white/60 text-sm mb-7">La entrenadora está preparando tu plan personalizado.</p>
     <a href="{{ WHATSAPP_LINK }}" target="_blank" rel="noopener"
        class="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-xl transition-colors">
       <i class="fab fa-whatsapp"></i> Preguntar a la entrenadora

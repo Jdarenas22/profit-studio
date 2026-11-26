@@ -5,7 +5,7 @@
 {% block trainer_content %}
 
 <!-- Breadcrumb -->
-<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+<nav class="flex items-center gap-2 text-white/60 text-sm mb-6">
   <a href="{% url 'trainer_exercise_list' %}" class="hover:text-primary transition-colors">Ejercicios</a>
   <i class="fa fa-chevron-right text-xs"></i>
   <span class="text-white/60">{% if exercise %}Editar "{{ exercise.name }}"{% else %}Nuevo ejercicio{% endif %}</span>
@@ -94,7 +94,7 @@
                class="w-4 h-4 accent-orange-500">
         <div>
           <span class="text-white text-sm font-medium">Visible en la galería pública</span>
-          <p class="text-white/30 text-xs">Los visitantes podrán verlo sin iniciar sesión.</p>
+          <p class="text-white/60 text-xs">Los visitantes podrán verlo sin iniciar sesión.</p>
         </div>
       </label>
     </div>
@@ -103,7 +103,7 @@
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-5">
       <div>
         <h2 class="text-white font-bold text-sm uppercase tracking-wider">Multimedia</h2>
-        <p class="text-white/30 text-xs mt-1">Usa el enlace de YouTube para que el video se vea siempre, sin importar los redespliegues del servidor.</p>
+        <p class="text-white/60 text-xs mt-1">Usa el enlace de YouTube para que el video se vea siempre, sin importar los redespliegues del servidor.</p>
       </div>
 
       <!-- ✅ URL de YouTube (recomendado en producción) -->
@@ -117,13 +117,13 @@
                placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."
                class="w-full bg-black/40 border {% if errors.video_url %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors">
         {% if errors.video_url %}<p class="text-red-400 text-xs mt-1">{{ errors.video_url }}</p>{% endif %}
-        <p class="text-white/20 text-xs mt-1">Copia el enlace desde YouTube y pégalo aquí. Funciona con enlaces cortos (youtu.be) y largos.</p>
+        <p class="text-white/60 text-xs mt-1">Copia el enlace desde YouTube y pégalo aquí. Funciona con enlaces cortos (youtu.be) y largos.</p>
       </div>
 
       <!-- Separador -->
       <div class="flex items-center gap-3">
         <div class="flex-1 border-t border-white/10"></div>
-        <span class="text-white/20 text-xs">o sube un archivo</span>
+        <span class="text-white/60 text-xs">o sube un archivo</span>
         <div class="flex-1 border-t border-white/10"></div>
       </div>
 
@@ -144,12 +144,12 @@
       <div>
         <label class="block text-white/60 text-xs font-medium mb-2">Imagen de portada (JPG, PNG, WEBP o GIF, máx. 5 MB)</label>
         {% if exercise and exercise.image %}
-        <p class="text-white/30 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Imagen actual guardada</p>
+        <p class="text-white/60 text-xs mb-2"><i class="fa fa-check-circle text-green-400 mr-1"></i>Imagen actual guardada</p>
         {% endif %}
         <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif"
                class="w-full bg-black/40 border {% if errors.image %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
         {% if errors.image %}<p class="text-red-400 text-xs mt-1">{{ errors.image }}</p>{% endif %}
-        {% if form %}<p class="text-white/30 text-xs mt-1">Por seguridad, si querías subir archivos, vuelve a seleccionarlos.</p>{% endif %}
+        {% if form %}<p class="text-white/60 text-xs mt-1">Por seguridad, si querías subir archivos, vuelve a seleccionarlos.</p>{% endif %}
       </div>
     </div>
 
@@ -157,7 +157,7 @@
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-5">
       <div>
         <h2 class="text-white font-bold text-sm uppercase tracking-wider">Etiquetas para planes automáticos</h2>
-        <p class="text-white/30 text-xs mt-1">Opcional. Permiten que el borrador de plan con IA respete el equipo de la clienta y sus lesiones. Un ejercicio sin intensidad queda "sin etiquetar" y no se propone a clientas con lesiones o advertencias.</p>
+        <p class="text-white/60 text-xs mt-1">Opcional. Permiten que el borrador de plan con IA respete el equipo de la clienta y sus lesiones. Un ejercicio sin intensidad queda "sin etiquetar" y no se propone a clientas con lesiones o advertencias.</p>
       </div>
 
       <div>
@@ -173,7 +173,7 @@
       </div>
 
       <fieldset>
-        <legend class="block text-white/60 text-xs font-medium mb-2">Equipo necesario <span class="text-white/30">(nada marcado = sin equipo)</span></legend>
+        <legend class="block text-white/60 text-xs font-medium mb-2">Equipo necesario <span class="text-white/60">(nada marcado = sin equipo)</span></legend>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {% for value, label in equipment_choices %}
           <label class="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
@@ -186,7 +186,7 @@
       </fieldset>
 
       <fieldset>
-        <legend class="block text-white/60 text-xs font-medium mb-2">Zonas de riesgo <span class="text-white/30">(qué lesiones o condiciones lo desaconsejan)</span></legend>
+        <legend class="block text-white/60 text-xs font-medium mb-2">Zonas de riesgo <span class="text-white/60">(qué lesiones o condiciones lo desaconsejan)</span></legend>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {% for value, label in risk_tag_choices %}
           <label class="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
@@ -206,7 +206,7 @@
         <span x-show="submitting"><i class="fa fa-spinner fa-spin mr-2"></i>Guardando...</span>
       </button>
       <a href="{% url 'trainer_exercise_list' %}"
-         class="px-5 py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+         class="px-5 py-3 text-white/60 hover:text-white text-sm transition-colors">Cancelar</a>
     </div>
   </form>
 </div>

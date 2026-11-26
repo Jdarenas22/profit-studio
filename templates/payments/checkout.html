@@ -7,7 +7,7 @@
   <div class="max-w-lg mx-auto">
 
     <!-- Breadcrumb -->
-    <nav class="flex items-center gap-2 text-white/30 text-sm mb-8">
+    <nav class="flex items-center gap-2 text-white/60 text-sm mb-8">
       <a href="{% url 'dashboard' %}" class="hover:text-primary transition-colors">Mi panel</a>
       <i class="fa fa-chevron-right text-xs"></i>
       <span class="text-white/60">Pagar membresía</span>
@@ -15,18 +15,18 @@
 
     <!-- Plan summary -->
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 mb-5">
-      <p class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-4">Resumen de tu compra</p>
+      <p class="text-white/60 text-xs font-semibold uppercase tracking-wider mb-4">Resumen de tu compra</p>
       <div class="flex items-center justify-between mb-4">
         <div>
           <p class="text-white font-black text-xl">{{ plan.name }}</p>
           <p class="text-white/50 text-sm mt-0.5">{{ plan.duration_days }} días de acceso completo</p>
           {% if plan.description %}
-          <p class="text-white/30 text-xs mt-1">{{ plan.description }}</p>
+          <p class="text-white/60 text-xs mt-1">{{ plan.description }}</p>
           {% endif %}
         </div>
         <div class="text-right">
           <p class="text-primary font-black text-3xl">${{ plan.reference_price|floatformat:0 }}</p>
-          <p class="text-white/30 text-xs">COP</p>
+          <p class="text-white/60 text-xs">COP</p>
         </div>
       </div>
       <div class="border-t border-white/10 pt-4 flex justify-between items-center">
@@ -37,7 +37,7 @@
 
     <!-- Métodos de pago aceptados -->
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 mb-5">
-      <p class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-4">Métodos de pago disponibles</p>
+      <p class="text-white/60 text-xs font-semibold uppercase tracking-wider mb-4">Métodos de pago disponibles</p>
       <div class="grid grid-cols-3 gap-3">
         <div class="flex flex-col items-center gap-2 bg-black/30 rounded-xl px-3 py-3">
           <i class="fa fa-credit-card text-white/60 text-lg"></i>
@@ -68,7 +68,7 @@
 
     <!-- Wompi Widget -->
     <div class="bg-zinc-900 border border-primary/20 rounded-2xl p-6 mb-5">
-      <p class="text-white/40 text-xs font-semibold uppercase tracking-wider mb-5">Realizar pago seguro</p>
+      <p class="text-white/60 text-xs font-semibold uppercase tracking-wider mb-5">Realizar pago seguro</p>
 
       <p class="text-white/50 text-sm mb-5 leading-relaxed">
         Haz clic en el botón para elegir tu método de pago. Serás atendido por Wompi,
@@ -92,13 +92,13 @@
         ></script>
       </div>
 
-      <p class="text-white/20 text-xs text-center mt-4">
+      <p class="text-white/60 text-xs text-center mt-4">
         Referencia: <span class="font-mono">{{ payment.reference }}</span>
       </p>
     </div>
 
     <!-- Security badges -->
-    <div class="flex items-center justify-center gap-6 text-white/20 text-xs">
+    <div class="flex items-center justify-center gap-6 text-white/60 text-xs">
       <span class="flex items-center gap-1.5">
         <i class="fa fa-lock text-green-400/50"></i> Conexión SSL cifrada
       </span>
@@ -111,7 +111,7 @@
     </div>
 
     <div class="text-center mt-6">
-      <a href="{% url 'dashboard' %}" class="text-white/20 hover:text-white/50 text-xs transition-colors">
+      <a href="{% url 'dashboard' %}" class="text-white/60 hover:text-white/90 text-xs transition-colors">
         <i class="fa fa-arrow-left mr-1"></i> Volver sin pagar
       </a>
     </div>

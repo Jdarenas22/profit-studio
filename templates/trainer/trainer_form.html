@@ -4,12 +4,12 @@
 {% block trainer_content %}
 <div class="max-w-2xl mx-auto">
   <div class="flex items-center gap-4 mb-8">
-    <a href="{% url 'trainer_staff_list' %}" class="text-white/30 hover:text-white transition-colors">
+    <a href="{% url 'trainer_staff_list' %}" class="text-white/60 hover:text-white transition-colors">
       <i class="fa fa-arrow-left"></i>
     </a>
     <div>
       <h1 class="text-2xl font-black text-white">Crear nuevo entrenador/a</h1>
-      <p class="text-white/40 text-sm mt-1">Solo tú puedes crear cuentas de entrenadores.</p>
+      <p class="text-white/60 text-sm mt-1">Solo tú puedes crear cuentas de entrenadores.</p>
     </div>
   </div>
 
@@ -50,7 +50,7 @@
       </div>
 
       <div>
-        <label class="block text-white/60 text-xs font-medium mb-2">Usuario * <span class="text-white/30 font-normal">(con este iniciará sesión)</span></label>
+        <label class="block text-white/60 text-xs font-medium mb-2">Usuario * <span class="text-white/60 font-normal">(con este iniciará sesión)</span></label>
         <input type="text" name="username" required value="{{ form.username|default:'' }}"
                class="w-full bg-black/40 border {% if errors.username %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors"
                placeholder="Ej: carlos.trainer">
@@ -58,7 +58,7 @@
       </div>
 
       <div>
-        <label class="block text-white/60 text-xs font-medium mb-2">Bio / Descripción <span class="text-white/30 font-normal">(aparece en Nosotros)</span></label>
+        <label class="block text-white/60 text-xs font-medium mb-2">Bio / Descripción <span class="text-white/60 font-normal">(aparece en Nosotros)</span></label>
         <textarea name="bio" maxlength="1500" rows="3"
                   class="w-full bg-black/40 border {% if errors.bio %}border-red-500{% else %}border-white/10{% endif %} focus:border-primary rounded-xl px-4 py-3 text-white text-sm outline-none transition-colors resize-none"
                   placeholder="Especialidad, certificaciones, estilo de entrenamiento...">{{ form.bio|default:'' }}</textarea>
@@ -68,7 +68,7 @@
 
     <div class="bg-zinc-900 border border-white/10 rounded-2xl p-6 space-y-4">
       <h2 class="text-white font-bold text-sm uppercase tracking-wider mb-2">Contraseña temporal</h2>
-      <p class="text-white/40 text-xs -mt-1">El entrenador podrá cambiarla desde su perfil al ingresar por primera vez.</p>
+      <p class="text-white/60 text-xs -mt-1">El entrenador podrá cambiarla desde su perfil al ingresar por primera vez.</p>
 
       <div class="grid grid-cols-2 gap-4">
         <div>

@@ -5,7 +5,7 @@
 <div class="max-w-lg mx-auto">
 
   <!-- Breadcrumb -->
-  <nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+  <nav class="flex items-center gap-2 text-white/60 text-sm mb-6">
     <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
     <i class="fa fa-chevron-right text-xs"></i>
     <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">
@@ -26,7 +26,7 @@
     </div>
     <div>
       <h1 class="text-2xl font-black text-white">Asignar entrenador/a</h1>
-      <p class="text-white/40 text-sm mt-0.5">
+      <p class="text-white/60 text-sm mt-0.5">
         {{ client.get_full_name|default:client.username }}
         {% if client.assigned_trainer %}
         · <span class="text-white/60">Actual: {% include 'trainer/partials/person_name.html' with person=client.assigned_trainer %}</span>
@@ -70,7 +70,7 @@
               <span class="text-xs text-primary ml-1 font-normal">(Principal)</span>
               {% endif %}
             </p>
-            <p class="text-white/40 text-xs mt-0.5">
+            <p class="text-white/60 text-xs mt-0.5">
               <i class="fa fa-users mr-1"></i>
               {{ trainer.assigned_clients.count }} cliente{{ trainer.assigned_clients.count|pluralize:"s" }} asignado{{ trainer.assigned_clients.count|pluralize:"s" }}
             </p>
@@ -95,7 +95,7 @@
           </div>
           <div class="flex-1">
             <p class="text-white/60 font-medium text-sm">Sin asignar</p>
-            <p class="text-white/30 text-xs mt-0.5">El cliente quedará en lista de espera.</p>
+            <p class="text-white/60 text-xs mt-0.5">El cliente quedará en lista de espera.</p>
           </div>
           <div :class="selected === '' ? 'opacity-100' : 'opacity-0'"
                class="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center shrink-0 transition-opacity">

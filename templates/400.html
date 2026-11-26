@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+
+{% block title %}No pudimos procesar la solicitud — ProFit Studio{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex" />{% endblock %}
+
+{% block content %}
+{% include 'partials/error_card.html' with code='400' icon='fa-triangle-exclamation' tone='red' title='No pudimos procesar la solicitud' message='Algo en la dirección o en los datos enviados no es válido. Vuelve al inicio e inténtalo de nuevo.' %}
+{% endblock %}

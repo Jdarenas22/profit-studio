@@ -48,7 +48,7 @@
                  value="{{ form.height|default:'' }}" placeholder="Ej: 1,65 o 165"
                  {% if errors.height %}aria-invalid="true"{% endif %}
                  aria-describedby="help_height{% if errors.height %} err_height{% endif %}"
-                 class="w-full min-h-[44px] bg-black/40 border {% if errors.height %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/40 outline-none transition-colors">
+                 class="w-full min-h-[44px] bg-black/40 border {% if errors.height %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/50 outline-none transition-colors">
           <p id="help_height" class="text-white/60 text-xs leading-relaxed mt-1.5">
             En metros o en centímetros: 1,65 o 165 cm.
             {% if height_required %}Te la pedimos esta vez para calcular tu IMC; después la recordamos.
@@ -81,7 +81,7 @@
         <textarea id="id_notes" name="notes" rows="3" maxlength="2000"
                   placeholder="Notas sobre esta medición..."
                   {% if errors.notes %}aria-invalid="true" aria-describedby="err_notes"{% endif %}
-                  class="w-full bg-black/40 border {% if errors.notes %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/40 outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
+                  class="w-full bg-black/40 border {% if errors.notes %}border-red-500{% else %}border-white/20{% endif %} focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/60 rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/50 outline-none resize-none transition-colors">{{ form.notes|default:'' }}</textarea>
         {% if errors.notes %}<p id="err_notes" class="text-red-400 text-sm mt-1.5"><i class="fa fa-circle-exclamation mr-1" aria-hidden="true"></i>{{ errors.notes }}</p>{% endif %}
       </div>
     </div>

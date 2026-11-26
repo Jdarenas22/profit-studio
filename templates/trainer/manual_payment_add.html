@@ -3,7 +3,7 @@
 {% block title %}Registrar pago — {{ client.get_full_name|default:client.username }}{% endblock %}
 
 {% block trainer_content %}
-<nav class="flex items-center gap-2 text-white/30 text-sm mb-6">
+<nav class="flex items-center gap-2 text-white/60 text-sm mb-6">
   <a href="{% url 'trainer_clients' %}" class="hover:text-primary transition-colors">Clientes</a>
   <i class="fa fa-chevron-right text-xs"></i>
   <a href="{% url 'trainer_client_detail' client.pk %}" class="hover:text-primary transition-colors">{{ client.get_full_name|default:client.username }}</a>
@@ -70,7 +70,7 @@
         <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf"
                class="w-full bg-black/40 border {% if errors.receipt %}border-red-500{% else %}border-white/10{% endif %} rounded-xl px-4 py-3 text-white/60 text-sm file:mr-3 file:bg-primary/20 file:text-primary file:border-0 file:px-3 file:py-1 file:rounded-lg file:text-xs file:font-semibold hover:file:bg-primary/30 transition-colors cursor-pointer">
         {% if errors.receipt %}<p class="text-red-400 text-xs mt-1">{{ errors.receipt }}</p>{% endif %}
-        {% if form %}<p class="text-white/30 text-xs mt-1">Por seguridad, vuelve a seleccionar el archivo.</p>{% endif %}
+        {% if form %}<p class="text-white/60 text-xs mt-1">Por seguridad, vuelve a seleccionar el archivo.</p>{% endif %}
       </div>
 
       <div>
@@ -88,7 +88,7 @@
         <i class="fa fa-check mr-2"></i>Registrar pago
       </button>
       <a href="{% url 'trainer_client_detail' client.pk %}"
-         class="px-5 py-3 text-white/40 hover:text-white text-sm transition-colors">Cancelar</a>
+         class="px-5 py-3 text-white/60 hover:text-white text-sm transition-colors">Cancelar</a>
     </div>
   </form>
 </div>

@@ -19,26 +19,26 @@
 <!-- Lo que incluye TODO plan -->
 <section class="py-14 bg-black border-b border-white/5">
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <p class="text-center text-white/40 text-sm uppercase tracking-widest mb-8 font-medium">Todos los planes incluyen</p>
+    <p class="text-center text-white/60 text-sm uppercase tracking-widest mb-8 font-medium">Todos los planes incluyen</p>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       {% for item in "1234"|make_list %}
       <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5 text-center">
         {% if forloop.counter == 1 %}
         <i class="fa fa-clipboard-list text-primary text-2xl mb-3"></i>
         <p class="text-white font-semibold text-sm">Valoración inicial</p>
-        <p class="text-white/40 text-xs mt-1">IMC + Test de Ruffier-Dickson</p>
+        <p class="text-white/60 text-xs mt-1">IMC + Test de Ruffier-Dickson</p>
         {% elif forloop.counter == 2 %}
         <i class="fa fa-dumbbell text-primary text-2xl mb-3"></i>
         <p class="text-white font-semibold text-sm">Rutina personalizada</p>
-        <p class="text-white/40 text-xs mt-1">Diseñada para ti</p>
+        <p class="text-white/60 text-xs mt-1">Diseñada para ti</p>
         {% elif forloop.counter == 3 %}
         <i class="fa fa-play-circle text-primary text-2xl mb-3"></i>
         <p class="text-white font-semibold text-sm">Videos de ejercicios</p>
-        <p class="text-white/40 text-xs mt-1">Técnica correcta</p>
+        <p class="text-white/60 text-xs mt-1">Técnica correcta</p>
         {% else %}
         <i class="fab fa-whatsapp text-primary text-2xl mb-3"></i>
         <p class="text-white font-semibold text-sm">Soporte directo</p>
-        <p class="text-white/40 text-xs mt-1">Vía WhatsApp</p>
+        <p class="text-white/60 text-xs mt-1">Vía WhatsApp</p>
         {% endif %}
       </div>
       {% endfor %}
@@ -69,7 +69,7 @@
             <span class="text-4xl font-black text-white">
               ${{ plan.reference_price|floatformat:0 }}
             </span>
-            <span class="text-white/40 text-sm">COP / {{ plan.duration_days }} días</span>
+            <span class="text-white/60 text-sm">COP / {{ plan.duration_days }} días</span>
           </div>
           {% if plan.description %}
           <p class="text-white/50 text-sm leading-relaxed">{{ plan.description }}</p>
@@ -133,7 +133,7 @@
         <p class="text-primary text-xs font-semibold uppercase tracking-widest mb-2">Mensual</p>
         <div class="flex items-baseline gap-1 mb-3">
           <span class="text-4xl font-black text-white">30</span>
-          <span class="text-white/40 text-sm">días</span>
+          <span class="text-white/60 text-sm">días</span>
         </div>
         <p class="text-white/50 text-sm mb-6">Ideal para empezar y conocer la metodología.</p>
         <ul class="space-y-3 mb-8 flex-1">
@@ -156,7 +156,7 @@
         <p class="text-primary text-xs font-semibold uppercase tracking-widest mb-2">Trimestral</p>
         <div class="flex items-baseline gap-1 mb-3">
           <span class="text-4xl font-black text-white">90</span>
-          <span class="text-white/40 text-sm">días</span>
+          <span class="text-white/60 text-sm">días</span>
         </div>
         <p class="text-white/50 text-sm mb-6">El más elegido. Tiempo suficiente para ver resultados reales.</p>
         <ul class="space-y-3 mb-8 flex-1">
@@ -176,7 +176,7 @@
         <p class="text-primary text-xs font-semibold uppercase tracking-widest mb-2">Semestral</p>
         <div class="flex items-baseline gap-1 mb-3">
           <span class="text-4xl font-black text-white">180</span>
-          <span class="text-white/40 text-sm">días</span>
+          <span class="text-white/60 text-sm">días</span>
         </div>
         <p class="text-white/50 text-sm mb-6">Para quienes se comprometen a largo plazo con su transformación.</p>
         <ul class="space-y-3 mb-8 flex-1">
@@ -195,8 +195,8 @@
 
     <!-- Métodos de pago -->
     <div class="mt-10 text-center">
-      <p class="text-white/30 text-xs uppercase tracking-wider mb-4">Pagos seguros procesados por Wompi (Bancolombia)</p>
-      <div class="flex flex-wrap items-center justify-center gap-4 text-white/30 text-xs">
+      <p class="text-white/60 text-xs uppercase tracking-wider mb-4">Pagos seguros procesados por Wompi (Bancolombia)</p>
+      <div class="flex flex-wrap items-center justify-center gap-4 text-white/60 text-xs">
         <span class="flex items-center gap-1.5"><i class="fa fa-credit-card"></i> Tarjeta crédito/débito</span>
         <span class="flex items-center gap-1.5"><i class="fa fa-university"></i> PSE</span>
         <span class="flex items-center gap-1.5"><i class="fab fa-whatsapp text-green-400/50"></i> Nequi</span>
@@ -223,7 +223,7 @@
             {% elif forloop.counter == 3 %}¿Necesito ir a un gimnasio o puedo entrenar en casa?
             {% else %}¿Qué pasa cuando vence mi membresía?{% endif %}
           </span>
-          <i class="fa fa-chevron-down text-white/30 text-sm transition-transform duration-200"
+          <i class="fa fa-chevron-down text-white/60 text-sm transition-transform duration-200"
              :class="{ 'rotate-180': open === {{ forloop.counter }} }"></i>
         </button>
         <div x-show="open === {{ forloop.counter }}" x-collapse class="px-6 pb-4">
