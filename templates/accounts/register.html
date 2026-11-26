@@ -177,7 +177,7 @@
               <div class="flex items-center justify-between mb-1">
                 <p class="text-white font-bold">{{ plan.name }}</p>
                 <div class="text-right">
-                  <p class="text-primary font-black">${{ plan.reference_price|floatformat:0 }} COP</p>
+                  <p class="text-primary font-black">${{ plan.reference_price|floatformat:"0g" }} COP</p>
                   <p class="text-white/60 text-xs">{{ plan.duration_days }} días</p>
                 </div>
               </div>

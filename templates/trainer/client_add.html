@@ -137,7 +137,7 @@
               <p class="text-white font-semibold text-sm">{{ plan.name }}</p>
               <p class="text-white/60 text-xs">{{ plan.duration_days }} días de acceso</p>
             </div>
-            <p class="text-primary font-bold text-sm">${{ plan.reference_price|floatformat:0 }}</p>
+            <p class="text-primary font-bold text-sm">${{ plan.reference_price|floatformat:"0g" }}</p>
           </div>
         </label>
         {% endfor %}

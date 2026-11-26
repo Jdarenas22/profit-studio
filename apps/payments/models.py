@@ -2,6 +2,7 @@ import os
 import uuid
 from django.conf import settings
 from django.db import models
+from django.utils import formats
 
 from .storage import receipts_storage
 
@@ -155,7 +156,7 @@ class ManualPayment(models.Model):
         ordering = ['-payment_date', '-created_at']
 
     def __str__(self):
-        return f"{self.user.display_name} — ${self.amount:,} — {self.payment_date}"
+        return f"{self.user.display_name} — ${formats.number_format(self.amount, decimal_pos=0, force_grouping=True)} — {self.payment_date}"
 
     @property
     def receipt_retained(self):

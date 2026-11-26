@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import formats
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
@@ -240,7 +241,8 @@ def trainer_manual_payment_add(request, client_pk):
             else:
                 messages.success(
                     request,
-                    f"Pago de ${mp.amount:,} registrado para {client.get_full_name() or client.username}.",
+                    f"Pago de ${formats.number_format(mp.amount, decimal_pos=0, force_grouping=True)} registrado para "
+                    f"{client.get_full_name() or client.username}.",
                 )
                 return redirect('trainer_client_detail', pk=client_pk)
 

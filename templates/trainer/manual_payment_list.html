@@ -16,7 +16,7 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
   <div class="bg-zinc-900 border border-white/10 rounded-2xl p-5">
     <p class="text-white/60 text-xs uppercase tracking-wider mb-1">Total recaudado</p>
-    <p class="text-3xl font-black text-primary">${{ total|floatformat:0 }}</p>
+    <p class="text-3xl font-black text-primary">${{ total|floatformat:"0g" }}</p>
     <p class="text-white/60 text-xs mt-1">COP · {{ payments_count }} pago{{ payments_count|pluralize:"s" }}</p>
   </div>
   {% if client %}
@@ -65,7 +65,7 @@
           <td class="px-6 py-4">
             <span class="text-xs bg-white/5 text-white/60 px-2 py-1 rounded-lg">{{ p.method_label }}</span>
           </td>
-          <td class="px-6 py-4 text-right font-black text-primary">${{ p.amount|floatformat:0 }}</td>
+          <td class="px-6 py-4 text-right font-black text-primary">${{ p.amount|floatformat:"0g" }}</td>
           <td class="px-6 py-4">
             {% if p.receipt %}
             <a href="{% url 'payment_receipt' p.pk %}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center min-h-[24px] rounded text-primary hover:text-primary-light text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
