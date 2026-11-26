@@ -220,7 +220,13 @@ en MealOption.nutrient_snapshot. `load_foods` no pisa alimentos vinculados a USD
 **Actualización 2026-11-17:** el alcance actual es bienestar, con alimentación clínica pausada.
 Ver `docs/MENUS_BIENESTAR_GEMINI.md` (prevalece sobre las referencias a adaptación clínica de esta sección).
 `apps/plans/wellness.py` bloquea condiciones/medicamentos/embarazo/antecedentes alimentarios;
-`rules/recipes.py` ofrece 117 plantillas cotidianas e internacionales (`everyday-world/2`) al simulador y a Gemini.
+`rules/recipes.py` ofrece 215 plantillas cotidianas e internacionales (`everyday-world/4`) al simulador, a Gemini y al orden por reglas.
+Con el orden por reglas (`NUTRITION_RANKING_MODE=rules`) las recetas se ordenan también según el objetivo de la clienta, su IMC (última medida)
+y el presupuesto de la ficha (`rules/goals.py`: puntajes de proteína, carbohidratos, fibra, densidad energética, grasa saturada, sodio y
+alimentos comunes; umbrales [A VALIDAR] por un nutricionista). Solo ordena lo que ya es válido: las calorías, los alimentos permitidos y las
+cantidades siguen siendo de `energy.py`, `foods.py` y `recipes._fit_portions`. `python scripts/recipe_coverage.py` mide cuántas recetas se
+pueden ofrecer a perfiles realistas (dietas y alergias) con los alimentos de PRODUCCIÓN (referencia USDA revisada); una prueba exige un mínimo
+para los perfiles más restrictivos. En producción solo cuentan los 70 alimentos con referencia revisada: los 20 «pendientes» no se ofrecen.
 El backend valida selección exacta con V09_RECIPE y conserva preparación del recetario.
 Variedad: la lista de recetas sale en un orden distinto por trabajo y comida; los nombres ya usados en el día se
 excluyen de la lista y del esquema (con respaldo a la lista completa si no queda un grupo válido) y, si se puede,

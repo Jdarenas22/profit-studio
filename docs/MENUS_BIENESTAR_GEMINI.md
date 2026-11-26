@@ -12,7 +12,7 @@ Las alergias e intolerancias se conservan como exclusiones de ingredientes; el s
 
 ## Recetario y variedad
 
-El catálogo técnico contiene 117 plantillas de preparación en apps/plans/rules/recipes.py, versión everyday-world/2 (la versión 1, del 17 de noviembre, tenía 52; ver "Variedad dentro del día"). Estos son los estilos de la versión inicial:
+El catálogo técnico contiene 215 plantillas de preparación en apps/plans/rules/recipes.py, versión everyday-world/4 (la versión 2 tenía 117 y la 1, del 17 de noviembre, 52; ver "Variedad dentro del día" y "Cobertura y objetivo"). Estos son los estilos de la versión inicial:
 
 - Arepa con huevo y aguacate; arepa con queso y huevo.
 - Avena con yogur, fruta y frutos secos; bowls con soya.
@@ -111,3 +111,29 @@ commit ni despliegue.
 - Contrapruebas (se quitó una pieza y la prueba correspondiente falló): ignorar los nombres a evitar, quitar la semilla, no exigir proteína distinta, que `select_options` ignore la proteína, quitar el respaldo a la lista completa, quitar V06 por proteína, quitar los nombres del día en "otra opción" y un nombre de receta con la palabra "crema" sin lácteos.
 - Experimento local sin red con perfiles ficticios (pérdida de grasa, ganancia muscular, mantenimiento, vegetariana, sin cocción, vegana, alergia a maní y lácteos; cinco comidas): con el simulador y con un "modelo ansioso" que toma las primeras recetas e ignora las sugerencias, el almuerzo y la cena no comparten ningún plato en los siete perfiles. Con el código anterior, ese mismo modelo repetía exactamente los tres platos de pollo en almuerzo y cena y cuatro de los siete perfiles (vegetariana, sin cocción, vegana, alergia) terminaban en `recipes_unavailable`.
 - Nada de esto se probó con Gemini real ni se desplegó.
+
+## Cobertura y objetivo (everyday-world/4)
+
+**Cobertura medida.** `python scripts/recipe_coverage.py` calcula cuántas recetas distintas se pueden ofrecer por comida a perfiles
+realistas, con el mismo motor de energía y de ajuste de porciones y solo con los alimentos de producción (los 70 con referencia
+USDA revisada; los 20 «pendientes de especificar» no se ofrecen). Antes de everyday-world/4 el caso más débil era la dieta vegana sin
+soya: 2 recetas de desayuno, 7 de almuerzo y 4 de merienda; el menú semanal exige al menos 6 por comida y conviene tener más de 12.
+Con 215 recetas el mínimo es 11 por comida en cualquier perfil medido (vegana sin soya), y 22 a 70 en los demás.
+Para ampliar: añadir recetas con alimentos ya verificados y volver a medir; una prueba (`RecipeCoverageGuardTests`) exige un mínimo.
+
+**Orden por objetivo, medidas y ficha.** Con `NUTRITION_RANKING_MODE=rules`, `rules/goals.py` puntúa cada receta ya válida:
+- Pérdida de peso: más proteína y fibra, menos densidad energética (más volumen por las mismas calorías) y menos azúcar añadido.
+- Tonificación: proteína alta y platos ligeros. Ganancia muscular: proteína y carbohidratos suficientes (un plato algo denso no se penaliza).
+- Resistencia cardiovascular: carbohidratos, fibra, poca grasa saturada y poco sodio. Rendimiento deportivo: carbohidratos primero.
+- Rehabilitación / salud general: fibra y poca grasa saturada, sodio y azúcar.
+- IMC (última medida): con IMC de 30 o más se refuerza la saciedad (salvo en ganancia muscular y rendimiento); con IMC bajo de 18,5 no se
+  premian los platos ligeros y se pide más proteína.
+- Ficha: un presupuesto bajo prefiere platos hechos con alimentos comunes y de fácil acceso. Dieta, alergias, intolerancias y condiciones
+  ya filtran los alimentos antes de este paso.
+Es una preferencia de orden: no cambia las calorías, la proteína objetivo ni las cantidades, y un dato nutricional desconocido no premia
+ni castiga. Los umbrales son criterios generales y están marcados [A VALIDAR] por un nutricionista.
+
+**Siguiente fase (pendiente de la clave de USDA y de la tabla del ICBF).** Ampliar el catálogo de alimentos con cifras trazables:
+USDA FoodData Central (`fdc_search` y `fdc_import` con vista previa y confirmación) y la Tabla de Composición de Alimentos Colombianos
+del ICBF para los 20 alimentos locales hoy pendientes (papa criolla, arepa, ahuyama, yuca, arracacha, plátano maduro...). Las cifras no se
+inventan: cada alimento nuevo entra con su registro de origen.
