@@ -36,6 +36,50 @@ def schema(count):
         'required': ['recipe_names'], 'additionalProperties': False}
 
 
+# ─── Orden por reglas (sin IA) ───────────────────────────────────────────────────
+# Las mismas preferencias que se le pedían a la IA en SYSTEM: más verduras, carbohidratos cotidianos y
+# grasas insaturadas; menos azúcares; y alternar proteínas y cocinas. Es determinista: el mismo
+# trabajo (`seed` del orden de entrada) produce siempre el mismo orden, y trabajos distintos varían
+# porque `recipes.candidates` ya baraja con una semilla propia.
+RANK_MODE_RULES = 'rules'
+RANK_MODE_AI = 'ai'
+RULES_VERSION = 'rules/weekly-menu/1'
+_BONUS_GROUPS = {'verduras': 1.0, 'frutas': 0.5, 'leguminosas': 0.5, 'tuberculos': 0.25}
+_PENALTY_GROUPS = {'azucares': -1.0, 'bebidas': -0.5}
+
+
+def rank_by_rules(options, food_groups):
+    """Ordena las recetas ofrecidas de la más a la menos recomendable, sin llamar a ninguna IA.
+
+    1. Puntaje por grupos de alimentos (`food_groups`: id de alimento -> código de grupo).
+    2. Dentro de cada proteína principal se ordena por puntaje (a igualdad, conserva el orden de
+       entrada, que ya viene barajado por trabajo).
+    3. Se intercalan las proteínas por turnos (una de cada familia), para que las primeras posiciones
+       no sean todas pollo; `schedule` termina de garantizar la variedad de los siete días.
+
+    Devuelve las mismas recetas (nada se inventa ni se descarta) en el nuevo orden."""
+    def score(option):
+        total = 0.0
+        for item in option['items']:
+            group = food_groups.get(item['food_id'])
+            total += _BONUS_GROUPS.get(group, 0.0) + _PENALTY_GROUPS.get(group, 0.0)
+        return total
+
+    queues = {}
+    for option in options:
+        queues.setdefault(option.get('main_protein'), []).append(option)
+    for queue in queues.values():
+        queue.sort(key=lambda option: -score(option))      # sort estable: empata por orden de entrada
+    # Las familias con la mejor receta primero; así el orden no depende de qué receta llegó primero
+    families = sorted(queues.values(), key=lambda queue: -score(queue[0]))
+    ranked = []
+    while any(families):
+        for queue in families:
+            if queue:
+                ranked.append(queue.pop(0))
+    return ranked
+
+
 def validate_ranking(data, options):
     expected = {row['name']: row for row in options}
     names = data.get('recipe_names') if isinstance(data, dict) and set(data) == {'recipe_names'} else None

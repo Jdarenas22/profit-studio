@@ -201,6 +201,13 @@ FDC_API_KEY = env('FDC_API_KEY', default='')
 # gunicorn lo mata (WORKER TIMEOUT).
 EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=10)
 
+# Quién ordena las recetas de cada comida al armar el plan de alimentación (y quién elige en «otra opción»):
+# 'rules' = reglas en Python, sin llamar a la IA (por defecto: no gasta cuota de Gemini); 'ai' = Gemini, como
+# antes. Cualquier otro valor detiene el arranque. Los cálculos y la validación son de Python en ambos casos.
+NUTRITION_RANKING_MODE = env('NUTRITION_RANKING_MODE', default='rules').strip().lower()
+if NUTRITION_RANKING_MODE not in ('rules', 'ai'):
+    raise _ImproperlyConfigured("NUTRITION_RANKING_MODE debe ser 'rules' o 'ai'.")
+
 FDC_TIMEOUT_SECONDS = env.int('FDC_TIMEOUT_SECONDS', default=15)
 NUTRITION_REQUIRE_USDA_REFERENCE = env.bool('NUTRITION_REQUIRE_USDA_REFERENCE', default=True)
 GEMINI_MODEL = env('GEMINI_MODEL', default='')                # p. ej. un modelo "flash-lite" estable

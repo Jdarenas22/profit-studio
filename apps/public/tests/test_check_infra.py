@@ -826,3 +826,22 @@ class CacheChecks(TestCase):
         self.assertEqual(cache['status'], 'ERROR')
         self.assertNotIn('clave-redis-inventada', out.getvalue())
         self.assertNotIn('redis-secreto', out.getvalue())
+
+
+class NutritionRankingCheckTests(TestCase):
+    def check(self, **settings_kw):
+        return ci.check_nutrition_ranking(make_ctx(make_settings(**settings_kw)))[0]
+
+    def test_rules_is_the_default_and_says_no_ai_is_called(self):
+        result = self.check()
+        self.assertEqual(result.status, ci.OK)
+        self.assertIn('Modo rules', result.detail)
+        self.assertIn('no se llama a la IA', result.detail)
+
+    def test_ai_mode_is_reported(self):
+        result = self.check(NUTRITION_RANKING_MODE='ai')
+        self.assertEqual(result.status, ci.OK)
+        self.assertIn('Modo ai', result.detail)
+
+    def test_it_is_part_of_the_run(self):
+        self.assertIn(ci.check_nutrition_ranking, ci.CHECKS)

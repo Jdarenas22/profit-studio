@@ -493,8 +493,19 @@ class _SlotView:
         self.code, self.kcal, self.protein_g, self.carbs_g, self.fat_g = code, kcal, protein_g, carbs_g, fat_g
 
 
+def _uses_ai_ranking():
+    """¿Quien ordena/elige las recetas es Gemini? (`NUTRITION_RANKING_MODE=ai`). Por defecto lo hacen reglas
+    en Python y no se llama a la IA: el menú sale igual de validado y no gasta cuota."""
+    return getattr(settings, 'NUTRITION_RANKING_MODE', weekly.RANK_MODE_RULES) == weekly.RANK_MODE_AI
+
+
+def _food_groups(rules):
+    return {food_id: food.group for food_id, food in rules.foods.items()}
+
+
 def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_options, existing=(), avoid_names=(),
                            adaptation=None):
+    """Elige `n_options` recetas para una comida. Con `ai_client=None` lo hace Python por reglas (sin red)."""
     rules = nutrition.slot_rules(slot.code, slot.kcal, slot.protein_g, assessment, n_options=n_options,
                                  existing=existing)
     offered_ids = adaptation.food_ids if adaptation is not None and adaptation.foods is not None \
@@ -509,6 +520,16 @@ def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_optio
         raise JobFailed('recipes_unavailable')
     recipe_options = offered.options
     rules = replace(rules, recipes=tuple(recipe_options), distinct_protein=offered.distinct_protein)
+    if ai_client is None:
+        chosen = recipes.select_options(weekly.rank_by_rules(recipe_options, _food_groups(rules)),
+                                        n_options, existing, avoid_names)
+        if not chosen:
+            raise JobFailed('recipes_unavailable')
+        validated = rules_meal.validate_meal_slot({
+            'schema_version': rules_meal.MEAL_SCHEMA_VERSION, 'slot_code': slot.code, 'options': chosen}, rules)
+        if not validated.ok:
+            raise JobFailed(validated.error_code)
+        return validated.data['options'], None
     system = prompts.meal_prompt(adaptation is not None and bool(adaptation.history))[0]
     validation, result = _generate_validated(
         job, started, ai_client, task='meal_slot', system=system,
@@ -541,17 +562,21 @@ def _run_nutrition(job, started):
             raise JobFailed('weekly_variety_unavailable') from None
         prepared.append((target, rules, offered))
 
-    client = ai.get_ai_client()
+    use_ai = _uses_ai_ranking()
+    client = ai.get_ai_client() if use_ai else None      # sin IA no se pide cliente ni se gasta cuota
     generated, model, names_by_day = [], '', {}
     for index, (target, rules, offered) in enumerate(prepared, start=1):
         _check_budget(started)
-        validation, result = _generate_validated(
-            job, started, client, task='weekly_meal_slot', system=weekly.SYSTEM,
-            make_payload=lambda errors: weekly.public_payload(offered, target.code, errors),
-            make_schema=lambda payload: weekly.schema(len(offered)),
-            validate=lambda data: weekly.validate_ranking(data, offered))
-        model = model or result.model
-        ranked = validation.data['options']
+        if use_ai:
+            validation, result = _generate_validated(
+                job, started, client, task='weekly_meal_slot', system=weekly.SYSTEM,
+                make_payload=lambda errors: weekly.public_payload(offered, target.code, errors),
+                make_schema=lambda payload: weekly.schema(len(offered)),
+                validate=lambda data: weekly.validate_ranking(data, offered))
+            model = model or result.model
+            ranked = validation.data['options']
+        else:
+            ranked = weekly.rank_by_rules(offered, _food_groups(rules))
         if adaptation is not None and adaptation.profile.liked_food_ids:
             liked = set(adaptation.profile.liked_food_ids)
             ranked = sorted(ranked, key=lambda row: -len(liked & {item['food_id'] for item in row['items']}))
@@ -582,9 +607,10 @@ def _run_nutrition(job, started):
     with transaction.atomic():
         _lock_running(job)
         plan = nutrition.create_nutrition_draft(
-            job, assessment, generated, model_name=model or client.model_name,
-            prompt_version=weekly.VERSION,
-            is_simulated=client.is_simulated)
+            job, assessment, generated,
+            model_name=(model or client.model_name) if use_ai else weekly.RULES_VERSION,
+            prompt_version=weekly.VERSION if use_ai else weekly.RULES_VERSION,
+            is_simulated=client.is_simulated if use_ai else False)
         _finish(job, PlanGenerationJob.STATUS_SUCCEEDED, plan=plan)
     return plan
 
@@ -608,7 +634,7 @@ def _run_alternative(job, started):
     # Tampoco debe repetir los platos que la clienta ya tiene en las otras comidas del día
     day_names = list(MealOption.objects.filter(slot__nutrition_plan=slot.nutrition_plan, is_active=True)
                      .exclude(slot=slot).values_list('name', flat=True))
-    client = ai.get_ai_client()
+    client = ai.get_ai_client() if _uses_ai_ranking() else None
     options, result = _generate_slot_options(job, started, client, assessment, target, n_options=1,
                                              existing=existing, avoid_names=[o.name for o in others] + day_names,
                                              adaptation=adaptation)
