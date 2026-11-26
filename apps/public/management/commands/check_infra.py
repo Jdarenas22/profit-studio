@@ -785,6 +785,19 @@ def stuck_queued_job_count():
     return jobs.queued_older_than(QUEUED_STUCK_AFTER)
 
 
+def check_nutrition_ranking(ctx):
+    """Quién ordena las recetas del plan de alimentación: reglas en Python (por defecto, sin gastar cuota de
+    Gemini) o la IA (`NUTRITION_RANKING_MODE=ai`)."""
+    area, name = 'IA', 'Orden del plan de alimentación'
+    mode = (getattr(ctx.settings, 'NUTRITION_RANKING_MODE', 'rules') or 'rules').strip().lower()
+    if mode == 'ai':
+        return [Check(area, name, OK, 'Modo ai: Gemini ordena las recetas (una llamada por comida).',
+                      'Para no gastar cuota: NUTRITION_RANKING_MODE=rules (por defecto).')]
+    return [Check(area, name, OK, 'Modo rules: Python ordena las recetas y arma el menú; no se llama a la IA '
+                                  'para el plan de alimentación ni para «otra opción».',
+                  'Para volver a que Gemini ordene las recetas: NUTRITION_RANKING_MODE=ai.')]
+
+
 def check_ai_execution(ctx):
     """Dónde corren los trabajos de IA: hilos del servidor web (AI_PLANS_WORKER=False, lo normal) o un
     servicio trabajador aparte (`process_plan_jobs --loop`). Con trabajador, avisa si hay trabajos en cola
@@ -934,6 +947,7 @@ CHECKS = (
     check_health_switches,
     check_ai_plans,
     check_ai_execution,
+    check_nutrition_ranking,
     check_whatsapp,
     check_turnstile,
 )

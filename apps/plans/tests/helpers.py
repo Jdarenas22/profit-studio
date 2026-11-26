@@ -23,6 +23,9 @@ PLAN_SETTINGS = override_settings(
     HEALTH_FEATURES_ENABLED=True, NUTRITION_REQUIRE_USDA_REFERENCE=False, AI_PLANS_MODE='simulated', AI_PLANS_RUN_INLINE=True,
     AI_PLANS_CLIENT_WEEKLY_LIMIT=3, AI_PLANS_TRAINER_DAILY_LIMIT=10, AI_PLANS_DAILY_JOB_LIMIT=100,
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    # Las pruebas existentes ejercitan la ruta con IA (FakeAIClient); el modo por reglas, que es el de
+    # producción, tiene sus propias pruebas en test_rules_ranking.py.
+    NUTRITION_RANKING_MODE='ai',
 )
 
 
