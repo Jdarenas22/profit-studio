@@ -22,10 +22,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-        integrity="sha384-/o6I2CkkWC//PSjvWC/eYN7l3xM3tJm8ZzVkCOfp//W05QcE3mlGskpoHB6XqI+B"
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <!-- Font Awesome Free 6.5.0, SUBCONJUNTO propio (solo los íconos usados, ~21 KB en vez de ~295 KB del CDN completo).
+       Regenerar con scripts/build_icons.py; apps/public/tests/test_icons.py falla si falta algún ícono. -->
+  <link rel="preload" href="{% static 'webfonts/fa-solid-subset.woff2' %}" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="{% static 'css/fontawesome-subset.css' %}" />
 
   <!-- Tailwind compilado (fuente: frontend/tailwind.css; regenerar con scripts/build-css.ps1 o .sh).
        Va después de Font Awesome, como el <style> que inyectaba el Play CDN: así las utilidades
