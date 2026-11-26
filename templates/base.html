@@ -94,6 +94,9 @@
 
   {% block extra_scripts %}{% endblock %}
 
+  <!-- Formularios: mostrar/ocultar contraseña y protección contra el doble envío -->
+  <script src="{% static 'js/ux-forms.js' %}" defer></script>
+
   <script>
     document.addEventListener('htmx:configRequest', function(evt) {
       evt.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
