@@ -521,6 +521,11 @@ def check_email(ctx):
         if not getattr(ctx.settings, 'BREVO_API_KEY', ''):
             return [Check(area, 'Envío de correos', ERROR, 'Backend Brevo activo pero falta BREVO_API_KEY.',
                           'Define BREVO_API_KEY en Railway > Variables.')]
+        if not sender or sender.lower().rstrip('> ').endswith('@localhost'):
+            return [Check(area, 'Envío de correos', ERROR,
+                          'Brevo activo pero el remitente no es válido: Brevo solo envía desde una dirección verificada.',
+                          'Define DEFAULT_FROM_EMAIL en Railway con la dirección verificada en Brevo > Senders '
+                          '(por ejemplo: ProFit Studio <tu-correo@gmail.com>).')]
         if not ctx.smtp:
             return [Check(area, 'Envío de correos', OK,
                           f'Brevo (API HTTPS) con clave definida; remitente {sender} (sin probar la conexión).',
@@ -530,7 +535,8 @@ def check_email(ctx):
             connection_.verify()
         except Exception as exc:  # noqa: BLE001
             return [Check(area, 'Conexión Brevo', ERROR, f'La API de Brevo no respondió bien ({exc}).',
-                          'brevo_http_401 = clave incorrecta; brevo_http_403 = la IP o la cuenta no está activada; '
+                          'brevo_http_401 = clave incorrecta; brevo_http_403 = la IP o la cuenta no está activada, o la clave '
+                          'no tiene permiso de correo transaccional (créala con acceso a envío); '
                           'brevo_unreachable/timeout = sin salida a internet. Revisa BREVO_API_KEY.')]
         return [Check(area, 'Conexión Brevo', OK,
                       f'La clave de Brevo es válida (remitente {sender}). No se envió ningún correo.',

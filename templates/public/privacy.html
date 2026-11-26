@@ -30,11 +30,12 @@ consentimiento vigentes (salud, IA y WhatsApp). Pendiente de revisión por un ab
     <div>
       <h2 class="text-white text-2xl font-bold mb-3">2. Qué datos recolectamos</h2>
       <ul class="list-disc pl-6 space-y-2">
-        <li><strong class="text-white">Datos de tu cuenta:</strong> nombre, usuario, correo electrónico, teléfono y contraseña (esta última se guarda cifrada, nunca en texto legible).</li>
+        <li><strong class="text-white">Datos de tu cuenta:</strong> nombre, usuario, correo electrónico, teléfono, género (si lo registras), foto de perfil (si la subes) y contraseña. La contraseña no se guarda: solo se conserva un resumen irreversible (hash con sal) que nos permite comprobarla.</li>
         <li><strong class="text-white">Membresía y pagos:</strong> plan, fechas, estado y pagos. Los pagos en línea los procesa Wompi; nosotros no vemos ni guardamos los datos de tu tarjeta. Los comprobantes de pagos manuales se guardan en un almacenamiento privado.</li>
         <li><strong class="text-white">Datos de salud (sensibles):</strong> tus medidas corporales (peso, estatura, cintura, cadera, porcentaje de grasa) y la ficha de salud y alimentación que decidas llenar. Son datos sensibles y registrarlos es voluntario.</li>
         <li><strong class="text-white">Entrenamiento:</strong> rutinas, planes de ejercicio y de alimentación, y tu seguimiento (días y comidas que marcas como cumplidos).</li>
         <li><strong class="text-white">Autorizaciones y seguridad:</strong> el registro de qué aceptaste y cuándo, y un registro de los accesos a tu ficha de salud, sin su contenido.</li>
+        <li><strong class="text-white">Datos técnicos de inicio de sesión:</strong> cuando intentas iniciar sesión se registran tu dirección IP, el navegador (agente de usuario) y la fecha, únicamente para proteger tu cuenta (por ejemplo, bloquear temporalmente el acceso tras varios intentos fallidos) y detectar abusos.</li>
       </ul>
     </div>
 
@@ -43,7 +44,7 @@ consentimiento vigentes (salud, IA y WhatsApp). Pendiente de revisión por un ab
       <ul class="list-disc pl-6 space-y-2">
         <li>Crear y administrar tu cuenta y tu membresía, y enviarte los correos necesarios (confirmar tu correo, crear o recuperar tu contraseña).</li>
         <li>Que tu entrenador o entrenadora conozca tu punto de partida, haga seguimiento a tu progreso y personalice tus rutinas y recomendaciones.</li>
-        <li>Generar propuestas de plan de ejercicio y de alimentación con inteligencia artificial, <strong class="text-white">siempre revisadas y aprobadas por tu entrenador antes de que las veas</strong>, y solo si lo autorizas.</li>
+        <li>Generar propuestas de plan de ejercicio y de alimentación con inteligencia artificial, solo si lo autorizas. Cada plan lo revisa y lo aprueba tu entrenador antes de que lo veas como tu plan vigente. Si pides «otra opción» de una comida, esa opción nueva puede aparecer marcada como <em>pendiente de revisión</em> por tu entrenador.</li>
         <li>Enviarte avisos de tu cuenta por WhatsApp (vencimiento de la membresía, plan listo, confirmación de pagos), solo si lo autorizas. Estos avisos nunca incluyen datos de salud.</li>
         <li>Cumplir obligaciones legales y proteger la seguridad de la plataforma.</li>
       </ul>
@@ -51,7 +52,7 @@ consentimiento vigentes (salud, IA y WhatsApp). Pendiente de revisión por un ab
 
     <div>
       <h2 class="text-white text-2xl font-bold mb-3">4. Quién accede a tus datos</h2>
-      <p>Los datos de salud solo los ven tu entrenador o entrenadora asignado y la administración de {{ controller.name }}. No los vendemos ni los compartimos con terceros para publicidad.</p>
+      <p>Dentro de la plataforma, los datos de salud solo los ven tu entrenador o entrenadora asignado y la administración de {{ controller.name }}. Si autorizas el uso de inteligencia artificial, una versión <em>sin identificar</em> de algunos de esos datos se envía a Google (Gemini) para generar las propuestas de plan, como se explica abajo. No vendemos tus datos ni los compartimos con terceros para publicidad.</p>
     </div>
 
     <div>
@@ -65,6 +66,7 @@ consentimiento vigentes (salud, IA y WhatsApp). Pendiente de revisión por un ab
         <li><strong class="text-white">Google (Gemini):</strong> generación de propuestas de plan, solo con datos <em>sin identificar</em> (sin tu nombre, correo, teléfono ni usuario) y únicamente si lo autorizas.</li>
         <li><strong class="text-white">Meta (WhatsApp):</strong> envío de avisos de la cuenta, solo si lo autorizas; tu número y los avisos se transmiten por WhatsApp.</li>
       </ul>
+      <p class="mt-3">Además, para mostrar el sitio tu navegador carga íconos, tipografías y bibliotecas de interfaz desde servidores de terceros (Cloudflare cdnjs, unpkg y Google Fonts). Al hacerlo, esos servicios reciben tu dirección IP y los datos técnicos habituales de cualquier visita web (como el navegador). No reciben datos de tu cuenta ni de tu salud.</p>
     </div>
 
     <div>
@@ -83,17 +85,17 @@ consentimiento vigentes (salud, IA y WhatsApp). Pendiente de revisión por un ab
 
     <div>
       <h2 class="text-white text-2xl font-bold mb-3">7. Cuánto tiempo los conservamos</h2>
-      <p>Conservamos tus datos mientras tengas tu cuenta y el tiempo necesario para cumplir las finalidades anteriores. Si pides eliminar tu cuenta, borramos tus datos personales y de salud. Solo conservamos, sin tus datos personales, los registros que la ley o la contabilidad exigen (por ejemplo, pagos) y el historial de tus autorizaciones y de accesos, para poder demostrar el cumplimiento.</p>
+      <p>Conservamos tus datos mientras tengas tu cuenta y el tiempo necesario para cumplir las finalidades anteriores. Si pides eliminar tu cuenta, borramos tus datos personales y de salud. Conservamos solo lo que la ley o la contabilidad exigen: los registros de pagos (sin tus datos personales), el historial de tus autorizaciones y de accesos para poder demostrar el cumplimiento y, si pagaste de forma manual, el comprobante de pago. <strong class="text-white">Ese comprobante puede contener datos que te identifican</strong> (por ejemplo, tu nombre o referencia de pago), se guarda en un almacenamiento privado, solo accede a él la administración de {{ controller.name }}, y se conserva el tiempo que exijan las normas contables y tributarias aplicables.</p>
     </div>
 
     <div>
       <h2 class="text-white text-2xl font-bold mb-3">8. Menores de edad</h2>
-      <p>Los datos de salud y las funciones de planes con inteligencia artificial son solo para personas mayores de 18 años. Las cuentas de menores no pueden registrar medidas, llenar la ficha de salud ni dar estas autorizaciones.</p>
+      <p>Los datos de salud, los planes con inteligencia artificial y los avisos por WhatsApp son solo para personas mayores de 18 años. Las cuentas de menores no pueden registrar medidas, llenar la ficha de salud, activar los avisos por WhatsApp ni dar estas autorizaciones.</p>
     </div>
 
     <div>
       <h2 class="text-white text-2xl font-bold mb-3">9. Seguridad</h2>
-      <p>Protegemos tus datos con conexión cifrada (HTTPS), contraseñas almacenadas de forma cifrada, control de acceso por roles, límite de intentos de ingreso, almacenamiento privado para los comprobantes y registro de los accesos a tu ficha de salud. Ningún sistema es infalible: si ocurre un incidente que afecte tus datos, actuaremos conforme a la ley.</p>
+      <p>Protegemos tus datos con conexión cifrada (HTTPS), contraseñas guardadas solo como un resumen irreversible (hash con sal), control de acceso por roles, límite de intentos de ingreso, almacenamiento privado para los comprobantes y registro de los accesos a tu ficha de salud. Ningún sistema es infalible: si ocurre un incidente que afecte tus datos, actuaremos conforme a la ley.</p>
     </div>
 
     <div>

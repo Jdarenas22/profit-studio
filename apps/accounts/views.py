@@ -99,6 +99,8 @@ def _canonical_username(typed):
     cuyo usuario coincide ignorando mayúsculas se usa el nombre guardado; si no, se deja lo escrito."""
     if not typed:
         return typed
+    if User.objects.filter(username=typed).exists():
+        return typed   # lo normal: coincide exacto y usa el índice del usuario (sin recorrer la tabla)
     names = list(User.objects.filter(username__iexact=typed).values_list('username', flat=True)[:2])
     return names[0] if len(names) == 1 else typed
 
