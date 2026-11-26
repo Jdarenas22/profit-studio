@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Política de privacidad — ProFit Studio{% endblock %}
+{% block description %}Cómo ProFit Studio recolecta, usa y protege tus datos personales y de salud, y cómo ejercer tus derechos.{% endblock %}
+
+{% comment %}
+Política de tratamiento de datos personales (Ley 1581 de 2012). Debe coincidir con los textos de
+consentimiento vigentes (salud, IA y WhatsApp). Pendiente de revisión por un abogado.
+{% endcomment %}
+
+{% block content %}
+
+<section class="py-16 bg-zinc-950 border-b border-white/5">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <p class="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Tus datos, tus derechos</p>
+    <h1 class="text-4xl sm:text-5xl font-black text-white mb-4">Política de privacidad</h1>
+    <p class="text-white/50">Política de tratamiento de datos personales de {{ controller.name }}. Última actualización: {{ controller.updated }}.</p>
+  </div>
+</section>
+
+<section class="py-12 bg-black">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 text-white/70 leading-relaxed">
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">1. Responsable del tratamiento</h2>
+      <p>{{ controller.name }}, NIT {{ controller.nit }}, es la responsable de tus datos personales. Para cualquier consulta, solicitud o reclamo sobre tus datos escribe a
+        <a href="mailto:{{ controller.email }}" class="text-primary hover:underline">{{ controller.email }}</a>.</p>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">2. Qué datos recolectamos</h2>
+      <ul class="list-disc pl-6 space-y-2">
+        <li><strong class="text-white">Datos de tu cuenta:</strong> nombre, usuario, correo electrónico, teléfono y contraseña (esta última se guarda cifrada, nunca en texto legible).</li>
+        <li><strong class="text-white">Membresía y pagos:</strong> plan, fechas, estado y pagos. Los pagos en línea los procesa Wompi; nosotros no vemos ni guardamos los datos de tu tarjeta. Los comprobantes de pagos manuales se guardan en un almacenamiento privado.</li>
+        <li><strong class="text-white">Datos de salud (sensibles):</strong> tus medidas corporales (peso, estatura, cintura, cadera, porcentaje de grasa) y la ficha de salud y alimentación que decidas llenar. Son datos sensibles y registrarlos es voluntario.</li>
+        <li><strong class="text-white">Entrenamiento:</strong> rutinas, planes de ejercicio y de alimentación, y tu seguimiento (días y comidas que marcas como cumplidos).</li>
+        <li><strong class="text-white">Autorizaciones y seguridad:</strong> el registro de qué aceptaste y cuándo, y un registro de los accesos a tu ficha de salud, sin su contenido.</li>
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">3. Para qué los usamos</h2>
+      <ul class="list-disc pl-6 space-y-2">
+        <li>Crear y administrar tu cuenta y tu membresía, y enviarte los correos necesarios (confirmar tu correo, crear o recuperar tu contraseña).</li>
+        <li>Que tu entrenador o entrenadora conozca tu punto de partida, haga seguimiento a tu progreso y personalice tus rutinas y recomendaciones.</li>
+        <li>Generar propuestas de plan de ejercicio y de alimentación con inteligencia artificial, <strong class="text-white">siempre revisadas y aprobadas por tu entrenador antes de que las veas</strong>, y solo si lo autorizas.</li>
+        <li>Enviarte avisos de tu cuenta por WhatsApp (vencimiento de la membresía, plan listo, confirmación de pagos), solo si lo autorizas. Estos avisos nunca incluyen datos de salud.</li>
+        <li>Cumplir obligaciones legales y proteger la seguridad de la plataforma.</li>
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">4. Quién accede a tus datos</h2>
+      <p>Los datos de salud solo los ven tu entrenador o entrenadora asignado y la administración de {{ controller.name }}. No los vendemos ni los compartimos con terceros para publicidad.</p>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">5. Proveedores que intervienen y transferencia al exterior</h2>
+      <p class="mb-3">Para prestar el servicio usamos proveedores que pueden tratar o almacenar datos en servidores fuera de Colombia, bajo medidas de seguridad razonables:</p>
+      <ul class="list-disc pl-6 space-y-2">
+        <li><strong class="text-white">Railway:</strong> alojamiento de la aplicación y de la base de datos.</li>
+        <li><strong class="text-white">Cloudflare R2:</strong> almacenamiento de archivos (fotos, imágenes y comprobantes).</li>
+        <li><strong class="text-white">Brevo:</strong> envío de correos de la cuenta.</li>
+        <li><strong class="text-white">Wompi:</strong> procesamiento de pagos en línea.</li>
+        <li><strong class="text-white">Google (Gemini):</strong> generación de propuestas de plan, solo con datos <em>sin identificar</em> (sin tu nombre, correo, teléfono ni usuario) y únicamente si lo autorizas.</li>
+        <li><strong class="text-white">Meta (WhatsApp):</strong> envío de avisos de la cuenta, solo si lo autorizas; tu número y los avisos se transmiten por WhatsApp.</li>
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">6. Tus derechos</h2>
+      <p class="mb-3">Como titular de los datos puedes:</p>
+      <ul class="list-disc pl-6 space-y-2">
+        <li>Conocer, actualizar y rectificar tus datos.</li>
+        <li>Pedir prueba de la autorización que nos diste.</li>
+        <li>Ser informada sobre el uso que damos a tus datos.</li>
+        <li>Revocar tu autorización y solicitar la supresión de tus datos, cuando no exista un deber legal o contractual de conservarlos.</li>
+        <li>Presentar quejas ante la Superintendencia de Industria y Comercio por infracciones a la ley de protección de datos.</li>
+      </ul>
+      <p class="mt-3">Desde tu cuenta puedes descargar o borrar tu ficha de salud y retirar tus autorizaciones. También puedes escribir a
+        <a href="mailto:{{ controller.email }}" class="text-primary hover:underline">{{ controller.email }}</a>. Responderemos las consultas en un máximo de 10 días hábiles (prorrogables por 5 más, avisándote el motivo) y los reclamos en un máximo de 15 días hábiles (prorrogables por 8 más).</p>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">7. Cuánto tiempo los conservamos</h2>
+      <p>Conservamos tus datos mientras tengas tu cuenta y el tiempo necesario para cumplir las finalidades anteriores. Si pides eliminar tu cuenta, borramos tus datos personales y de salud. Solo conservamos, sin tus datos personales, los registros que la ley o la contabilidad exigen (por ejemplo, pagos) y el historial de tus autorizaciones y de accesos, para poder demostrar el cumplimiento.</p>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">8. Menores de edad</h2>
+      <p>Los datos de salud y las funciones de planes con inteligencia artificial son solo para personas mayores de 18 años. Las cuentas de menores no pueden registrar medidas, llenar la ficha de salud ni dar estas autorizaciones.</p>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">9. Seguridad</h2>
+      <p>Protegemos tus datos con conexión cifrada (HTTPS), contraseñas almacenadas de forma cifrada, control de acceso por roles, límite de intentos de ingreso, almacenamiento privado para los comprobantes y registro de los accesos a tu ficha de salud. Ningún sistema es infalible: si ocurre un incidente que afecte tus datos, actuaremos conforme a la ley.</p>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">10. Cookies</h2>
+      <p>Usamos cookies necesarias para mantener tu sesión iniciada y proteger los formularios. No usamos cookies de publicidad.</p>
+    </div>
+
+    <div>
+      <h2 class="text-white text-2xl font-bold mb-3">11. Cambios a esta política</h2>
+      <p>Si cambiamos esta política de forma importante, publicaremos la nueva versión en esta página y, cuando se requiera tu autorización, te la pediremos de nuevo. La fecha de la última actualización aparece al inicio.</p>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}
