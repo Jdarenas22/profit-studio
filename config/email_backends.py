@@ -61,8 +61,8 @@ class BrevoEmailBackend(BaseEmailBackend):
             raise BrevoError('brevo_invalid_key') from None
 
     def verify(self):
-        """Comprueba la clave con GET /account: no envía nada (lo usa `check_infra --smtp`)."""
-        self._call('GET', '/account')
+        """Comprueba la clave con una lectura de correo transaccional (el permiso que sí necesita la app; una clave limitada no puede leer /account): no envía nada (lo usa `check_infra --smtp`)."""
+        self._call('GET', '/smtp/blockedContacts?limit=1')
 
     # ── Envío ──
     def _payload(self, message):

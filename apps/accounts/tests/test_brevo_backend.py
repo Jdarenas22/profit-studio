@@ -73,10 +73,10 @@ class BrevoBackendTests(SimpleTestCase):
                 send_mail('A', 'B', None, ['x@example.com'])
         urlopen.assert_not_called()
 
-    def test_verify_calls_account_and_sends_nothing(self):
+    def test_verify_reads_transactional_scope_and_sends_nothing(self):
         with mock.patch('config.email_backends.request.urlopen', return_value=FakeResponse()) as urlopen:
             BrevoEmailBackend().verify()
-        self.assertEqual(urlopen.call_args.args[0].full_url, 'https://api.brevo.com/v3/account')
+        self.assertEqual(urlopen.call_args.args[0].full_url, 'https://api.brevo.com/v3/smtp/blockedContacts?limit=1')
         self.assertEqual(urlopen.call_args.args[0].get_method(), 'GET')
 
     def test_the_invitation_helper_survives_a_brevo_failure(self):
