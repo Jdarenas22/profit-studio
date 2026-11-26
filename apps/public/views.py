@@ -31,6 +31,23 @@ def contact(request):
     return render(request, 'public/contact.html')
 
 
+# Datos del responsable del tratamiento: los mismos de los textos de consentimiento publicados
+# (Admin > Textos de consentimiento). Si cambian allí, cambian aquí.
+PRIVACY_CONTROLLER = {
+    'name': 'ProFit Studio',
+    'nit': '1036655253',
+    'email': 'jarenasb94@icloud.com',
+    'updated': '26 de noviembre de 2026',
+}
+
+
+@require_safe
+def privacy(request):
+    """Política de tratamiento de datos personales (Ley 1581 de 2012). Es la que enlazan los
+    consentimientos de salud, de IA y de WhatsApp (`PRIVACY_POLICY_URL`)."""
+    return render(request, 'public/privacy.html', {'controller': PRIVACY_CONTROLLER})
+
+
 @require_safe
 def service_worker(request):
     """Entrega el service worker de la PWA en `/sw.js` (la raíz).
