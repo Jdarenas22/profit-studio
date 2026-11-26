@@ -93,6 +93,16 @@ PENDING_LOGIN_MESSAGE = ('Tu cuenta todavía no está activa: falta confirmar tu
                          'que te enviamos o pide que te lo enviemos de nuevo.')
 
 
+def _canonical_username(typed):
+    """El usuario se guarda en minúsculas al crear la cuenta, pero el login distinguía mayúsculas: quien
+    escribía «Daniel2210» (o cuyo teclado la ponía en mayúscula) no entraba. Si hay exactamente una cuenta
+    cuyo usuario coincide ignorando mayúsculas se usa el nombre guardado; si no, se deja lo escrito."""
+    if not typed:
+        return typed
+    names = list(User.objects.filter(username__iexact=typed).values_list('username', flat=True)[:2])
+    return names[0] if len(names) == 1 else typed
+
+
 @sensitive_post_parameters(*PASSWORD_FIELDS)
 @sensitive_variables()
 def login_view(request):
@@ -103,6 +113,7 @@ def login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
+        username = _canonical_username(username)
         user = authenticate(request, username=username, password=password)
 
         if user:
