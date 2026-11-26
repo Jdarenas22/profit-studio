@@ -39,6 +39,7 @@ from . import ai, notifications, nutrition, services
 from .ai import prompts
 from .models import KIND_EXERCISE, KIND_NUTRITION, MealOption, PlanGenerationJob
 from .rules import energy as rules_energy
+from .rules import goals as rules_goals
 from .rules import meal_validate as rules_meal
 from .rules import validate as rules_validate
 from .rules import recipes
@@ -503,6 +504,20 @@ def _food_groups(rules):
     return {food_id: food.group for food_id, food in rules.foods.items()}
 
 
+def _goal_context(job, assessment):
+    """Lo que se sabe de la clienta para preferir unas recetas a otras: su objetivo, su IMC (última medida) y el
+    presupuesto de la ficha. Nada de esto cambia calorías, alimentos permitidos ni cantidades."""
+    from apps.assessments.services import latest_anthropometrics
+    anthropometrics = latest_anthropometrics(job.client)
+    bmi = None
+    if anthropometrics is not None and anthropometrics.weight and anthropometrics.height:
+        bmi = rules_goals.bmi_of(anthropometrics.weight, anthropometrics.height)
+    profile = assessment.profile
+    return rules_goals.GoalContext(
+        goal=job.client.training_goal or '', bmi=bmi, budget=getattr(profile, 'budget_level', '') or '',
+        activity_level=getattr(profile, 'activity_level', '') or '')
+
+
 def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_options, existing=(), avoid_names=(),
                            adaptation=None):
     """Elige `n_options` recetas para una comida. Con `ai_client=None` lo hace Python por reglas (sin red)."""
@@ -523,7 +538,8 @@ def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_optio
     if ai_client is None:
         # `offer` ya aplicó `avoid_names` y, si así no quedaba un grupo válido, decidió volver a la lista
         # completa. No se vuelve a excluir aquí: con la IA tampoco se hace y la alternativa fallaría.
-        chosen = recipes.select_options(weekly.rank_by_rules(recipe_options, _food_groups(rules)),
+        scores = rules_goals.score_options(recipe_options, rules.foods, _goal_context(job, assessment))
+        chosen = recipes.select_options(weekly.rank_by_rules(recipe_options, _food_groups(rules), scores),
                                         n_options, existing)
         if not chosen:
             raise JobFailed('recipes_unavailable')
@@ -565,6 +581,7 @@ def _run_nutrition(job, started):
         prepared.append((target, rules, offered))
 
     use_ai = _uses_ai_ranking()
+    goal_context = _goal_context(job, assessment)          # solo se usa con el orden por reglas
     client = ai.get_ai_client() if use_ai else None      # sin IA no se pide cliente ni se gasta cuota
     generated, model, names_by_day = [], '', {}
     for index, (target, rules, offered) in enumerate(prepared, start=1):
@@ -578,7 +595,8 @@ def _run_nutrition(job, started):
             model = model or result.model
             ranked = validation.data['options']
         else:
-            ranked = weekly.rank_by_rules(offered, _food_groups(rules))
+            ranked = weekly.rank_by_rules(offered, _food_groups(rules),
+                                          rules_goals.score_options(offered, rules.foods, goal_context))
         if adaptation is not None and adaptation.profile.liked_food_ids:
             liked = set(adaptation.profile.liked_food_ids)
             ranked = sorted(ranked, key=lambda row: -len(liked & {item['food_id'] for item in row['items']}))

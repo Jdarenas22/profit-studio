@@ -48,18 +48,25 @@ _BONUS_GROUPS = {'verduras': 1.0, 'frutas': 0.5, 'leguminosas': 0.5, 'tuberculos
 _PENALTY_GROUPS = {'azucares': -1.0, 'bebidas': -0.5}
 
 
-def rank_by_rules(options, food_groups):
+# Cuánto pesa el objetivo de la persona frente al puntaje por grupos de alimentos (que va de ~-1 a ~+3).
+GOAL_WEIGHT = 3.0
+
+
+def rank_by_rules(options, food_groups, goal_scores=None):
     """Ordena las recetas ofrecidas de la más a la menos recomendable, sin llamar a ninguna IA.
 
-    1. Puntaje por grupos de alimentos (`food_groups`: id de alimento -> código de grupo).
+    1. Puntaje por grupos de alimentos (`food_groups`: id de alimento -> código de grupo) más, si se da,
+       el puntaje por objetivo, medidas y ficha (`goal_scores`: nombre de receta -> -1..+1, de `goals.score_options`).
     2. Dentro de cada proteína principal se ordena por puntaje (a igualdad, conserva el orden de
        entrada, que ya viene barajado por trabajo).
     3. Se intercalan las proteínas por turnos (una de cada familia), para que las primeras posiciones
        no sean todas pollo; `schedule` termina de garantizar la variedad de los siete días.
 
     Devuelve las mismas recetas (nada se inventa ni se descarta) en el nuevo orden."""
+    goal_scores = goal_scores or {}
+
     def score(option):
-        total = 0.0
+        total = GOAL_WEIGHT * goal_scores.get(option['name'], 0.0)
         for item in option['items']:
             group = food_groups.get(item['food_id'])
             total += _BONUS_GROUPS.get(group, 0.0) + _PENALTY_GROUPS.get(group, 0.0)

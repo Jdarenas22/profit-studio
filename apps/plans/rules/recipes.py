@@ -14,7 +14,7 @@ from typing import NamedTuple
 
 from . import meal_validate as meal
 
-VERSION = 'everyday-world/3'
+VERSION = 'everyday-world/4'
 B = ('breakfast',)
 S = ('mid_morning', 'snack')
 M = ('lunch', 'dinner')
@@ -42,10 +42,11 @@ RECIPES = []
 PROTEIN_BY_NAME = {}        # nombre en minúsculas -> proteína principal (para las opciones ya existentes)
 
 
-def add(name, cuisine, slots, preparation, *ingredients, cooking='basic', main=None):
-    """`main` = alimento que define la proteína principal; por omisión, el primer ingrediente proteico."""
+def add(name, cuisine, slots, preparation, *ingredients, cooking='basic', main=None, family=None):
+    """`main` = alimento que define la proteína principal; por omisión, el primer ingrediente proteico.
+    `family` = etiqueta de la proteína principal cuando ninguno es de PROTEIN_FAMILY (avena, quinua, frutos secos...)."""
     lead = main or next((food for food, _low, _high in ingredients if food in PROTEIN_FAMILY), None)
-    family = PROTEIN_FAMILY.get(lead)
+    family = family or PROTEIN_FAMILY.get(lead)
     RECIPES.append((name, cuisine, slots, preparation, ingredients, cooking, family))
     PROTEIN_BY_NAME[name.casefold()] = family
 
@@ -422,6 +423,320 @@ add('Bowl de hummus, garbanzos y quinua', 'mediterránea', M,
     'Sirve la quinua con los garbanzos y el hummus, y acompaña con pepino y zanahoria rallada.',
     ('Hummus', 40, 120), ('Garbanzos cocidos', 100, 250), ('Quinua cocida', 60, 170),
     ('Pepino cohombro', 40, 100), ('Zanahoria cruda', 20, 80), cooking='none')
+
+# ─── Nuevas en everyday-world/4 ─────────────────────────────────────────────
+# Huecos medidos con scripts/recipe_coverage.py sobre los alimentos de PRODUCCIÓN (referencia USDA revisada):
+# desayunos y meriendas veganas y sin soya, sin huevo ni lácteos, sin gluten, meriendas ligeras con proteína y más
+# proteínas y guarniciones en almuerzos y cenas. `family` da la proteína principal cuando el plato no tiene una
+# de las de PROTEIN_FAMILY (avena, quinua, frutos secos...): así también cuentan para la variedad del día.
+
+# Desayunos
+add('Tortillas con fríjol negro, aguacate y tomate', 'mexicana inspirada', B,
+    'Calienta las tortillas y rellénalas con el fríjol negro, el aguacate en láminas y el tomate picado.',
+    ('Tortilla de maíz', 50, 130), ('Fríjol negro cocido', 100, 260), ('Aguacate', 25, 80), ('Tomate', 20, 70))
+add('Avena con bebida de almendras, almendras y chía', 'internacional', B + S,
+    'Hidrata la avena con la bebida de almendras en refrigeración. Al servir añade el banano, las almendras y la chía.',
+    ('Avena en hojuelas (cruda)', 40, 100), ('Bebida de almendras sin azúcar', 150, 350),
+    ('Almendras', 10, 35), ('Semillas de chía', 5, 15), ('Banano', 40, 130), cooking='none', family='avena')
+add('Gachas de quinua con manzana y nueces', 'internacional', B,
+    'Calienta la quinua con la bebida de almendras hasta que quede cremosa. Sirve con la manzana picada y las nueces.',
+    ('Quinua cocida', 120, 300), ('Bebida de almendras sin azúcar', 100, 250), ('Manzana', 40, 130),
+    ('Nueces', 10, 30), family='quinua')
+add('Tostadas con hummus, tomate y linaza', 'mediterránea', B + S,
+    'Tuesta el pan, úntalo con el hummus y cubre con rodajas de tomate y la linaza molida.',
+    ('Pan integral tajado', 40, 110), ('Hummus', 50, 150), ('Tomate', 30, 90), ('Linaza molida', 5, 15))
+add('Garbanzos con tortilla, tomate y aguacate', 'mexicana inspirada', B,
+    'Calienta los garbanzos con un poco de tomate. Sírvelos sobre las tortillas con el aguacate en láminas.',
+    ('Tortilla de maíz', 50, 120), ('Garbanzos cocidos', 80, 220), ('Tomate', 20, 70), ('Aguacate', 20, 70))
+add('Batata asada con fríjol rojo, espinaca y aguacate', 'cotidiana', B,
+    'Asa la batata en trozos y sírvela con el fríjol rojo caliente, la espinaca salteada y el aguacate.',
+    ('Batata (camote) cocida', 100, 250), ('Fríjol rojo cocido', 80, 220), ('Espinaca cocida', 20, 80),
+    ('Aguacate', 20, 70))
+add('Batido de banano, avena y maní con bebida de almendras', 'internacional', B + S,
+    'Licúa el banano con la avena, el maní y la bebida de almendras hasta que quede espeso.',
+    ('Banano', 60, 150), ('Avena en hojuelas (cruda)', 20, 60), ('Maní tostado sin sal', 15, 40),
+    ('Bebida de almendras sin azúcar', 150, 300), cooking='none', family='maní')
+add('Arroz con lentejas y espinaca', 'cotidiana', B,
+    'Mezcla el arroz caliente con las lentejas y la espinaca salteada en el aceite de oliva.',
+    ('Arroz blanco cocido', 80, 200), ('Lentejas cocidas', 80, 220), ('Espinaca cocida', 30, 100),
+    ('Aceite de oliva', 5, 10))
+add('Bowl de quinua, mango y nueces', 'internacional', B + S,
+    'Sirve la quinua tibia con el mango en cubos, las nueces y la chía por encima.',
+    ('Quinua cocida', 100, 250), ('Mango', 50, 150), ('Nueces', 10, 30), ('Semillas de chía', 5, 15),
+    family='quinua')
+add('Pan integral con maní molido y banano', 'cotidiana', B + S,
+    'Tuesta el pan y cubre con el maní molido, el banano en rodajas y un poco de chía.',
+    ('Pan integral tajado', 40, 110), ('Maní tostado sin sal', 15, 40), ('Banano', 40, 130),
+    ('Semillas de chía', 5, 10), family='maní')
+add('Calentado de ñame, fríjol negro y repollo', 'colombiana', B,
+    'Calienta el ñame en trozos con el fríjol negro en el aceite de oliva y sirve con repollo crudo en tiras.',
+    ('Ñame cocido', 100, 250), ('Fríjol negro cocido', 80, 220), ('Repollo crudo', 20, 80),
+    ('Aceite de oliva', 5, 10))
+add('Pan integral con atún, aguacate y tomate', 'cotidiana', B,
+    'Tuesta el pan y cúbrelo con el atún escurrido, el aguacate en láminas y el tomate.',
+    ('Pan integral tajado', 40, 110), ('Atún en agua (escurrido)', 60, 170), ('Aguacate', 20, 70),
+    ('Tomate', 30, 90))
+add('Tortillas con pollo, fríjol negro y aguacate', 'mexicana inspirada', B,
+    'Rellena las tortillas calientes con el pollo desmechado, el fríjol negro y el aguacate.',
+    ('Tortilla de maíz', 60, 150), ('Pechuga de pollo cocida sin piel', 80, 200), ('Fríjol negro cocido', 60, 180),
+    ('Aguacate', 20, 70))
+add('Arroz con pavo y espinaca', 'cotidiana', B,
+    'Saltea el pavo en tiras con la espinaca y mézclalo con el arroz caliente. Aliña con el aceite.',
+    ('Arroz blanco cocido', 80, 200), ('Pechuga de pavo cocida', 60, 170), ('Espinaca cocida', 30, 100),
+    ('Aceite de oliva', 5, 10))
+add('Batata con pollo desmechado y brócoli', 'cotidiana', B,
+    'Sirve la batata asada con el pollo desmechado, el brócoli al vapor y un chorrito de aceite.',
+    ('Batata (camote) cocida', 100, 250), ('Pechuga de pollo cocida sin piel', 70, 180), ('Brócoli cocido', 40, 120),
+    ('Aceite de oliva', 5, 10))
+add('Pan integral con pavo, aguacate y tomate', 'cotidiana', B,
+    'Arma el sándwich con el pavo, el aguacate en láminas y el tomate. Tuesta el pan si lo prefieres.',
+    ('Pan integral tajado', 40, 110), ('Pechuga de pavo cocida', 50, 150), ('Aguacate', 20, 70), ('Tomate', 30, 90))
+add('Bowl de quinua, atún y pepino', 'mediterránea', B,
+    'Sirve la quinua con el atún escurrido, el pepino en cubos y el aguacate.',
+    ('Quinua cocida', 100, 250), ('Atún en agua (escurrido)', 60, 160), ('Pepino cohombro', 30, 100),
+    ('Aguacate', 15, 60), cooking='none')
+add('Revuelto de huevo con champiñones y pan integral', 'internacional', B,
+    'Saltea los champiñones en el aceite, añade el huevo batido y cocina hasta que cuaje. Sirve con el pan.',
+    ('Huevo entero cocido', 60, 220), ('Champiñones', 40, 120), ('Pan integral tajado', 40, 110),
+    ('Aceite de oliva', 5, 15))
+add('Tortilla de huevo con espinaca y queso cottage', 'internacional', B,
+    'Prepara una tortilla con el huevo y la espinaca, rellénala con el queso cottage y sirve con la tortilla de maíz.',
+    ('Huevo entero cocido', 80, 220), ('Espinaca cocida', 30, 100), ('Queso cottage', 40, 130),
+    ('Tortilla de maíz', 40, 100))
+add('Avena con leche, banano y nueces', 'internacional', B,
+    'Cocina la avena con la leche hasta que espese. Sirve con el banano en rodajas y las nueces.',
+    ('Avena en hojuelas (cruda)', 40, 100), ('Leche semidescremada', 150, 350), ('Banano', 40, 130),
+    ('Nueces', 10, 30))
+add('Bowl de yogur griego, avena y fresas', 'internacional', B + S,
+    'Mezcla el yogur con la avena y deja reposar. Sirve con las fresas y la chía.',
+    ('Yogur griego natural', 120, 320), ('Avena en hojuelas (cruda)', 20, 60), ('Fresa', 50, 150),
+    ('Semillas de chía', 5, 15), cooking='none')
+add('Pan integral con mozzarella, pavo y tomate', 'cotidiana', B,
+    'Arma el sándwich con el queso, el pavo y el tomate, y caliéntalo en una sartén hasta que el queso se derrita.',
+    ('Pan integral tajado', 40, 110), ('Queso mozzarella semidescremado', 25, 70),
+    ('Pechuga de pavo cocida', 40, 120), ('Tomate', 30, 80))
+add('Quinua con leche, fresas y almendras', 'internacional', B,
+    'Calienta la quinua con la leche hasta que quede cremosa y sirve con las fresas y las almendras.',
+    ('Quinua cocida', 120, 280), ('Leche semidescremada', 100, 250), ('Fresa', 50, 140), ('Almendras', 10, 30))
+add('Batata con huevo y espinaca', 'cotidiana', B,
+    'Calienta la batata en trozos con la espinaca y acompaña con el huevo cocido picado.',
+    ('Batata (camote) cocida', 100, 250), ('Huevo entero cocido', 60, 180), ('Espinaca cocida', 30, 100),
+    ('Aceite de oliva', 5, 10))
+
+# Meriendas (media mañana y merienda)
+add('Atún con pepino y tomate', 'mediterránea', S,
+    'Mezcla el atún escurrido con el pepino y el tomate en cubos y aliña con el aceite de oliva.',
+    ('Atún en agua (escurrido)', 50, 130), ('Pepino cohombro', 40, 120), ('Tomate', 30, 90),
+    ('Aceite de oliva', 5, 10), cooking='none')
+add('Queso cottage con kiwi y chía', 'internacional', S,
+    'Sirve el queso cottage con el kiwi en cubos y la chía por encima.',
+    ('Queso cottage', 80, 220), ('Kiwi', 50, 150), ('Semillas de chía', 5, 15), cooking='none')
+add('Yogur griego con fresas y nueces', 'internacional', S,
+    'Sirve el yogur con las fresas picadas y las nueces.',
+    ('Yogur griego natural', 100, 280), ('Fresa', 50, 150), ('Nueces', 5, 25), cooking='none')
+add('Yogur natural con guayaba y almendras', 'cotidiana', S,
+    'Sirve el yogur con la guayaba en cubos y las almendras picadas.',
+    ('Yogur natural sin azúcar', 120, 300), ('Guayaba', 50, 150), ('Almendras', 5, 25), cooking='none')
+add('Pavo con pepino y aguacate', 'cotidiana', S,
+    'Corta el pavo en tiras y acompáñalo con el pepino en rodajas y el aguacate.',
+    ('Pechuga de pavo cocida', 50, 140), ('Pepino cohombro', 40, 120), ('Aguacate', 15, 50), cooking='none')
+add('Hummus con zanahoria y pepino', 'mediterránea', S,
+    'Sirve el hummus con palitos de zanahoria y pepino para mojar.',
+    ('Hummus', 50, 150), ('Zanahoria cruda', 50, 150), ('Pepino cohombro', 40, 120), cooking='none')
+add('Garbanzos con tomate y aceite de oliva', 'mediterránea', S,
+    'Mezcla los garbanzos con el tomate picado y aliña con el aceite de oliva.',
+    ('Garbanzos cocidos', 80, 220), ('Tomate', 30, 90), ('Aceite de oliva', 5, 15))
+add('Manzana con almendras', 'cotidiana', S,
+    'Sirve la manzana en cuñas con las almendras al lado.',
+    ('Manzana', 80, 220), ('Almendras', 10, 40), cooking='none', family='frutos secos')
+add('Banano con maní', 'cotidiana', S,
+    'Corta el banano en rodajas y acompáñalo con el maní.',
+    ('Banano', 60, 150), ('Maní tostado sin sal', 10, 40), cooking='none', family='maní')
+add('Pera con nueces y yogur natural', 'internacional', S,
+    'Sirve la pera en cubos con el yogur y las nueces por encima.',
+    ('Pera', 80, 200), ('Nueces', 5, 25), ('Yogur natural sin azúcar', 80, 220), cooking='none')
+add('Guayaba con maní y chía', 'cotidiana', S,
+    'Corta la guayaba en cubos y mezcla con el maní y la chía.',
+    ('Guayaba', 80, 220), ('Maní tostado sin sal', 10, 35), ('Semillas de chía', 5, 15),
+    cooking='none', family='maní')
+add('Ensalada de arveja, zanahoria y almendras', 'cotidiana', S,
+    'Mezcla la arveja con la zanahoria rallada y las almendras. Aliña con el aceite de oliva.',
+    ('Arveja verde cocida', 80, 220), ('Zanahoria cruda', 40, 120), ('Almendras', 10, 30),
+    ('Aceite de oliva', 5, 10), family='arveja')
+add('Mandarina con queso mozzarella', 'cotidiana', S,
+    'Sirve la mandarina en gajos con el queso en cubos.',
+    ('Mandarina', 80, 220), ('Queso mozzarella semidescremado', 20, 60), cooking='none')
+add('Queso cottage con piña y almendras', 'internacional', S,
+    'Sirve el queso cottage con la piña en cubos y las almendras picadas.',
+    ('Queso cottage', 80, 220), ('Piña', 80, 200), ('Almendras', 5, 20), cooking='none')
+add('Pavo enrollado en lechuga con aguacate', 'cotidiana', S,
+    'Enrolla el pavo en las hojas de lechuga con el aguacate y el tomate.',
+    ('Pechuga de pavo cocida', 50, 130), ('Lechuga', 20, 80), ('Aguacate', 15, 50), ('Tomate', 20, 60),
+    cooking='none')
+
+# Almuerzos y cenas: vegetarianas y veganas sin soya
+add('Lentejas con quinua y espinaca', 'cotidiana', M,
+    'Cocina las lentejas con la espinaca y sírvelas sobre la quinua. Aliña con el aceite de oliva.',
+    ('Lentejas cocidas', 100, 300), ('Quinua cocida', 80, 200), ('Espinaca cocida', 40, 120),
+    ('Aceite de oliva', 5, 15))
+add('Fríjol rojo con arroz integral y repollo', 'colombiana', M,
+    'Sirve el fríjol rojo caliente con el arroz integral, el repollo en tiras y el aguacate.',
+    ('Fríjol rojo cocido', 100, 280), ('Arroz integral cocido', 80, 220), ('Repollo crudo', 40, 120),
+    ('Aguacate', 20, 70))
+add('Garbanzos salteados con batata y brócoli', 'mediterránea', M,
+    'Saltea los garbanzos con la batata en trozos y el brócoli en el aceite de oliva.',
+    ('Garbanzos cocidos', 100, 260), ('Batata (camote) cocida', 80, 220), ('Brócoli cocido', 50, 140),
+    ('Aceite de oliva', 5, 15))
+add('Bowl de quinua, fríjol negro y aguacate', 'mexicana inspirada', M,
+    'Sirve la quinua con el fríjol negro, el aguacate en cubos y el tomate picado.',
+    ('Quinua cocida', 80, 220), ('Fríjol negro cocido', 80, 220), ('Aguacate', 25, 80), ('Tomate', 30, 90))
+add('Pasta con lentejas, tomate y espinaca', 'mediterránea', M,
+    'Saltea el tomate con la espinaca, añade las lentejas y mezcla con la pasta caliente.',
+    ('Pasta cocida', 100, 260), ('Lentejas cocidas', 80, 220), ('Tomate', 40, 120), ('Espinaca cocida', 30, 100),
+    ('Aceite de oliva', 5, 15))
+add('Arroz con arvejas, zanahoria y garbanzos', 'cotidiana', M,
+    'Saltea la zanahoria y las arvejas, añade los garbanzos y mezcla con el arroz caliente.',
+    ('Arroz blanco cocido', 100, 250), ('Arveja verde cocida', 50, 150), ('Zanahoria cruda', 30, 100),
+    ('Garbanzos cocidos', 80, 200), ('Aceite de oliva', 5, 15))
+add('Guiso de lentejas con ñame y zanahoria', 'colombiana', M,
+    'Cocina la cebolla en el aceite, añade el ñame, la zanahoria y las lentejas hasta que espese.',
+    ('Lentejas cocidas', 100, 280), ('Ñame cocido', 60, 180), ('Zanahoria cruda', 30, 100),
+    ('Cebolla cabezona', 20, 60), ('Aceite de oliva', 5, 15))
+add('Tortillas con hummus, garbanzos y verduras', 'mediterránea', M,
+    'Rellena las tortillas con el hummus, los garbanzos, la lechuga y el tomate.',
+    ('Tortilla de maíz', 80, 180), ('Hummus', 40, 120), ('Garbanzos cocidos', 60, 180), ('Lechuga', 20, 60),
+    ('Tomate', 30, 90))
+add('Ensalada tibia de lentejas, remolacha y nueces', 'mediterránea', M,
+    'Mezcla las lentejas tibias con la remolacha en cubos, la espinaca y las nueces. Aliña con el aceite.',
+    ('Lentejas cocidas', 100, 260), ('Remolacha cocida', 50, 150), ('Nueces', 10, 30), ('Espinaca cocida', 30, 90),
+    ('Aceite de oliva', 5, 10))
+add('Arroz integral con fríjol negro, calabacín y aguacate', 'latina', M,
+    'Saltea el calabacín en el aceite, mézclalo con el arroz y el fríjol negro y sirve con el aguacate.',
+    ('Arroz integral cocido', 80, 220), ('Fríjol negro cocido', 80, 220), ('Calabacín cocido', 40, 120),
+    ('Aguacate', 20, 70))
+
+# Almuerzos y cenas: más proteínas y guarniciones
+add('Pollo con quinua, espinaca y aguacate', 'cotidiana', M,
+    'Sirve el pollo a la plancha sobre la quinua con la espinaca salteada y el aguacate.',
+    ('Pechuga de pollo cocida sin piel', 80, 220), ('Quinua cocida', 80, 200), ('Espinaca cocida', 40, 120),
+    ('Aguacate', 20, 70))
+add('Pollo con arroz integral, brócoli y zanahoria', 'cotidiana', M,
+    'Sirve el pollo a la plancha con el arroz integral, el brócoli al vapor y la zanahoria rallada.',
+    ('Pechuga de pollo cocida sin piel', 80, 220), ('Arroz integral cocido', 80, 220), ('Brócoli cocido', 50, 140),
+    ('Zanahoria cruda', 20, 80))
+add('Pechuga de pollo con batata y habichuela', 'cotidiana', M,
+    'Asa la batata en trozos y sírvela con el pollo a la plancha y las habichuelas salteadas.',
+    ('Pechuga de pollo cocida sin piel', 80, 220), ('Batata (camote) cocida', 80, 220), ('Habichuela cocida', 50, 140),
+    ('Aceite de oliva', 5, 10))
+add('Pollo salteado con champiñones, arroz y calabacín', 'asiática inspirada', M,
+    'Saltea el pollo en tiras con los champiñones y el calabacín y sirve sobre el arroz.',
+    ('Pechuga de pollo cocida sin piel', 80, 220), ('Champiñones', 40, 120), ('Arroz blanco cocido', 80, 220),
+    ('Calabacín cocido', 40, 120), ('Aceite de oliva', 5, 10))
+add('Pavo con arroz, fríjol rojo y repollo', 'latina', M,
+    'Sirve el pavo en tiras con el arroz, el fríjol rojo caliente y el repollo en tiras.',
+    ('Pechuga de pavo cocida', 80, 220), ('Arroz blanco cocido', 80, 220), ('Fríjol rojo cocido', 50, 150),
+    ('Repollo crudo', 30, 100))
+add('Pavo con quinua y brócoli', 'cotidiana', M,
+    'Saltea el pavo en tiras con el brócoli y sírvelo sobre la quinua. Aliña con el aceite de oliva.',
+    ('Pechuga de pavo cocida', 80, 220), ('Quinua cocida', 80, 200), ('Brócoli cocido', 50, 140),
+    ('Aceite de oliva', 5, 10))
+add('Tilapia con batata y espinaca', 'cotidiana', M,
+    'Cocina la tilapia a la plancha y sírvela con la batata asada y la espinaca salteada.',
+    ('Tilapia cocida', 100, 260), ('Batata (camote) cocida', 80, 220), ('Espinaca cocida', 40, 120),
+    ('Aceite de oliva', 5, 10))
+add('Tilapia con quinua, tomate y aguacate', 'mediterránea', M,
+    'Sirve la tilapia a la plancha sobre la quinua con el tomate picado y el aguacate.',
+    ('Tilapia cocida', 100, 260), ('Quinua cocida', 80, 200), ('Tomate', 30, 100), ('Aguacate', 20, 70))
+add('Atún con arroz, arveja y zanahoria', 'cotidiana', M,
+    'Mezcla el atún escurrido con el arroz, la arveja y la zanahoria rallada. Aliña con el aceite de oliva.',
+    ('Atún en agua (escurrido)', 80, 200), ('Arroz blanco cocido', 80, 220), ('Arveja verde cocida', 40, 120),
+    ('Zanahoria cruda', 20, 80), ('Aceite de oliva', 5, 10), cooking='none')
+add('Camarones con quinua y brócoli', 'mediterránea', M,
+    'Saltea los camarones en el aceite de oliva y sírvelos sobre la quinua con el brócoli al vapor.',
+    ('Camarón cocido', 80, 220), ('Quinua cocida', 80, 200), ('Brócoli cocido', 50, 140),
+    ('Aceite de oliva', 5, 15))
+add('Camarones con arroz y habichuela', 'latina', M,
+    'Saltea los camarones con las habichuelas y sírvelos sobre el arroz caliente.',
+    ('Camarón cocido', 80, 220), ('Arroz blanco cocido', 80, 220), ('Habichuela cocida', 50, 140),
+    ('Aceite de oliva', 5, 15))
+add('Cerdo magro con arroz integral y coliflor', 'cotidiana', M,
+    'Sirve el lomo de cerdo en rebanadas con el arroz integral y la coliflor al vapor.',
+    ('Lomo de cerdo magro cocido', 80, 200), ('Arroz integral cocido', 80, 220), ('Coliflor cocida', 50, 140),
+    ('Aceite de oliva', 5, 10))
+add('Cerdo magro con batata y repollo', 'cotidiana', M,
+    'Sirve el lomo de cerdo en rebanadas con la batata asada y el repollo en tiras.',
+    ('Lomo de cerdo magro cocido', 80, 200), ('Batata (camote) cocida', 80, 220), ('Repollo crudo', 40, 120),
+    ('Aceite de oliva', 5, 10))
+add('Muslo de pollo con arroz y lentejas', 'latina', M,
+    'Sirve el muslo de pollo con el arroz, las lentejas calientes y un poco de tomate.',
+    ('Muslo de pollo cocido sin piel', 80, 220), ('Arroz blanco cocido', 80, 220), ('Lentejas cocidas', 50, 150),
+    ('Tomate', 30, 90))
+add('Pollo con pasta, tomate y espinaca', 'mediterránea', M,
+    'Saltea el pollo en tiras con el tomate y la espinaca y mézclalo con la pasta caliente.',
+    ('Pechuga de pollo cocida sin piel', 80, 220), ('Pasta cocida', 100, 260), ('Tomate', 40, 120),
+    ('Espinaca cocida', 30, 100), ('Aceite de oliva', 5, 15))
+add('Pavo con pasta y brócoli', 'mediterránea', M,
+    'Saltea el pavo en tiras con el brócoli y mézclalo con la pasta caliente y el aceite de oliva.',
+    ('Pechuga de pavo cocida', 80, 220), ('Pasta cocida', 100, 260), ('Brócoli cocido', 50, 140),
+    ('Aceite de oliva', 5, 15))
+add('Arroz con huevo, fríjol rojo y repollo', 'latina', M,
+    'Sirve el arroz con el fríjol rojo, el huevo cocido en rodajas y el repollo en tiras.',
+    ('Arroz blanco cocido', 80, 220), ('Huevo entero cocido', 60, 160), ('Fríjol rojo cocido', 60, 180),
+    ('Repollo crudo', 30, 100))
+add('Ensalada de pollo, garbanzos y pepino', 'mediterránea', M,
+    'Mezcla el pollo desmechado con los garbanzos, el pepino y el tomate. Aliña con el aceite de oliva.',
+    ('Pechuga de pollo cocida sin piel', 80, 200), ('Garbanzos cocidos', 60, 180), ('Pepino cohombro', 40, 120),
+    ('Tomate', 30, 90), ('Aceite de oliva', 5, 15))
+add('Ensalada de atún, arroz y aguacate', 'cotidiana', M,
+    'Mezcla el atún escurrido con el arroz frío, el aguacate en cubos y el pepino.',
+    ('Atún en agua (escurrido)', 80, 200), ('Arroz blanco cocido', 80, 220), ('Aguacate', 25, 80),
+    ('Pepino cohombro', 30, 100))
+add('Ensalada de camarón, quinua y pepino', 'mediterránea', M,
+    'Mezcla los camarones con la quinua fría, el pepino en cubos, el tomate y el aceite de oliva.',
+    ('Camarón cocido', 80, 220), ('Quinua cocida', 80, 200), ('Pepino cohombro', 30, 100), ('Tomate', 30, 90),
+    ('Aceite de oliva', 5, 15))
+add('Ensalada de pavo, garbanzos y espinaca', 'mediterránea', M,
+    'Mezcla el pavo en tiras con los garbanzos, la espinaca y el aceite de oliva.',
+    ('Pechuga de pavo cocida', 80, 200), ('Garbanzos cocidos', 60, 180), ('Espinaca cocida', 30, 100),
+    ('Aceite de oliva', 5, 15), cooking='none')
+add('Pollo asado con batata y calabacín', 'cotidiana', M,
+    'Asa el pollo con la batata en trozos y el calabacín en rodajas, con un poco de aceite de oliva.',
+    ('Pechuga de pollo cocida sin piel', 80, 220), ('Batata (camote) cocida', 80, 220), ('Calabacín cocido', 40, 120),
+    ('Aceite de oliva', 5, 10))
+add('Pollo con arroz, fríjol negro y aguacate', 'mexicana inspirada', M,
+    'Arma un plato con el arroz, el pollo desmechado, el fríjol negro y el aguacate en cubos.',
+    ('Pechuga de pollo cocida sin piel', 100, 250), ('Arroz blanco cocido', 100, 260), ('Fríjol negro cocido', 60, 180),
+    ('Aguacate', 25, 80))
+add('Atún con pasta, brócoli y aceite de oliva', 'mediterránea', M,
+    'Mezcla la pasta caliente con el atún escurrido y el brócoli y aliña con el aceite de oliva.',
+    ('Atún en agua (escurrido)', 80, 200), ('Pasta cocida', 100, 260), ('Brócoli cocido', 50, 140),
+    ('Aceite de oliva', 5, 15))
+add('Lentejas con batata y espinaca', 'cotidiana', B + M,
+    'Calienta las lentejas con la batata en trozos y la espinaca salteada en el aceite de oliva.',
+    ('Lentejas cocidas', 80, 240), ('Batata (camote) cocida', 80, 220), ('Espinaca cocida', 20, 90),
+    ('Aceite de oliva', 5, 10))
+add('Quinua con fríjol rojo y aguacate', 'latina', B + M,
+    'Mezcla la quinua con el fríjol rojo caliente y sirve con el aguacate en cubos y el tomate.',
+    ('Quinua cocida', 80, 220), ('Fríjol rojo cocido', 60, 200), ('Aguacate', 20, 70), ('Tomate', 20, 70))
+add('Arroz integral con garbanzos y tomate', 'mediterránea', B + M,
+    'Saltea los garbanzos con el tomate, mézclalos con el arroz integral y añade el aguacate.',
+    ('Arroz integral cocido', 80, 220), ('Garbanzos cocidos', 80, 220), ('Tomate', 20, 80), ('Aguacate', 15, 60))
+add('Ñame con lentejas y aguacate', 'colombiana', B + M,
+    'Sirve el ñame en trozos con las lentejas calientes, el aguacate y un poco de espinaca.',
+    ('Ñame cocido', 80, 220), ('Lentejas cocidas', 80, 220), ('Aguacate', 20, 70), ('Espinaca cocida', 20, 80))
+add('Tostadas con aguacate, garbanzos y semillas', 'internacional', B + S,
+    'Tuesta el pan, cubre con el aguacate aplastado y los garbanzos y termina con la linaza molida.',
+    ('Pan integral tajado', 40, 110), ('Garbanzos cocidos', 50, 150), ('Aguacate', 25, 80), ('Linaza molida', 5, 15),
+    family='garbanzo')
+add('Gachas de avena con bebida de almendras, pera y linaza', 'internacional', B,
+    'Cocina la avena con la bebida de almendras hasta que espese. Sirve con la pera en cubos, las nueces y la linaza.',
+    ('Avena en hojuelas (cruda)', 40, 100), ('Bebida de almendras sin azúcar', 150, 350), ('Pera', 40, 130),
+    ('Nueces', 10, 30), ('Linaza molida', 5, 20), family='avena')
+add('Pavo con batata y espinaca', 'cotidiana', M,
+    'Sirve el pavo a la plancha con la batata asada y la espinaca salteada.',
+    ('Pechuga de pavo cocida', 80, 220), ('Batata (camote) cocida', 80, 220), ('Espinaca cocida', 40, 120),
+    ('Aceite de oliva', 5, 10))
+
 
 
 # ─── Selección ────────────────────────────────────────────────────────────────

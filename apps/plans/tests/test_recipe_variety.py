@@ -49,7 +49,7 @@ def names(options):
 
 class CatalogTests(SimpleTestCase):
     def test_version_and_unique_names(self):
-        self.assertEqual(recipes.VERSION, 'everyday-world/3')
+        self.assertEqual(recipes.VERSION, 'everyday-world/4')
         lowered = [recipe[0].casefold() for recipe in recipes.RECIPES]
         self.assertEqual(len(lowered), len(set(lowered)))
 
