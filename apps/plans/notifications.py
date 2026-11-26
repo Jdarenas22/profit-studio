@@ -43,7 +43,8 @@ def _send(subject, body, recipients, what):
 
 def trainer_draft_ready(plan):
     _whatsapp_trainer_review(plan.client)
-    body = ('Hay un borrador de plan generado con IA para revisar.\n\n'
+    how = 'por reglas (sin IA)' if (getattr(plan, 'model_name', '') or '').startswith('rules/') else 'con IA'
+    body = (f'Hay un borrador de plan generado {how} para revisar.\n\n'
             f'Ábrelo en el panel: Planes por revisar ({reverse("trainer_plan_inbox")}).\n\n'
             'La clienta no verá nada hasta que lo apruebes.')
     return _send('ProFit Studio: hay un borrador para revisar', body, _trainer_recipients(plan.client), 'draft')

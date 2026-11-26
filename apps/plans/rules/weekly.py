@@ -77,7 +77,25 @@ def rank_by_rules(options, food_groups):
         for queue in families:
             if queue:
                 ranked.append(queue.pop(0))
-    return ranked
+    return _alternate(ranked)
+
+
+def _alternate(ranked):
+    """Reordena lo mínimo para que recetas seguidas no compartan cocina (ni proteína, si se puede). Mantiene el
+    orden de preferencia: cada puesto lo toma la primera receta pendiente que cumple; si ninguna cumple, baja
+    de exigencia (primero solo cocina distinta, luego solo proteína distinta, al final la siguiente sin más).
+    La `preparación` no se usa: es texto libre y distinto en cada receta."""
+    pending, result = list(ranked), []
+    while pending:
+        last = result[-1] if result else None
+        def fits(option, cuisine, protein):
+            return last is None or ((not cuisine or option.get('cuisine') != last.get('cuisine'))
+                                    and (not protein or option.get('main_protein') != last.get('main_protein')))
+        pick = next((option for cuisine, protein in ((True, True), (True, False), (False, True))
+                     for option in pending if fits(option, cuisine, protein)), pending[0])
+        pending.remove(pick)
+        result.append(pick)
+    return result
 
 
 def validate_ranking(data, options):

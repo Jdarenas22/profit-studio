@@ -121,8 +121,10 @@ def create_nutrition_draft(job, assessment, generated, *, model_name, prompt_ver
         )
         for position, option in zip(OPTION_POSITIONS, options):
             _save_option(slot, position, option, origin=MealOption.ORIGIN_AI)
+    by_rules = model_name.startswith('rules/')       # armado por reglas en Python, sin llamar a la IA
     PlanEvent.objects.create(plan=plan, actor=job.requested_by, action=PlanEvent.ACTION_CREATED,
-                             note='Borrador generado con IA' + (' (modo de prueba)' if is_simulated else ''))
+                             note=('Borrador generado por reglas (sin IA)' if by_rules else 'Borrador generado con IA')
+                                  + (' (modo de prueba)' if is_simulated else ''))
     parent = job.parent_plan
     if parent is not None and parent.status in Plan.PENDING_STATUSES:
         services._archive(parent, job.requested_by, 'Reemplazado por un borrador regenerado.')

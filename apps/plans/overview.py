@@ -120,9 +120,10 @@ def _origin(plan, parent_version):
     if plan.was_cloned:
         label = f'Copia de la versión {parent_version}' if parent_version else 'Copia de otra versión'
         return 'clone', label
+    how = 'por reglas' if (plan.model_name or '').startswith('rules/') else 'con IA'
     if parent_version:
-        return 'ai', f'Regenerado con IA (de la versión {parent_version})'
-    return 'ai', 'Generado con IA'
+        return 'ai', f'Regenerado {how} (de la versión {parent_version})'
+    return 'ai', f'Generado {how}'
 
 
 def plan_groups(client, client_active, today):

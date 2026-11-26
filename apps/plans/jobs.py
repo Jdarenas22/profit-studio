@@ -521,8 +521,10 @@ def _generate_slot_options(job, started, ai_client, assessment, slot, *, n_optio
     recipe_options = offered.options
     rules = replace(rules, recipes=tuple(recipe_options), distinct_protein=offered.distinct_protein)
     if ai_client is None:
+        # `offer` ya aplicó `avoid_names` y, si así no quedaba un grupo válido, decidió volver a la lista
+        # completa. No se vuelve a excluir aquí: con la IA tampoco se hace y la alternativa fallaría.
         chosen = recipes.select_options(weekly.rank_by_rules(recipe_options, _food_groups(rules)),
-                                        n_options, existing, avoid_names)
+                                        n_options, existing)
         if not chosen:
             raise JobFailed('recipes_unavailable')
         validated = rules_meal.validate_meal_slot({

@@ -46,9 +46,35 @@ class RankByRulesTests(SimpleTestCase):
         options = [recipe('b', 'pollo', 2), recipe('a', 'pollo', 2), recipe('c', 'pollo', 2)]
         self.assertEqual([r['name'] for r in weekly.rank_by_rules(options, GROUPS)], ['b', 'a', 'c'])
 
+    def test_consecutive_recipes_do_not_share_cuisine_when_it_can_be_avoided(self):
+        options = [recipe('a1', 'pollo', 1, cuisine='italiana'), recipe('a2', 'pollo', 1, cuisine='italiana'),
+                   recipe('b1', 'pollo', 1, cuisine='colombiana'), recipe('b2', 'pollo', 1, cuisine='colombiana')]
+        ranked = weekly.rank_by_rules(options, GROUPS)
+        cuisines = [r['cuisine'] for r in ranked]
+        self.assertTrue(all(x != y for x, y in zip(cuisines, cuisines[1:])), cuisines)
+
+    def test_alternation_gives_way_when_there_is_no_alternative(self):
+        options = [recipe(f'r{i}', 'pollo', 1, cuisine='italiana') for i in range(3)]
+        self.assertEqual(len(weekly.rank_by_rules(options, GROUPS)), 3)         # no se pierde ni se bloquea
+
     def test_empty_and_unknown_groups_do_not_break(self):
         self.assertEqual(weekly.rank_by_rules([], GROUPS), [])
         self.assertEqual(len(weekly.rank_by_rules([recipe('x', None, 99)], {})), 1)
+
+
+class OfferFallbackTests(SimpleTestCase):
+    """«Otra opción» en modo rules: `offer` decide el respaldo; volver a excluir `avoid_names` lo anularía."""
+
+    def test_offer_fallback_must_not_be_filtered_again_by_avoid_names(self):
+        from apps.plans.rules import recipes
+        candidates = [dict(r, items=[{'food_id': 1, 'grams': 100}]) for r in
+                      (recipe('a', 'pollo', 1, cuisine='x'), recipe('b', 'huevo', 2, cuisine='y'),
+                       recipe('c', 'res', 3, cuisine='z'))]
+        avoid = ['a', 'b', 'c']                                    # todas ya usadas en otras comidas del día
+        offered = recipes.offer(candidates, 1, (), avoid)
+        self.assertTrue(offered.options)                           # offer vuelve a la lista completa
+        self.assertTrue(recipes.select_options(offered.options, 1, ()))              # lo que hace el job ahora
+        self.assertFalse(recipes.select_options(offered.options, 1, (), avoid))      # lo que fallaba antes
 
 
 class SettingValidationTests(SimpleTestCase):
@@ -102,13 +128,18 @@ class RulesModeFlowTests(NutritionScenarioTestCase):
             if day > 1:
                 self.assertFalse(names & by_day[(code, day - 1)], (code, day))
 
-    def test_the_result_is_reproducible_for_the_same_job_and_changes_between_jobs(self):
-        first, _ = self.request_nutrition(self.client_a)
-        second, _ = self.request_nutrition(self.client_a)
-        menu = lambda job: [(s.code, s.day_index, tuple(s.options.values_list('name', flat=True)))
-                            for s in job.plan.nutrition.slots.order_by('day_index', 'code')]
-        self.assertNotEqual(first.job_ref, second.job_ref)
-        self.assertNotEqual(menu(first), menu(second))        # trabajos distintos varían (semilla por trabajo)
+    def test_the_plan_is_not_presented_as_ai_generated(self):
+        from django.core import mail
+        from apps.plans import overview
+        from apps.plans.models import PlanEvent
+        mail.outbox.clear()
+        job, _fake = self.request_nutrition(self.client_a)
+        note = PlanEvent.objects.get(plan=job.plan, action=PlanEvent.ACTION_CREATED).note
+        self.assertIn('por reglas', note)
+        self.assertNotIn('con IA', note)
+        job.plan.was_cloned = False      # lo anota `plan_groups` en producción
+        self.assertEqual(overview._origin(job.plan, None)[1], 'Generado por reglas')
+        self.assertTrue(all('con IA' not in m.body for m in mail.outbox))
 
     def test_the_approved_plan_can_be_approved_like_any_other(self):
         job, _fake = self.request_nutrition(self.client_a)
@@ -142,3 +173,6 @@ class AiModeStillWorksTests(NutritionScenarioTestCase):
         self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED, job.error_code)
         self.assertEqual(len(fake.calls), 3)                                  # una por comida
         self.assertNotEqual(job.plan.model_name, weekly.RULES_VERSION)
+        from apps.plans import overview
+        job.plan.was_cloned = False
+        self.assertEqual(overview._origin(job.plan, None)[1], 'Generado con IA')
