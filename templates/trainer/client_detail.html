@@ -128,7 +128,7 @@
       <div class="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 mb-4">
         <p class="text-xs text-primary font-semibold mb-0.5">Plan de interés</p>
         <p class="text-white text-sm font-bold">{{ client.interested_plan.name }}</p>
-        <p class="text-white/60 text-xs">${{ client.interested_plan.reference_price|floatformat:0 }} · {{ client.interested_plan.duration_days }} días</p>
+        <p class="text-white/60 text-xs">${{ client.interested_plan.reference_price|floatformat:"0g" }} · {{ client.interested_plan.duration_days }} días</p>
       </div>
       {% endif %}
 
@@ -393,7 +393,7 @@
         {% for p in payments %}
         <div class="flex items-center justify-between bg-black/30 rounded-xl px-4 py-3">
           <div>
-            <p class="text-white text-sm font-medium">${{ p.amount|floatformat:0 }}</p>
+            <p class="text-white text-sm font-medium">${{ p.amount|floatformat:"0g" }}</p>
             <p class="text-white/60 text-xs">{{ p.payment_date|date:"d/m/Y" }} · {{ p.method_label }}</p>
           </div>
           {% if p.plan %}

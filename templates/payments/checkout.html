@@ -25,13 +25,13 @@
           {% endif %}
         </div>
         <div class="text-right">
-          <p class="text-primary font-black text-3xl">${{ plan.reference_price|floatformat:0 }}</p>
+          <p class="text-primary font-black text-3xl">${{ plan.reference_price|floatformat:"0g" }}</p>
           <p class="text-white/60 text-xs">COP</p>
         </div>
       </div>
       <div class="border-t border-white/10 pt-4 flex justify-between items-center">
         <span class="text-white/50 text-sm">Total a pagar</span>
-        <span class="text-white font-black text-xl">${{ plan.reference_price|floatformat:0 }} COP</span>
+        <span class="text-white font-black text-xl">${{ plan.reference_price|floatformat:"0g" }} COP</span>
       </div>
     </div>
 

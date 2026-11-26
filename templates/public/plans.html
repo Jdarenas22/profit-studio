@@ -67,7 +67,7 @@
           <p class="text-primary text-xs font-semibold uppercase tracking-widest mb-2">{{ plan.name }}</p>
           <div class="flex items-baseline gap-1 mb-3">
             <span class="text-4xl font-black text-white">
-              ${{ plan.reference_price|floatformat:0 }}
+              ${{ plan.reference_price|floatformat:"0g" }}
             </span>
             <span class="text-white/60 text-sm">COP / {{ plan.duration_days }} días</span>
           </div>
