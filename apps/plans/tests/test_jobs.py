@@ -165,6 +165,15 @@ class AIFailureTests(PlanScenarioTestCase):
         self.assertEqual(len(fake.calls), 2)
         self.assertEqual(fake.calls[1]['payload']['previous_errors'], ['V02_IDS'])
 
+    def test_v07_retry_tells_the_ai_which_rule_failed(self):
+        job, fake = self.request(self.client_a, scenario=['wrong_count', 'ok'])
+        self.assertEqual(job.status, PlanGenerationJob.STATUS_SUCCEEDED)
+        sent = fake.calls[1]['payload']['previous_errors']
+        self.assertEqual(sent[0], 'V07_EXERCISE')
+        self.assertGreater(len(sent), 1)                      # además del código, el motivo fino
+        for code in sent:
+            self.assertRegex(code, r'^[A-Z0-9_]+$')           # el nivel gratuito solo deja pasar esto
+
     def test_two_validation_failures_fail_and_save_nothing(self):
         for scenario, code in (('forbidden_text', 'validation_failed:V08_TEXT'),
                                ('wrong_count', 'validation_failed:V07_EXERCISE'),

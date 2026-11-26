@@ -76,8 +76,62 @@ class ValidationResult:
         return tuple(seen)
 
     @property
+    def reasons(self):
+        """Motivos finos de V07 como códigos (`V07_REPS_FORMAT`, ...), para que el reintento le diga a la
+        IA QUÉ regla incumplió. Solo letras mayúsculas, números y guion bajo (el nivel gratuito no envía
+        nada más), sin datos personales ni texto de la IA."""
+        seen = []
+        for code, detail in self.errors:
+            if code != V07_EXERCISE:
+                continue
+            for needle, reason in _V07_REASONS:
+                if needle in detail and reason not in seen:
+                    seen.append(reason)
+                    break
+        return tuple(seen)
+
+    @property
+    def retry_codes(self):
+        """Lo que se le devuelve a la IA al reintentar: los códigos y, tras ellos, los motivos finos."""
+        return self.codes + self.reasons
+
+    @property
     def error_code(self):
         return f'validation_failed:{self.codes[0]}' if self.errors else ''
+
+
+# (fragmento del detalle, motivo fino). El orden importa: el primero que coincide.
+_V07_REASONS = (
+    ('días, se pidieron', 'V07_DAYS_COUNT'),
+    ('ejercicios (permitido', 'V07_PER_DAY_COUNT'),
+    ('ejercicio repetido', 'V07_REPEATED'),
+    ('.sets fuera', 'V07_SETS_RANGE'),
+    ('.reps con formato', 'V07_REPS_FORMAT'),
+    ('.rest_seconds fuera', 'V07_REST_RANGE'),
+)
+
+_DASHES_RE = re.compile(r'[‐-―−]')
+_REPS_RANGE_WORD_RE = re.compile(r'^(\d{1,2})\s*(?:a|to)\s*(\d{1,2})\b')
+_REPS_TRAILING_RE = re.compile(
+    r'\s*(?:repeticiones|repeticion|reps|rep|veces|por lado|por pierna|por brazo|cada lado|cada pierna|'
+    r'cada brazo|c/u|c/lado|x lado)\.?$')
+_REPS_SECONDS_RE = re.compile(r'^(\d{1,3})\s*(?:segundos|segundo|seg\.?|s)$')
+
+
+def normalize_reps(value):
+    """Arregla variaciones de FORMATO que no cambian el sentido («10 a 12», «12–15», «12 repeticiones»,
+    «12 por lado», «30 segundos»). No inventa nada: si después de esto no cumple `REPS_RE`, el
+    validador lo rechaza igual."""
+    text = _DASHES_RE.sub('-', clean_text(value).lower())
+    for _ in range(2):   # «12 repeticiones por lado»: quita cada sufijo, uno tras otro
+        stripped = _REPS_TRAILING_RE.sub('', text).strip()
+        if stripped == text:
+            break
+        text = stripped
+    text = _REPS_RANGE_WORD_RE.sub(r'\1-\2', text)
+    text = text.replace(' - ', '-')
+    seconds = _REPS_SECONDS_RE.match(text)
+    return f'{seconds.group(1)} seg' if seconds else text
 
 
 def normalize_for_search(text):
@@ -187,7 +241,7 @@ def validate_exercise_plan(data, rules):
                 errors.append((V01_SCHEMA, f'{where}.reps: no es texto'))
                 reps = ''
             else:
-                reps = clean_text(reps)
+                reps = normalize_reps(reps)
                 if not REPS_RE.match(reps):
                     errors.append((V07_EXERCISE, f'{where}.reps con formato no permitido'))
             if not _is_int(rest):
